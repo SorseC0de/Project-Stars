@@ -70,6 +70,7 @@ struct BoardView: View {
             dust(metrics: metrics)
             collectBurst(metrics: metrics)
             elementalBurst(metrics: metrics)
+            effectBurst(metrics: metrics)
 
             // Hides the instant the planes swap during an ascent.
             Rectangle()
@@ -160,6 +161,19 @@ struct BoardView: View {
         if session.zodiac == .gemini, plane == .astra {
             MirrorsView(metrics: metrics, accent: session.zodiac.definition.accentColor)
                 .frame(width: metrics.boardSize, height: metrics.boardSize)
+        }
+    }
+
+    /// A drawn effect strip, over the square that set it off.
+    @ViewBuilder
+    private func effectBurst(metrics: PixelArtMetrics) -> some View {
+        if let burst = session.effectBurst, burst.plane == session.visiblePlane {
+            EffectSpriteView(
+                effect: burst.effect,
+                tileSize: metrics.tileSize,
+                start: burst.start
+            )
+            .position(metrics.center(of: burst.center))
         }
     }
 

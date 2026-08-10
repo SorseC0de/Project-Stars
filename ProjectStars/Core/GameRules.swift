@@ -34,6 +34,12 @@ enum GameRules {
     /// Native pixel size of one tile's art. Drives integer sprite scaling.
     static let tilePixelSize = 16
 
+    /// Native pixel size of one imported effect frame.
+    ///
+    /// Four tiles across, which is why they are drawn scaled down — see
+    /// `GameRules.effectSpan`.
+    static let effectPixelSize = 64
+
     /// The centre square, where the Nexys island sits.
     static let nexysPoint = GridPoint(gridSize / 2, gridSize / 2)
 
@@ -981,6 +987,13 @@ enum GameRules {
 
     /// How long an elemental burst plays for. Purely cosmetic; the rule it
     /// illustrates has already resolved.
+    /// How wide a drawn effect strip is drawn, in tiles.
+    ///
+    /// The art is four tiles across at native size, which would swallow the
+    /// board. Two and a half reads as an effect happening *to* a square and its
+    /// neighbours rather than as a picture laid over the whole plane.
+    static let effectSpan: CGFloat = 2.5
+
     static let elementalBurstDuration: TimeInterval = 0.75
 
     // ──────────────────────────────────────────────────────────────────────

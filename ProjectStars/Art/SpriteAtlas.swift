@@ -177,6 +177,22 @@ enum SpriteAtlas {
             map[.tileDamage(plane, .hole)] = .cells(column: TileColumn.hole, row: row)
         }
 
+        // ── Effects ──────────────────────────────────────────────────────
+        // Each is its own strip rather than a region of the master sheet: they
+        // are 64px, they are long, and they arrive one file at a time. The whole
+        // slice is derived from the sprite, so importing another one is a case
+        // in `EffectSprite` and nothing here.
+        for effect in EffectSprite.allCases {
+            map[.effect(effect)] = SpriteSlice(
+                sheet: effect.assetName,
+                x: 0, y: 0,
+                width: GameRules.effectPixelSize,
+                height: GameRules.effectPixelSize,
+                frames: effect.frames,
+                frameDuration: effect.rate.frameDuration
+            )
+        }
+
         // ── Nexys ────────────────────────────────────────────────────────
         // 48x48. Its middle cell is the tile it stands on; the overhang is the
         // island's rim and the greenery spilling off it.

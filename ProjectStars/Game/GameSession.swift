@@ -132,6 +132,9 @@ final class GameSession {
     /// The elemental burst currently playing, if any. Presentation only.
     private(set) var elementalBurst: ElementalBurst?
 
+    /// A drawn effect strip currently playing, if any. See `EffectSprite`.
+    private(set) var effectBurst: EffectBurst?
+
     /// Sparkles flying off a Pentacle that was just opened.
     private(set) var collectBurst: ElementalBurst?
 
@@ -224,6 +227,7 @@ final class GameSession {
         lastCollectedPickup = nil
         pentacleBanner = nil
         elementalBurst = nil
+        effectBurst = nil
         collectBurst = nil
         smoke = nil
         cloudPoofs = []
@@ -453,6 +457,10 @@ final class GameSession {
             if let element = PickupCatalog.effect(for: id).element {
                 playBurst(element, at: point, on: plane)
             }
+            // And its drawn strip over the top, where one exists.
+            if let drawn = EffectSprite.pickup(for: id) {
+                playEffect(drawn, at: point, on: plane)
+            }
             withAnimation(.spring(response: 0.28, dampingFraction: 0.6)) {
                 engine.apply(event)
             }
@@ -487,6 +495,11 @@ final class GameSession {
 
         case let .zodiactionFired(zodiac, plane):
             summonSpectralHead(zodiac, on: plane)
+            // Signs whose Zodiaction has been drawn play it; the rest keep the
+            // spectral head and their programmatic burst alone.
+            if let drawn = EffectSprite.zodiaction(for: zodiac) {
+                playEffect(drawn, at: engine.piece.point, on: plane)
+            }
             withAnimation(.easeOut(duration: event.displayDuration)) {
                 engine.apply(event)
             }
@@ -923,7 +936,31 @@ struct ElementalBurst: Identifiable, Equatable {
     let start: Date
 }
 
+/// One drawn effect strip, playing.
+struct EffectBurst: Identifiable, Equatable {
+    let id = UUID()
+    let effect: EffectSprite
+    let center: GridPoint
+    let plane: Plane
+    let start: Date
+}
+
 extension GameSession {
+
+    /// Plays a drawn effect strip through once and clears it.
+    ///
+    /// The clean-up delay is cosmetic bookkeeping, not a game rule — whatever
+    /// the effect illustrates resolved the instant its events were applied.
+    func playEffect(_ effect: EffectSprite, at point: GridPoint, on plane: Plane) {
+        let burst = EffectBurst(effect: effect, center: point, plane: plane, start: .now)
+        effectBurst = burst
+
+        Task { [weak self] in
+            try? await Task.sleep(nanoseconds: UInt64(effect.duration * 1_000_000_000))
+            guard let self, self.effectBurst?.id == burst.id else { return }
+            self.effectBurst = nil
+        }
+    }
 
     /// Starts a burst and clears it once it has played out.
     ///

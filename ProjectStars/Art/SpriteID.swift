@@ -118,6 +118,11 @@ enum SpriteID: Hashable {
     /// The direction indicator in the input panel.
     case directionArrow(SwipeDirection)
 
+    // MARK: Effects
+
+    /// One of the imported 64px effect strips. See `EffectSprite`.
+    case effect(EffectSprite)
+
     // MARK: - Asset names
     //
     // Only used by the individual-image-set fallback; anything the atlas covers
@@ -151,6 +156,8 @@ enum SpriteID: Hashable {
             "cursor_warning"
         case let .directionArrow(direction):
             "arrow_\(direction.rawValue)"
+        case let .effect(effect):
+            effect.assetName
         }
     }
 }
@@ -209,6 +216,7 @@ extension SpriteID {
             CursorCorner.allCases.map { SpriteID.cursorCorner(tint, $0) }
         }
         ids += SwipeDirection.allCases.map { SpriteID.directionArrow($0) }
+        ids += EffectSprite.allCases.map { SpriteID.effect($0) }
         return ids
     }
 
