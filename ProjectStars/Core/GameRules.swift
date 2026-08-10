@@ -332,6 +332,17 @@ enum GameRules {
     /// Seconds a puff takes to expand and fade out.
     static let smokeDuration: TimeInterval = 0.42
 
+    /// How far into its own animation a puff begins, `0`…`1`.
+    ///
+    /// A puff spends its first frames small and thin, so even when it is fired
+    /// on exactly the same event as the thing it belongs to — a tile slamming
+    /// flat, a coin bursting — it reads as arriving late. Starting partway in
+    /// skips the ramp and lands the dust *with* the impact.
+    ///
+    /// Raise it to make dust hit harder and sooner; `0` restores the full
+    /// ramp-in.
+    static let smokeLeadIn: Double = 0.3
+
     /// How solid a puff is at its densest.
     static let smokeOpacity: Double = 0.95
 

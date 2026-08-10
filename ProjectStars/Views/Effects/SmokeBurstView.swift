@@ -44,10 +44,7 @@ struct SmokeBurstView: View {
 
     var body: some View {
         TimelineView(.animation) { timeline in
-            let progress = CGFloat(min(
-                max(timeline.date.timeIntervalSince(start) / GameRules.smokeDuration, 0),
-                1
-            ))
+            let progress = CGFloat(progress(at: timeline.date))
 
             Group {
                 if usesSprite {
@@ -63,6 +60,16 @@ struct SmokeBurstView: View {
             .frame(width: tileSize, height: tileSize)
         }
         .allowsHitTesting(false)
+    }
+
+    /// How far through its life the puff is, `0`…`1`.
+    ///
+    /// Offset by `GameRules.smokeLeadIn` so it begins partway in rather than
+    /// from nothing — see that constant for why.
+    private func progress(at date: Date) -> Double {
+        let elapsed = date.timeIntervalSince(start) / GameRules.smokeDuration
+        let lead = min(max(GameRules.smokeLeadIn, 0), 0.95)
+        return min(max(lead + elapsed * (1 - lead), 0), 1)
     }
 
     /// Whether the hand-drawn puff fits this landing.
