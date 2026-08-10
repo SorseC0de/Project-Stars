@@ -76,6 +76,6 @@ struct EffectSpriteView: View {
     /// Points per art pixel at the size this is being drawn, so the bloom is
     /// measured in the art's own units rather than in screen points.
     private var artScale: CGFloat {
-        side / CGFloat(GameRules.effectPixelSize)
+        side / CGFloat(effect.pixelSize)
     }
 }

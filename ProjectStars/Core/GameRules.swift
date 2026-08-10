@@ -1043,6 +1043,12 @@ enum GameRules {
     static let chargeFlashDuration: TimeInterval = 0.3
     static let chargeFlashStrength: Double = 0.85
 
+    /// How long each square of a crab walk waits before its bubbles come up.
+    ///
+    /// Paced against the hop rather than the art: the three should be underway
+    /// by the time the piece has finished crossing them.
+    static let crabWalkStagger: TimeInterval = 0.08
+
     /// How many squares a hop must cover to count as a leap worth drawing —
     /// Sagittarius' full bound rather than any long step.
     static let longJumpDistance = 3

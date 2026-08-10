@@ -186,8 +186,8 @@ enum SpriteAtlas {
             map[.effect(effect)] = SpriteSlice(
                 sheet: effect.assetName,
                 x: 0, y: 0,
-                width: GameRules.effectPixelSize,
-                height: GameRules.effectPixelSize,
+                width: effect.pixelSize,
+                height: effect.pixelSize,
                 frames: effect.frames,
                 frameDuration: effect.rate.frameDuration
             )

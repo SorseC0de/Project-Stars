@@ -244,6 +244,9 @@ private extension EffectSprite {
         switch self {
         case .ariesZodiaction: "Aries — Blaze Path trail"
         case .astralBlaze: "Astral Blaze"
+        case .explosion: "Explosion (unassigned)"
+        case .crabWalk: "Cancer — Crab Walk"
+        case .waterSplash: "Splash (unassigned)"
         case .astralBloom: "Astral Blossom"
         case .leoPridefulLanding: "Leo — Prideful Landing"
         case .leoZodiactionOne: "Leo — Sun (layer 1)"

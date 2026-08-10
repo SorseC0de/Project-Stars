@@ -53,12 +53,21 @@ enum EffectSprite: String, CaseIterable, Hashable {
     /// Sagittarius' long jump. 8 frames.
     case sagittariusJump
 
+    /// Unassigned. 28 frames, 96px — a dark plume with fire at its heart.
+    case explosion
+
     // MARK: Earth
 
     /// The Pentacle, not a sign. 16 frames.
     case astralBloom
 
     // MARK: Water
+
+    /// The bubbles Cancer's crab walk kicks up. 16 frames.
+    case crabWalk
+
+    /// Unassigned. 10 frames, 48px.
+    case waterSplash
 
     /// Cancer's Zodiaction — Astral Bastion — and its alternate. 22 frames each.
     case cancerZodiaction
@@ -74,9 +83,10 @@ enum EffectSprite: String, CaseIterable, Hashable {
         switch self {
         case .ariesZodiaction, .astralBlaze, .leoPridefulLanding,
              .leoZodiactionOne, .leoZodiactionTwo, .leoZodiactionSummon,
-             .fireMisc, .sagittariusJump:
+             .fireMisc, .sagittariusJump, .explosion:
             .fire
-        case .cancerZodiaction, .cancerZodiactionAlternate, .libraZodiaction:
+        case .cancerZodiaction, .cancerZodiactionAlternate, .libraZodiaction,
+             .crabWalk, .waterSplash:
             .water
         case .astralBloom:
             .earth
@@ -88,6 +98,9 @@ enum EffectSprite: String, CaseIterable, Hashable {
         switch self {
         case .ariesZodiaction: "aries_zaction"
         case .astralBlaze: "astralblaze"
+        case .explosion: "explosion"
+        case .crabWalk: "crabwalk"
+        case .waterSplash: "splash"
         case .astralBloom: "astralbloom"
         case .leoPridefulLanding: "leo_pridefullanding"
         case .leoZodiactionOne: "leo_zaction1"
@@ -109,12 +122,28 @@ enum EffectSprite: String, CaseIterable, Hashable {
 
     // MARK: - How it plays
 
+    /// The native size of one frame, in pixels.
+    ///
+    /// Not all of these are 64: the strips come from different sources and were
+    /// authored at whatever size suited them. Keeping the real number means the
+    /// atlas slices correctly and the bloom is measured in the art's own units,
+    /// rather than everything being forced onto one grid it was never drawn on.
+    var pixelSize: Int {
+        switch self {
+        case .explosion: 96
+        case .waterSplash: 48
+        default: GameRules.effectPixelSize
+        }
+    }
+
     /// How many frames the strip holds.
     var frames: Int {
         switch self {
         case .ariesZodiaction, .sagittariusJump: 8
         case .fireMisc, .leoZodiactionSummon: 9
-        case .astralBlaze: 10
+        case .astralBlaze, .waterSplash: 10
+        case .crabWalk: 16
+        case .explosion: 28
         case .astralBloom: 16
         case .leoPridefulLanding: 11
         case .leoZodiactionOne, .leoZodiactionTwo,
@@ -137,6 +166,9 @@ enum EffectSprite: String, CaseIterable, Hashable {
         // The Essence plumes are the whole story of what a coin just did to the
         // board, and at 15fps they were over before the eye found them.
         case .astralBlaze, .astralBloom: .fps12
+        // Long strips of dissipating smoke: at 15 the tail crawls.
+        case .explosion: .fps20
+        case .crabWalk, .waterSplash: .fps15
         default: frames >= 20 ? .fps24 : .fps15
         }
     }
@@ -157,6 +189,7 @@ enum EffectSprite: String, CaseIterable, Hashable {
         case .ariesZodiaction, .astralBlaze, .sagittariusJump: 8
         case .fireMisc: 6
         case .cancerZodiaction, .cancerZodiactionAlternate: 2
+        case .explosion, .crabWalk, .waterSplash: 4
         case .leoPridefulLanding: 0
         // Authored centred, so it needs no lift at all.
         case .astralBloom: 0
@@ -193,6 +226,12 @@ enum EffectSprite: String, CaseIterable, Hashable {
     /// tile. Defaults to `GameRules.effectSpan`.
     var span: CGFloat {
         switch self {
+        // Drawn at 96px against everything else's 64, and an explosion should
+        // look like one.
+        case .explosion: 2.4
+        // Under the piece's feet, not around it.
+        case .crabWalk: 1.2
+        case .waterSplash: 1.0
         default: GameRules.effectSpan
         }
     }
@@ -241,6 +280,14 @@ enum EffectSprite: String, CaseIterable, Hashable {
     static func landing(for zodiac: Zodiac) -> EffectSprite? {
         switch zodiac {
         case .leo: .leoPridefulLanding
+        default: nil
+        }
+    }
+
+    /// The strip a sign throws when it walks sideways without turning.
+    static func sidestep(for zodiac: Zodiac) -> EffectSprite? {
+        switch zodiac {
+        case .cancer: .crabWalk
         default: nil
         }
     }

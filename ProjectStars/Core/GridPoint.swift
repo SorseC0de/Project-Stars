@@ -53,6 +53,22 @@ struct GridPoint: Hashable, Codable, CustomStringConvertible {
     /// Does not bounds-check — callers filter against the board they care about.
     /// The 3x3 shape several abilities work over (Taurus' Heavy Flop, Astral
     /// Blaze and Blossom) is `neighbourhood(includingSelf: true)`.
+    /// Every square from here to `end` inclusive, in order.
+    ///
+    /// Straight lines and diagonals only — one step per square, taken along both
+    /// axes at once where they differ. Anything else returns just the two ends,
+    /// since there is no single path between them to name.
+    func line(to end: GridPoint) -> [GridPoint] {
+        let dx = end.x - x, dy = end.y - y
+        let steps = Swift.max(abs(dx), abs(dy))
+        guard steps > 0 else { return [self] }
+        guard dx == 0 || dy == 0 || abs(dx) == abs(dy) else { return [self, end] }
+
+        return (0...steps).map {
+            GridPoint(x + dx.signum() * $0, y + dy.signum() * $0)
+        }
+    }
+
     func neighbourhood(includingSelf: Bool = false) -> [GridPoint] {
         var points: [GridPoint] = []
         for dy in -1...1 {

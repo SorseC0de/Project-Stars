@@ -526,6 +526,20 @@ final class GameSession {
             hopCount += 1
             hopStartedAt = .now
 
+            // The crab's two-square scuttle bubbles up on every square it
+            // crosses, one after another, so the effect travels with it rather
+            // than appearing all at once where it stopped.
+            if hopDistance >= 2, let drawn = EffectSprite.sidestep(for: zodiac) {
+                for (step, point) in from.line(to: to).enumerated() {
+                    playEffect(
+                        drawn,
+                        at: point,
+                        on: plane,
+                        delay: Double(step) * GameRules.crabWalkStagger
+                    )
+                }
+            }
+
             // Their full three-tile bound, thrown from the square pushed off.
             // Not any long move: a two-square sidestep is not the leap this
             // draws.
@@ -1046,12 +1060,27 @@ extension GameSession {
     ///
     /// The clean-up delay is cosmetic bookkeeping, not a game rule — whatever
     /// the effect illustrates resolved the instant its events were applied.
-    func playEffect(_ effect: EffectSprite, at point: GridPoint, on plane: Plane) {
-        let burst = EffectBurst(effect: effect, center: point, plane: plane, start: .now)
+    /// - Parameter delay: Seconds to wait before it starts. `EffectSpriteView`
+    ///   draws nothing before its start date, so a delayed burst simply sits
+    ///   there — no scheduling, and it still clears itself on time.
+    func playEffect(
+        _ effect: EffectSprite,
+        at point: GridPoint,
+        on plane: Plane,
+        delay: TimeInterval = 0
+    ) {
+        let burst = EffectBurst(
+            effect: effect,
+            center: point,
+            plane: plane,
+            start: .now.addingTimeInterval(delay)
+        )
         effectBursts.append(burst)
 
         Task { [weak self] in
-            try? await Task.sleep(nanoseconds: UInt64(effect.duration * 1_000_000_000))
+            try? await Task.sleep(
+                nanoseconds: UInt64((delay + effect.duration) * 1_000_000_000)
+            )
             self?.effectBursts.removeAll { $0.id == burst.id }
         }
     }
