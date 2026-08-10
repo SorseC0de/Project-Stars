@@ -70,6 +70,15 @@ struct LeoPridefulPlant: ZodiacPassive {
 /// Pentacle one square toward itself every move — shortest path, diagonals
 /// included, so the coin cuts across the board rather than walking it.
 ///
+/// ## The name
+///
+/// > The word aten originally meant "disk," "orb," or "sphere" in the ancient
+/// > Egyptian language.
+///
+/// An object, in other words, and only later the name of a sun god. Disk, orb
+/// and sphere are all exactly what this places on the board, which is why the
+/// name is not a deity reference and should not be "corrected" into one.
+///
 /// ## What it does not do
 ///
 /// It never fills a hole. A hole is not damage to a tile, it is the absence of
