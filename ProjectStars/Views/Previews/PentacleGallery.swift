@@ -30,6 +30,13 @@ struct PentaclePreview: View {
     /// Which plane's tiles to draw it on.
     var plane: Plane = .astra
 
+    /// Whether the centre tile is raised.
+    ///
+    /// Switchable so the raise itself can be watched, not just its end state —
+    /// on Astra the cloud walks a colour ramp on the way up and back down, and
+    /// a preview that is always raised only ever shows it once, on appear.
+    var isRaised: Bool = true
+
     /// Rendered size of one cell, in points.
     var tileSize: CGFloat = 64
 
@@ -70,16 +77,25 @@ struct PentaclePreview: View {
                 plane: plane,
                 shade: .at(point),
                 size: tileSize,
-                isPopped: isCentre
+                isPopped: isCentre && isRaised,
+                point: point
             )
-            .offset(y: isCentre ? -GameRules.tilePopLift * scale : 0)
+            .offset(y: isCentre && isRaised ? -GameRules.tilePopLift * scale : 0)
+            .animation(
+                .spring(response: GameRules.tilePopResponse, dampingFraction: 0.72),
+                value: isRaised
+            )
         }
     }
 
     private var coin: some View {
         PentacleView(appearance: appearance, size: tileSize, scale: scale)
             .position(position(of: centre))
-            .offset(y: -GameRules.tilePopLift * scale)
+            .offset(y: isRaised ? -GameRules.tilePopLift * scale : 0)
+            .animation(
+                .spring(response: GameRules.tilePopResponse, dampingFraction: 0.72),
+                value: isRaised
+            )
     }
 
     // MARK: - Layout
@@ -124,6 +140,7 @@ struct PentacleGallery: View {
 
     @State private var appearance: PentacleAppearance = .standard
     @State private var plane: Plane = .astra
+    @State private var isRaised = true
 
     var body: some View {
         VStack(spacing: 20) {
@@ -132,7 +149,12 @@ struct PentacleGallery: View {
                 .tracking(4)
                 .foregroundStyle(Palette.textSecondary)
 
-            PentaclePreview(appearance: appearance, plane: plane, tileSize: 72)
+            PentaclePreview(
+                appearance: appearance,
+                plane: plane,
+                isRaised: isRaised,
+                tileSize: 72
+            )
 
             VStack(spacing: 12) {
                 Picker("Coin", selection: $appearance) {
@@ -148,6 +170,12 @@ struct PentacleGallery: View {
                     }
                 }
                 .pickerStyle(.segmented)
+
+                Toggle(isOn: $isRaised) {
+                    Text("RAISED")
+                        .font(.system(size: 10, weight: .bold, design: .monospaced))
+                        .foregroundStyle(Palette.textSecondary)
+                }
 
                 Text(appearance.previewNote)
                     .font(.system(size: 9, design: .monospaced))
