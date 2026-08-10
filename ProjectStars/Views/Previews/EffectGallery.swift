@@ -214,11 +214,8 @@ enum GalleryEffect: Hashable {
             EffectSprite.cancerBastion.map { Layer(effect: $0, delay: 0) }
 
         case .leoSun:
-            // The summon plays, then the sun follows it.
-            [Layer(effect: .leoZodiactionSummon, delay: 0)]
-                + EffectSprite.leoSun.map {
-                    Layer(effect: $0, delay: EffectSprite.leoZodiactionSummon.duration)
-                }
+            // All three at once, which is how `SunView` draws it.
+            (EffectSprite.leoSun + [.leoZodiactionSummon]).map { Layer(effect: $0, delay: 0) }
         }
     }
 
@@ -235,7 +232,7 @@ enum GalleryEffect: Hashable {
     var previewName: String {
         switch self {
         case .cancerBastion: "Cancer — Astral Bastion (stacked)"
-        case .leoSun: "Leo — Sun (summon + stack)"
+        case .leoSun: "Leo — Sun (all three stacked)"
         case let .single(effect): effect.previewName
         }
     }
@@ -247,6 +244,7 @@ private extension EffectSprite {
         switch self {
         case .ariesZodiaction: "Aries — Blaze Path trail"
         case .astralBlaze: "Astral Blaze"
+        case .astralBloom: "Astral Blossom"
         case .leoPridefulLanding: "Leo — Prideful Landing"
         case .leoZodiactionOne: "Leo — Sun (layer 1)"
         case .leoZodiactionTwo: "Leo — Sun (layer 2)"

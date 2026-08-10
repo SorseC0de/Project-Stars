@@ -223,14 +223,6 @@ enum GameRules {
     /// How many squares the Pentacle is dragged each move the sun burns.
     static let sunPullPerMove = 1
 
-    /// The frames of the sun strip that repeat while it burns.
-    ///
-    /// Everything before `sunLoopStart` is it arriving, everything from
-    /// `sunLoopEnd` on is it going out, and the middle covers a duration nobody
-    /// knew when the art was drawn. Both are indices into a 22-frame strip.
-    static let sunLoopStart = 6
-    static let sunLoopEnd = 16
-
     /// How bright the sun is on its final move, so its last turn is visible as
     /// its last turn.
     static let sunGuttering: Double = 0.55

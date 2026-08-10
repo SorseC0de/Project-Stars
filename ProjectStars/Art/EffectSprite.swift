@@ -53,6 +53,11 @@ enum EffectSprite: String, CaseIterable, Hashable {
     /// Sagittarius' long jump. 8 frames.
     case sagittariusJump
 
+    // MARK: Earth
+
+    /// The Pentacle, not a sign. 16 frames.
+    case astralBloom
+
     // MARK: Water
 
     /// Cancer's Zodiaction — Astral Bastion — and its alternate. 22 frames each.
@@ -73,6 +78,8 @@ enum EffectSprite: String, CaseIterable, Hashable {
             .fire
         case .cancerZodiaction, .cancerZodiactionAlternate, .libraZodiaction:
             .water
+        case .astralBloom:
+            .earth
         }
     }
 
@@ -81,6 +88,7 @@ enum EffectSprite: String, CaseIterable, Hashable {
         switch self {
         case .ariesZodiaction: "aries_zaction"
         case .astralBlaze: "astralblaze"
+        case .astralBloom: "astralbloom"
         case .leoPridefulLanding: "leo_pridefullanding"
         case .leoZodiactionOne: "leo_zaction1"
         case .leoZodiactionTwo: "leo_zaction2"
@@ -107,6 +115,7 @@ enum EffectSprite: String, CaseIterable, Hashable {
         case .ariesZodiaction, .sagittariusJump: 8
         case .fireMisc, .leoZodiactionSummon: 9
         case .astralBlaze: 10
+        case .astralBloom: 16
         case .leoPridefulLanding: 11
         case .leoZodiactionOne, .leoZodiactionTwo,
              .cancerZodiaction, .cancerZodiactionAlternate, .libraZodiaction: 22
@@ -125,6 +134,9 @@ enum EffectSprite: String, CaseIterable, Hashable {
         // slower on purpose: two identical strips in lockstep read as one
         // doubled-up drawing, while a beat between them reads as depth.
         case .cancerZodiaction: .fps15
+        // The Essence plumes are the whole story of what a coin just did to the
+        // board, and at 15fps they were over before the eye found them.
+        case .astralBlaze, .astralBloom: .fps12
         default: frames >= 20 ? .fps24 : .fps15
         }
     }
@@ -144,8 +156,10 @@ enum EffectSprite: String, CaseIterable, Hashable {
         switch self {
         case .ariesZodiaction, .astralBlaze, .sagittariusJump: 8
         case .fireMisc: 6
-        case .cancerZodiaction, .cancerZodiactionAlternate: 4
+        case .cancerZodiaction, .cancerZodiactionAlternate: 2
         case .leoPridefulLanding: 0
+        // Authored centred, so it needs no lift at all.
+        case .astralBloom: 0
         case .leoZodiactionOne, .leoZodiactionTwo, .leoZodiactionSummon,
              .libraZodiaction: 0
         }
@@ -207,6 +221,22 @@ enum EffectSprite: String, CaseIterable, Hashable {
     /// The lower one also runs slower — see `rate`.
     static let cancerBastion: [EffectSprite] = [.cancerZodiaction, .cancerZodiactionAlternate]
 
+    /// Which bubble a sheltered square wears.
+    ///
+    /// One per square rather than both stacked: layered, the two strips are near
+    /// enough identical that the pair read as one drawing at slightly wrong
+    /// opacity. Split across the chequer they do visible work — the Bastion
+    /// picks up the board's own alternation instead of flattening it.
+    ///
+    /// Which of the two is darker was measured, not guessed: `cancer_zaction`
+    /// averages 0.71 luminance over its lit pixels against `_v2`'s 0.87.
+    static func bastionBubble(on shade: Palette.TileShade) -> EffectSprite {
+        switch shade {
+        case .dark: .cancerZodiaction
+        case .light: .cancerZodiactionAlternate
+        }
+    }
+
     /// The strip a sign throws on a hard landing, *instead of* the dust.
     static func landing(for zodiac: Zodiac) -> EffectSprite? {
         switch zodiac {
@@ -230,6 +260,7 @@ enum EffectSprite: String, CaseIterable, Hashable {
     static func pickup(for id: PickupID) -> EffectSprite? {
         switch id {
         case .astralBlaze: .astralBlaze
+        case .astralBlossom: .astralBloom
         default: nil
         }
     }

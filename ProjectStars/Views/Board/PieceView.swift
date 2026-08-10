@@ -56,13 +56,13 @@ struct PieceView: View {
     /// off-screen. The shadow deliberately does not move with it.
     var dropOffset: CGFloat = 0
 
-    /// How hard the piece is currently flashing its element's colour, `0`…`1`.
-    /// Driven by charge gain — see `GameSession.chargeFlashStartedAt`.
-    var chargeFlash: Double = 0
-
     /// Size of the shadow relative to its resting size. Swells from small to
     /// full as a falling piece nears the ground.
     var shadowScale: CGFloat = 1
+
+    /// How hard the piece is currently flashing its element's colour, `0`…`1`.
+    /// Driven by charge gain — see `GameSession.chargeFlashStartedAt`.
+    var chargeFlash: Double = 0
 
     var body: some View {
         ZStack {

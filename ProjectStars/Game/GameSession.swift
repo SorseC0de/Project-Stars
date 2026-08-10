@@ -142,6 +142,12 @@ final class GameSession {
     /// is not flashing.
     private(set) var chargeFlashStartedAt: Date?
 
+    /// The strip owed to the tiles the Pentacle just opened is about to change.
+    ///
+    /// Set when the coin opens and spent on the `.tilesChanged` that follows it.
+    /// A coin knows what it looks like; only its events know what it touched.
+    private var pluming: EffectSprite?
+
     /// Sparkles flying off a Pentacle that was just opened.
     private(set) var collectBurst: ElementalBurst?
 
@@ -235,6 +241,7 @@ final class GameSession {
         pentacleBanner = nil
         elementalBurst = nil
         effectBursts = []
+        pluming = nil
         chargeFlashStartedAt = nil
         collectBurst = nil
         smoke = nil
@@ -401,6 +408,22 @@ final class GameSession {
             }
             await sleep(GameRules.planeRestoreDuration)
 
+        case let .tilesChanged(plane, changes):
+            // One plume per square an Essence just rearranged.
+            if let plume = pluming {
+                pluming = nil
+                for point in changes.keys {
+                    playEffect(plume, at: point, on: plane)
+                }
+            }
+            disperseClouds(in: changes, on: plane)
+            flashingTiles.formUnion(changes.keys)
+            withAnimation(.easeOut(duration: GameRules.areaEffectDuration)) {
+                engine.apply(event)
+            }
+            await sleep(event.displayDuration)
+            flashingTiles.subtract(changes.keys)
+
         case let .tilesWornOnExit(plane, changes):
             // Blaze Path charges its damage to the square being left, and this
             // is the fire doing it — on each tile, as it burns, rather than at
@@ -482,10 +505,10 @@ final class GameSession {
             if let element = PickupCatalog.effect(for: id).element {
                 playBurst(element, at: point, on: plane)
             }
-            // And its drawn strip over the top, where one exists.
-            if let drawn = EffectSprite.pickup(for: id) {
-                playEffect(drawn, at: point, on: plane)
-            }
+            // Its drawn strip is *not* played here. An Essence's plume belongs
+            // on the ground it changed, which is not known until the effect's
+            // own events arrive — see `.tilesChanged` below.
+            pluming = EffectSprite.pickup(for: id)
             withAnimation(.spring(response: 0.28, dampingFraction: 0.6)) {
                 engine.apply(event)
             }

@@ -30,6 +30,7 @@ extension ZodiacCatalog {
 
         passives: [
             CancerSidestepInstinct(),
+            CancerCrabWalk(),
             CancerHomeboundSurge(),
             CancerHeavenlyHoarder(),
         ],
@@ -61,6 +62,28 @@ struct CancerSidestepInstinct: ZodiacPassive {
         case .astra: return travelled >= 1 ? 1 : 0
         case .terra: return travelled >= 2 ? 1 : 0
         }
+    }
+}
+
+/// The crab does not turn to walk.
+///
+/// Scuttling the full two squares sideways leaves Cancer looking exactly where
+/// it was looking. Not decoration: facing decides where Leo's sun hangs, which
+/// way Libra's arms reach, and what counts as sideways next move — so keeping it
+/// is a real advantage, and the reason it is restricted to the committed
+/// two-square walk rather than every step.
+struct CancerCrabWalk: ZodiacPassive {
+
+    let displayName = "Crab Walk"
+    let summary = "Astra & Terra: a full 2-tile sidestep does not change the way you are facing."
+
+    func retainsFacing(
+        direction: SwipeDirection,
+        option: MovementPattern.MoveOption,
+        context: PassiveContext
+    ) -> Bool {
+        guard option.distance >= 2 else { return false }
+        return context.facing.perpendicular.contains(direction)
     }
 }
 
@@ -224,23 +247,22 @@ struct SanctuaryView: View {
     private func bubbles(at now: TimeInterval) -> some View {
         ZStack {
             ForEach(points, id: \.self) { point in
-                ForEach(Array(EffectSprite.cancerBastion.enumerated()), id: \.offset) { layer, effect in
-                    // The lower bubble runs slower *and* starts later. Rate
-                    // alone still lets them meet at the top of every cycle.
-                    // Two lags at once: the lower bubble trails the upper one,
-                    // and every square trails every other. Nine bubbles in
-                    // lockstep read as one animation stamped nine times.
-                    let lag = Double(EffectSprite.cancerBastion.count - 1 - layer)
-                        * GameRules.sanctuaryLayerStagger
-                        + Self.offset(of: point) * effect.duration
-                    let frame = Int(max(now - lag, 0) / effect.rate.frameDuration) % effect.frames
-                    let side = metrics.tileSize * GameRules.sanctuaryTileSpan
+                // The dark bubble on dark squares, the light one on light.
+                // Stacked, the two strips are near enough identical that the
+                // pair read as one drawing at slightly wrong opacity; split
+                // across the chequer they pick up the board's own alternation.
+                let effect = EffectSprite.bastionBubble(on: .at(point))
 
-                    PixelSprite(id: .effect(effect), frame: frame) { EmptyView() }
-                        .frame(width: side, height: side)
-                        .offset(y: -effect.groundLift * metrics.scale)
-                        .position(metrics.center(of: point))
-                }
+                // Every square on its own phase: bubbles in lockstep read as one
+                // animation stamped nine times.
+                let lag = Self.offset(of: point) * effect.duration
+                let frame = Int(max(now - lag, 0) / effect.rate.frameDuration) % effect.frames
+                let side = metrics.tileSize * GameRules.sanctuaryTileSpan
+
+                PixelSprite(id: .effect(effect), frame: frame) { EmptyView() }
+                    .frame(width: side, height: side)
+                    .offset(y: -effect.groundLift * metrics.scale)
+                    .position(metrics.center(of: point))
             }
         }
     }

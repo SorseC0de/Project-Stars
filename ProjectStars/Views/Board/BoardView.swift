@@ -51,6 +51,7 @@ struct BoardView: View {
                 let pose = hopPose(at: timeline.date)
                 let arrival = arrivalProgress(at: timeline.date)
                 let sway = cloudSway(at: timeline.date, metrics: metrics)
+                let flash = chargeFlash(at: timeline.date)
                 let ascent = ascentPose(at: timeline.date, metrics: metrics)
                 let travel = nexysTravelPose(at: timeline.date, metrics: metrics)
                 objects(
@@ -61,7 +62,8 @@ struct BoardView: View {
                     arrival: arrival,
                     ascent: ascent,
                     travel: travel,
-                    sway: sway
+                    sway: sway,
+                    flash: flash
                 )
             }
 
@@ -336,7 +338,8 @@ struct BoardView: View {
         arrival: CGFloat,
         ascent: AscentPose,
         travel: AscentPose,
-        sway: CGSize
+        sway: CGSize,
+        flash: Double
     ) -> some View {
         ZStack {
             ForEach(BoardObject.draw(objectsOnBoard(plane: plane)), id: \.kind) { object in
@@ -364,7 +367,8 @@ struct BoardView: View {
                         pose: pose,
                         arrival: arrival,
                         ascent: ascent,
-                        sway: sway
+                        sway: sway,
+                        flash: flash
                     )
                 }
             }
@@ -470,7 +474,8 @@ struct BoardView: View {
         pose: HopPose,
         arrival: CGFloat,
         ascent: AscentPose,
-        sway: CGSize
+        sway: CGSize,
+        flash: Double
     ) -> some View {
         // Falls under gravity rather than at a constant rate: squaring the
         // progress makes it accelerate into the ground.
@@ -499,7 +504,8 @@ struct BoardView: View {
             pose: pose,
             spin: session.fallSpin,
             dropOffset: dropOffset,
-            shadowScale: shadowScale
+            shadowScale: shadowScale,
+            chargeFlash: flash
         )
         // Island and passenger travel as one object during an ascent.
         .scaleEffect(ascent.scale)
