@@ -31,9 +31,8 @@ struct SpriteSlice: Equatable {
 
     /// Seconds per frame. Ignored when `frames == 1`.
     ///
-    /// Set this from `GameRules.spriteFrameDuration(hold:)` rather than as a
-    /// literal — see the sprite frame-rate block in `GameRules` for why the
-    /// hold, not the duration, is the number worth naming.
+    /// Set this from a `SpriteRate` rather than as a literal — see that type for
+    /// why the hold, not the duration, is the number worth naming.
     let frameDuration: TimeInterval
 
     init(
@@ -41,7 +40,7 @@ struct SpriteSlice: Equatable {
         x: Int, y: Int,
         width: Int, height: Int,
         frames: Int = 1,
-        frameDuration: TimeInterval = GameRules.spriteFrameDuration(hold: GameRules.defaultFrameHold)
+        frameDuration: TimeInterval = GameRules.defaultSpriteRate.frameDuration
     ) {
         self.sheet = sheet
         self.x = x
@@ -64,7 +63,7 @@ struct SpriteSlice: Equatable {
         width: Int = 1,
         height: Int = 1,
         frames: Int = 1,
-        frameDuration: TimeInterval = GameRules.spriteFrameDuration(hold: GameRules.defaultFrameHold)
+        frameDuration: TimeInterval = GameRules.defaultSpriteRate.frameDuration
     ) -> SpriteSlice {
         let cell = GameRules.tilePixelSize
         return SpriteSlice(
@@ -203,7 +202,7 @@ enum SpriteAtlas {
             column: 0, row: 0,
             width: 3, height: 3,
             frames: 8,
-            frameDuration: GameRules.spriteFrameDuration(hold: GameRules.pentacleFrameHold)
+            frameDuration: GameRules.pentacleRate.frameDuration
         )
 
         // TODO: Polaris is a 16x16 cell among the gold stars around columns
@@ -220,7 +219,7 @@ enum SpriteAtlas {
                 column: 0, row: 0,
                 width: 2, height: 2,
                 frames: GameRules.smokeFrameCount,
-                frameDuration: GameRules.smokeFrameDuration
+                frameDuration: GameRules.smokeRate.frameDuration
             )
         }
 

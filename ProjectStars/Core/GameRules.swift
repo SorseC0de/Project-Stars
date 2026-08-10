@@ -331,50 +331,31 @@ enum GameRules {
 
     // MARK: - Sprite frame rates
     //
-    // Every animated sprite gets its own rate, and every one is expressed as
-    // **game frames held per art frame** at 60fps rather than as a duration.
-    //
-    // That is the unit pixel-art animation is authored in: 12fps is "hold each
-    // frame for five ticks", not "0.08333 seconds". Writing the seconds back
-    // out is how a hand-timed animation drifts a frame here and there and stops
-    // matching the source it was drawn against. `spriteFrameDuration(hold:)`
-    // does the conversion once, in one place.
-    //
-    // Hold → rate: 1 = 60fps · 2 = 30 · 3 = 20 · 4 = 15 · 5 = 12 · 6 = 10 ·
-    // 10 = 6 · 12 = 5.
+    // One rate per animation, chosen from `SpriteRate` — see that type for why
+    // it is a closed set and why the hold, not the duration, is the number worth
+    // naming.
 
-    /// The clock every hold is measured against.
+    /// The clock every rate is measured against.
     static let spriteFramesPerSecond = 60
 
-    /// Seconds one art frame is on screen, given how many game frames it holds.
-    static func spriteFrameDuration(hold: Int) -> TimeInterval {
-        TimeInterval(max(hold, 1)) / TimeInterval(spriteFramesPerSecond)
-    }
+    /// What an animation runs at when it has not asked for a rate.
+    static let defaultSpriteRate = SpriteRate.fps12
 
-    /// What an animation runs at when it has not asked for a rate. **12fps**,
-    /// which is the house style — anything faster stops reading as pixel art.
-    static let defaultFrameHold = 5
+    /// Landing dust. Matches the GameMaker build.
+    static let smokeRate = SpriteRate.fps12
 
-    /// Landing dust. **12fps**, matching the GameMaker build.
-    static let smokeFrameHold = 5
-
-    /// The Pentacle coin's glint. **12fps**.
-    static let pentacleFrameHold = 5
+    /// The Pentacle coin's glint.
+    static let pentacleRate = SpriteRate.fps12
 
     /// Frames in a landing puff's sheet.
     static let smokeFrameCount = 5
 
-    /// Seconds each smoke frame is on screen.
-    static var smokeFrameDuration: TimeInterval {
-        spriteFrameDuration(hold: smokeFrameHold)
-    }
-
     /// Seconds a puff takes to play through.
     ///
-    /// Derived from the frame rate rather than set independently, so the sprite
-    /// and the scatter that stands in for it always last exactly as long.
+    /// Derived from the rate rather than set independently, so the sprite and
+    /// the scatter that stands in for it always last exactly as long.
     static var smokeDuration: TimeInterval {
-        smokeFrameDuration * TimeInterval(smokeFrameCount)
+        smokeRate.duration(frames: smokeFrameCount)
     }
 
     /// How far into its own animation a puff begins, `0`…`1`.
