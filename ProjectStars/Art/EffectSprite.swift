@@ -126,11 +126,6 @@ enum EffectSprite: String, CaseIterable, Hashable {
     /// How long one play-through takes.
     var duration: TimeInterval { rate.duration(frames: frames) }
 
-    /// The effect that belongs to a sign's Zodiaction, if one has been drawn.
-    ///
-    /// The lookup rather than a switch at the call site: one place decides which
-    /// sign owns which strip, and the eight signs with nothing drawn yet simply
-    /// return `nil` and keep their programmatic burst.
     /// The effect that belongs to a Pentacle, if one has been drawn.
     ///
     /// Only Astral Blaze so far. The other three Essences keep the shader burst
@@ -142,6 +137,11 @@ enum EffectSprite: String, CaseIterable, Hashable {
         }
     }
 
+    /// The effect that belongs to a sign's Zodiaction, if one has been drawn.
+    ///
+    /// A lookup rather than a switch at the call site: one place decides which
+    /// sign owns which strip, and the eight signs with nothing drawn yet simply
+    /// return `nil` and keep their programmatic burst.
     static func zodiaction(for zodiac: Zodiac) -> EffectSprite? {
         switch zodiac {
         case .aries: .ariesZodiaction
