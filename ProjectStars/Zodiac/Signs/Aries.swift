@@ -26,7 +26,19 @@ extension ZodiacCatalog {
             AriesChargingRam(),
             AriesBlazePathCarrier(),
         ],
-        zodiaction: AriesBlazePath()
+        zodiaction: AriesBlazePath(),
+        constellation: ZodiacCatalog.ariesConstellation
+    )
+
+    /// ♈ Aries: the short hooked line of Hamal, Sheratan and Mesarthim.
+    static let ariesConstellation = Constellation(
+        stars: [
+            Constellation.Star(-1.05, -0.45, -0.30, 0.7),
+            Constellation.Star(-0.25, -0.10,  0.10, 0.9),
+            Constellation.Star( 0.55,  0.35,  0.25, 1.4),
+            Constellation.Star( 1.05,  0.70, -0.15, 1.0),
+        ],
+        lines: [(0, 1), (1, 2), (2, 3)]
     )
 }
 

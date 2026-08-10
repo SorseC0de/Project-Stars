@@ -164,7 +164,7 @@ final class GameSession {
     private(set) var warpBeam: WarpBeam?
 
     /// The apparition summoned by a Zodiaction, if one is on screen.
-    private(set) var spectralHead: SpectralSummon?
+    private(set) var constellation: ConstellationSummon?
 
     /// Whether the pause menu is up. Blocks all input while it is.
     private(set) var isPaused = false
@@ -247,7 +247,7 @@ final class GameSession {
         smoke = nil
         cloudPoofs = []
         warpBeam = nil
-        spectralHead = nil
+        constellation = nil
         isPaused = false
         flashingTiles = []
 
@@ -578,7 +578,7 @@ final class GameSession {
             await sleep(event.displayDuration)
 
         case let .zodiactionFired(zodiac, plane):
-            summonSpectralHead(zodiac, on: plane)
+            summonConstellation(zodiac, on: plane)
             // Signs whose Zodiaction has been drawn play it; the rest keep the
             // spectral head and their programmatic burst alone.
             for layer in EffectSprite.zodiaction(for: zodiac) {
@@ -954,10 +954,10 @@ extension GameSession {
     }
 }
 
-// MARK: - Spectral heads
+// MARK: - Constellations
 
-/// An apparition hanging over the piece.
-struct SpectralSummon: Identifiable, Equatable {
+/// A sign written in the air over the piece.
+struct ConstellationSummon: Identifiable, Equatable {
     let id = UUID()
     let zodiac: Zodiac
     let plane: Plane
@@ -966,17 +966,17 @@ struct SpectralSummon: Identifiable, Equatable {
 
 extension GameSession {
 
-    /// Raises the sign's apparition and clears it once it has faded.
-    func summonSpectralHead(_ zodiac: Zodiac, on plane: Plane) {
-        let summon = SpectralSummon(zodiac: zodiac, plane: plane, start: .now)
-        spectralHead = summon
+    /// Writes the sign in the air and clears it once it has faded.
+    func summonConstellation(_ zodiac: Zodiac, on plane: Plane) {
+        let summon = ConstellationSummon(zodiac: zodiac, plane: plane, start: .now)
+        constellation = summon
 
         Task { [weak self] in
             try? await Task.sleep(
-                nanoseconds: UInt64(GameRules.spectralHeadDuration * 1_000_000_000)
+                nanoseconds: UInt64(GameRules.constellationDuration * 1_000_000_000)
             )
-            guard let self, self.spectralHead?.id == summon.id else { return }
-            self.spectralHead = nil
+            guard let self, self.constellation?.id == summon.id else { return }
+            self.constellation = nil
         }
     }
 }

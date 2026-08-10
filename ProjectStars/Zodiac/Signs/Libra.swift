@@ -26,7 +26,20 @@ extension ZodiacCatalog {
             LibraBalancedImpact(),
             LibraPerfectBalance(),
         ],
-        zodiaction: LibraRebalance()
+        zodiaction: LibraRebalance(),
+        constellation: ZodiacCatalog.libraConstellation
+    )
+
+    /// ♎ Libra: the beam and its two pans.
+    static let libraConstellation = Constellation(
+        stars: [
+            Constellation.Star(-0.95,  0.35,  0.20, 1.2),
+            Constellation.Star( 0.00,  0.85,  0.00, 1.0),
+            Constellation.Star( 0.95,  0.30, -0.20, 1.2),
+            Constellation.Star(-0.75, -0.65,  0.25, 0.8),
+            Constellation.Star( 0.80, -0.70, -0.25, 0.8),
+        ],
+        lines: [(0, 1), (1, 2), (0, 3), (2, 4), (0, 2)]
     )
 }
 

@@ -48,6 +48,10 @@ struct ZodiacDefinition: Identifiable {
     /// Also varies by plane.
     let zodiaction: any Zodiaction
 
+    /// The sign written in stars, drawn in the air above the piece when its
+    /// Zodiaction fires. See `Constellation`.
+    let constellation: Constellation
+
     // MARK: Presentation
 
     /// Stand-in colour for the piece sprite, and the sign's accent throughout
@@ -76,7 +80,8 @@ struct ZodiacDefinition: Identifiable {
         accentColor: Color,
         movement: MovementPattern = .cardinalStep,
         passives: [any ZodiacPassive] = [PlaceholderPassive()],
-        zodiaction: any Zodiaction = PlaceholderZodiaction()
+        zodiaction: any Zodiaction = PlaceholderZodiaction(),
+        constellation: Constellation = .placeholder
     ) {
         self.sign = sign
         self.displayName = displayName
@@ -86,5 +91,6 @@ struct ZodiacDefinition: Identifiable {
         self.movement = movement
         self.passives = passives
         self.zodiaction = zodiaction
+        self.constellation = constellation
     }
 }

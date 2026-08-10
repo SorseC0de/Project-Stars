@@ -34,7 +34,20 @@ extension ZodiacCatalog {
             CancerHomeboundSurge(),
             CancerHeavenlyHoarder(),
         ],
-        zodiaction: CancerZodiaction()
+        zodiaction: CancerZodiaction(),
+        constellation: ZodiacCatalog.cancerConstellation
+    )
+
+    /// ♋ Cancer: the faint upturned Y of Asellus and Acubens.
+    static let cancerConstellation = Constellation(
+        stars: [
+            Constellation.Star( 0.00, -0.20,  0.00, 1.0),
+            Constellation.Star(-0.15,  0.55,  0.20, 0.8),
+            Constellation.Star(-0.95,  1.00, -0.10, 0.7),
+            Constellation.Star( 0.75,  0.95,  0.15, 0.7),
+            Constellation.Star( 0.35, -1.00, -0.20, 0.9),
+        ],
+        lines: [(4, 0), (0, 1), (1, 2), (1, 3)]
     )
 }
 

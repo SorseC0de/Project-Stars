@@ -26,7 +26,22 @@ extension ZodiacCatalog {
             PiscesAstralFlow(),
             PiscesEarthlyDrift(),
         ],
-        zodiaction: PiscesCurrent()
+        zodiaction: PiscesCurrent(),
+        constellation: ZodiacCatalog.piscesConstellation
+    )
+
+    /// ♓ Pisces: two fish on a cord, meeting at Alrescha.
+    static let piscesConstellation = Constellation(
+        stars: [
+            Constellation.Star(-1.10,  0.90,  0.20, 0.8),
+            Constellation.Star(-0.85,  0.30,  0.10, 0.7),
+            Constellation.Star(-0.40, -0.20,  0.00, 0.8),
+            Constellation.Star( 0.05, -0.75, -0.10, 1.2),
+            Constellation.Star( 0.55, -0.25, -0.20, 0.8),
+            Constellation.Star( 0.95,  0.35, -0.10, 0.7),
+            Constellation.Star( 1.05,  0.95,  0.15, 0.9),
+        ],
+        lines: [(0, 1), (1, 2), (2, 3), (3, 4), (4, 5), (5, 6)]
     )
 }
 

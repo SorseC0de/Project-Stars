@@ -27,7 +27,23 @@ extension ZodiacCatalog {
             AquariusWeightless(),
             AquariusCornerFlight(),
         ],
-        zodiaction: AquariusGoneWithTheWind()
+        zodiaction: AquariusGoneWithTheWind(),
+        constellation: ZodiacCatalog.aquariusConstellation
+    )
+
+    /// ♒ Aquarius: the water-bearer's jar, and the stream falling from it.
+    static let aquariusConstellation = Constellation(
+        stars: [
+            Constellation.Star(-1.00,  0.85,  0.15, 0.9),
+            Constellation.Star(-0.35,  0.95,  0.00, 1.0),
+            Constellation.Star( 0.20,  0.55, -0.15, 0.9),
+            Constellation.Star( 0.80,  0.75, -0.25, 0.8),
+            Constellation.Star( 0.05, -0.10,  0.10, 0.8),
+            Constellation.Star(-0.45, -0.55,  0.25, 0.7),
+            Constellation.Star( 0.35, -0.75, -0.10, 0.7),
+            Constellation.Star(-0.10, -1.05,  0.00, 0.9),
+        ],
+        lines: [(0, 1), (1, 2), (2, 3), (2, 4), (4, 5), (4, 6), (5, 7), (6, 7)]
     )
 }
 

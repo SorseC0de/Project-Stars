@@ -32,7 +32,23 @@ extension ZodiacCatalog {
             ScorpioDeathdream(),
             ScorpioShed(),
         ],
-        zodiaction: ScorpioTailStrike()
+        zodiaction: ScorpioTailStrike(),
+        constellation: ZodiacCatalog.scorpioConstellation
+    )
+
+    /// ♏ Scorpio: the claws, Antares at the heart, and the curling tail.
+    static let scorpioConstellation = Constellation(
+        stars: [
+            Constellation.Star(-1.05,  0.95,  0.20, 0.8),
+            Constellation.Star(-0.45,  0.80,  0.05, 0.9),
+            Constellation.Star(-0.10,  0.25,  0.00, 1.5),
+            Constellation.Star( 0.10, -0.35, -0.10, 0.9),
+            Constellation.Star( 0.45, -0.80, -0.20, 0.8),
+            Constellation.Star( 0.95, -0.95, -0.10, 0.8),
+            Constellation.Star( 1.15, -0.40,  0.15, 0.9),
+            Constellation.Star( 0.85,  0.05,  0.30, 1.0),
+        ],
+        lines: [(0, 1), (1, 2), (2, 3), (3, 4), (4, 5), (5, 6), (6, 7)]
     )
 }
 

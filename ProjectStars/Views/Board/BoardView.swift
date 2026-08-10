@@ -67,7 +67,7 @@ struct BoardView: View {
                 )
             }
 
-            spectralHead(metrics: metrics)
+            constellation(metrics: metrics)
             warpBeam(metrics: metrics)
             cloudPoofs(metrics: metrics)
             dust(metrics: metrics)
@@ -669,17 +669,18 @@ struct BoardView: View {
     /// The apparition a Zodiaction summons, hanging over the piece.
     ///
     /// Drawn above the sorted objects rather than among them: it is not standing
-    /// on the board, it is looming over it, and depth-sorting it against tiles
-    /// would let a row of ground occlude a ghost.
+    /// on the board, it is hanging over it, and depth-sorting it against tiles
+    /// would let a row of ground occlude it.
     @ViewBuilder
-    private func spectralHead(metrics: PixelArtMetrics) -> some View {
-        if let summon = session.spectralHead, summon.plane == session.visiblePlane {
-            SpectralHeadView(
+    private func constellation(metrics: PixelArtMetrics) -> some View {
+        if let summon = session.constellation, summon.plane == session.visiblePlane {
+            ConstellationView(
                 zodiac: summon.zodiac,
                 tileSize: metrics.tileSize,
                 start: summon.start
             )
             .position(metrics.center(of: session.engine.piece.point))
+            .offset(y: -GameRules.constellationRise * metrics.scale)
             .id(summon.id)
         }
     }

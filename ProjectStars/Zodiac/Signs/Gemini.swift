@@ -28,7 +28,23 @@ extension ZodiacCatalog {
             GeminiMirrors(),
             GeminiSplitSoul(),
         ],
-        zodiaction: GeminiReflection()
+        zodiaction: GeminiReflection(),
+        constellation: ZodiacCatalog.geminiConstellation
+    )
+
+    /// ♊ Gemini: two figures side by side, joined at the shoulders.
+    static let geminiConstellation = Constellation(
+        stars: [
+            Constellation.Star(-0.60,  1.00,  0.20, 1.4),
+            Constellation.Star(-0.65,  0.20,  0.10, 0.8),
+            Constellation.Star(-0.80, -0.60,  0.00, 0.9),
+            Constellation.Star(-0.25, -0.95,  0.15, 0.7),
+            Constellation.Star( 0.60,  0.95, -0.20, 1.3),
+            Constellation.Star( 0.60,  0.15, -0.10, 0.8),
+            Constellation.Star( 0.75, -0.65,  0.00, 0.9),
+            Constellation.Star( 0.20, -1.00, -0.15, 0.7),
+        ],
+        lines: [(0, 1), (1, 2), (2, 3), (4, 5), (5, 6), (6, 7), (1, 5)]
     )
 }
 

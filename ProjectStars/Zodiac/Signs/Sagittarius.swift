@@ -32,7 +32,22 @@ extension ZodiacCatalog {
             SagittariusSafeLanding(),
             SagittariusLuckyLanding(),
         ],
-        zodiaction: SagittariusGoldenArrow()
+        zodiaction: SagittariusGoldenArrow(),
+        constellation: ZodiacCatalog.sagittariusConstellation
+    )
+
+    /// ♐ Sagittarius: the Teapot, with the bow drawn across it.
+    static let sagittariusConstellation = Constellation(
+        stars: [
+            Constellation.Star(-0.95, -0.55,  0.20, 0.9),
+            Constellation.Star(-0.70,  0.30,  0.10, 1.0),
+            Constellation.Star( 0.00,  0.75,  0.00, 1.2),
+            Constellation.Star( 0.70,  0.30, -0.15, 1.0),
+            Constellation.Star( 0.95, -0.55, -0.20, 0.9),
+            Constellation.Star( 0.00, -0.85,  0.00, 0.8),
+            Constellation.Star( 1.15,  0.85, -0.30, 0.7),
+        ],
+        lines: [(0, 1), (1, 2), (2, 3), (3, 4), (4, 5), (5, 0), (3, 6)]
     )
 }
 

@@ -27,7 +27,21 @@ extension ZodiacCatalog {
             VirgoProtectiveStep(),
             VirgoSoftLanding(),
         ],
-        zodiaction: VirgoRecalibrate()
+        zodiaction: VirgoRecalibrate(),
+        constellation: ZodiacCatalog.virgoConstellation
+    )
+
+    /// ♍ Virgo: the long kite running down to Spica.
+    static let virgoConstellation = Constellation(
+        stars: [
+            Constellation.Star(-0.95,  0.95,  0.15, 0.8),
+            Constellation.Star(-0.25,  0.70, -0.10, 0.9),
+            Constellation.Star( 0.55,  0.85,  0.20, 0.8),
+            Constellation.Star( 0.15,  0.05,  0.00, 1.0),
+            Constellation.Star(-0.60, -0.35,  0.20, 0.7),
+            Constellation.Star( 0.35, -0.95, -0.20, 1.5),
+        ],
+        lines: [(0, 1), (1, 2), (1, 3), (3, 4), (3, 5)]
     )
 }
 

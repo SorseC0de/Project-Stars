@@ -26,7 +26,23 @@ extension ZodiacCatalog {
         passives: [
             LeoPridefulFall(),
         ],
-        zodiaction: LeoSolarFlair()
+        zodiaction: LeoSolarFlair(),
+        constellation: ZodiacCatalog.leoConstellation
+    )
+
+    /// ♌ Leo: the Sickle at the head, the triangle of the haunch behind it.
+    static let leoConstellation = Constellation(
+        stars: [
+            Constellation.Star(-1.15,  0.15,  0.25, 0.8),
+            Constellation.Star(-1.00,  0.75,  0.15, 0.9),
+            Constellation.Star(-0.55,  1.00,  0.00, 0.8),
+            Constellation.Star(-0.20,  0.55, -0.10, 1.0),
+            Constellation.Star(-0.35, -0.25,  0.10, 1.5),
+            Constellation.Star( 0.60, -0.30, -0.20, 0.9),
+            Constellation.Star( 1.10,  0.45, -0.15, 1.2),
+            Constellation.Star( 1.00, -0.55, -0.30, 0.8),
+        ],
+        lines: [(0, 1), (1, 2), (2, 3), (3, 4), (4, 5), (5, 6), (6, 7), (7, 5)]
     )
 }
 

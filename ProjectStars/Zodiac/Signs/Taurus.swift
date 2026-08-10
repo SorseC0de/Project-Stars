@@ -25,7 +25,22 @@ extension ZodiacCatalog {
         passives: [
             TaurusHooves(),
         ],
-        zodiaction: TaurusHeavyFlop()
+        zodiaction: TaurusHeavyFlop(),
+        constellation: ZodiacCatalog.taurusConstellation
+    )
+
+    /// ♉ Taurus: the V of the Hyades, with the horns running off it.
+    static let taurusConstellation = Constellation(
+        stars: [
+            Constellation.Star(-1.10,  0.85,  0.10, 0.8),
+            Constellation.Star(-0.55,  0.25,  0.20, 0.9),
+            Constellation.Star( 0.00, -0.35,  0.00, 1.5),
+            Constellation.Star( 0.55,  0.20, -0.20, 0.9),
+            Constellation.Star( 1.10,  0.80, -0.10, 1.1),
+            Constellation.Star(-0.30, -0.95,  0.30, 0.7),
+            Constellation.Star( 0.35, -0.90, -0.25, 0.7),
+        ],
+        lines: [(0, 1), (1, 2), (2, 3), (3, 4), (2, 5), (2, 6)]
     )
 }
 

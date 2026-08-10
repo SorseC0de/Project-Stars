@@ -32,7 +32,21 @@ extension ZodiacCatalog {
             CapricornSpringboard(),
             CapricornSurefootedAura(),
         ],
-        zodiaction: CapricornSurefooted()
+        zodiaction: CapricornSurefooted(),
+        constellation: ZodiacCatalog.capricornConstellation
+    )
+
+    /// ♑ Capricorn: the long shallow triangle of the sea-goat.
+    static let capricornConstellation = Constellation(
+        stars: [
+            Constellation.Star(-1.10,  0.75,  0.20, 1.1),
+            Constellation.Star(-0.30,  0.20,  0.05, 0.8),
+            Constellation.Star( 0.55,  0.60, -0.15, 0.9),
+            Constellation.Star( 1.10,  0.05, -0.25, 1.0),
+            Constellation.Star( 0.25, -0.85,  0.10, 0.9),
+            Constellation.Star(-0.70, -0.45,  0.25, 0.8),
+        ],
+        lines: [(0, 1), (1, 2), (2, 3), (3, 4), (4, 5), (5, 0)]
     )
 }
 

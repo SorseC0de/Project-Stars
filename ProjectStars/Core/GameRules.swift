@@ -986,39 +986,58 @@ enum GameRules {
     static let collectBurstSpread: CGFloat = 16
 
     // ──────────────────────────────────────────────────────────────────────
-    // MARK: - Spectral heads
+    // ──────────────────────────────────────────────────────────────────────
+    // MARK: - Constellations
     //
-    // The apparition a Zodiaction summons.
+    // The sign drawn in the air when a Zodiaction fires. See
+    // `ConstellationView`. Replaced the low-poly spectral heads: twelve animal
+    // heads is a modelling problem, twelve star patterns is a list.
 
     /// How long the replay pauses on the pop itself.
     ///
-    /// Short, because it no longer needs to cover anything: the spectral head,
+    /// Short, because it no longer needs to cover anything: the constellation,
     /// the effect strips and Leo's sun all run on their own timestamps and keep
     /// playing while the Zodiaction's consequences resolve underneath them. A
     /// long hold here only delayed those consequences — Leo's Nexys visibly sat
     /// still for a third of a second before starting down.
     static let zodiactionDuration: TimeInterval = 0.08
 
-    /// Seconds an apparition is on screen when a Zodiaction fires.
-    static let spectralHeadDuration: TimeInterval = 1.15
+    /// How long the whole summon lasts, from first star to gone.
+    static let constellationDuration: TimeInterval = 1.9
 
-    /// Size of the head, in cells.
-    static let spectralHeadScale: CGFloat = 1.15
-
-    /// How far above the piece it hangs, in cells, before it starts rising.
+    /// Seconds per line while the figure traces itself.
     ///
-    /// Clear of the piece rather than over it: the piece is a two-cell sprite,
-    /// so anything under about two cells of lift lands on its head.
-    static let spectralHeadRise: CGFloat = 2.3
+    /// The figures run from three lines to eight, so this paces the *drawing*
+    /// rather than fixing a total — a busier sign takes longer to write, which
+    /// is correct.
+    static let constellationTracePerLine: TimeInterval = 0.085
 
-    /// Radians per second it turns.
-    static let spectralHeadSpin: Float = 1.6
+    /// The fraction of its life after which it starts going out.
+    static let constellationFadeStart: Double = 0.62
 
-    /// Tilt, so it is seen slightly from below — looming rather than level.
-    static let spectralHeadPitch: Float = -0.22
+    /// Size of the box it is drawn in, in tiles, and points per unit within it.
+    static let constellationSpan: CGFloat = 5
+    static let constellationScale: CGFloat = 1.15
 
-    /// Peak opacity. It is a ghost, not a model.
-    static let spectralHeadOpacity: Double = 0.72
+    /// How far above the piece it hangs, in art pixels.
+    static let constellationRise: CGFloat = 26
+
+    /// Radians per second about the vertical axis, and the fixed tilt.
+    ///
+    /// Slow: the turn is there to give the figure depth through parallax, not to
+    /// spin it. Anything faster and the pattern stops being legible as a shape.
+    static let constellationSpin: Float = 0.55
+    static let constellationPitch: Float = -0.20
+
+    /// Star size in art pixels, before magnitude and perspective.
+    static let constellationStarSize: CGFloat = 0.85
+
+    /// How much bigger a star is at the instant it lights, as a fraction.
+    static let constellationPop: CGFloat = 1.4
+
+    /// The threads between stars.
+    static let constellationLineWidth: CGFloat = 0.4
+    static let constellationLineOpacity: Double = 0.55
 
     // ──────────────────────────────────────────────────────────────────────
     // MARK: - Elemental bursts
