@@ -24,6 +24,10 @@ struct GemTones {
     /// Swapped in when charged, and the entry the glow keys on.
     let lit: Color
 
+    /// - Note: The dim entries are fixed by the art — 44 water, 27 fire, 35
+    ///   earth, 20 air. The lit entries are a choice, and each is the nearest
+    ///   brighter entry of the same hue, so a gem reads as the same stone
+    ///   catching light rather than as a different stone.
     static func forElement(_ element: ZodiacElement) -> GemTones {
         switch element {
         case .water:
@@ -39,12 +43,10 @@ struct GemTones {
             GemTones(dim: Palette.forest, lit: Palette.lime)
 
         case .air:
-            // TODO: Unconfirmed. Air has not been given a reserved entry yet, and
-            // turquoise — the obvious choice — is already one of the three moss
-            // greens, so on a mossy stone piece the glow would light up the
-            // overgrowth. Left on dusk/lavender until an air sign is drawn and
-            // its gem entry is chosen.
-            GemTones(dim: Palette.dusk, lit: Palette.lavender)
+            // Purple, provisionally — the one element whose gem has not been
+            // settled. `purple` is at least clear of the moss greens, so it will
+            // not light up overgrowth on a stone piece the way turquoise would.
+            GemTones(dim: Palette.purple, lit: Palette.magenta)
         }
     }
 }
