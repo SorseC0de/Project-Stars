@@ -34,25 +34,65 @@ struct SmokeBurstView: View {
     /// Size multiplier. `1` for an ordinary hop; a fall lands far harder.
     var magnitude: CGFloat = 1
 
-    @State private var progress: CGFloat = 0
+    /// When the puff began.
+    ///
+    /// Driven by a timestamp rather than `onAppear` + `withAnimation`, matching
+    /// every other effect here. A view that starts its own animation on appear
+    /// only works if it is genuinely re-created each time — which is fragile the
+    /// moment anything upstream decides to reuse it.
+    let start: Date
 
     var body: some View {
-        ZStack {
-            ForEach(0..<GameRules.smokePuffCount, id: \.self) { index in
-                puff(index)
+        TimelineView(.animation) { timeline in
+            let progress = CGFloat(min(
+                max(timeline.date.timeIntervalSince(start) / GameRules.smokeDuration, 0),
+                1
+            ))
+
+            Group {
+                if usesSprite {
+                    sprite(progress: progress)
+                } else {
+                    ZStack {
+                        ForEach(0..<GameRules.smokePuffCount, id: \.self) { index in
+                            puff(index, progress: progress)
+                        }
+                    }
+                }
             }
+            .frame(width: tileSize, height: tileSize)
         }
-        .frame(width: tileSize, height: tileSize)
         .allowsHitTesting(false)
-        .onAppear {
-            withAnimation(.easeOut(duration: GameRules.smokeDuration)) {
-                progress = 1
-            }
-        }
     }
 
-    private func puff(_ index: Int) -> some View {
-        let layout = geometry(for: index)
+    /// Whether the hand-drawn puff fits this landing.
+    ///
+    /// It is one fixed shape at one fixed size — right for a footfall, too tidy
+    /// for a body hitting the ground after falling a whole plane. Heavy landings
+    /// fall back to the scatter, which can be thrown as wide as it needs to be.
+    private var usesSprite: Bool {
+        magnitude <= GameRules.smokeSpriteMaxMagnitude && SpriteLoader.hasAsset(for: .smoke)
+    }
+
+    /// The drawn puff, stepped through its frames once.
+    private func sprite(progress: CGFloat) -> some View {
+        let frames = SpriteSheetLoader.frameCount(for: .smoke)
+        // Clamped, not wrapped: this plays through and stops.
+        let frame = min(Int(progress * CGFloat(frames)), frames - 1)
+
+        // Natural size is two cells; `smokeSpriteScale` brings it down to sit
+        // under a piece rather than swallow it.
+        let side = tileSize * 2 * GameRules.smokeSpriteScale * magnitude
+
+        return PixelSprite(id: .smoke, frame: frame) { EmptyView() }
+            .frame(width: side, height: side)
+            // Sits low: dust kicks up from the ground, not from the piece's
+            // middle.
+            .offset(y: tileSize * 0.28)
+    }
+
+    private func puff(_ index: Int, progress: CGFloat) -> some View {
+        let layout = geometry(for: index, progress: progress)
 
         return Circle()
             .fill(Palette.smokePuff)
@@ -66,7 +106,7 @@ struct SmokeBurstView: View {
     ///
     /// Broken out of the view body deliberately: as one chained expression the
     /// type checker gives up on it.
-    private func geometry(for index: Int) -> (x: CGFloat, y: CGFloat, size: CGFloat, opacity: Double) {
+    private func geometry(for index: Int, progress: CGFloat) -> (x: CGFloat, y: CGFloat, size: CGFloat, opacity: Double) {
         // Deterministic scatter: a hash of the puff and the hop, so a burst is
         // varied but never flickers between frames.
         let mixed = (index &* 2_654_435_761) &+ (seed &* 40_503)

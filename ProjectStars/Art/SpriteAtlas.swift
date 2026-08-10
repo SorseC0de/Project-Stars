@@ -113,6 +113,9 @@ enum SpriteAtlas {
     /// eight frames of that would dominate any sheet it shared.
     static let pentacleSheet = "Pentacle"
 
+    /// The landing puff's own sheet: five 32x32 frames in a row.
+    static let smokeSheet = "Smoke"
+
     // MARK: - Layout
     //
     // Coordinates are cells on a 16px grid, (column, row) from the top-left.
@@ -197,6 +200,16 @@ enum SpriteAtlas {
         // 11–14, rows 5–7 — exact cell not yet confirmed, so it stays unmapped
         // and falls back to its placeholder. It never spawns anyway (weight 0).
         // It should float like the coin and sparkle programmatically.
+
+        // ── Smoke ────────────────────────────────────────────────────────
+        // Five 32x32 frames — two cells square — played once per landing rather
+        // than looped. See `SmokeBurstView`.
+        map[.smoke] = .cells(
+            sheet: smokeSheet,
+            column: 0, row: 0,
+            width: 2, height: 2,
+            frames: 5
+        )
 
         // ── Cursor ───────────────────────────────────────────────────────
         // One 16x16 cell per colour, holding all four brackets. Cut into 8x8

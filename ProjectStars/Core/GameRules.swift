@@ -132,8 +132,28 @@ enum GameRules {
     static let sparklePulseFastest: TimeInterval = 0.7
     static let sparklePulseSlowest: TimeInterval = 1.6
 
+    /// Scale the smoke sprite is drawn at, relative to its natural two cells.
+    static let smokeSpriteScale: CGFloat = 0.75
+
+    /// Above this magnitude the drawn scatter is used instead of the sprite.
+    ///
+    /// The sprite is one fixed puff — right for a footfall, too small and too
+    /// tidy for a body hitting the ground after falling a whole plane. Heavy
+    /// landings keep the procedural scatter, which can be thrown as wide as it
+    /// needs to be.
+    static let smokeSpriteMaxMagnitude: CGFloat = 1.2
+
     /// Size multiplier for the puff thrown up by taking a Pentacle.
     static let smokeCollectMagnitude: CGFloat = 1.5
+
+    /// Seconds a pillar of light lasts at each end of a warp.
+    static let warpBeamDuration: TimeInterval = 0.30
+
+    /// How far past the tile the pillar reaches, as a multiple of a cell.
+    static let warpBeamHeight: CGFloat = 3.2
+
+    /// Motes riding each pillar of light.
+    static let warpSparkCount = 9
 
     /// Seconds the burst of sparkles from an opened Pentacle lasts.
     static let collectBurstDuration: TimeInterval = 0.55

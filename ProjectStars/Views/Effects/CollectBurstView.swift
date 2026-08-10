@@ -26,6 +26,11 @@ struct CollectBurstView: View {
     /// When the burst began.
     let start: Date
 
+    /// Which element's colours to throw. Defaults to plain light.
+    var ramp: ElementFX = .neutral
+
+    private var tones: [Color] { ramp.tones }
+
     var body: some View {
         TimelineView(.animation) { timeline in
             let progress = min(
@@ -38,13 +43,18 @@ struct CollectBurstView: View {
                     let spark = spark(index: index, progress: progress)
 
                     SparkleGlyph()
-                        .fill(Palette.gold)
+                        .fill(tones[index % tones.count])
                         .frame(width: spark.size, height: spark.size)
                         .opacity(spark.opacity)
                         .offset(x: spark.x, y: spark.y)
                 }
             }
             .frame(width: tileSize, height: tileSize)
+            // Energy is light, so it *adds* to what is behind it rather than
+            // covering it. Two palette colours summed are brighter than either
+            // and still on-palette, which is how these pop without reaching for
+            // a colour the art could not contain.
+            .blendMode(.plusLighter)
         }
         .allowsHitTesting(false)
     }
@@ -69,7 +79,7 @@ struct CollectBurstView: View {
             x: CGFloat(cos(angle)) * distance,
             y: CGFloat(sin(angle)) * distance * 0.7 - lift,
             size: tileSize * 0.22 * (1 - CGFloat(progress) * 0.45),
-            opacity: (1 - progress * progress) * GameRules.sparkleOpacity
+            opacity: 1 - progress * progress
         )
     }
 }

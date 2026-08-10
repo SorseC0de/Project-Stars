@@ -61,6 +61,8 @@ struct BoardView: View {
                 )
             }
 
+            warpBeam(metrics: metrics)
+            dust(metrics: metrics)
             collectBurst(metrics: metrics)
             elementalBurst(metrics: metrics)
 
@@ -468,6 +470,37 @@ struct BoardView: View {
     }
 
     // MARK: - Effects
+
+    /// The pillar of light at one end of a warp.
+    @ViewBuilder
+    private func warpBeam(metrics: PixelArtMetrics) -> some View {
+        if let beam = session.warpBeam, beam.plane == session.visiblePlane {
+            WarpBeamView(
+                tileSize: metrics.tileSize,
+                scale: metrics.scale,
+                start: beam.start,
+                isDeparture: beam.isDeparture
+            )
+            .position(metrics.center(of: beam.point))
+            .id(beam.id)
+        }
+    }
+
+    /// Dust kicked up by a landing.
+    @ViewBuilder
+    private func dust(metrics: PixelArtMetrics) -> some View {
+        if let smoke = session.smoke, smoke.plane == session.visiblePlane {
+            SmokeBurstView(
+                tileSize: metrics.tileSize,
+                scale: metrics.scale,
+                seed: smoke.id.hashValue,
+                magnitude: smoke.magnitude,
+                start: smoke.start
+            )
+            .position(metrics.center(of: smoke.point))
+            .id(smoke.id)
+        }
+    }
 
     /// Sparkles thrown off by an opened Pentacle.
     @ViewBuilder

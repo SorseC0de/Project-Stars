@@ -27,11 +27,24 @@ struct PixelSprite<Placeholder: View>: View {
 
     let id: SpriteID
 
+    /// Pins the sprite to one frame instead of cycling it.
+    ///
+    /// For one-shot effects: a burst has to play through once and stop, driven
+    /// by how far along the burst is. Left `nil`, a multi-frame sprite loops on
+    /// a wall clock, which is right for ambient things and wrong for events.
+    var frame: Int?
+
     /// Drawn when no art exists for this sprite yet.
     @ViewBuilder let placeholder: () -> Placeholder
 
     var body: some View {
-        if SpriteSheetLoader.frameCount(for: id) > 1, SpriteSheetLoader.hasArt(for: id) {
+        if let frame {
+            if let image = SpriteSheetLoader.image(for: id, frame: frame) {
+                pixels(image)
+            } else {
+                placeholder()
+            }
+        } else if SpriteSheetLoader.frameCount(for: id) > 1, SpriteSheetLoader.hasArt(for: id) {
             animated
         } else if let image = SpriteLoader.image(for: id) {
             pixels(image)

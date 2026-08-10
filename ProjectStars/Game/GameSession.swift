@@ -132,6 +132,12 @@ final class GameSession {
     /// Sparkles flying off a Pentacle that was just opened.
     private(set) var collectBurst: ElementalBurst?
 
+    /// The dust currently settling, if any.
+    private(set) var smoke: SmokePuff?
+
+    /// The pillar of light currently standing on the board, if any.
+    private(set) var warpBeam: WarpBeam?
+
     /// Whether the pause menu is up. Blocks all input while it is.
     private(set) var isPaused = false
 
@@ -206,6 +212,8 @@ final class GameSession {
         pentacleBanner = nil
         elementalBurst = nil
         collectBurst = nil
+        smoke = nil
+        warpBeam = nil
         isPaused = false
         flashingTiles = []
 
@@ -375,9 +383,8 @@ final class GameSession {
             pentacleBanner = id
 
             // Landing on a raised tile is a heavier arrival than an ordinary
-            // hop: the tile slams flat and the coin bursts.
-            smokeMagnitude = GameRules.smokeCollectMagnitude
-            hopCount += 1
+            // hop: the tile slams flat, dust kicks up, and the coin bursts.
+            kickUpDust(at: point, on: plane, magnitude: GameRules.smokeCollectMagnitude)
             collectBurst = ElementalBurst(element: .air, center: point, plane: plane, start: .now)
 
             let burstID = collectBurst?.id
@@ -406,8 +413,8 @@ final class GameSession {
                 await introducePentacle(id)
             }
 
-        case .pieceStepped:
-            smokeMagnitude = 1
+        case let .pieceStepped(_, to, plane):
+            kickUpDust(at: to, on: plane, magnitude: 1)
             hopCount += 1
             hopStartedAt = .now
             withAnimation(.spring(response: GameRules.hopDuration * 1.6, dampingFraction: 0.72)) {
@@ -421,6 +428,9 @@ final class GameSession {
             await animateDescent(duration: GameRules.fallDuration / 2)
             engine.apply(event)
             await sleep(event.displayDuration)
+
+        case let .pieceTeleported(from, _, fromPlane, toPlane):
+            await animateWarp(event, from: from, fromPlane: fromPlane, toPlane: toPlane)
 
         default:
             withAnimation(.easeInOut(duration: max(event.displayDuration, 0.01))) {
@@ -489,8 +499,11 @@ final class GameSession {
         fallArrivalStartedAt = nil
 
         // Impact.
-        smokeMagnitude = GameRules.smokeFallMagnitude
-        hopCount += 1
+        kickUpDust(
+            at: engine.piece.point,
+            on: engine.piece.plane,
+            magnitude: GameRules.smokeFallMagnitude
+        )
         hopStartedAt = nil          // no squash: this is a landing, not a hop
         shakeStartedAt = .now
 
@@ -498,6 +511,50 @@ final class GameSession {
             try? await Task.sleep(nanoseconds: UInt64(GameRules.shakeDuration * 1_000_000_000))
             self?.shakeStartedAt = nil
         }
+    }
+
+    /// A warp: out through a pillar of light at one end, in through another.
+    ///
+    /// The piece does not travel between the two squares — it is *gone* from the
+    /// first and *arrives* at the second. Sliding it across, which is what the
+    /// default animation did, said the opposite: that it walked there very fast.
+    ///
+    /// Both ends get a beam. Playing one only at the destination would read as
+    /// something happening on arrival rather than as a journey.
+    private func animateWarp(
+        _ event: GameEvent,
+        from origin: GridPoint,
+        fromPlane: Plane,
+        toPlane: Plane
+    ) async {
+        // Out. The piece shrinks into the beam.
+        warpBeam = WarpBeam(point: origin, plane: fromPlane, isDeparture: true, start: .now)
+        withAnimation(.easeIn(duration: GameRules.warpBeamDuration * 0.7)) {
+            isFalling = true
+        }
+        await sleep(GameRules.warpBeamDuration)
+
+        guard !Task.isCancelled else {
+            warpBeam = nil
+            isFalling = false
+            return
+        }
+
+        engine.apply(event)
+
+        // In. A second beam where it lands, and the piece swells back out of it.
+        warpBeam = WarpBeam(
+            point: engine.piece.point,
+            plane: toPlane,
+            isDeparture: false,
+            start: .now
+        )
+        withAnimation(.easeOut(duration: GameRules.warpBeamDuration * 0.7)) {
+            isFalling = false
+        }
+        await sleep(GameRules.warpBeamDuration)
+
+        warpBeam = nil
     }
 
     /// Riding the Nexys back up to Astra.
@@ -668,6 +725,50 @@ extension GameSession {
         isPaused = false
         newGame()
     }
+}
+
+// MARK: - Dust
+
+/// One puff of dust settling on the board.
+struct SmokePuff: Identifiable, Equatable {
+    let id = UUID()
+    let point: GridPoint
+    let plane: Plane
+    let magnitude: CGFloat
+    let start: Date
+}
+
+extension GameSession {
+
+    /// Throws up dust at a square, and clears it once it has settled.
+    ///
+    /// Carries its own timestamp rather than riding the hop's: dust is kicked up
+    /// by landings that are not hops at all — a fall, or taking a coin — and
+    /// borrowing the hop's clock meant those bursts started already expired.
+    func kickUpDust(at point: GridPoint, on plane: Plane, magnitude: CGFloat) {
+        let puff = SmokePuff(point: point, plane: plane, magnitude: magnitude, start: .now)
+        smoke = puff
+
+        Task { [weak self] in
+            try? await Task.sleep(nanoseconds: UInt64(GameRules.smokeDuration * 1_000_000_000))
+            guard let self, self.smoke?.id == puff.id else { return }
+            self.smoke = nil
+        }
+    }
+}
+
+// MARK: - Warps
+
+/// A pillar of light standing on one square.
+struct WarpBeam: Identifiable, Equatable {
+    let id = UUID()
+    let point: GridPoint
+    let plane: Plane
+
+    /// True at the end the piece leaves from, false where it arrives.
+    let isDeparture: Bool
+
+    let start: Date
 }
 
 // MARK: - Elemental bursts

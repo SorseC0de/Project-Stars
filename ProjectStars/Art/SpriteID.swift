@@ -109,6 +109,9 @@ enum SpriteID: Hashable {
     /// The exclamation struck through a cursor sitting over a hole.
     case cursorWarning
 
+    /// The puff kicked up by a landing. Five frames, played once.
+    case smoke
+
     /// The direction indicator in the input panel.
     case directionArrow(SwipeDirection)
 
@@ -139,6 +142,8 @@ enum SpriteID: Hashable {
             "pentacle_\(id.rawValue)"
         case let .cursorCorner(tint, corner):
             "cursor_\(tint.rawValue)_\(corner.rawValue)"
+        case .smoke:
+            "fx_smoke"
         case .cursorWarning:
             "cursor_warning"
         case let .directionArrow(direction):
@@ -178,7 +183,7 @@ extension SpriteID {
     /// The single source of truth for "what art does this game need" — the
     /// coverage report and `SpriteLoader.missingSprites` both derive from it.
     static var allSprites: [SpriteID] {
-        var ids: [SpriteID] = [.nexys, .cursorWarning]
+        var ids: [SpriteID] = [.nexys, .cursorWarning, .smoke]
 
         for plane in Plane.allCases {
             ids.append(.planeBackground(plane))
