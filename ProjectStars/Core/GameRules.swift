@@ -235,7 +235,7 @@ enum GameRules {
     /// Charge granted by the Z-Charge Pentacle.
     static let zChargePentacleAmount = 3
 
-    /// Charge granted by Restore Tile when there is nothing left to repair.
+    /// Charge granted by Astral Tear when there is nothing left to repair.
     static let restoreTileBonusCharge = 1
 
     /// Charge Astral Blaze pays per tile it wears.

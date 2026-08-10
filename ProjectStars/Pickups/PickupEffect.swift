@@ -23,12 +23,19 @@ enum PickupRarity: String, CaseIterable, Codable {
 
     /// Relative likelihood of this tier.
     ///
-    /// - TODO: Untuned. These are placeholders pending real balancing.
+    /// Tuned against how a run actually plays rather than to look like a
+    /// distribution: the coin is on the board constantly, so the *default*
+    /// outcome has to be something small. Roughly three grabs in five are the
+    /// common tier, and most of those are an Astral Tear.
+    ///
+    /// The tiers are deliberately lopsided. A rare that turned up every eleventh
+    /// coin was not rare, and the two rares are both piece changers — the single
+    /// most disruptive thing a Pentacle can do.
     var weight: Int {
         switch self {
-        case .common: 58
-        case .uncommon: 32
-        case .rare: 9
+        case .common: 75
+        case .uncommon: 21
+        case .rare: 4
         case .legendary: 1
         }
     }
@@ -135,6 +142,19 @@ protocol PickupEffect {
     /// How often it turns up.
     var rarity: PickupRarity { get }
 
+    /// The tier this is *rolled* in, when that differs from what it is.
+    ///
+    /// For effects whose rarity is enforced by something other than the dice.
+    /// Polaris is pinned to one square, so it is only ever a candidate when a
+    /// sparkle set happens to cover the top-centre tile — that restriction is
+    /// already doing the work a legendary weight would do, and applying both
+    /// makes it something no player will ever see. It rolls as a common and
+    /// stays a legendary in everything the player is shown: the tier on its
+    /// banner, and its own radiant coin.
+    ///
+    /// Defaults to `rarity`, which is right for everything else.
+    var rollsAsRarity: PickupRarity { get }
+
     /// Name shown when opened.
     var displayName: String { get }
 
@@ -195,6 +215,7 @@ extension PickupEffect {
     var appearance: PentacleAppearance { .standard }
     var element: ZodiacElement? { nil }
     var weight: Int { 1 }
+    var rollsAsRarity: PickupRarity { rarity }
     var requiredSpawnPoint: GridPoint? { nil }
     var choice: PickupChoice { .none }
     var arrivalWearsTile: Bool { true }

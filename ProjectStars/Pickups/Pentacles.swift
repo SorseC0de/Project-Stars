@@ -95,13 +95,15 @@ struct ZChargeEffect: PickupEffect {
 
     let id: PickupID = .zCharge
     let rarity: PickupRarity = .common
+
+    /// One against the Tear's three. Charge is the consolation prize for a
+    /// coin that was not a repair, not the other way round.
+    let weight = 1
     let displayName = "Z-Charge"
     let summary = "Gain \(GameRules.zChargePentacleAmount) Zodiaction charge."
     let glyph = "⚡"
 
     /// Commonest thing in the tier.
-    let weight = 3
-
     func plan(
         context: PickupContext,
         choice: PickupChoiceResult?,
@@ -122,15 +124,20 @@ struct ZChargeEffect: PickupEffect {
 /// On a plane with nothing left to fix it does not fizzle: it pays out a point
 /// of Zodiaction charge instead, so a well-kept board never makes a Pentacle
 /// feel wasted.
-struct RestoreTileEffect: PickupEffect {
+struct AstralTearEffect: PickupEffect {
 
     let id: PickupID = .restoreTile
     let rarity: PickupRarity = .common
-    let displayName = "Restore Tile"
+
+    /// Three against Z-Charge's one, which with the common tier at 75 makes this
+    /// a little over half of every coin opened — three grabs in five, near
+    /// enough. It is the floor the whole economy sits on: a coin that mends one
+    /// tile is small enough to be the ordinary case and still worth crossing the
+    /// board for.
+    let weight = 3
+    let displayName = "Astral Tear"
     let summary = "Fully repairs one damaged tile here. If none are damaged, gain 1 Zodiaction charge instead."
     let glyph = "✚"
-
-    let weight = 3
 
     func plan(
         context: PickupContext,
@@ -166,6 +173,11 @@ struct AstralBrookEffect: PickupEffect {
 
     let id: PickupID = .astralBrook
     let rarity: PickupRarity = .uncommon
+
+    /// The four Essences are what the uncommon tier is *for*, and their current
+    /// rate plays well — three each keeps it where it was while the warps come
+    /// down around them.
+    let weight = 3
     let displayName = "Astral Brook"
     let summary = "Slide to the far edge along your facing, damaging every tile you cross and passing over holes."
     let glyph = "≈"
@@ -236,6 +248,11 @@ struct AstralBreezeEffect: PickupEffect {
 
     let id: PickupID = .astralBreeze
     let rarity: PickupRarity = .uncommon
+
+    /// The four Essences are what the uncommon tier is *for*, and their current
+    /// rate plays well — three each keeps it where it was while the warps come
+    /// down around them.
+    let weight = 3
     let displayName = "Astral Breeze"
     let summary = "Teleport to any square on this plane — holes and the Nexys included."
     let glyph = "❁"
@@ -281,6 +298,11 @@ struct AstralBlazeEffect: PickupEffect {
 
     let id: PickupID = .astralBlaze
     let rarity: PickupRarity = .uncommon
+
+    /// The four Essences are what the uncommon tier is *for*, and their current
+    /// rate plays well — three each keeps it where it was while the warps come
+    /// down around them.
+    let weight = 3
     let displayName = "Astral Blaze"
     let summary = "The ring of tiles around you loses one stage. Gain 1 charge per tile damaged, 2 per tile broken."
     let glyph = "✷"
@@ -333,11 +355,16 @@ struct AstralBlazeEffect: PickupEffect {
 /// The earth essence: it *mends what can still be mended*. Holes are past
 /// saving and are skipped entirely — this shores up a board that is wearing
 /// thin, it does not resurrect one that has already collapsed. Compare
-/// `RestoreTileEffect`, which fixes one square completely no matter how far gone.
+/// `AstralTearEffect`, which fixes one square completely no matter how far gone.
 struct AstralBlossomEffect: PickupEffect {
 
     let id: PickupID = .astralBlossom
     let rarity: PickupRarity = .uncommon
+
+    /// The four Essences are what the uncommon tier is *for*, and their current
+    /// rate plays well — three each keeps it where it was while the warps come
+    /// down around them.
+    let weight = 3
     let displayName = "Astral Blossom"
     let summary = "The ring of tiles around you recovers one stage. Holes are beyond help."
     let glyph = "✽"
@@ -375,6 +402,10 @@ struct CornerWarpEffect: PickupEffect {
 
     let id: PickupID = .cornerWarp
     let rarity: PickupRarity = .uncommon
+
+    /// Below the Essences: a warp rearranges where the whole run is happening,
+    /// which is a bigger event than any single tile changing.
+    let weight = 2
     let displayName = "Corner Warp"
     let summary = "Teleport to a random corner. It does not care what is waiting there."
     let glyph = "⟀"
@@ -430,6 +461,11 @@ struct NexysShiftEffect: PickupEffect {
 
     let id: PickupID = .nexysShift
     let rarity: PickupRarity = .uncommon
+
+    /// The rarest uncommon. Moving the island moves the one fixed landmark on
+    /// the board, and at its old rate it was turning up often enough that the
+    /// Nexys stopped feeling fixed at all.
+    let weight = 1
     let displayName = "Nexys Shift"
     let summary = "Brings the Nexys island to your plane, or warps you onto it if it is already here."
     let glyph = "◈"
@@ -468,6 +504,10 @@ struct ForcedFateEffect: PickupEffect {
 
     let id: PickupID = .forcedFate
     let rarity: PickupRarity = .rare
+
+    /// Three against Alignment's one. Being *given* a sign is the lesser of the
+    /// two, because it is luck rather than a decision.
+    let weight = 3
     let displayName = "Forced Fate"
     let summary = "Your sign changes at random. You do not get a say."
     let glyph = "✦"
@@ -493,6 +533,11 @@ struct AlignmentEffect: PickupEffect {
 
     let id: PickupID = .alignment
     let rarity: PickupRarity = .rare
+
+    /// The rarest thing that is not pinned to a single square. Choosing your
+    /// own sign is the strongest effect in the game — it converts a bad run into
+    /// whichever run you wanted — so it has to be the one you almost never see.
+    let weight = 1
     let displayName = "Alignment"
     let summary = "Choose any sign to become — including the one you already are."
     let glyph = "✧"
@@ -534,7 +579,19 @@ struct PolarisEffect: PickupEffect {
     /// rare enough that telegraphing it is the point.
     let appearance: PentacleAppearance = .radiant
 
+    /// Rolled among the commons, not the legendaries.
+    ///
+    /// Being pinned to one square already makes it rare: a sparkle set has to
+    /// cover the top-centre tile before Polaris is even a candidate. Charging it
+    /// legendary odds *as well* is two gates on the same door, and it is why it
+    /// was never seen.
+    let rollsAsRarity: PickupRarity = .common
+
     /// Out of rotation until it does something.
+    ///
+    /// - Important: This is the only thing keeping it off the board. Set it to
+    ///   `3` — the Astral Tear's weight — the moment `plan` does something,
+    ///   and it is in.
     let weight = 0
 
     /// The north-middle tile. Polaris appears here or not at all.
@@ -630,7 +687,7 @@ enum PickupCatalog {
     /// Every implemented effect, keyed by id.
     static let allEffects: [PickupID: any PickupEffect] = [
         .zCharge: ZChargeEffect(),
-        .restoreTile: RestoreTileEffect(),
+        .restoreTile: AstralTearEffect(),
 
         .astralBrook: AstralBrookEffect(),
         .astralBreeze: AstralBreezeEffect(),
@@ -673,7 +730,8 @@ enum PickupCatalog {
         func eligible(in rarity: PickupRarity) -> [(value: PickupID, weight: Int)] {
             allEffects.values
                 .filter { effect in
-                    guard effect.rarity == rarity, effect.weight > 0 else { return false }
+                    // `rollsAsRarity`, not `rarity`: see `PickupEffect`.
+                    guard effect.rollsAsRarity == rarity, effect.weight > 0 else { return false }
                     guard let required = effect.requiredSpawnPoint else { return true }
                     return covered.contains(required)
                 }
