@@ -63,13 +63,28 @@ enum GameEvent: Equatable {
     /// rule actually does.
     case tilesChanged(plane: Plane, changes: [GridPoint: TileHealth])
 
-    /// A tile took wear from the piece **leaving** it, and is now in state `to`.
+    /// What a landing did to the board, as one event.
     ///
-    /// Identical to `tileDamaged` in every way that matters to the rules — the
-    /// engine applies both the same. It exists purely so the replay can pace it
-    /// differently: exit wear is emitted before the hop, so holding on it delays
-    /// the move itself.
-    case tileWornOnExit(plane: Plane, point: GridPoint, to: TileHealth)
+    /// **Batched deliberately, and this is a fairness rule rather than a
+    /// cosmetic one.** A move used to cost a beat per tile it damaged, so Libra
+    /// — which strikes two flanking tiles instead of one underfoot — and Taurus
+    /// on Astra — which takes two stages at once — both moved visibly slower
+    /// than everyone else. A sign should not be penalised in tempo for what its
+    /// passive does to the floor.
+    ///
+    /// One landing, one event, one beat. `changes` carries each tile's *final*
+    /// state, so several stages of wear resolve together.
+    ///
+    /// A repair can appear here too: Sagittarius' Safe Landing mends a tile
+    /// rather than breaking it, and that is still something the landing did.
+    case tilesWorn(plane: Plane, changes: [GridPoint: TileHealth])
+
+    /// The same, for wear charged to the tile being **left** rather than
+    /// entered.
+    ///
+    /// Separate only so it can be paced differently: exit wear is emitted before
+    /// the hop, so holding on it delays the move itself.
+    case tilesWornOnExit(plane: Plane, changes: [GridPoint: TileHealth])
 
     /// A tile was repaired and is now in state `to`.
     case tileHealed(plane: Plane, point: GridPoint, to: TileHealth)
@@ -169,7 +184,8 @@ enum GameEvent: Equatable {
         case .pieceStepped: GameRules.hopDuration
         case .tilesChanged: GameRules.areaEffectDuration
         case .tileDamaged: GameRules.tileDamageDuration
-        case .tileWornOnExit: GameRules.tileDamageOnExitDuration
+        case .tilesWorn: GameRules.tileDamageDuration
+        case .tilesWornOnExit: GameRules.tileDamageOnExitDuration
         case .tileHealed: GameRules.tileHealDuration
         case .pieceFell: GameRules.fallDuration
         case .planeRestored: GameRules.planeRestoreDuration

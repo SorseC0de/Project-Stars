@@ -890,7 +890,7 @@ struct GameEngine {
     /// alongside the damage.
     /// - Parameter onExit: Tags the damage as coming from the piece *leaving*
     ///   this square, so the replay can pace it differently. See
-    ///   `GameEvent.tileWornOnExit`.
+    ///   `GameEvent.tilesWornOnExit`.
     private mutating func applyWear(
         to point: GridPoint,
         on plane: Plane,
@@ -920,49 +920,52 @@ struct GameEngine {
             commit(.signStateChanged(final.signState))
         }
 
-        // Redirected impact — Libra spares what it lands on and hits the flanks
-        // instead. Applied before the primary so a passive that zeroes `stages`
-        // still gets its extras.
-        //
-        // Batched into one `tilesChanged`: the flanks are struck by the same
-        // landing, so breaking one and then the other reads as two events when
-        // it is one.
-        var extraChanges: [GridPoint: TileHealth] = [:]
+        // Everything this landing does to the board, gathered before anything
+        // is emitted — see `GameEvent.tilesWorn` for why it leaves as one event.
+        var changes: [GridPoint: TileHealth] = [:]
+
+        // Redirected impact: Libra spares what it lands on and hits the flanks
+        // instead. Gathered first so a passive that zeroes `stages` still gets
+        // its extras.
         for extra in piece.zodiac.passives.additionalWear(from: final, context: passiveContext) {
             guard self[plane].contains(extra) else { continue }
             let target = self[plane][extra]
             guard target.canBeWorn else { continue }
 
             let health = target.health.damaged
-            extraChanges[extra] = health
+            changes[extra] = health
             result.tilesWorn += 1
             if health.isHole { result.tilesBroken += 1 }
         }
-        if !extraChanges.isEmpty {
-            commit(.tilesChanged(plane: plane, changes: extraChanges))
-        }
 
-        guard final.stages != 0 else { return result }
-
-        // Negative stages repair instead of wearing — see `WearProposal.stages`.
-        guard final.stages > 0 else {
+        // The tile underfoot. Several stages resolve to one final state rather
+        // than to one event each.
+        if final.stages > 0 {
+            var health = tile.health
+            for _ in 0..<final.stages where health != .hole {
+                health = health.damaged
+            }
+            if health != tile.health {
+                changes[point] = health
+                result.tilesWorn += 1
+                if health.isHole { result.tilesBroken += 1 }
+            }
+        } else if final.stages < 0 {
+            // Negative stages repair — see `WearProposal.stages`.
             var health = tile.health
             for _ in 0..<(-final.stages) where health != .healthy {
                 health = health.healed
-                commit(.tileHealed(plane: plane, point: point, to: health))
             }
-            return result
+            if health != tile.health {
+                changes[point] = health
+            }
         }
 
-        var health = tile.health
-        for _ in 0..<final.stages where health != .hole {
-            health = health.damaged
-            commit(onExit
-                ? .tileWornOnExit(plane: plane, point: point, to: health)
-                : .tileDamaged(plane: plane, point: point, to: health))
-            result.tilesWorn += 1
-            if health.isHole { result.tilesBroken += 1 }
-        }
+        guard !changes.isEmpty else { return result }
+        commit(onExit
+            ? .tilesWornOnExit(plane: plane, changes: changes)
+            : .tilesWorn(plane: plane, changes: changes))
+
         return result
     }
 
@@ -970,7 +973,7 @@ struct GameEngine {
     ///
     /// Only does anything for signs whose `wearTiming` is `.onExit`. Called at
     /// the top of a move, while the piece is still on the square it is leaving.
-    /// - Note: Emits `tileWornOnExit` rather than `tileDamaged`. Same rule,
+    /// - Note: Emits `tilesWornOnExit` rather than `tilesWorn`. Same rule,
     ///   different pacing — see the event's documentation.
     private mutating func departCurrentTile() -> LandingResult {
         guard piece.zodiac.passives.wearTiming(context: passiveContext) == .onExit else {
@@ -1286,8 +1289,10 @@ struct GameEngine {
                 self[plane][point].health = health
             }
 
-        case let .tileWornOnExit(plane, point, health):
-            self[plane][point].health = health
+        case let .tilesWorn(plane, changes), let .tilesWornOnExit(plane, changes):
+            for (point, health) in changes {
+                self[plane][point].health = health
+            }
 
         case let .tileDamaged(plane, point, health):
             self[plane][point].health = health

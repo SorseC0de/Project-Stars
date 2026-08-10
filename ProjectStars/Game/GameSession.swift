@@ -378,6 +378,14 @@ final class GameSession {
             }
             await sleep(GameRules.planeRestoreDuration)
 
+        case let .tilesWorn(_, changes), let .tilesWornOnExit(_, changes):
+            flashingTiles.formUnion(changes.keys)
+            withAnimation(.easeOut(duration: GameRules.tileDamageDuration)) {
+                engine.apply(event)
+            }
+            await sleep(event.displayDuration)
+            flashingTiles.subtract(changes.keys)
+
         case let .tilesChanged(_, changes):
             flashingTiles.formUnion(changes.keys)
             withAnimation(.easeOut(duration: event.displayDuration * 0.6)) {
@@ -386,8 +394,7 @@ final class GameSession {
             await sleep(event.displayDuration)
             flashingTiles.subtract(changes.keys)
 
-        case .tileDamaged(_, let point, _), .tileHealed(_, let point, _),
-             .tileWornOnExit(_, let point, _):
+        case .tileDamaged(_, let point, _), .tileHealed(_, let point, _):
             flashingTiles.insert(point)
             withAnimation(.easeOut(duration: event.displayDuration)) {
                 engine.apply(event)
