@@ -331,9 +331,9 @@ enum GameRules {
 
     // MARK: - Sprite frame rates
     //
-    // One rate per animation, chosen from `SpriteRate` — see that type for why
-    // it is a closed set and why the hold, not the duration, is the number worth
-    // naming.
+    // One rate per animation, chosen from `SpriteRate`. That type lists what
+    // each rate suits and flags the two that do not divide the display clock
+    // evenly.
 
     /// The clock every rate is measured against.
     static let spriteFramesPerSecond = 60
