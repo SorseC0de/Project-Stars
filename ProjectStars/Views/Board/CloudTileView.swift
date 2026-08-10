@@ -58,7 +58,6 @@ struct CloudTileView: View {
                     count: GameRules.cloudGlintBuriedCount,
                     salt: 0,
                     tones: [tones[0], tones[1]],
-                    upperOnly: false,
                     additive: false
                 )
 
@@ -73,7 +72,6 @@ struct CloudTileView: View {
                     count: GameRules.cloudGlintCount,
                     salt: 4_096,
                     tones: Palette.cloudSpeckleTones,
-                    upperOnly: true,
                     additive: true
                 )
             }
@@ -128,27 +126,17 @@ struct CloudTileView: View {
     /// - Parameters:
     ///   - salt: Offsets the hashes, so the buried set and the lit set are not
     ///     the same curls drawn twice in different colours.
-    ///   - upperOnly: Confines the set to the top half. True for the lit curls,
-    ///     because light striking a volume from one side catches the same side
-    ///     of every puff; false for the buried ones, which are material rather
-    ///     than light and belong throughout.
     ///   - additive: Light adds; cloudstuff does not.
     private func glints(
         at now: TimeInterval,
         count: Int,
         salt: Int,
         tones: [Color],
-        upperOnly: Bool,
         additive: Bool
     ) -> some View {
         ZStack {
             ForEach(0..<count, id: \.self) { index in
-                let glint = CloudCluster.glint(
-                    index + salt,
-                    at: point,
-                    time: now,
-                    upperOnly: upperOnly
-                )
+                let glint = CloudCluster.glint(index + salt, at: point, time: now)
                 let span = GameRules.cloudGlintLength * scale * glint.length
 
                 CloudGlintSpiral(turns: GameRules.cloudGlintTurns)
@@ -365,14 +353,13 @@ enum CloudCluster {
 
     /// One curl: where it lies, how it leans, and how bright it is now.
     ///
-    /// Confined to the upper half of the cluster. Light striking a volume from
-    /// one side catches the same side of every puff; scattering these evenly
-    /// would undo the layering the shading just established.
+    /// Scattered through the whole cluster. What keeps the lit set from
+    /// flattening the shading is that it is drawn *after* the crown while the
+    /// buried set is drawn under it — the layering, not where they sit.
     static func glint(
         _ index: Int,
         at point: GridPoint,
-        time: TimeInterval,
-        upperOnly: Bool
+        time: TimeInterval
     ) -> (x: CGFloat, y: CGFloat, angle: Double, length: CGFloat, opacity: Double) {
         let across = hash(point, salt: index + 701)
         let up = hash(point, salt: index + 809)
@@ -401,10 +388,7 @@ enum CloudCluster {
 
         return (
             x: CGFloat(across - 0.5) * 9,
-            y: upperOnly
-                // Never right at the crown's edge.
-                ? -1 - CGFloat(up) * 4.5
-                : CGFloat(up - 0.5) * 9,
+            y: CGFloat(up - 0.5) * 9,
             angle: rest + spin,
             length: span * (0.9 + 0.2 * CGFloat(wave)),
             opacity: 0.45 + 0.55 * wave
