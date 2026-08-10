@@ -179,6 +179,13 @@ struct LibraRebalance: Zodiaction {
             let tile = board[point]
             // Structural squares sit outside the scales.
             guard tile.kind == .normal else { continue }
+
+            // So does the square the Pentacle is on. Popping this on a fresh
+            // Astra board turns every healthy tile into a hole; if the coin's
+            // tile went with them the coin would be destroyed and there would be
+            // nowhere left to spawn its replacement, ending the hunt for good.
+            // The scales weigh the ground, not what is standing on it.
+            guard point != context.pickupPoint else { continue }
             guard let target = swapped(tile.health, on: context.plane),
                   target != tile.health else { continue }
             changes[point] = target

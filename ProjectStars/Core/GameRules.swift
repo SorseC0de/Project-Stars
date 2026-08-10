@@ -1003,41 +1003,47 @@ enum GameRules {
     static let zodiactionDuration: TimeInterval = 0.08
 
     /// How long the whole summon lasts, from first star to gone.
-    static let constellationDuration: TimeInterval = 1.9
+    static let constellationDuration: TimeInterval = 3.2
 
     /// Seconds per line while the figure traces itself.
     ///
     /// The figures run from three lines to eight, so this paces the *drawing*
     /// rather than fixing a total — a busier sign takes longer to write, which
     /// is correct.
-    static let constellationTracePerLine: TimeInterval = 0.085
+    static let constellationTracePerLine: TimeInterval = 0.17
 
     /// The fraction of its life after which it starts going out.
     static let constellationFadeStart: Double = 0.62
 
     /// Size of the box it is drawn in, in tiles, and points per unit within it.
-    static let constellationSpan: CGFloat = 5
-    static let constellationScale: CGFloat = 1.15
+    ///
+    /// The box has to stay ahead of the scale or the figure clips its own
+    /// corners as it turns.
+    static let constellationSpan: CGFloat = 9
+    static let constellationScale: CGFloat = 2.3
 
     /// How far above the piece it hangs, in art pixels.
-    static let constellationRise: CGFloat = 26
+    static let constellationRise: CGFloat = 12
 
     /// Radians per second about the vertical axis, and the fixed tilt.
     ///
     /// Slow: the turn is there to give the figure depth through parallax, not to
     /// spin it. Anything faster and the pattern stops being legible as a shape.
-    static let constellationSpin: Float = 0.55
+    static let constellationSpin: Float = 0.34
     static let constellationPitch: Float = -0.20
 
     /// Star size in art pixels, before magnitude and perspective.
-    static let constellationStarSize: CGFloat = 0.85
+    static let constellationStarSize: CGFloat = 1.05
 
     /// How much bigger a star is at the instant it lights, as a fraction.
     static let constellationPop: CGFloat = 1.4
 
     /// The threads between stars.
-    static let constellationLineWidth: CGFloat = 0.4
-    static let constellationLineOpacity: Double = 0.55
+    static let constellationLineWidth: CGFloat = 0.5
+    static let constellationLineOpacity: Double = 0.95
+
+    /// How brightly a star's soft body burns under its hard core.
+    static let constellationHaloOpacity: Double = 0.55
 
     // ──────────────────────────────────────────────────────────────────────
     // MARK: - Elemental bursts

@@ -388,6 +388,13 @@ struct PassiveContext {
     /// Current Zodiaction meter, in pips.
     let zodiactionMeter: Int
 
+    /// Where the revealed Pentacle is sitting, if one is out on this plane.
+    ///
+    /// Anything that rewrites the board wholesale has to be able to leave it
+    /// alone — a coin dropped into a hole by an ability that also removed
+    /// everywhere a new one could spawn ends the hunt outright.
+    let pickupPoint: GridPoint?
+
     /// What the sign remembers between moves — streaks, cooldowns, per-visit
     /// charges. See `SignState`.
     let signState: SignState

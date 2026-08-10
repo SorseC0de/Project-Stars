@@ -142,6 +142,10 @@ final class GameSession {
     /// is not flashing.
     private(set) var chargeFlashStartedAt: Date?
 
+    /// The square a crab walk started from, so its first bubble is only played
+    /// once however many squares the walk covers. Cleared when the move commits.
+    private var crabWalkOrigin: GridPoint?
+
     /// The strip owed to the tiles the Pentacle just opened is about to change.
     ///
     /// Set when the coin opens and spent on the `.tilesChanged` that follows it.
@@ -242,6 +246,7 @@ final class GameSession {
         elementalBurst = nil
         effectBursts = []
         pluming = nil
+        crabWalkOrigin = nil
         chargeFlashStartedAt = nil
         collectBurst = nil
         smoke = nil
@@ -370,6 +375,9 @@ final class GameSession {
     /// Applies a plan to the engine one event at a time, animating each and
     /// waiting out its display duration before the next.
     private func replay(_ events: [GameEvent]) async {
+        // Per-move presentation bookkeeping, cleared before anything is drawn.
+        crabWalkOrigin = nil
+
         for event in events {
             guard !Task.isCancelled else { return }
             await present(event)
@@ -526,18 +534,25 @@ final class GameSession {
             hopCount += 1
             hopStartedAt = .now
 
-            // The crab's two-square scuttle bubbles up on every square it
-            // crosses, one after another, so the effect travels with it rather
-            // than appearing all at once where it stopped.
-            if hopDistance >= 2, let drawn = EffectSprite.sidestep(for: zodiac) {
-                for (step, point) in from.line(to: to).enumerated() {
-                    playEffect(
-                        drawn,
-                        at: point,
-                        on: plane,
-                        delay: Double(step) * GameRules.crabWalkStagger
-                    )
+            // The crab's scuttle bubbles up on every square it crosses.
+            //
+            // Fired per step rather than planned up front: a sidestep is a
+            // *slide*, so the engine emits one `.pieceStepped` per square and
+            // there is no single event carrying the whole two-square walk. That
+            // is also why the previous `hopDistance >= 2` test never fired —
+            // every step of a slide covers exactly one square.
+            //
+            // A crab walk is recognised by the piece moving perpendicular to the
+            // way it is looking, which only happens when the facing was kept —
+            // i.e. exactly on the sidestep, and never on an ordinary step, which
+            // turns the piece to face its direction.
+            if let drawn = EffectSprite.sidestep(for: zodiac),
+               engine.piece.facing.perpendicular.contains(stepDirection(from: from, to: to)) {
+                if crabWalkOrigin == nil {
+                    crabWalkOrigin = from
+                    playEffect(drawn, at: from, on: plane)
                 }
+                playEffect(drawn, at: to, on: plane, delay: GameRules.crabWalkStagger)
             }
 
             // Their full three-tile bound, thrown from the square pushed off.
@@ -1083,6 +1098,18 @@ extension GameSession {
             )
             self?.effectBursts.removeAll { $0.id == burst.id }
         }
+    }
+
+    /// Which way a single step went.
+    ///
+    /// A step is always one square along one axis, so this cannot be ambiguous.
+    /// Defaults to the piece's own facing for a step that went nowhere.
+    private func stepDirection(from: GridPoint, to: GridPoint) -> SwipeDirection {
+        if to.x > from.x { return .right }
+        if to.x < from.x { return .left }
+        if to.y > from.y { return .down }
+        if to.y < from.y { return .up }
+        return engine.piece.facing
     }
 
     /// Recolours the piece for a moment. Fired whenever the meter gains.

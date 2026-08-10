@@ -470,6 +470,16 @@ struct GameEngine {
             if let allowed = sim.sheltered(event) { commit(allowed) }
         }
 
+        // The ground it stood on may not have survived what it just did. Libra's
+        // Rebalance turns every healthy Astra tile into a hole, its own square
+        // included, and without this the piece simply stood on the air.
+        //
+        // Same guarantee `applyEffect` gives a Pentacle: arriving somewhere new
+        // is a landing, and so is the floor leaving.
+        if !sim.isGameOver, !sim[sim.piece.plane][sim.piece.point].isSolid {
+            events += sim.settle(arrivedByFalling: false, wearsOnArrival: false).events
+        }
+
         commit(.zodiactionMeterChanged(to: 0))
 
         // A Zodiaction can change plane too — Taurus flops through Astra, Pisces
@@ -1396,6 +1406,7 @@ struct GameEngine {
             moveCount: moveCount,
             score: score,
             zodiactionMeter: zodiactionMeter,
+            pickupPoint: revealedPickup.flatMap { $0.plane == piece.plane ? $0.point : nil },
             signState: signState,
             luck: luck,
             luckAlt: luckAlt

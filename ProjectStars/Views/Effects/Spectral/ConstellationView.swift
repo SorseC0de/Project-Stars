@@ -127,7 +127,7 @@ struct ConstellationView: View {
                     x: centre.x - radius * 2.2, y: centre.y - radius * 2.2,
                     width: radius * 4.4, height: radius * 4.4
                 )),
-                with: .color(ramp.bright.opacity(0.28 * twinkle))
+                with: .color(ramp.bright.opacity(GameRules.constellationHaloOpacity * twinkle))
             )
             context.fill(
                 Path(ellipseIn: CGRect(

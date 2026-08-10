@@ -95,8 +95,10 @@ struct CancerCrabWalk: ZodiacPassive {
         option: MovementPattern.MoveOption,
         context: PassiveContext
     ) -> Bool {
-        guard option.distance >= 2 else { return false }
-        return context.facing.perpendicular.contains(direction)
+        // Keyed on the option being *the sidestep* rather than on its distance.
+        // The two-square walk is the only sideways-only option Cancer has, and
+        // asking the question that way cannot drift if the pattern is retuned.
+        option.applies == .relative(.sideways)
     }
 }
 
