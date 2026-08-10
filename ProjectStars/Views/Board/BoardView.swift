@@ -164,7 +164,11 @@ struct BoardView: View {
     private func sparkles(metrics: PixelArtMetrics) -> some View {
         if let set = session.visibleSparkles {
             ForEach(Array(set.points.enumerated()), id: \.element) { index, point in
-                SparkleView(size: metrics.tileSize, index: index)
+                SparkleView(
+                    size: metrics.tileSize,
+                    plane: session.visiblePlane,
+                    index: index
+                )
                     .position(metrics.center(of: point))
                     .offset(GameRules.sparkleNudge)
             }

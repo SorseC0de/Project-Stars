@@ -154,6 +154,18 @@ enum Palette {
     // MARK: Gameplay elements
 
     /// The shimmer on candidate pickup tiles.
+    ///
+    /// Per plane: gold sits on Terra's earth the way a glint of treasure should,
+    /// but on Astra it competes with the gold already flecked through every
+    /// cloud. Blue reads as something the plane is doing rather than as more of
+    /// the same.
+    static func sparkle(on plane: Plane) -> Color {
+        switch plane {
+        case .astra: cyan
+        case .terra: sparkle
+        }
+    }
+
     static let sparkle = Color(hex: 0xFFE7A3)
 
     /// The Pentacle coin's face.

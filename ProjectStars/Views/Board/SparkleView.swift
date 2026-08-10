@@ -18,6 +18,9 @@ struct SparkleView: View {
     /// Rendered edge length in points — one tile.
     let size: CGFloat
 
+    /// Which plane it is shimmering on, which decides its colour.
+    var plane: Plane = .terra
+
     /// Staggers the pulse so the five sparkles do not blink in unison.
     /// Which sparkle in the set this is.
     ///
@@ -43,10 +46,12 @@ struct SparkleView: View {
     // MARK: - Placeholder art
 
     private var placeholder: some View {
-        SparkleGlyph()
-            .fill(Palette.sparkle)
+        let tint = Palette.sparkle(on: plane)
+
+        return SparkleGlyph()
+            .fill(tint)
             .frame(width: size * 0.45, height: size * 0.45)
-            .shadow(color: Palette.sparkle.opacity(0.8), radius: size * 0.12)
+            .shadow(color: tint.opacity(0.8), radius: size * 0.12)
     }
 }
 

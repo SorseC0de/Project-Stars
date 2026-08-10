@@ -318,7 +318,7 @@ enum GameRules {
     static let cloudSpeckleSpread: CGFloat = 7.8
 
     /// Overall brightness of the flecks, on top of their own twinkle.
-    static let cloudSpeckleOpacity: Double = 0.5
+    static let cloudSpeckleOpacity: Double = 0.25
 
     /// Little curls of light lying across the upper half of each cloud —
     /// bigger than a speckle, smaller than a puff, so they read as something
