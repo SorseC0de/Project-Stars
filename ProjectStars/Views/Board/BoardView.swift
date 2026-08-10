@@ -63,6 +63,7 @@ struct BoardView: View {
 
             spectralHead(metrics: metrics)
             warpBeam(metrics: metrics)
+            cloudPoofs(metrics: metrics)
             dust(metrics: metrics)
             collectBurst(metrics: metrics)
             elementalBurst(metrics: metrics)
@@ -98,11 +99,16 @@ struct BoardView: View {
 
     /// Pass one: every tile's edge, pushed down so its visible sliver sits at
     /// the bottom of the square, ready to be uncovered.
+    @ViewBuilder
     private func edgeLayer(board: Board, plane: Plane, metrics: PixelArtMetrics) -> some View {
-        ForEach(board.allPoints, id: \.self) { point in
-            TileEdgeView(plane: plane, shade: .at(point), size: metrics.tileSize)
-                .position(metrics.center(of: point))
-                .offset(y: GameRules.tileEdgeDrop * metrics.scale)
+        // Cloud has no side to reveal, so Astra skips the pass entirely rather
+        // than laying down strips nothing will ever uncover.
+        if plane == .terra {
+            ForEach(board.allPoints, id: \.self) { point in
+                TileEdgeView(plane: plane, shade: .at(point), size: metrics.tileSize)
+                    .position(metrics.center(of: point))
+                    .offset(y: GameRules.tileEdgeDrop * metrics.scale)
+            }
         }
     }
 
@@ -307,7 +313,8 @@ struct BoardView: View {
             shade: .at(point),
             size: metrics.tileSize,
             isPopped: true,
-            isFlashing: session.flashingTiles.contains(point)
+            isFlashing: session.flashingTiles.contains(point),
+            point: point
         )
         .offset(y: -GameRules.tilePopLift * metrics.scale)
         .position(metrics.center(of: point))
@@ -507,6 +514,22 @@ struct BoardView: View {
             )
             .position(metrics.center(of: beam.point))
             .id(beam.id)
+        }
+    }
+
+    /// Clusters coming apart where Astra has given way.
+    @ViewBuilder
+    private func cloudPoofs(metrics: PixelArtMetrics) -> some View {
+        if session.visiblePlane == .astra {
+            ForEach(session.cloudPoofs) { poof in
+                CloudPoofView(
+                    shade: .at(poof.point),
+                    point: poof.point,
+                    size: metrics.tileSize,
+                    start: poof.start
+                )
+                .position(metrics.center(of: poof.point))
+            }
         }
     }
 

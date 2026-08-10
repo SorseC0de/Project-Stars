@@ -270,6 +270,43 @@ enum GameRules {
     static let planeRestoreDuration: TimeInterval = 0.30
 
     // ──────────────────────────────────────────────────────────────────────
+    // MARK: - Astra clouds
+    //
+    // Astra has no tiles. Its squares are clusters of small clouds, drawn rather
+    // than sprited, and wear is expressed as the cluster shrinking rather than
+    // as cracks appearing. A cloud cannot crack.
+
+    /// How wide a cluster is at each wear state, as a fraction of a cell.
+    ///
+    /// `badlyCracked` is deliberately about the width of a piece's base: at a
+    /// glance you can see there is only just enough cloud left to stand on.
+    /// A hole is nothing at all.
+    static func cloudScale(_ health: TileHealth) -> CGFloat {
+        switch health {
+        case .healthy: 1.0
+        case .cracked: 0.8
+        case .badlyCracked: 0.55
+        case .hole: 0
+        }
+    }
+
+    /// Puffs in one cluster.
+    static let cloudPuffCount = 7
+
+    /// How far a cluster drifts, in art pixels, and how long one cycle takes.
+    ///
+    /// Small and slow. Clouds that visibly wandered would fight the grid the
+    /// player is counting squares on.
+    static let cloudDriftAmount: CGFloat = 0.6
+    static let cloudDriftPeriod: TimeInterval = 5.5
+
+    /// Seconds a cluster takes to disperse when its square becomes a hole.
+    static let cloudPoofDuration: TimeInterval = 0.5
+
+    /// How far the puffs of a dispersing cluster travel, in art pixels.
+    static let cloudPoofSpread: CGFloat = 7
+
+    // ──────────────────────────────────────────────────────────────────────
     // MARK: - Piece
     //
     // Where it sits on its tile, how it hops, how it falls.

@@ -138,6 +138,12 @@ final class GameSession {
     /// The dust currently settling, if any.
     private(set) var smoke: SmokePuff?
 
+    /// Cloud squares currently coming apart.
+    ///
+    /// A list rather than one at a time: an area effect can take out several
+    /// squares of Astra at once, and each has to disperse from its own cluster.
+    private(set) var cloudPoofs: [CloudPoof] = []
+
     /// The pillar of light currently standing on the board, if any.
     private(set) var warpBeam: WarpBeam?
 
@@ -220,6 +226,7 @@ final class GameSession {
         elementalBurst = nil
         collectBurst = nil
         smoke = nil
+        cloudPoofs = []
         warpBeam = nil
         spectralHead = nil
         isPaused = false
@@ -382,7 +389,8 @@ final class GameSession {
             }
             await sleep(GameRules.planeRestoreDuration)
 
-        case let .tilesWorn(_, changes), let .tilesWornOnExit(_, changes):
+        case let .tilesWorn(plane, changes), let .tilesWornOnExit(plane, changes):
+            disperseClouds(in: changes, on: plane)
             flashingTiles.formUnion(changes.keys)
             withAnimation(.easeOut(duration: GameRules.tileDamageDuration)) {
                 engine.apply(event)
@@ -390,7 +398,8 @@ final class GameSession {
             await sleep(event.displayDuration)
             flashingTiles.subtract(changes.keys)
 
-        case let .tilesChanged(_, changes):
+        case let .tilesChanged(plane, changes):
+            disperseClouds(in: changes, on: plane)
             flashingTiles.formUnion(changes.keys)
             withAnimation(.easeOut(duration: event.displayDuration * 0.6)) {
                 engine.apply(event)
@@ -846,6 +855,45 @@ extension GameSession {
             )
             guard let self, self.spectralHead?.id == summon.id else { return }
             self.spectralHead = nil
+        }
+    }
+}
+
+// MARK: - Cloud dispersal
+
+/// One Astra square coming apart.
+struct CloudPoof: Identifiable, Equatable {
+    let id = UUID()
+    let point: GridPoint
+    let start: Date
+}
+
+extension GameSession {
+
+    /// Sets off a dispersal for every Astra square this change turns into a
+    /// hole.
+    ///
+    /// Reads the change rather than the board, so it fires on the transition and
+    /// not on every batch that happens to include an already-open square —
+    /// otherwise a second area effect would re-poof squares that dispersed
+    /// several moves ago.
+    func disperseClouds(in changes: [GridPoint: TileHealth], on plane: Plane) {
+        guard plane == .astra else { return }
+
+        let opened = changes.filter { point, health in
+            health.isHole && engine[plane][point].health != .hole
+        }
+        guard !opened.isEmpty else { return }
+
+        let poofs = opened.keys.map { CloudPoof(point: $0, start: .now) }
+        cloudPoofs += poofs
+
+        let ids = Set(poofs.map(\.id))
+        Task { [weak self] in
+            try? await Task.sleep(
+                nanoseconds: UInt64(GameRules.cloudPoofDuration * 1_000_000_000)
+            )
+            self?.cloudPoofs.removeAll { ids.contains($0.id) }
         }
     }
 }

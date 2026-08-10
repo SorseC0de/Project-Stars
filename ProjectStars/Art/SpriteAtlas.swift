@@ -144,22 +144,21 @@ enum SpriteAtlas {
         static let hole = 9
     }
 
-    /// Row of each plane's tile block. The face is on `row`, its edge on
-    /// `row + 1`.
-    private static func tileRow(for plane: Plane) -> Int {
-        switch plane {
-        case .astra: 4   // the lighter, greyer set
-        case .terra: 6   // the warmer, orange set
-        }
-    }
+    /// Row of the drawn tile block. The face is on `row`, its edge on `row + 1`.
+    ///
+    /// Only Terra has one. Astra's squares are clusters of cloud drawn by
+    /// `CloudTileView`, so there is nothing here to point at — which is also why
+    /// the warmer orange set further down the sheet is currently unused.
+    private static let terraTileRow = 4
 
     /// Every sprite that comes from the sheet.
     static let slices: [SpriteID: SpriteSlice] = {
         var map: [SpriteID: SpriteSlice] = [:]
 
         // ── Tiles ────────────────────────────────────────────────────────
-        for plane in Plane.allCases {
-            let row = tileRow(for: plane)
+        // Terra only — see `terraTileRow`.
+        for plane in [Plane.terra] {
+            let row = terraTileRow
 
             map[.tileFace(plane, .light, popped: false)] = .cells(column: TileColumn.light, row: row)
             map[.tileFace(plane, .dark, popped: false)] = .cells(column: TileColumn.dark, row: row)

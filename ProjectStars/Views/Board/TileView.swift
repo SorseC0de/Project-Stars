@@ -32,18 +32,38 @@ struct TileView: View {
     /// True for one beat after this tile changes state, so it can flash.
     var isFlashing: Bool = false
 
+    /// Which square this is. Astra's clusters are generated from it, so each
+    /// one keeps its own cloud.
+    var point: GridPoint = GridPoint(0, 0)
+
     var body: some View {
         ZStack {
-            face
-            damage
+            if plane == .astra, tile.kind == .normal {
+                // Astra has no tiles — see `CloudTileView`. Structural squares
+                // (the island and its chasm) still draw normally: those are not
+                // made of cloud.
+                CloudTileView(
+                    health: tile.health,
+                    shade: shade,
+                    point: point,
+                    size: size,
+                    isFlashing: isFlashing
+                )
+            } else {
+                face
+                damage
+            }
         }
         .frame(width: size, height: size)
         .overlay {
             // A bright rim rather than a fill, so the tile's state stays legible
-            // while it animates.
-            Rectangle()
-                .strokeBorder(Palette.textPrimary, lineWidth: size * 0.06)
-                .opacity(isFlashing ? 0.9 : 0)
+            // while it animates. Clouds do their own flash — a rectangle around
+            // one would draw a square that is not there.
+            if plane != .astra || tile.kind != .normal {
+                Rectangle()
+                    .strokeBorder(Palette.textPrimary, lineWidth: size * 0.06)
+                    .opacity(isFlashing ? 0.9 : 0)
+            }
         }
     }
 

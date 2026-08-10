@@ -174,6 +174,28 @@ enum Palette {
     static let pentacleRadiant = Color(hex: 0xCFE4FF)
     static let pentacleRadiantHighlight = Color(hex: 0xFFFFFF)
 
+    // MARK: Astra clouds
+
+    /// The two shades one cloud alternates between, lit cell.
+    ///
+    /// Two tones rather than a gradient: the clouds are meant to read as
+    /// cel-shaded volumes, and a gradient across a 16px cell would just look
+    /// like mud.
+    static let cloudLight: [Color] = [white, lightGray]
+
+    /// The same cloud on the board's darker squares.
+    ///
+    /// A step down each, not a different colour — the chequer has to read as
+    /// lighting, not as two kinds of cloud.
+    static let cloudDark: [Color] = [lightGray, gray]
+
+    static func cloudTones(_ shade: TileShade) -> [Color] {
+        switch shade {
+        case .light: cloudLight
+        case .dark: cloudDark
+        }
+    }
+
     // MARK: Pieces
 
     /// The gold form's entries, as drawn in the sheet.
