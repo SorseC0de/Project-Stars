@@ -377,6 +377,19 @@ struct GameEngine {
         return events
     }
 
+    /// Fills the Zodiaction meter outright.
+    ///
+    /// Returns an event rather than assigning, so it travels the same path as
+    /// every other state change and cannot desync a replay — the rule this
+    /// project has broken twice by taking the shortcut.
+    ///
+    /// Exposed for the debug key. Nothing in play grants a full meter directly;
+    /// signs charge through `meterBonus` and `meterGain`.
+    mutating func planFillZodiaction() -> [GameEvent] {
+        guard !isGameOver, zodiactionMeter < zodiactionMeterMax else { return [] }
+        return [.zodiactionMeterChanged(to: zodiactionMeterMax)]
+    }
+
     /// Sends the Nexys island to the other plane, on its own.
     ///
     /// The same move `NexysShiftEffect` makes, planned properly rather than

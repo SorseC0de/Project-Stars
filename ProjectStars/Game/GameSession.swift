@@ -272,6 +272,17 @@ final class GameSession {
     }
 
     #if DEBUG
+    /// Fills the Zodiaction meter. Debug builds only.
+    ///
+    /// Testing a Zodiaction otherwise means playing a full charge for every
+    /// attempt, which makes tuning its animation impractical.
+    func debugFillZodiaction() {
+        guard acceptsInput else { return }
+        let events = engine.planFillZodiaction()
+        guard !events.isEmpty else { return }
+        run(events)
+    }
+
     /// Sends the Nexys to the other plane. Debug builds only.
     ///
     /// Goes through `GameEngine.planNexysShift()` rather than firing the event

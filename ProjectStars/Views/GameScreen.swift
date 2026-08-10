@@ -99,6 +99,7 @@ struct GameScreen: View {
     /// - **Arrow keys / WASD** move, at the shortest distance available.
     /// - **R** restarts the run with the same sign.
     /// - **N** sends the Nexys to the other plane (debug builds only).
+    /// - **Z** fills the Zodiaction meter (debug builds only).
     private var keyboardCommands: some View {
         ZStack {
             // Reach 0 — the nearest option. A key press carries no magnitude, so
@@ -117,6 +118,9 @@ struct GameScreen: View {
             #if DEBUG
             Button("Shift Nexys") { session.debugShiftNexys() }
                 .keyboardShortcut("n", modifiers: [])
+
+            Button("Fill Zodiaction") { session.debugFillZodiaction() }
+                .keyboardShortcut("z", modifiers: [])
             #endif
         }
         .frame(width: 0, height: 0)
