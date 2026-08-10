@@ -812,6 +812,21 @@ struct GameEngine {
                 result.collectedPickup = result.collectedPickup ?? opened.pickup
 
                 if opened.collected {
+                    // The coin asked the player something and is waiting on the
+                    // answer. This landing is *not* finished — it is suspended,
+                    // and nothing below may run, least of all the check for
+                    // whether the ground still holds. The answer is very often
+                    // what decides that: Astral Breeze warping the piece off a
+                    // tile the landing has just broken is the whole point of the
+                    // coin, and falling through that tile while the player is
+                    // still choosing where to go makes the rescue unwinnable.
+                    //
+                    // `planChoice` resumes from here — `applyEffect` settles the
+                    // destination when the piece moves, and settles in place
+                    // when it did not but the ground went. So a choice can never
+                    // leave a piece hovering over a hole either.
+                    if pendingChoice != nil { return result }
+
                     // The effect might have carried the piece somewhere else
                     // entirely; that square is a fresh arrival and owes its own
                     // wear and its own checks.
