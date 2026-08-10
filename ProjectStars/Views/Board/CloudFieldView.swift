@@ -1,0 +1,129 @@
+//
+//  CloudFieldView.swift
+//  Project Stars
+//
+//  All of Astra's cloud, in one pass.
+//
+
+import SwiftUI
+
+/// Every ordinary Astra square, drawn as a single `Canvas`.
+///
+/// ## Why the whole plane and not a view per square
+///
+/// `CloudTileView` already moved one cluster's 39 shapes off SwiftUI's view
+/// system and into a `Canvas`, which is what a cluster needs. What was left is
+/// structural: **49 separate `TimelineView`s**, each waking its own subtree
+/// every frame, each producing its own `Canvas`, each composited separately.
+/// That is 49 invalidations and 49 layers per frame for something the player
+/// reads as one surface.
+///
+/// One `TimelineView` and one `Canvas` for the whole field is one invalidation
+/// and one layer. The drawing is identical — both routes call
+/// `CloudCluster.paint` — so nothing about how a cloud looks depends on which
+/// of them drew it.
+///
+/// ## What still draws itself
+///
+/// The raised square under a Pentacle. It is depth-sorted with the pieces rather
+/// than laid down with the board, so it has to be a view of its own; it is
+/// excluded here and `CloudTileView` handles it. Structural squares — the island
+/// and its chasm — are not cloud at all and never came through here.
+///
+/// ## Why wear easing is kept by hand
+///
+/// A `Canvas` has no per-square view to hang an implicit animation on, and with
+/// one canvas for the field there is not even a view per square to hold `@State`.
+/// So the field keeps its own small table of what each square was and when it
+/// changed, and eases between the two. Same approach as everything else here:
+/// a timestamp and a curve, never a stranded animation.
+struct CloudFieldView: View {
+
+    let board: Board
+    let metrics: PixelArtMetrics
+
+    /// Squares flashing because they just changed state.
+    var flashing: Set<GridPoint> = []
+
+    /// The raised square, which draws itself. See the note above.
+    var excluding: GridPoint?
+
+    /// What each square was before its current state, and when it changed.
+    @State private var wearing: [GridPoint: Ease] = [:]
+
+    private struct Ease: Equatable {
+        var from: CGFloat
+        var startedAt: Date
+    }
+
+    var body: some View {
+        TimelineView(.animation) { timeline in
+            let now = timeline.date.timeIntervalSinceReferenceDate
+
+            Canvas { context, _ in
+                for point in board.allPoints {
+                    guard point != excluding else { continue }
+
+                    let tile = board[point]
+                    guard tile.kind == .normal else { continue }
+
+                    let shade = Palette.TileShade.at(point)
+
+                    // Each square gets its own copy of the context: `paint`
+                    // leaves its transform where it finished, and unwinding that
+                    // 48 times is both slower and easier to get wrong.
+                    var square = context
+                    CloudCluster.paint(
+                        CloudCluster.Brush(
+                            centre: metrics.center(of: point),
+                            point: point,
+                            wear: wear(at: point, health: tile.health, now: now),
+                            tones: Palette.cloudTones(shade),
+                            speckleTones: Palette.speckleTones(raised: false),
+                            scale: metrics.scale,
+                            size: metrics.tileSize,
+                            isFlashing: flashing.contains(point)
+                        ),
+                        into: &square,
+                        at: now
+                    )
+                }
+            }
+        }
+        .frame(width: metrics.boardSize, height: metrics.boardSize)
+        .allowsHitTesting(false)
+        // The clusters are functions of the clock; nobody else may interpolate
+        // them. See the same note on `CloudTileView`.
+        .transaction { $0.animation = nil }
+        .onChange(of: healths) { previous, current in
+            for (point, health) in current where previous[point] != health {
+                wearing[point] = Ease(
+                    from: GameRules.cloudScale(previous[point] ?? .healthy),
+                    startedAt: .now
+                )
+            }
+        }
+    }
+
+    /// How much of a square's cluster is left, easing toward its new state.
+    private func wear(at point: GridPoint, health: TileHealth, now: TimeInterval) -> CGFloat {
+        let target = GameRules.cloudScale(health)
+        guard let ease = wearing[point] else { return target }
+
+        let elapsed = now - ease.startedAt.timeIntervalSinceReferenceDate
+        let linear = min(max(elapsed / GameRules.cloudWearDuration, 0), 1)
+        let eased = CGFloat(linear * linear * (3 - 2 * linear))
+
+        return ease.from + (target - ease.from) * eased
+    }
+
+    /// The board reduced to what this view actually cares about, so a change
+    /// anywhere else does not restart every square's shrink.
+    private var healths: [GridPoint: TileHealth] {
+        var map: [GridPoint: TileHealth] = [:]
+        for point in board.allPoints where board[point].kind == .normal {
+            map[point] = board[point].health
+        }
+        return map
+    }
+}

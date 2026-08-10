@@ -100,152 +100,26 @@ struct CloudTileView: View {
         }
     }
 
-    /// Paints one cluster.
-    ///
-    /// Order is the whole design: shaded body, curls half-buried in it, lit
-    /// crown over those, cloud-toned curls stitching the two together, then the
-    /// flecks of light on top.
+    /// Paints this one cluster, via the shared painter.
     private func draw(_ context: inout GraphicsContext, in canvas: CGSize, at now: TimeInterval) {
-        let wear = wearScale(at: now)
-        guard wear > 0 else { return }
-
         let blend = raiseBlend(at: now)
-        let tones = Palette.cloudTones(shade, raiseBlend: blend)
-        let drift = drift(at: now)
 
-        // Everything below is authored in art pixels from the square's centre,
-        // so the centre becomes the origin and the wear shrink becomes a scale
-        // about it.
-        context.translateBy(
-            x: canvas.width / 2 + drift.width,
-            y: canvas.height / 2 + drift.height
-        )
-        context.scaleBy(x: wear, y: wear)
-
-        for index in CloudCluster.bodyOrder {
-            fill(puff: index, into: &context, tones: tones, at: now)
-        }
-
-        stroke(
-            curls: GameRules.cloudGlintBuriedCount,
-            salt: 0,
-            tones: [tones[0], tones[1]],
+        CloudCluster.paint(
+            CloudCluster.Brush(
+                centre: CGPoint(x: canvas.width / 2, y: canvas.height / 2),
+                point: point,
+                wear: wearScale(at: now),
+                tones: Palette.cloudTones(shade, raiseBlend: blend),
+                // Swapped at the ramp's midpoint rather than crossfaded: two
+                // palette entries have no legal colours between them.
+                speckleTones: Palette.speckleTones(raised: blend >= 0.5),
+                scale: scale,
+                size: size,
+                isFlashing: isFlashing
+            ),
             into: &context,
             at: now
         )
-
-        for index in CloudCluster.crownOrder {
-            fill(puff: index, into: &context, tones: tones, at: now)
-        }
-
-        stroke(
-            curls: GameRules.cloudGlintMaskCount,
-            salt: 2_048,
-            tones: [tones[0]],
-            into: &context,
-            at: now
-        )
-
-        // Light adds; cloudstuff does not.
-        context.blendMode = .plusLighter
-        speckles(into: &context, blend: blend, at: now)
-
-        if isFlashing {
-            let radius = size * 0.25
-            context.fill(
-                Path(ellipseIn: CGRect(x: -radius, y: -radius, width: radius * 2, height: radius * 2)),
-                with: .color(Palette.pink.opacity(0.5))
-            )
-        }
-    }
-
-    // MARK: - Pieces of the cluster
-
-    /// One puff, breathing on its own clock.
-    private func fill(
-        puff index: Int,
-        into context: inout GraphicsContext,
-        tones: [Color],
-        at now: TimeInterval
-    ) {
-        let puff = CloudCluster.puff(index, at: point)
-        let radius = puff.radius * scale * CloudCluster.pulse(index, at: point, time: now)
-
-        let box = CGRect(
-            x: puff.x * scale - radius,
-            y: puff.y * scale - radius,
-            width: radius * 2,
-            height: radius * 2
-        )
-        context.fill(Path(ellipseIn: box), with: .color(CloudCluster.tone(puff, tones: tones)))
-    }
-
-    /// One set of curls.
-    ///
-    /// - Parameter salt: Offsets the hashes, so the buried set and the ones
-    ///   stitched over the crown are not the same curls drawn twice.
-    private func stroke(
-        curls count: Int,
-        salt: Int,
-        tones: [Color],
-        into context: inout GraphicsContext,
-        at now: TimeInterval
-    ) {
-        let style = StrokeStyle(
-            lineWidth: GameRules.cloudGlintThickness * scale,
-            lineCap: .round
-        )
-
-        for index in 0..<count {
-            let glint = CloudCluster.glint(index + salt, at: point, time: now)
-            let span = GameRules.cloudGlintLength * scale * glint.length
-
-            // Built around the origin so it turns about its own middle, then
-            // carried out to where it sits.
-            let box = CGRect(x: -span / 2, y: -span / 2, width: span, height: span)
-            let path = CloudGlintSpiral(turns: GameRules.cloudGlintTurns)
-                .path(in: box)
-                .applying(
-                    CGAffineTransform(translationX: glint.x * scale, y: glint.y * scale)
-                        .rotated(by: glint.angle * .pi / 180)
-                )
-
-            context.stroke(
-                path,
-                with: .color(tones[index % tones.count].opacity(glint.opacity)),
-                style: style
-            )
-        }
-    }
-
-    /// Flecks of light caught in the cloudstuff.
-    private func speckles(
-        into context: inout GraphicsContext,
-        blend: Double,
-        at now: TimeInterval
-    ) {
-        // Swapped at the ramp's midpoint rather than crossfaded: two palette
-        // entries have no legal colours between them.
-        let tones = Palette.speckleTones(raised: blend >= 0.5)
-
-        for index in 0..<GameRules.cloudSpeckleCount {
-            let fleck = CloudCluster.speckle(index, at: point, time: now)
-            let radius = fleck.size * scale / 2
-
-            let box = CGRect(
-                x: fleck.x * scale - radius,
-                y: fleck.y * scale - radius,
-                width: radius * 2,
-                height: radius * 2
-            )
-            context.fill(
-                Path(ellipseIn: box),
-                with: .color(
-                    tones[index % tones.count]
-                        .opacity(fleck.opacity * GameRules.cloudSpeckleOpacity)
-                )
-            )
-        }
     }
 
     // MARK: - Clocks
@@ -564,5 +438,145 @@ enum CloudCluster {
         z ^= z >> 33
 
         return Double(z % 10_000) / 10_000
+    }
+}
+
+// MARK: - Painting
+
+extension CloudCluster {
+
+    /// Everything one cluster needs to be drawn.
+    ///
+    /// A struct rather than nine arguments because both callers — a single tile
+    /// and the whole field — assemble the same set, and the field assembles 49
+    /// of them a frame.
+    struct Brush {
+        /// Where the square's centre is, in the context's coordinates.
+        var centre: CGPoint
+
+        /// Which square, so the cluster is its own.
+        var point: GridPoint
+
+        /// How much of the cluster is left, `0`…`1`.
+        var wear: CGFloat
+
+        /// Body tones, crown first.
+        var tones: [Color]
+
+        /// The flecks' two colours.
+        var speckleTones: [Color]
+
+        /// Points per art pixel.
+        var scale: CGFloat
+
+        /// Rendered edge length of one square, in points.
+        var size: CGFloat
+
+        var isFlashing: Bool
+    }
+
+    /// Paints one cluster.
+    ///
+    /// Order is the whole design: shaded body, curls half-buried in it, lit
+    /// crown over those, cloud-toned curls stitching the two together, then the
+    /// flecks of light on top.
+    ///
+    /// Takes the context by value and restores nothing — callers that draw more
+    /// than one cluster hand it a fresh copy each time, which is cheaper than
+    /// unwinding transforms and cannot leak state between squares.
+    static func paint(_ brush: Brush, into context: inout GraphicsContext, at now: TimeInterval) {
+        guard brush.wear > 0 else { return }
+
+        let scale = brush.scale
+        let point = brush.point
+        let drift = drift(at: point, time: now, scale: scale)
+
+        // Everything below is authored in art pixels from the square's centre,
+        // so the centre becomes the origin and the wear shrink becomes a scale
+        // about it.
+        context.translateBy(
+            x: brush.centre.x + drift.width,
+            y: brush.centre.y + drift.height
+        )
+        context.scaleBy(x: brush.wear, y: brush.wear)
+
+        func fill(puff index: Int) {
+            let puff = puff(index, at: point)
+            let radius = puff.radius * scale * pulse(index, at: point, time: now)
+            let box = CGRect(
+                x: puff.x * scale - radius,
+                y: puff.y * scale - radius,
+                width: radius * 2,
+                height: radius * 2
+            )
+            context.fill(Path(ellipseIn: box), with: .color(tone(puff, tones: brush.tones)))
+        }
+
+        /// - Parameter salt: Offsets the hashes, so the buried curls and the
+        ///   ones stitched over the crown are not the same curls drawn twice.
+        func stroke(curls count: Int, salt: Int, tones: [Color]) {
+            let style = StrokeStyle(
+                lineWidth: GameRules.cloudGlintThickness * scale,
+                lineCap: .round
+            )
+
+            for index in 0..<count {
+                let glint = glint(index + salt, at: point, time: now)
+                let span = GameRules.cloudGlintLength * scale * glint.length
+
+                // Built around the origin so it turns about its own middle,
+                // then carried out to where it sits.
+                let box = CGRect(x: -span / 2, y: -span / 2, width: span, height: span)
+                let path = CloudGlintSpiral(turns: GameRules.cloudGlintTurns)
+                    .path(in: box)
+                    .applying(
+                        CGAffineTransform(translationX: glint.x * scale, y: glint.y * scale)
+                            .rotated(by: glint.angle * .pi / 180)
+                    )
+
+                context.stroke(
+                    path,
+                    with: .color(tones[index % tones.count].opacity(glint.opacity)),
+                    style: style
+                )
+            }
+        }
+
+        for index in bodyOrder { fill(puff: index) }
+        stroke(curls: GameRules.cloudGlintBuriedCount, salt: 0,
+               tones: [brush.tones[0], brush.tones[1]])
+
+        for index in crownOrder { fill(puff: index) }
+        stroke(curls: GameRules.cloudGlintMaskCount, salt: 2_048, tones: [brush.tones[0]])
+
+        // Light adds; cloudstuff does not.
+        context.blendMode = .plusLighter
+
+        for index in 0..<GameRules.cloudSpeckleCount {
+            let fleck = speckle(index, at: point, time: now)
+            let radius = fleck.size * scale / 2
+            let box = CGRect(
+                x: fleck.x * scale - radius,
+                y: fleck.y * scale - radius,
+                width: radius * 2,
+                height: radius * 2
+            )
+            context.fill(
+                Path(ellipseIn: box),
+                with: .color(
+                    brush.speckleTones[index % brush.speckleTones.count]
+                        .opacity(fleck.opacity * GameRules.cloudSpeckleOpacity)
+                )
+            )
+        }
+
+        if brush.isFlashing {
+            let radius = brush.size * 0.25
+            context.fill(
+                Path(ellipseIn: CGRect(x: -radius, y: -radius,
+                                       width: radius * 2, height: radius * 2)),
+                with: .color(Palette.pink.opacity(0.5))
+            )
+        }
     }
 }

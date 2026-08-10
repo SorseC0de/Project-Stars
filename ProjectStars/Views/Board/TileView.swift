@@ -36,9 +36,19 @@ struct TileView: View {
     /// one keeps its own cloud.
     var point: GridPoint = GridPoint(0, 0)
 
+    /// True when `CloudFieldView` has already painted this square.
+    ///
+    /// The board sets this for Astra's ordinary squares, which are drawn in one
+    /// canvas for the whole plane rather than one view each. Everything else —
+    /// the raised square, the gallery, Terra — leaves it false and draws here.
+    var drawnByField: Bool = false
+
     var body: some View {
         ZStack {
-            if plane == .astra, tile.kind == .normal, !hasDrawnCloud {
+            if drawnByField, plane == .astra, tile.kind == .normal, !hasDrawnCloud {
+                // Already painted with the rest of the field.
+                Color.clear
+            } else if plane == .astra, tile.kind == .normal, !hasDrawnCloud {
                 // Astra has no tiles — see `CloudTileView`. Structural squares
                 // (the island and its chasm) still draw normally: those are not
                 // made of cloud.

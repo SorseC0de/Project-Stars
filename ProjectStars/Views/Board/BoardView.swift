@@ -131,6 +131,31 @@ struct BoardView: View {
     private func faceLayer(board: Board, plane: Plane, metrics: PixelArtMetrics) -> some View {
         let poppedPoint = session.visiblePickup?.point
 
+        return ZStack {
+            // Astra's ordinary squares are one canvas, not 49 — see
+            // `CloudFieldView`. Everything else still draws a tile each.
+            if plane == .astra {
+                CloudFieldView(
+                    board: board,
+                    metrics: metrics,
+                    flashing: session.flashingTiles,
+                    excluding: poppedPoint
+                )
+            }
+
+            faces(board: board, plane: plane, metrics: metrics, popped: poppedPoint)
+        }
+    }
+
+    /// One view per square, for everything the cloud field does not cover.
+    private func faces(
+        board: Board,
+        plane: Plane,
+        metrics: PixelArtMetrics,
+        popped: GridPoint?
+    ) -> some View {
+        let poppedPoint = popped
+
         return ForEach(board.allPoints.filter { $0 != poppedPoint }, id: \.self) { point in
             let popped = false
 
@@ -141,7 +166,8 @@ struct BoardView: View {
                 size: metrics.tileSize,
                 isPopped: popped,
                 isFlashing: session.flashingTiles.contains(point),
-                point: point
+                point: point,
+                drawnByField: plane == .astra
             )
             .position(metrics.center(of: point))
             .offset(y: popped ? -GameRules.tilePopLift * metrics.scale : 0)
