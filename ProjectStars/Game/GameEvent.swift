@@ -144,6 +144,20 @@ enum GameEvent: Equatable {
     /// the hunt restarts, which is why a fresh sparkle set always follows.
     case pickupDestroyed(id: PickupID, plane: Plane, point: GridPoint)
 
+    /// The Pentacle was dragged one square by something — Leo's sun so far.
+    ///
+    /// Moves the *coin only*. The tile it was sitting on stays raised where it
+    /// is; see `tileStamped` for why those are two different things.
+    case pickupMoved(id: PickupID, plane: Plane, from: GridPoint, to: GridPoint)
+
+    /// A raised tile was flattened by the piece landing on it.
+    ///
+    /// Separate from `pickupCollected` because a raised tile outlives its coin:
+    /// the Pentacle can be taken, destroyed, or dragged away, and the square it
+    /// popped up on stays popped until somebody stands on it. Landing on an
+    /// empty raised tile does nothing but flatten it.
+    case tileStamped(plane: Plane, point: GridPoint)
+
     /// A fresh sparkle set appeared, hiding `pickup`. Starts a new sparkle
     /// phase and replaces any previous set.
     case sparklesSpawned(set: SparkleSet, pickup: PickupID)
@@ -179,6 +193,8 @@ enum GameEvent: Equatable {
         switch self {
         case .moveBlocked: 0.18
         case .pickupRevealed: GameRules.pickupRevealDuration
+        case .pickupMoved: GameRules.hopDuration
+        case .tileStamped: GameRules.tilePopResponse
         case .moveCommitted: 0
         case .pieceTurned: 0.06
         case .pieceStepped: GameRules.hopDuration

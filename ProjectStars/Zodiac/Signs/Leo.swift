@@ -47,32 +47,86 @@ struct LeoPridefulFall: ZodiacPassive {
 
 // MARK: - Zodiaction: Solar Pull
 
-/// *Provisional name.* A small sun that drags the Pentacle toward Leo.
+/// Hangs a small sun over the square Leo faces.
 ///
-/// - TODO: **Not implemented, and the design is openly unsettled.** Two readings
-///   were sketched:
+/// It mends that square outright, then burns for five moves, dragging the
+/// Pentacle one square toward itself every move — shortest path, diagonals
+/// included, so the coin cuts across the board rather than walking it.
 ///
-///   1. *Instant tug* — the Pentacle jumps one square closer on Astra, two on
-///      Terra.
-///   2. *Persistent sun* — a sun is placed on the square Leo faces and stays for
-///      several turns, pulling the Pentacle one square toward **it** each move.
+/// ## What it does not do
 ///
-///   Reading 2 is the stronger one and fits the rest of the game better: it is
-///   move-driven rather than instant, it uses facing (which Leo otherwise
-///   ignores), and it creates a place on the board the player has to think about
-///   for several turns rather than a one-off nudge.
+/// It never fills a hole. A hole is not damage to a tile, it is the absence of
+/// one, and letting the sun paper over holes would make Leo the sign that undoes
+/// the board's decay — which is the pressure the whole game runs on.
 ///
-///   Either way it needs machinery that does not exist: the revealed Pentacle is
-///   fixed at `RevealedPickup.point` with no event that moves it. Add
-///   `.pickupMoved(from:to:)` and the instant version is a few lines; the
-///   persistent version additionally needs a world object with a lifetime, which
-///   is the same requirement as Sagittarius' Golden Arrow and Shadow Work's
-///   stalking coin. Worth building once, for all three.
+/// A coin dragged onto a hole is destroyed and the hunt restarts. That is not a
+/// special case here: `ensurePentacleAvailable` already governs any coin left
+/// standing on nothing, and the sun's pull is planned before it runs.
+///
+/// ## The Nexys
+///
+/// Raise a sun over the Nexys' own chasm while the island is up on Astra and it
+/// drags the island down to Terra instead — and goes out immediately, having
+/// spent itself on the one thing it cannot do twice. Once per run, refreshed by
+/// changing pieces, which is exactly the rule Scorpio's Shed uses.
+///
+/// The sun is not placed at all in that case: it did its work in one move, and
+/// leaving it burning would give the pull five free moves on top of the island.
 struct LeoSolarPull: Zodiaction {
 
+    /// Key this sign owns in `SignState.runFlags`.
+    static let nexysPullKey = "leo.nexysPull"
+
     let displayName = "Solar Pull"
-    let summary = "Draw the Pentacle toward you — 1 tile on Astra, 2 on Terra. (Not yet implemented.)"
+    let summary = "Hang a sun on the tile ahead for 5 moves: it mends that tile and drags the Pentacle one square toward it each move."
 
     /// Leo's charge comes from Prideful Fall.
     func meterGain(from move: MoveSummary, context: PassiveContext) -> Int { 0 }
+
+    func activate(context: PassiveContext, generator: inout SeededRandom) -> [GameEvent] {
+        let target = context.piecePoint.offset(by: context.facing.unitOffset)
+
+        // Facing off the board, the sun has nowhere to hang.
+        guard context.currentBoard.contains(target) else { return [] }
+
+        if let pull = nexysPull(to: target, context: context) { return pull }
+
+        var events: [GameEvent] = []
+        let tile = context.currentBoard[target]
+
+        if GameRules.sunHealsItsTile, tile.kind == .normal,
+           !tile.health.isHole, tile.health != .healthy {
+            events.append(.tileHealed(plane: context.plane, point: target, to: TileHealth.healthy))
+        }
+
+        var state = context.signState
+        state.sun = SignState.Sun(
+            point: target,
+            plane: context.plane,
+            movesRemaining: GameRules.sunMoves
+        )
+        events.append(.signStateChanged(state))
+
+        return events
+    }
+
+    /// The island coming down, if this is that move.
+    ///
+    /// Returns `nil` when it is an ordinary sun, so the caller reads as one
+    /// path with one exception rather than as two branches.
+    private func nexysPull(to target: GridPoint, context: PassiveContext) -> [GameEvent]? {
+        guard target == GameRules.nexysPoint,
+              context.plane == .terra,
+              context.nexysPlane == .astra,
+              !context.signState.runFlags.contains(Self.nexysPullKey)
+        else { return nil }
+
+        var state = context.signState
+        state.runFlags.insert(Self.nexysPullKey)
+
+        return [
+            .nexysMoved(to: .terra, carryingPiece: false),
+            .signStateChanged(state),
+        ]
+    }
 }

@@ -84,6 +84,15 @@ struct GameEngine {
     /// The pickup once it has appeared on the board, during a **pickup phase**.
     private(set) var revealedPickup: RevealedPickup?
 
+    /// The square currently popped up, if any.
+    ///
+    /// Deliberately *not* derived from `revealedPickup`. A tile pops up to
+    /// present a coin, but it outlives it: the coin can be taken, destroyed, or
+    /// dragged off by Leo's sun, and the square stays raised until somebody
+    /// stands on it. Deriving one from the other made a raised tile teleport
+    /// after a coin that had been pulled away from it.
+    private(set) var raisedTile: RevealedPickup?
+
     /// A Pentacle that has been opened but is waiting on the player to answer a
     /// question before it can resolve. See `planChoice(_:)`.
     private(set) var pendingChoice: (id: PickupID, kind: PickupChoice)?
@@ -166,6 +175,7 @@ struct GameEngine {
         self.sparkles = nil
         self.pendingPickup = nil
         self.revealedPickup = nil
+        self.raisedTile = nil
         self.pendingChoice = nil
         self.score = 0
         self.moveCount = 0
@@ -299,6 +309,11 @@ struct GameEngine {
             let sweep = sim.resolvePickupCollection(covering: landing.covered + flownOver)
             events += sweep.events
             collectedPickup = landing.collectedPickup ?? sweep.pickup
+
+            // 4b. Leo's sun drags the coin a square closer to itself. Before
+            //     the reachability check below, so a coin dragged onto a hole is
+            //     destroyed by the same rule that governs any coin over a hole.
+            events += sim.planSunPull()
 
             // 5. Keep a Pentacle reachable. See `ensurePentacleAvailable`.
             events += sim.ensurePentacleAvailable(previousPlane: startingPlane)
@@ -837,6 +852,16 @@ struct GameEngine {
                 }
             }
 
+            // 2b. A raised tile with nothing on it is just a step. Standing on
+            //     one stamps it flat: no coin, no sparkles, no consequences —
+            //     which is the whole of what it does.
+            if let raised = raisedTile,
+               raised.plane == plane,
+               raised.point == point,
+               revealedPickup?.point != point {
+                commit(.tileStamped(plane: plane, point: point))
+            }
+
             // 3. Can the piece stand on what is left? A tile it just broke
             //    cannot hold it.
             let remaining = self[plane][point]
@@ -893,6 +918,51 @@ struct GameEngine {
         }
 
         return result
+    }
+
+    // MARK: - Leo's sun
+
+    /// Drags the revealed Pentacle one square toward a burning sun.
+    ///
+    /// Shortest path *including diagonals*, so a coin two across and two down
+    /// arrives in two moves rather than four — the sun pulls, it does not walk
+    /// the coin around a grid.
+    ///
+    /// Deliberately does not care what is on the destination square. A coin
+    /// dragged over a hole is dealt with by `ensurePentacleAvailable`, which
+    /// already destroys any coin left standing on nothing and starts a fresh
+    /// glow phase; special-casing it here would be a second copy of that rule.
+    mutating func planSunPull() -> [GameEvent] {
+        guard let sun = signState.sun,
+              let coin = revealedPickup,
+              coin.plane == sun.plane
+        else { return [] }
+
+        var events: [GameEvent] = []
+        var from = coin.point
+
+        for _ in 0..<GameRules.sunPullPerMove {
+            guard from != sun.point else { break }
+
+            // One step along each axis that is not already lined up, which is a
+            // diagonal whenever both are out.
+            let to = GridPoint(
+                from.x + (sun.point.x - from.x).signum(),
+                from.y + (sun.point.y - from.y).signum()
+            )
+
+            let event = GameEvent.pickupMoved(
+                id: coin.id,
+                plane: coin.plane,
+                from: from,
+                to: to
+            )
+            apply(event)
+            events.append(event)
+            from = to
+        }
+
+        return events
     }
 
     // MARK: - Sanctuary
@@ -1347,6 +1417,8 @@ struct GameEngine {
             // The sparkle phase ends here: the shimmer goes out as the pickup
             // appears.
             revealedPickup = RevealedPickup(id: id, plane: plane, point: point)
+            // The tile pops up under it, and from here on the two are separate.
+            raisedTile = RevealedPickup(id: id, plane: plane, point: point)
             sparkles = nil
             pendingPickup = nil
 
@@ -1409,16 +1481,34 @@ struct GameEngine {
                 self[plane][point].health = .healthy
             }
 
-        case .pickupDestroyed:
+        case let .pickupDestroyed(_, plane, point):
+            // Only the square the coin actually went down on. If the sun had
+            // dragged it elsewhere first, the tile it popped up from is still
+            // standing and still has to be stamped flat by hand.
+            if raisedTile?.plane == plane, raisedTile?.point == point {
+                raisedTile = nil
+            }
             revealedPickup = nil
             pendingPickup = nil
             sparkles = nil
 
-        case .pickupCollected:
+        case let .pickupCollected(_, plane, point):
+            if raisedTile?.plane == plane, raisedTile?.point == point {
+                raisedTile = nil
+            }
             revealedPickup = nil
             pendingPickup = nil
             sparkles = nil
             pickupsCollected += 1
+
+        case let .pickupMoved(id, plane, _, to):
+            // The coin alone. `raisedTile` is untouched on purpose.
+            revealedPickup = RevealedPickup(id: id, plane: plane, point: to)
+
+        case let .tileStamped(plane, point):
+            if raisedTile?.plane == plane, raisedTile?.point == point {
+                raisedTile = nil
+            }
 
         case let .sparklesSpawned(set, pickup):
             sparkles = set

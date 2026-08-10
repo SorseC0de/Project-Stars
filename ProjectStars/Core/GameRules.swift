@@ -193,6 +193,25 @@ enum GameRules {
     static let sanctuaryPulsePeriod: TimeInterval = 2.4
     static let sanctuaryFinalPulsePeriod: TimeInterval = 1.1
 
+    // ──────────────────────────────────────────────────────────────────────
+    // MARK: - Rules — Leo's sun
+    //
+    // See `SignState.Sun` and `LeoSolarPull`.
+
+    /// How many committed moves the sun burns for.
+    static let sunMoves = 5
+
+    /// Whether raising it mends the square underneath. Never fills a hole — a
+    /// hole is not damage to the tile, it is the absence of one.
+    static let sunHealsItsTile = true
+
+    /// How many squares the Pentacle is dragged each move the sun burns.
+    static let sunPullPerMove = 1
+
+    /// How bright the sun is on its final move, so its last turn is visible as
+    /// its last turn.
+    static let sunGuttering: Double = 0.55
+
     // MARK: - Rules — Pentacle effects
     //
     // What individual Pentacles are worth. The effects themselves are in

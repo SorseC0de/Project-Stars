@@ -108,6 +108,22 @@ struct SignState: Equatable {
 
     // MARK: Sanctuary
 
+    /// Leo's sun, if one is burning.
+    ///
+    /// Named like `sanctuary` and for the same reason: it is a *place* with a
+    /// lifetime, which `buffs` cannot express.
+    var sun: Sun?
+
+    /// A small sun hanging over one square.
+    struct Sun: Equatable {
+        /// The square it burns over. It does not move once placed.
+        var point: GridPoint
+        var plane: Plane
+
+        /// Committed moves left before it goes out.
+        var movesRemaining: Int
+    }
+
     /// The protected patch of board a Zodiaction has thrown up, if any.
     ///
     /// A named field rather than a `buffs` entry because a buff is only a
@@ -227,6 +243,11 @@ struct SignState: Equatable {
         if var standing = sanctuary {
             standing.movesRemaining -= 1
             sanctuary = standing.movesRemaining > 0 ? standing : nil
+        }
+
+        if var burning = sun {
+            burning.movesRemaining -= 1
+            sun = burning.movesRemaining > 0 ? burning : nil
         }
     }
 

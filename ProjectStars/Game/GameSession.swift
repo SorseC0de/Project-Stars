@@ -548,9 +548,33 @@ final class GameSession {
                 playEffect(layer, at: engine.piece.point, on: plane)
             }
             if zodiac == .leo {
-                raiseTheSun(at: engine.piece.point, on: plane)
+                // The flare belongs where the sun will hang, not where Leo is
+                // standing. The event that places it has not been applied yet,
+                // so the square is derived the same way the Zodiaction derives
+                // it.
+                raiseTheSun(
+                    at: engine.piece.point.offset(by: engine.piece.facing.unitOffset),
+                    on: plane
+                )
             }
             withAnimation(.easeOut(duration: event.displayDuration)) {
+                engine.apply(event)
+            }
+            await sleep(event.displayDuration)
+
+        case let .pickupMoved(_, plane, _, to):
+            // Dragged, so it travels rather than blinking across.
+            withAnimation(.spring(response: event.displayDuration * 1.4, dampingFraction: 0.8)) {
+                engine.apply(event)
+            }
+            await sleep(event.displayDuration)
+            // It lands like anything else does.
+            kickUpDust(at: to, on: plane, magnitude: 1)
+
+        case let .tileStamped(plane, point):
+            // Smoke, and nothing else. An empty raised tile has nothing to give.
+            kickUpDust(at: point, on: plane, magnitude: 1)
+            withAnimation(.spring(response: GameRules.tilePopFallResponse, dampingFraction: 0.8)) {
                 engine.apply(event)
             }
             await sleep(event.displayDuration)
@@ -1017,28 +1041,15 @@ extension GameSession {
         }
     }
 
-    /// Leo's Zodiaction: the summon, then the sun it leaves hanging.
+    /// Leo's Zodiaction: the flare of it being summoned.
     ///
-    /// The sun is two strips drawn on top of each other rather than one — that
-    /// is how the art was authored, and stacking them is what makes it read as a
-    /// body of fire instead of a flat disc.
-    ///
-    /// - Note: The summon plays out first and the sun follows it. Once Leo's
-    ///   Zodiaction is actually designed the sun will want to *persist* for
-    ///   however many moves it lasts rather than playing once; that is a change
-    ///   to how long this is scheduled for, not to what it draws.
+    /// Only the summon. The sun itself is not an effect that plays — it is a
+    /// thing on the board with a lifetime, drawn from engine state by `SunView`
+    /// for as long as `SignState.sun` says it is burning. Scheduling it as a
+    /// burst here would have it play once and vanish while the sun was still
+    /// four moves from going out.
     func raiseTheSun(at point: GridPoint, on plane: Plane) {
         playEffect(.leoZodiactionSummon, at: point, on: plane)
-
-        Task { [weak self] in
-            try? await Task.sleep(
-                nanoseconds: UInt64(EffectSprite.leoZodiactionSummon.duration * 1_000_000_000)
-            )
-            guard let self else { return }
-            for layer in EffectSprite.leoSun {
-                self.playEffect(layer, at: point, on: plane)
-            }
-        }
     }
 
     /// Recolours the piece for a moment. Fired whenever the meter gains.
@@ -1102,6 +1113,19 @@ extension GameSession {
     var visiblePickup: RevealedPickup? {
         guard let pickup = engine.revealedPickup, pickup.plane == visiblePlane else { return nil }
         return pickup
+    }
+
+    /// The popped-up square, which is not always under the coin — see
+    /// `GameEngine.raisedTile`.
+    var visibleRaisedTile: RevealedPickup? {
+        guard let raised = engine.raisedTile, raised.plane == visiblePlane else { return nil }
+        return raised
+    }
+
+    /// Leo's sun, if it is burning on the plane being looked at.
+    var visibleSun: SignState.Sun? {
+        guard let sun = engine.signState.sun, sun.plane == visiblePlane else { return nil }
+        return sun
     }
 
     /// How long the current hop takes.
