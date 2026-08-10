@@ -58,7 +58,9 @@ struct PieceView: View {
             // during an arrival it is the *only* thing on the destination
             // square, growing to announce where the piece is about to land.
             PieceShadowView(tileSize: tileSize)
-                .scaleEffect(shadowScale)
+                // Two effects multiply: the arrival's swell, and the hop's own
+                // narrowing as the piece leaves the ground.
+                .scaleEffect(shadowScale * hopShadowScale)
                 .offset(y: GameRules.pieceShadowDrop * scale)
                 .opacity(isFalling ? 0 : 1)
 
@@ -84,6 +86,16 @@ struct PieceView: View {
         .scaleEffect(isFalling ? 0.25 : 1)
         .opacity(isFalling ? 0 : 1)
         .allowsHitTesting(false)
+    }
+
+    /// How much the shadow shrinks at this point in the hop.
+    ///
+    /// Read from the pose's own lift rather than from the clock, so it stays in
+    /// step with the piece even if the hop curve is reshaped.
+    private var hopShadowScale: CGFloat {
+        guard GameRules.hopArcHeight > 0 else { return 1 }
+        let height = min(pose.lift / GameRules.hopArcHeight, 1)
+        return 1 - GameRules.pieceShadowLiftSwing * height
     }
 
     // MARK: - Placeholder

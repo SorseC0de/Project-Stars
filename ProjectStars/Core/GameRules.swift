@@ -359,7 +359,21 @@ enum GameRules {
     static let tileEdgeDrop: CGFloat = 12
 
     /// How far the shadow sits below a piece's own centre.
-    static let pieceShadowDrop: CGFloat = 0
+    ///
+    /// At `0` it lands dead centre of the tile, where the sprite covers it
+    /// completely — which is how it went missing. The piece's opaque pixels end
+    /// about two art pixels below the tile's centre, so the shadow has to clear
+    /// that to be seen at all.
+    static let pieceShadowDrop: CGFloat = 4
+
+    /// How much smaller the piece's shadow gets at the top of a hop, as a
+    /// fraction of its resting size.
+    ///
+    /// The same trick the Pentacle's glow uses: a shadow narrowing as its caster
+    /// rises says "height" far more clearly than the rise itself does, because
+    /// the shadow stays on the ground where the eye can measure it against
+    /// something fixed.
+    static let pieceShadowLiftSwing: CGFloat = 0.4
 
     /// How far the Nexys island's *art* sits above where an ordinary tile would.
     ///
