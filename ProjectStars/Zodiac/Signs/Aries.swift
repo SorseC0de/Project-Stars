@@ -44,21 +44,34 @@ extension ZodiacCatalog {
 
 // MARK: - Passive: Searing Stride
 
-/// One pip of charge for every move that continues a
-/// straight line, from the second onward.
+/// One pip of charge for every move that continues a straight line, from the
+/// third onward.
 ///
 /// Reads the streak the engine already keeps in `SignState`, so it costs nothing
 /// to maintain and resets the instant the player turns — which is the whole
 /// tension of it, since a board decays fastest along the line you keep running.
+///
+/// ## Why the third and not the second
+///
+/// Paying from the second move meant a single repeat was already a straight
+/// line, and two moves is not a commitment — you can change your mind every
+/// other turn and still be charging the whole time. Requiring three makes the
+/// player hold a direction long enough for the tile decay to catch up with
+/// them, which is the cost the charge is supposed to be paid for.
 struct AriesSearingStride: ZodiacPassive {
 
+    /// How long the streak must run before it pays.
+    ///
+    /// Counts the move being priced, so `3` is "two repeats after the first".
+    static let requiredStreak = 3
+
     let displayName = "Searing Stride"
-    let summary = "Astra & Terra: +1 charge for each consecutive move in the same direction after the first."
+    let summary = "Astra & Terra: +1 charge for each consecutive move in the same direction after the second."
 
     func meterBonus(from move: MoveSummary, context: PassiveContext) -> Int {
         // `signState` is updated before charging, so the streak already counts
         // the move being priced. Length 1 is a fresh direction and pays nothing.
-        context.signState.streakLength >= 2 ? 1 : 0
+        context.signState.streakLength >= Self.requiredStreak ? 1 : 0
     }
 }
 
