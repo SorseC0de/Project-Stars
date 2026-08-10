@@ -101,19 +101,24 @@ struct CloudTileView: View {
         .blendMode(.plusLighter)
     }
 
-    /// Slivers of light lying across the top of the cluster.
+    /// Curls of light lying across the top of the cluster.
     private func glints(at now: TimeInterval) -> some View {
         ZStack {
             ForEach(0..<GameRules.cloudGlintCount, id: \.self) { index in
                 let glint = CloudCluster.glint(index, at: point, time: now)
                 let tones = Palette.cloudSpeckleTones
 
-                Ellipse()
-                    .fill(tones[index % tones.count])
-                    .frame(
-                        width: GameRules.cloudGlintLength * scale * glint.length,
-                        height: GameRules.cloudGlintThickness * scale
+                let span = GameRules.cloudGlintLength * scale * glint.length
+
+                CloudGlintSpiral(turns: GameRules.cloudGlintTurns)
+                    .stroke(
+                        tones[index % tones.count],
+                        style: StrokeStyle(
+                            lineWidth: GameRules.cloudGlintThickness * scale,
+                            lineCap: .round
+                        )
                     )
+                    .frame(width: span, height: span)
                     .rotationEffect(.degrees(glint.angle))
                     .offset(x: glint.x * scale, y: glint.y * scale)
                     .opacity(glint.opacity)
@@ -137,6 +142,50 @@ struct CloudTileView: View {
             width: CGFloat(sin(phase + offset)) * amount,
             height: CGFloat(cos(phase * 0.8 + offset)) * amount * 0.6
         )
+    }
+}
+
+// MARK: - CloudGlintSpiral
+
+/// An open spiral, wound outward from its centre.
+///
+/// Archimedean — radius grows in step with angle, so the gap between windings
+/// stays even. The alternative, a logarithmic spiral, opens ever faster and at
+/// this size would just look like a comma.
+///
+/// Drawn rather than sprited for the same reason the clouds are: every cloud
+/// gets its own, and the tilt and scale are continuous.
+struct CloudGlintSpiral: Shape {
+
+    /// Windings, fractional. See `GameRules.cloudGlintTurns`.
+    var turns: Double
+
+    /// Segments per turn. Enough that the curve is smooth at this size without
+    /// building a path nobody can see the detail of.
+    private let resolution = 24
+
+    func path(in rect: CGRect) -> Path {
+        var path = Path()
+
+        let centre = CGPoint(x: rect.midX, y: rect.midY)
+        let maxRadius = min(rect.width, rect.height) / 2
+        let sweep = turns * 2 * .pi
+        let steps = max(Int(Double(resolution) * turns), 2)
+
+        for step in 0...steps {
+            let progress = Double(step) / Double(steps)
+            let angle = progress * sweep
+            let radius = maxRadius * progress
+
+            let point = CGPoint(
+                x: centre.x + CGFloat(cos(angle)) * radius,
+                y: centre.y + CGFloat(sin(angle)) * radius
+            )
+
+            if step == 0 { path.move(to: point) } else { path.addLine(to: point) }
+        }
+
+        return path
     }
 }
 
@@ -265,7 +314,7 @@ enum CloudCluster {
         )
     }
 
-    /// One glint: where it lies, how it leans, and how bright it is now.
+    /// One curl: where it lies, how it leans, and how bright it is now.
     ///
     /// Confined to the upper half of the cluster. Light striking a volume from
     /// one side catches the same side of every puff; scattering these evenly

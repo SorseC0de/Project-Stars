@@ -299,14 +299,24 @@ enum GameRules {
     static let cloudSpeckleSize: CGFloat = 1.3
     static let cloudSpeckleSpread: CGFloat = 5.6
 
-    /// Thin angled slivers of light lying across the upper half of each cloud —
-    /// bigger than a speckle, smaller than a puff, so they read as a highlight
-    /// catching an edge rather than as more scattered dust.
+    /// Little curls of light lying across the upper half of each cloud —
+    /// bigger than a speckle, smaller than a puff, so they read as something
+    /// caught in the cloudstuff rather than as more scattered dust.
     static let cloudGlintCount = 3
-    static let cloudGlintLength: CGFloat = 4.6
-    static let cloudGlintThickness: CGFloat = 1.3
 
-    /// The range a glint's tilt is drawn from, in degrees. Signed at random, so
+    /// Width of a curl's bounding box, in art pixels, and the weight of the
+    /// line it is drawn with.
+    static let cloudGlintLength: CGFloat = 5.2
+    static let cloudGlintThickness: CGFloat = 1.1
+
+    /// How many times a curl winds around itself.
+    ///
+    /// Deliberately low — much past one and a half and it stops reading as a
+    /// gesture and starts reading as a target. Fractional turns are the point:
+    /// a whole number closes the shape back on its own tail.
+    static let cloudGlintTurns: Double = 1.35
+
+    /// The range a curl's tilt is drawn from, in degrees. Signed at random, so
     /// they lean both ways; never near flat and never near upright.
     static let cloudGlintMinAngle: Double = 20
     static let cloudGlintMaxAngle: Double = 80
