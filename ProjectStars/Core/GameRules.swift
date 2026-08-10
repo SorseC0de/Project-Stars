@@ -297,7 +297,11 @@ enum GameRules {
     /// art pixels. They twinkle on their own clocks, like the sparks.
     static let cloudSpeckleCount = 6
     static let cloudSpeckleSize: CGFloat = 1.3
-    static let cloudSpeckleSpread: CGFloat = 5.6
+    /// **This is the knob that decides how bunched they look.** It is the
+    /// radius of the disc they are scattered on, in art pixels — the cluster
+    /// itself reaches about 8, so anything much under that keeps them huddled
+    /// in the middle of the cloud no matter how random the scatter is.
+    static let cloudSpeckleSpread: CGFloat = 7.2
 
     /// Little curls of light lying across the upper half of each cloud —
     /// bigger than a speckle, smaller than a puff, so they read as something
@@ -325,7 +329,7 @@ enum GameRules {
     /// edge, but a fleck of light hanging in empty sky has nothing to be caught
     /// in. Same reach the speckles use, for the same reason.
     static let cloudGlintLitScale: CGFloat = 0.5
-    static let cloudGlintLitReach: CGFloat = 5.6
+    static let cloudGlintLitReach: CGFloat = 7.6
 
     /// How far from the square's centre curls are scattered, in art pixels
     /// across the full span.
