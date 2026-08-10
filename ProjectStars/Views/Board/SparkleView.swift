@@ -46,14 +46,17 @@ struct SparkleView: View {
     // MARK: - Placeholder art
 
     private var placeholder: some View {
-        let tint = Palette.sparkle(on: plane)
+        let glow = Palette.sparkleGlow(on: plane)
         let side = size * 0.45
 
         return ZStack {
+            // The colour lives out here, where the light is thin enough to keep
+            // it. Stacked additively it still brightens toward the middle, which
+            // is what puts the white core underneath.
             ZStack {
                 ForEach(0..<GameRules.sparkleGlowLayers, id: \.self) { step in
                     SparkleGlyph()
-                        .fill(tint)
+                        .fill(glow)
                         .frame(width: side, height: side)
                         .blur(
                             radius: size * GameRules.sparkleGlowRadius
@@ -65,8 +68,8 @@ struct SparkleView: View {
             .blendMode(.plusLighter)
 
             SparkleGlyph()
-                .fill(tint)
-                .frame(width: side, height: side)
+                .fill(Palette.sparkleCore)
+                .frame(width: side * GameRules.sparkleCoreScale, height: side * GameRules.sparkleCoreScale)
         }
     }
 }

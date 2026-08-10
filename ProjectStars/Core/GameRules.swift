@@ -747,6 +747,11 @@ enum GameRules {
     /// `sparkleGlowRadius` is a fraction of a tile. Each layer is wider and
     /// fainter than the last, so the falloff reads as light rather than as a
     /// hard-edged halo.
+    /// Size of the white core relative to the glyph the bloom is drawn from.
+    ///
+    /// Under 1, so the colour is never entirely covered by the hot centre.
+    static let sparkleCoreScale: CGFloat = 0.72
+
     static let sparkleGlowRadius: CGFloat = 0.085
     static let sparkleGlowLayers = 3
     static let sparkleGlowIntensity: Double = 0.9

@@ -155,14 +155,29 @@ enum Palette {
 
     /// The shimmer on candidate pickup tiles.
     ///
+    /// The hot centre of a glow-phase sparkle.
+    ///
+    /// White on both planes, and it has to be a *separate* colour from the
+    /// bloom around it rather than the same one stacked up. Additive layers of
+    /// an already-pale tint clamp to white everywhere, including the outside —
+    /// which reads as a white blob rather than as a coloured light with a hot
+    /// core. Light works the other way round: white in the middle, its colour
+    /// showing where it is thinnest.
+    static var sparkleCore: Color { white }
+
+    /// The bloom around it.
+    ///
     /// Per plane: gold sits on Terra's earth the way a glint of treasure should,
     /// but on Astra it competes with the gold already flecked through every
     /// cloud. Blue reads as something the plane is doing rather than as more of
     /// the same.
-    static func sparkle(on plane: Plane) -> Color {
+    ///
+    /// Saturated on purpose — the pale entries wash out the moment anything is
+    /// added on top of them.
+    static func sparkleGlow(on plane: Plane) -> Color {
         switch plane {
-        case .astra: cyan
-        case .terra: sparkle
+        case .astra: lightBlue
+        case .terra: gold
         }
     }
 
