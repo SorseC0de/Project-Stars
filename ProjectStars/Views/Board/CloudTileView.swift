@@ -44,16 +44,24 @@ struct CloudTileView: View {
     /// Whole-pixel scale, for art-pixel distances.
     private var scale: CGFloat { size / CGFloat(GameRules.tilePixelSize) }
 
+    /// When this cloud last started changing between resting and raised.
+    ///
+    /// `nil` means it has always been whatever it is — the 48 clouds that are
+    /// not under the Pentacle, which must not play a transition on appear.
+    @State private var raiseChangedAt: Date?
+
     var body: some View {
         TimelineView(.animation) { timeline in
             let now = timeline.date.timeIntervalSinceReferenceDate
             let drift = drift(at: now)
+            let blend = raiseBlend(at: now)
+            let tones = Palette.cloudTones(shade, raiseBlend: blend)
 
             ZStack {
                 // Deepest first: the lit crown has to land on top of the
                 // shaded body, not the other way round.
                 ForEach(CloudCluster.bodyOrder, id: \.self) { index in
-                    puffView(index, at: now)
+                    puffView(index, at: now, tones: tones)
                 }
 
                 // Between the layers, so the crown half-covers them.
@@ -66,7 +74,7 @@ struct CloudTileView: View {
                 )
 
                 ForEach(CloudCluster.crownOrder, id: \.self) { index in
-                    puffView(index, at: now)
+                    puffView(index, at: now, tones: tones)
                 }
 
                 // Cloud-coloured, over the crown: these cut across the buried
@@ -79,7 +87,7 @@ struct CloudTileView: View {
                     additive: false
                 )
 
-                speckles(at: now)
+                speckles(at: now, blend: blend)
             }
             // The whole cluster shrinks toward its own centre as it wears.
             .scaleEffect(GameRules.cloudScale(health))
@@ -97,10 +105,25 @@ struct CloudTileView: View {
             }
         }
         .allowsHitTesting(false)
+        // The raised cloud is a different view from the ordinary one — it is
+        // depth-sorted with the pieces rather than laid down with the board — so
+        // it arrives already raised and has to start its ramp on appear.
+        .onAppear { if isRaised { raiseChangedAt = .now } }
+        .onChange(of: isRaised) { raiseChangedAt = .now }
+    }
+
+    /// How far along the colour ramp this cloud is, `0` resting to `1` raised.
+    private func raiseBlend(at now: TimeInterval) -> Double {
+        guard let raiseChangedAt else { return isRaised ? 1 : 0 }
+
+        let elapsed = now - raiseChangedAt.timeIntervalSinceReferenceDate
+        let travelled = min(max(elapsed / GameRules.cloudRaiseTintDuration, 0), 1)
+
+        return isRaised ? travelled : 1 - travelled
     }
 
     /// One puff, breathing on its own clock.
-    private func puffView(_ index: Int, at now: TimeInterval) -> some View {
+    private func puffView(_ index: Int, at now: TimeInterval, tones: [Color]) -> some View {
         let puff = CloudCluster.puff(index, at: point)
         let diameter = puff.radius * 2 * scale * CloudCluster.pulse(index, at: point, time: now)
 
@@ -111,11 +134,13 @@ struct CloudTileView: View {
     }
 
     /// Flecks of blue and gold caught in the cloudstuff.
-    private func speckles(at now: TimeInterval) -> some View {
+    private func speckles(at now: TimeInterval, blend: Double) -> some View {
         ZStack {
             ForEach(0..<GameRules.cloudSpeckleCount, id: \.self) { index in
                 let fleck = CloudCluster.speckle(index, at: point, time: now)
-                let tones = Palette.speckleTones(raised: isRaised)
+                // Swapped at the ramp's midpoint rather than crossfaded: two
+                // palette entries have no legal colours between them.
+                let tones = Palette.speckleTones(raised: blend >= 0.5)
 
                 Circle()
                     .fill(tones[index % tones.count])
@@ -162,7 +187,7 @@ struct CloudTileView: View {
         .blendMode(additive ? .plusLighter : .normal)
     }
 
-    private var tones: [Color] { Palette.cloudTones(shade, raised: isRaised) }
+
 
     /// A slow wander, out of phase per square.
     ///

@@ -222,12 +222,42 @@ enum Palette {
     /// enough to still belong to Astra.
     static let cloudRaised: [Color] = [cyan, lightBlue, darkBlue]
 
-    static func cloudTones(_ shade: TileShade, raised: Bool = false) -> [Color] {
-        if raised { return cloudRaised }
-
+    /// The route each layer takes from its resting tone to its raised one.
+    ///
+    /// ## Why a ramp and not a crossfade
+    ///
+    /// Interpolating two colours continuously produces values that are not in
+    /// the 47-entry palette — for most of the transition the cloud would be
+    /// wearing colours this game does not own. Stepping through real entries
+    /// instead keeps every frame legal, and at 16 pixels a three-step ramp over
+    /// a quarter second reads as smooth anyway. It is also how the transition
+    /// would have been drawn by hand.
+    ///
+    /// Layer counts differ on purpose: the layers arrive slightly out of step,
+    /// which sells the change better than all three flipping together.
+    static func cloudRaiseRamp(_ shade: TileShade) -> [[Color]] {
         switch shade {
-        case .light: return cloudLight
-        case .dark: return cloudDark
+        case .light: [
+            [pink, lightBlue, cyan],
+            [magenta, blue, lightBlue],
+            [purple, navy, darkBlue],
+        ]
+        case .dark: [
+            [darkMagenta, magenta, lightBlue, cyan],
+            [purple, blue, lightBlue],
+            [dusk, navy, darkBlue],
+        ]
+        }
+    }
+
+    /// This cloud's three layer tones, `raiseBlend` of the way along the ramp.
+    ///
+    /// `0` is a resting cloud and `1` a fully raised one; the ends of the ramps
+    /// are exactly `cloudLight`/`cloudDark` and `cloudRaised`.
+    static func cloudTones(_ shade: TileShade, raiseBlend: Double = 0) -> [Color] {
+        cloudRaiseRamp(shade).map { ramp in
+            let step = Int(raiseBlend * Double(ramp.count))
+            return ramp[min(max(step, 0), ramp.count - 1)]
         }
     }
 

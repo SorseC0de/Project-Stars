@@ -381,6 +381,11 @@ enum GameRules {
     static let cloudPulseSlowest: TimeInterval = 4.6
     static let cloudPulseFastest: TimeInterval = 2.1
 
+    /// How long a cloud takes to change colour as it is raised under a
+    /// Pentacle. Matched to `tilePopResponse` so the tint and the lift land
+    /// together.
+    static let cloudRaiseTintDuration: TimeInterval = 0.3
+
     /// How far a cluster drifts, in art pixels, and how long one cycle takes.
     ///
     /// Small and slow. Clouds that visibly wandered would fight the grid the
