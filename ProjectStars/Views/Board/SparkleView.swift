@@ -47,11 +47,27 @@ struct SparkleView: View {
 
     private var placeholder: some View {
         let tint = Palette.sparkle(on: plane)
+        let side = size * 0.45
 
-        return SparkleGlyph()
-            .fill(tint)
-            .frame(width: size * 0.45, height: size * 0.45)
-            .shadow(color: tint.opacity(0.8), radius: size * 0.12)
+        return ZStack {
+            ZStack {
+                ForEach(0..<GameRules.sparkleGlowLayers, id: \.self) { step in
+                    SparkleGlyph()
+                        .fill(tint)
+                        .frame(width: side, height: side)
+                        .blur(
+                            radius: size * GameRules.sparkleGlowRadius
+                                * (1 + CGFloat(step) * 0.9)
+                        )
+                        .opacity(GameRules.sparkleGlowIntensity / Double(step + 1))
+                }
+            }
+            .blendMode(.plusLighter)
+
+            SparkleGlyph()
+                .fill(tint)
+                .frame(width: side, height: side)
+        }
     }
 }
 

@@ -738,6 +738,19 @@ enum GameRules {
     ///
     /// **In points, not art pixels** — the sparkle is drawn rather than
     /// sprited, so it has no pixel grid to align to.
+    /// The bloom around a glow-phase sparkle.
+    ///
+    /// Stacked additive copies rather than a `.shadow`: a shadow tints what is
+    /// behind it, which on a dark board barely registers, while two on-palette
+    /// colours summed are genuinely brighter than either and still on-palette.
+    ///
+    /// `sparkleGlowRadius` is a fraction of a tile. Each layer is wider and
+    /// fainter than the last, so the falloff reads as light rather than as a
+    /// hard-edged halo.
+    static let sparkleGlowRadius: CGFloat = 0.085
+    static let sparkleGlowLayers = 3
+    static let sparkleGlowIntensity: Double = 0.9
+
     static let sparkleNudge = CGSize(width: 2, height: 0)
 
     // ──────────────────────────────────────────────────────────────────────
