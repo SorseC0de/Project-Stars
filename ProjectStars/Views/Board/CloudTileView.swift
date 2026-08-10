@@ -65,6 +65,16 @@ struct CloudTileView: View {
                     puffView(index, at: now)
                 }
 
+                // Cloud-coloured, over the crown: these cut across the buried
+                // curls and mix the two sets together.
+                glints(
+                    at: now,
+                    count: GameRules.cloudGlintMaskCount,
+                    salt: 2_048,
+                    tones: [tones[0]],
+                    additive: false
+                )
+
                 speckles(at: now)
 
                 glints(
@@ -387,8 +397,8 @@ enum CloudCluster {
             + (GameRules.cloudGlintMaxScale - GameRules.cloudGlintMinScale) * CGFloat(size)
 
         return (
-            x: CGFloat(across - 0.5) * 9,
-            y: CGFloat(up - 0.5) * 9,
+            x: CGFloat(across - 0.5) * GameRules.cloudGlintSpread,
+            y: CGFloat(up - 0.5) * GameRules.cloudGlintSpread,
             angle: rest + spin,
             length: span * (0.9 + 0.2 * CGFloat(wave)),
             opacity: 0.45 + 0.55 * wave

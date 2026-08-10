@@ -309,6 +309,22 @@ enum GameRules {
     /// half-buried in it, not like something sitting on the surface.
     static let cloudGlintBuriedCount = 4
 
+    /// Curls drawn over the crown but still in the crown's own tone.
+    ///
+    /// These are the stitching between the two sets: an opaque curl in cloud
+    /// colour crossing over the buried ones interrupts them, so the alt-coloured
+    /// spirals read as woven through the cluster rather than as a layer sitting
+    /// under a layer.
+    static let cloudGlintMaskCount = 2
+
+    /// How far from the square's centre curls are scattered, in art pixels
+    /// across the full span.
+    ///
+    /// Wider than the cluster's own radius on purpose: drawn from the middle
+    /// they bunch, because a centred random spread puts most of its samples
+    /// near the centre.
+    static let cloudGlintSpread: CGFloat = 13
+
     /// Width of a curl's bounding box, in art pixels, and the weight of the
     /// line it is drawn with.
     static let cloudGlintLength: CGFloat = 5.2
