@@ -27,6 +27,9 @@ struct SmokeBurstView: View {
     /// Whole-pixel scale, for art-pixel distances.
     let scale: CGFloat
 
+    /// Which plane's dust this is. Astra kicks up cloud, Terra kicks up earth.
+    let plane: Plane
+
     /// Varies the scatter so consecutive landings do not produce identical
     /// bursts.
     let seed: Int
@@ -78,12 +81,13 @@ struct SmokeBurstView: View {
     /// for a body hitting the ground after falling a whole plane. Heavy landings
     /// fall back to the scatter, which can be thrown as wide as it needs to be.
     private var usesSprite: Bool {
-        magnitude <= GameRules.smokeSpriteMaxMagnitude && SpriteLoader.hasAsset(for: .smoke)
+        magnitude <= GameRules.smokeSpriteMaxMagnitude
+            && SpriteLoader.hasAsset(for: .smoke(plane))
     }
 
     /// The drawn puff, stepped through its frames once.
     private func sprite(progress: CGFloat) -> some View {
-        let frames = SpriteSheetLoader.frameCount(for: .smoke)
+        let frames = SpriteSheetLoader.frameCount(for: .smoke(plane))
         // Clamped, not wrapped: this plays through and stops.
         let frame = min(Int(progress * CGFloat(frames)), frames - 1)
 
@@ -91,7 +95,7 @@ struct SmokeBurstView: View {
         // under a piece rather than swallow it.
         let side = tileSize * 2 * GameRules.smokeSpriteScale * magnitude
 
-        return PixelSprite(id: .smoke, frame: frame) { EmptyView() }
+        return PixelSprite(id: .smoke(plane), frame: frame) { EmptyView() }
             .frame(width: side, height: side)
             // Sits low: dust kicks up from the ground, not from the piece's
             // middle.

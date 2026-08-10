@@ -329,8 +329,53 @@ enum GameRules {
     /// Puffs kicked up by a landing.
     static let smokePuffCount = 7
 
-    /// Seconds a puff takes to expand and fade out.
-    static let smokeDuration: TimeInterval = 0.42
+    // MARK: - Sprite frame rates
+    //
+    // Every animated sprite gets its own rate, and every one is expressed as
+    // **game frames held per art frame** at 60fps rather than as a duration.
+    //
+    // That is the unit pixel-art animation is authored in: 12fps is "hold each
+    // frame for five ticks", not "0.08333 seconds". Writing the seconds back
+    // out is how a hand-timed animation drifts a frame here and there and stops
+    // matching the source it was drawn against. `spriteFrameDuration(hold:)`
+    // does the conversion once, in one place.
+    //
+    // Hold → rate: 1 = 60fps · 2 = 30 · 3 = 20 · 4 = 15 · 5 = 12 · 6 = 10 ·
+    // 10 = 6 · 12 = 5.
+
+    /// The clock every hold is measured against.
+    static let spriteFramesPerSecond = 60
+
+    /// Seconds one art frame is on screen, given how many game frames it holds.
+    static func spriteFrameDuration(hold: Int) -> TimeInterval {
+        TimeInterval(max(hold, 1)) / TimeInterval(spriteFramesPerSecond)
+    }
+
+    /// What an animation runs at when it has not asked for a rate. **12fps**,
+    /// which is the house style — anything faster stops reading as pixel art.
+    static let defaultFrameHold = 5
+
+    /// Landing dust. **12fps**, matching the GameMaker build.
+    static let smokeFrameHold = 5
+
+    /// The Pentacle coin's glint. **12fps**.
+    static let pentacleFrameHold = 5
+
+    /// Frames in a landing puff's sheet.
+    static let smokeFrameCount = 5
+
+    /// Seconds each smoke frame is on screen.
+    static var smokeFrameDuration: TimeInterval {
+        spriteFrameDuration(hold: smokeFrameHold)
+    }
+
+    /// Seconds a puff takes to play through.
+    ///
+    /// Derived from the frame rate rather than set independently, so the sprite
+    /// and the scatter that stands in for it always last exactly as long.
+    static var smokeDuration: TimeInterval {
+        smokeFrameDuration * TimeInterval(smokeFrameCount)
+    }
 
     /// How far into its own animation a puff begins, `0`…`1`.
     ///
@@ -341,7 +386,7 @@ enum GameRules {
     ///
     /// Raise it to make dust hit harder and sooner; `0` restores the full
     /// ramp-in.
-    static let smokeLeadIn: Double = 0.3
+    static let smokeLeadIn: Double = 0.15
 
     /// How solid a puff is at its densest.
     static let smokeOpacity: Double = 0.95

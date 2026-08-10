@@ -30,6 +30,10 @@ struct SpriteSlice: Equatable {
     let frames: Int
 
     /// Seconds per frame. Ignored when `frames == 1`.
+    ///
+    /// Set this from `GameRules.spriteFrameDuration(hold:)` rather than as a
+    /// literal — see the sprite frame-rate block in `GameRules` for why the
+    /// hold, not the duration, is the number worth naming.
     let frameDuration: TimeInterval
 
     init(
@@ -37,7 +41,7 @@ struct SpriteSlice: Equatable {
         x: Int, y: Int,
         width: Int, height: Int,
         frames: Int = 1,
-        frameDuration: TimeInterval = 0.12
+        frameDuration: TimeInterval = GameRules.spriteFrameDuration(hold: GameRules.defaultFrameHold)
     ) {
         self.sheet = sheet
         self.x = x
@@ -60,7 +64,7 @@ struct SpriteSlice: Equatable {
         width: Int = 1,
         height: Int = 1,
         frames: Int = 1,
-        frameDuration: TimeInterval = 0.12
+        frameDuration: TimeInterval = GameRules.spriteFrameDuration(hold: GameRules.defaultFrameHold)
     ) -> SpriteSlice {
         let cell = GameRules.tilePixelSize
         return SpriteSlice(
@@ -113,8 +117,13 @@ enum SpriteAtlas {
     /// eight frames of that would dominate any sheet it shared.
     static let pentacleSheet = "Pentacle"
 
-    /// The landing puff's own sheet: five 32x32 frames in a row.
-    static let smokeSheet = "Smoke"
+    /// The landing puffs, one sheet per plane. Five 32x32 frames in a row each.
+    static func smokeSheet(for plane: Plane) -> String {
+        switch plane {
+        case .astra: "Astra_Smoke"
+        case .terra: "Terra_Smoke"
+        }
+    }
 
     // MARK: - Layout
     //
@@ -193,7 +202,8 @@ enum SpriteAtlas {
             sheet: pentacleSheet,
             column: 0, row: 0,
             width: 3, height: 3,
-            frames: 8, frameDuration: 0.09
+            frames: 8,
+            frameDuration: GameRules.spriteFrameDuration(hold: GameRules.pentacleFrameHold)
         )
 
         // TODO: Polaris is a 16x16 cell among the gold stars around columns
@@ -204,12 +214,15 @@ enum SpriteAtlas {
         // ── Smoke ────────────────────────────────────────────────────────
         // Five 32x32 frames — two cells square — played once per landing rather
         // than looped. See `SmokeBurstView`.
-        map[.smoke] = .cells(
-            sheet: smokeSheet,
-            column: 0, row: 0,
-            width: 2, height: 2,
-            frames: 5
-        )
+        for plane in Plane.allCases {
+            map[.smoke(plane)] = .cells(
+                sheet: smokeSheet(for: plane),
+                column: 0, row: 0,
+                width: 2, height: 2,
+                frames: GameRules.smokeFrameCount,
+                frameDuration: GameRules.smokeFrameDuration
+            )
+        }
 
         // ── Cursor ───────────────────────────────────────────────────────
         // One 16x16 cell per colour, holding all four brackets. Cut into 8x8

@@ -512,6 +512,7 @@ struct BoardView: View {
             SmokeBurstView(
                 tileSize: metrics.tileSize,
                 scale: metrics.scale,
+                plane: smoke.plane,
                 seed: smoke.id.hashValue,
                 magnitude: smoke.magnitude,
                 start: smoke.start

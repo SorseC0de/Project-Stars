@@ -110,7 +110,10 @@ enum SpriteID: Hashable {
     case cursorWarning
 
     /// The puff kicked up by a landing. Five frames, played once.
-    case smoke
+    ///
+    /// Per plane: Astra's dust is cloudstuff and Terra's is earth, and the two
+    /// read completely differently against their own boards.
+    case smoke(Plane)
 
     /// The direction indicator in the input panel.
     case directionArrow(SwipeDirection)
@@ -142,8 +145,8 @@ enum SpriteID: Hashable {
             "pentacle_\(id.rawValue)"
         case let .cursorCorner(tint, corner):
             "cursor_\(tint.rawValue)_\(corner.rawValue)"
-        case .smoke:
-            "fx_smoke"
+        case let .smoke(plane):
+            "fx_smoke_\(plane.rawValue)"
         case .cursorWarning:
             "cursor_warning"
         case let .directionArrow(direction):
@@ -183,10 +186,11 @@ extension SpriteID {
     /// The single source of truth for "what art does this game need" — the
     /// coverage report and `SpriteLoader.missingSprites` both derive from it.
     static var allSprites: [SpriteID] {
-        var ids: [SpriteID] = [.nexys, .cursorWarning, .smoke]
+        var ids: [SpriteID] = [.nexys, .cursorWarning]
 
         for plane in Plane.allCases {
             ids.append(.planeBackground(plane))
+            ids.append(.smoke(plane))
             for shade in [Palette.TileShade.light, .dark] {
                 ids.append(.tileFace(plane, shade, popped: false))
                 ids.append(.tileFace(plane, shade, popped: true))

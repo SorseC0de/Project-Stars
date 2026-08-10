@@ -446,13 +446,16 @@ final class GameSession {
             }
 
         case let .pieceStepped(_, to, plane):
-            kickUpDust(at: to, on: plane, magnitude: 1)
             hopCount += 1
             hopStartedAt = .now
             withAnimation(.spring(response: GameRules.hopDuration * 1.6, dampingFraction: 0.72)) {
                 engine.apply(event)
             }
             await sleep(event.displayDuration)
+
+            // Dust on the *landing*, not the launch. Firing it with the step
+            // put the puff at the destination before the piece got there.
+            kickUpDust(at: to, on: plane, magnitude: 1)
 
         case let .gameOver(reason) where reason == .fellThroughTerra:
             // The same spin-and-shrink as any other hole. There is simply
