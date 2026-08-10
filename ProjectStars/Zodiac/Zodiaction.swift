@@ -110,11 +110,11 @@ struct MoveSummary: Equatable {
 
     /// True when the Pentacle collected was the one revealed on this very move —
     /// i.e. the sparkle the piece was already heading for turned out to be the
-    /// one hiding it. Sagittarius' Lucky Reveal pays out on exactly this.
+    /// one hiding it. Sagittarius' Fortunate Find pays out on exactly this.
     let collectedOnRevealTile: Bool
 
     /// True when the piece reached the Nexys by something other than walking
-    /// there — a Pentacle, a Zodiaction, a fall. Cancer's Homebound Surge
+    /// there — a Pentacle, a Zodiaction, a fall. Cancer's Homebound Harvest
     /// excludes ordinary movement, and this is that distinction.
     let arrivedAtNexysByEffect: Bool
 

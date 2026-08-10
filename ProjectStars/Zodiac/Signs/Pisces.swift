@@ -23,10 +23,10 @@ extension ZodiacCatalog {
         accentColor: Color(hex: 0x5F_C2_A8),
         movement: .cardinalStep,
         passives: [
-            PiscesAstralFlow(),
-            PiscesEarthlyDrift(),
+            PiscesAstralAttunement(),
+            PiscesGaiaGeyser(),
         ],
-        zodiaction: PiscesCurrent(),
+        zodiaction: PiscesSurgingStream(),
         constellation: ZodiacCatalog.piscesConstellation
     )
 
@@ -45,7 +45,7 @@ extension ZodiacCatalog {
     )
 }
 
-// MARK: - Passive 1: Astral Flow
+// MARK: - Passive 1: Astral Attunement
 
 /// The tide runs one way: every move on Astra charges, every move on Terra
 /// drains.
@@ -53,9 +53,9 @@ extension ZodiacCatalog {
 /// It makes Pisces the only sign with a reason to *stay* on Astra rather than
 /// treat it as a floor to fall through — and the only one whose meter is a
 /// countdown once it goes down.
-struct PiscesAstralFlow: ZodiacPassive {
+struct PiscesAstralAttunement: ZodiacPassive {
 
-    let displayName = "Astral Flow"
+    let displayName = "Astral Attunement"
     let summary = "Astra: +1 charge per move. Terra: −1 charge per move."
 
     func meterBonus(from move: MoveSummary, context: PassiveContext) -> Int {
@@ -63,19 +63,19 @@ struct PiscesAstralFlow: ZodiacPassive {
     }
 }
 
-// MARK: - Passive 2: Earthly Drift
+// MARK: - Passive 2: Gaia Geyser
 
-/// *Provisional name.* Arriving on Terra fills the meter completely.
+/// Arriving on Terra fills the meter completely.
 ///
-/// Which is what keeps Astral Flow from being a straight punishment: the descent
+/// Which is what keeps Astral Attunement from being a straight punishment: the descent
 /// hands Pisces a full meter, and Terra then spends it a pip at a time. The fish
 /// arrives rich and leaks.
 ///
 /// Fires on the move that *arrives* — started on Astra, ended on Terra — rather
 /// than on any move spent there, so it cannot be farmed by bouncing.
-struct PiscesEarthlyDrift: ZodiacPassive {
+struct PiscesGaiaGeyser: ZodiacPassive {
 
-    let displayName = "Earthly Drift"
+    let displayName = "Gaia Geyser"
     let summary = "Astra → Terra: arriving on Terra fully restores your charge."
 
     func meterBonus(from move: MoveSummary, context: PassiveContext) -> Int {
@@ -97,12 +97,19 @@ struct PiscesEarthlyDrift: ZodiacPassive {
 ///   least one turn on Terra.
 /// - **Astra — Downstream:** ride your current tile three squares forward,
 ///   carrying it — and whatever state it is in — along with you.
-struct PiscesCurrent: Zodiaction {
+struct PiscesSurgingStream: Zodiaction {
 
-    let displayName = "Upstream / Downstream"
+    let displayName = "Surging Stream"
+
+    /// The two halves, by plane.
+    ///
+    /// Kept apart from `displayName` rather than folded into it: they are what
+    /// the ability *is* on each plane, and the panel will want them set smaller
+    /// under the name once the bottom display is revamped for larger text.
+    let subtitle = "Upstream / Downstream"
     let summary = "Terra: swim back up to Astra. Astra: ride your tile 3 squares forward. (Downstream not yet implemented.)"
 
-    /// Pisces' charge comes entirely from Astral Flow and Earthly Drift.
+    /// Pisces' charge comes entirely from Astral Attunement and Gaia Geyser.
     func meterGain(from move: MoveSummary, context: PassiveContext) -> Int { 0 }
 
     func activate(context: PassiveContext, generator: inout SeededRandom) -> [GameEvent] {

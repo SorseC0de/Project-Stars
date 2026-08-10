@@ -471,7 +471,7 @@ struct GameEngine {
         }
 
         // The ground it stood on may not have survived what it just did. Libra's
-        // Rebalance turns every healthy Astra tile into a hole, its own square
+        // Balancing Breeze turns every healthy Astra tile into a hole, its own square
         // included, and without this the piece simply stood on the air.
         //
         // Same guarantee `applyEffect` gives a Pentacle: arriving somewhere new
@@ -676,7 +676,7 @@ struct GameEngine {
             return .pickupRevealed(id: pickup, plane: sparkles.plane, point: required)
         }
 
-        // A passive may steer the reveal — Virgo's Controlled Landing puts the
+        // A passive may steer the reveal — Virgo's Controlled Compensation puts the
         // coin on the square the move is already heading for. Otherwise it is a
         // straight roll among the surviving sparkles.
         let steered = piece.zodiac.passives.preferredRevealPoint(
@@ -1310,7 +1310,7 @@ struct GameEngine {
     /// **Every planner ends by calling this**, which is the point: the rule is
     /// attached to the *state*, not to any one route through it. It used to live
     /// inside `plan(_:)` alone, so anything else that changed plane — a
-    /// Zodiaction like Taurus' Heavy Flop, a Pentacle that teleports — left the
+    /// Zodiaction like Taurus' Flowering Flop, a Pentacle that teleports — left the
     /// board with no sparkle phase and no coin, and the loop simply stopped.
     ///
     /// Rolls when any of these is true:

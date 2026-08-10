@@ -56,8 +56,9 @@ enum GameEvent: Equatable {
 
     /// Several tiles changed at once, as one beat.
     ///
-    /// Area effects — Astral Blaze and Blossom, Taurus' Heavy Flop, Libra's
-    /// Rebalance, Gemini's Reflection — are a single event rather than a stream
+    /// Area effects — Astral Blaze and Blossom, Taurus' Flowering Flop, Libra's
+    /// Balancing Breeze, Gemini's Mirrored Mandate — are a single event rather
+    /// than a stream
     /// of `tileDamaged`, because they are *simultaneous*. Emitted one at a time
     /// they read as a slow sweep across the board, which misrepresents what the
     /// rule actually does.
@@ -75,7 +76,7 @@ enum GameEvent: Equatable {
     /// One landing, one event, one beat. `changes` carries each tile's *final*
     /// state, so several stages of wear resolve together.
     ///
-    /// A repair can appear here too: Sagittarius' Safe Landing mends a tile
+    /// A repair can appear here too: Sagittarius' Variable Voyager mends a tile
     /// rather than breaking it, and that is still something the landing did.
     case tilesWorn(plane: Plane, changes: [GridPoint: TileHealth])
 

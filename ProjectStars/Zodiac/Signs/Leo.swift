@@ -24,9 +24,9 @@ extension ZodiacCatalog {
         accentColor: Color(hex: 0xF0_8A_2E),
         movement: .cardinalStep,
         passives: [
-            LeoPridefulFall(),
+            LeoPridefulPlant(),
         ],
-        zodiaction: LeoSolarFlair(),
+        zodiaction: LeoHeliocentricHearth(),
         constellation: ZodiacCatalog.leoConstellation
     )
 
@@ -46,15 +46,15 @@ extension ZodiacCatalog {
     )
 }
 
-// MARK: - Passive: Prideful Fall
+// MARK: - Passive: Prideful Plant
 
 /// Three pips for hitting the ground.
 ///
 /// Falling is a loss for every other sign; for Leo it is the descent to the
 /// plane it is strong on, and it charges for the privilege.
-struct LeoPridefulFall: ZodiacPassive {
+struct LeoPridefulPlant: ZodiacPassive {
 
-    let displayName = "Prideful Fall"
+    let displayName = "Prideful Plant"
     let summary = "Astra: +3 charge on landing after a fall to Terra."
 
     func meterBonus(from move: MoveSummary, context: PassiveContext) -> Int {
@@ -62,7 +62,7 @@ struct LeoPridefulFall: ZodiacPassive {
     }
 }
 
-// MARK: - Zodiaction: Solar Flair
+// MARK: - Zodiaction: Heliocentric Hearth
 
 /// Hangs a small sun over the square Leo faces.
 ///
@@ -85,19 +85,19 @@ struct LeoPridefulFall: ZodiacPassive {
 /// Raise a sun over the Nexys' own chasm while the island is up on Astra and it
 /// drags the island down to Terra instead — and goes out immediately, having
 /// spent itself on the one thing it cannot do twice. Once per run, refreshed by
-/// changing pieces, which is exactly the rule Scorpio's Shed uses.
+/// changing pieces, which is exactly the rule Scorpio's Samsaric Shed uses.
 ///
 /// The sun is not placed at all in that case: it did its work in one move, and
 /// leaving it burning would give the pull five free moves on top of the island.
-struct LeoSolarFlair: Zodiaction {
+struct LeoHeliocentricHearth: Zodiaction {
 
     /// Key this sign owns in `SignState.runFlags`.
-    static let nexysPullKey = "leo.nexysPull"
+    static let nexysPullKey = "leo.heliocentricHearth"
 
-    let displayName = "Solar Flair"
+    let displayName = "Heliocentric Hearth"
     let summary = "Spawn a small sun on the tile ahead for 5 moves: it mends that tile and drags the Pentacle one square toward it each move."
 
-    /// Leo's charge comes from Prideful Fall.
+    /// Leo's charge comes from Prideful Plant.
     func meterGain(from move: MoveSummary, context: PassiveContext) -> Int { 0 }
 
     func activate(context: PassiveContext, generator: inout SeededRandom) -> [GameEvent] {
@@ -148,7 +148,7 @@ struct LeoSolarFlair: Zodiaction {
     }
 }
 
-/// The sun Leo's Solar Flair hangs over a square.
+/// The sun Leo's Heliocentric Hearth hangs over a square.
 ///
 /// ## Why this is not an `EffectSpriteView`
 ///

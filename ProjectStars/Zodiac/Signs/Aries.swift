@@ -23,10 +23,10 @@ extension ZodiacCatalog {
         accentColor: Color(hex: 0xE0_53_3F),
         movement: .cardinalStep,
         passives: [
-            AriesChargingRam(),
-            AriesBlazePathCarrier(),
+            AriesSearingStride(),
+            AriesBrazenBlazeCarrier(),
         ],
-        zodiaction: AriesBlazePath(),
+        zodiaction: AriesBrazenBlaze(),
         constellation: ZodiacCatalog.ariesConstellation
     )
 
@@ -42,17 +42,17 @@ extension ZodiacCatalog {
     )
 }
 
-// MARK: - Passive: Charging Ram
+// MARK: - Passive: Searing Stride
 
-/// *Provisional name.* One pip of charge for every move that continues a
+/// One pip of charge for every move that continues a
 /// straight line, from the second onward.
 ///
 /// Reads the streak the engine already keeps in `SignState`, so it costs nothing
 /// to maintain and resets the instant the player turns — which is the whole
 /// tension of it, since a board decays fastest along the line you keep running.
-struct AriesChargingRam: ZodiacPassive {
+struct AriesSearingStride: ZodiacPassive {
 
-    let displayName = "Charging Ram"
+    let displayName = "Searing Stride"
     let summary = "Astra & Terra: +1 charge for each consecutive move in the same direction after the first."
 
     func meterBonus(from move: MoveSummary, context: PassiveContext) -> Int {
@@ -62,21 +62,21 @@ struct AriesChargingRam: ZodiacPassive {
     }
 }
 
-// MARK: - Passive: Blaze Path carrier
+// MARK: - Passive: Brazen Blaze carrier
 
-/// The half of Blaze Path that has to live in a passive.
+/// The half of Brazen Blaze that has to live in a passive.
 ///
-/// A Zodiaction fires once and is gone, but Blaze Path changes how the next five
-/// moves *behave*. The Zodiaction sets a timer in `SignState`; this reads it.
+/// A Zodiaction fires once and is gone, but Brazen Blaze changes how the next
+/// five moves *behave*. The Zodiaction sets a timer in `SignState`; this reads it.
 /// Splitting it that way keeps the buff on exactly the hooks it needs and out of
 /// the engine.
-struct AriesBlazePathCarrier: ZodiacPassive {
+struct AriesBrazenBlazeCarrier: ZodiacPassive {
 
     /// Key this sign owns in `SignState.buffs`.
-    static let buffKey = "aries.blazePath"
+    static let buffKey = "aries.brazenBlaze"
 
-    let displayName = "Blaze Path (active)"
-    let summary = "While Blaze Path burns: damage lands on the tile you leave, at double strength."
+    let displayName = "Brazen Blaze (active)"
+    let summary = "While Brazen Blaze burns: damage lands on the tile you leave, at double strength."
 
     func wearTiming(context: PassiveContext) -> WearTiming {
         context.signState.isActive(Self.buffKey) ? .onExit : .onEntry
@@ -90,7 +90,7 @@ struct AriesBlazePathCarrier: ZodiacPassive {
     }
 }
 
-// MARK: - Zodiaction: Blaze Path
+// MARK: - Zodiaction: Brazen Blaze
 
 /// For the next five moves, wear is charged to the tile being left rather than
 /// the one being entered — and at double strength.
@@ -99,18 +99,18 @@ struct AriesBlazePathCarrier: ZodiacPassive {
 /// square you are standing on is the one that breaks, so a burning Aries leaves a
 /// trail of holes behind it and has to keep moving forward over ground it has not
 /// yet touched.
-struct AriesBlazePath: Zodiaction {
+struct AriesBrazenBlaze: Zodiaction {
 
-    let displayName = "Blaze Path"
+    let displayName = "Brazen Blaze"
     let summary = "5 moves: damage the tile you leave instead of the one you land on, doubled."
 
-    /// All of Aries' charge comes from Charging Ram, so the Zodiaction itself
+    /// All of Aries' charge comes from Searing Stride, so the Zodiaction itself
     /// adds nothing. There is deliberately no universal charge rule.
     func meterGain(from move: MoveSummary, context: PassiveContext) -> Int { 0 }
 
     func activate(context: PassiveContext, generator: inout SeededRandom) -> [GameEvent] {
         var state = context.signState
-        state.startBuff(AriesBlazePathCarrier.buffKey, moves: 5)
+        state.startBuff(AriesBrazenBlazeCarrier.buffKey, moves: 5)
         return [.signStateChanged(state)]
     }
 }

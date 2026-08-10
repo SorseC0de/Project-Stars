@@ -25,7 +25,7 @@ extension ZodiacCatalog {
         passives: [
             TaurusHooves(),
         ],
-        zodiaction: TaurusHeavyFlop(),
+        zodiaction: TaurusFloweringFlop(),
         constellation: ZodiacCatalog.taurusConstellation
     )
 
@@ -87,7 +87,7 @@ struct TaurusHooves: ZodiacPassive {
     }
 }
 
-// MARK: - Zodiaction: Heavy Flop
+// MARK: - Zodiaction: Flowering Flop
 
 /// Drops the bull's full weight through the floor, and mends what it lands on.
 ///
@@ -98,9 +98,9 @@ struct TaurusHooves: ZodiacPassive {
 /// - **On Terra**, with nowhere left to fall, the impact spreads instead:
 ///   everything in the 3x3 around Taurus is fully restored, holes included. That
 ///   is the only effect in the game that closes several holes at once.
-struct TaurusHeavyFlop: Zodiaction {
+struct TaurusFloweringFlop: Zodiaction {
 
-    let displayName = "Heavy Flop"
+    let displayName = "Flowering Flop"
     let summary = "Astra: crash to Terra, fully mending the tile below (fatal if it is open). Terra: fully mend the 3x3 around you."
 
     /// Taurus has no charge rule of its own — by design it fills its meter only

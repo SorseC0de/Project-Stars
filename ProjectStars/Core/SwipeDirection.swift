@@ -68,7 +68,7 @@ enum SwipeDirection: String, CaseIterable, Identifiable {
 
     /// The two directions at right angles to this one.
     ///
-    /// Libra's Balanced Impact throws its force into these rather than into the
+    /// Libra's Equitable Impact throws its force into these rather than into the
     /// square it lands on.
     var perpendicular: [SwipeDirection] {
         switch self {

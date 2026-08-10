@@ -51,7 +51,7 @@ struct GridPoint: Hashable, Codable, CustomStringConvertible {
     /// The eight squares touching this one, optionally including itself.
     ///
     /// Does not bounds-check — callers filter against the board they care about.
-    /// The 3x3 shape several abilities work over (Taurus' Heavy Flop, Astral
+    /// The 3x3 shape several abilities work over (Taurus' Flowering Flop, Astral
     /// Blaze and Blossom) is `neighbourhood(includingSelf: true)`.
     /// Every square from here to `end` inclusive, in order.
     ///

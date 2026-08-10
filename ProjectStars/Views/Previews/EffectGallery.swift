@@ -231,7 +231,7 @@ enum GalleryEffect: Hashable {
 
     var previewName: String {
         switch self {
-        case .cancerBastion: "Cancer — Astral Bastion (stacked)"
+        case .cancerBastion: "Cancer — Bubble Bastion (stacked)"
         case .leoSun: "Leo — Sun (all three stacked)"
         case let .single(effect): effect.previewName
         }
@@ -242,10 +242,10 @@ private extension EffectSprite {
     /// Readable name for the picker.
     var previewName: String {
         switch self {
-        case .ariesZodiaction: "Aries — Blaze Path trail"
+        case .ariesZodiaction: "Aries — Brazen Blaze trail"
         case .astralBlaze: "Astral Blaze"
         case .explosion: "Explosion (unassigned)"
-        case .crabWalk: "Cancer — Crab Walk"
+        case .crabWalk: "Cancer — Seafoam Scuttle"
         case .waterSplash: "Splash (unassigned)"
         case .astralBloom: "Astral Blossom"
         case .leoPridefulLanding: "Leo — Prideful Landing"
@@ -254,7 +254,7 @@ private extension EffectSprite {
         case .leoZodiactionSummon: "Leo — Sun summon"
         case .fireMisc: "Aries — charge gain"
         case .sagittariusJump: "Sagittarius — leap"
-        case .cancerZodiaction: "Cancer — Astral Bastion"
+        case .cancerZodiaction: "Cancer — Bubble Bastion"
         case .cancerZodiactionAlternate: "Cancer — Bastion (alt)"
         case .libraZodiaction: "Libra — Zodiaction"
         }

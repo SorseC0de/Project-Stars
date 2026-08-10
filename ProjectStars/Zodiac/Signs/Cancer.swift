@@ -29,12 +29,12 @@ extension ZodiacCatalog {
         movement: .sidestep,
 
         passives: [
-            CancerSidestepInstinct(),
-            CancerCrabWalk(),
-            CancerHomeboundSurge(),
+            CancerCrabtitude(),
+            CancerSeafoamScuttle(),
+            CancerHomeboundHarvest(),
             CancerHeavenlyHoarder(),
         ],
-        zodiaction: CancerZodiaction(),
+        zodiaction: CancerBubbleBastion(),
         constellation: ZodiacCatalog.cancerConstellation
     )
 
@@ -51,16 +51,16 @@ extension ZodiacCatalog {
     )
 }
 
-// MARK: - Passive 1: Sidestep Instinct
+// MARK: - Passive 1: Crabtitude
 
-/// *Provisional name.* Charge for moving laterally.
+/// Charge for moving laterally.
 ///
 /// On Terra only the full two-square sidestep pays; on Astra — Cancer's own
 /// plane — either distance does. So the crab is rewarded for committing to range
 /// down below, and simply for scuttling up above.
-struct CancerSidestepInstinct: ZodiacPassive {
+struct CancerCrabtitude: ZodiacPassive {
 
-    let displayName = "Sidestep Instinct"
+    let displayName = "Crabtitude"
     let summary = "Terra: +1 charge for a full 2-tile sidestep. Astra: +1 for any sidestep."
 
     func meterBonus(from move: MoveSummary, context: PassiveContext) -> Int {
@@ -85,9 +85,9 @@ struct CancerSidestepInstinct: ZodiacPassive {
 /// way Libra's arms reach, and what counts as sideways next move — so keeping it
 /// is a real advantage, and the reason it is restricted to the committed
 /// two-square walk rather than every step.
-struct CancerCrabWalk: ZodiacPassive {
+struct CancerSeafoamScuttle: ZodiacPassive {
 
-    let displayName = "Crab Walk"
+    let displayName = "Seafoam Scuttle"
     let summary = "Astra & Terra: a full 2-tile sidestep does not change the way you are facing."
 
     func retainsFacing(
@@ -102,16 +102,16 @@ struct CancerCrabWalk: ZodiacPassive {
     }
 }
 
-// MARK: - Passive 2: Homebound Surge
+// MARK: - Passive 2: Homebound Harvest
 
 /// Three pips for getting back to the Nexys by any means other than walking.
 ///
 /// The exclusion is the point: strolling onto the island from an adjacent square
 /// is not an achievement, but being flung there by a Pentacle, a Zodiaction or a
 /// fall is. `MoveSummary.arrivedAtNexysByEffect` draws exactly that line.
-struct CancerHomeboundSurge: ZodiacPassive {
+struct CancerHomeboundHarvest: ZodiacPassive {
 
-    let displayName = "Homebound Surge"
+    let displayName = "Homebound Harvest"
     let summary = "Astra & Terra: +3 charge when you reach the Nexys by anything other than ordinary movement."
 
     func meterBonus(from move: MoveSummary, context: PassiveContext) -> Int {
@@ -147,7 +147,7 @@ struct CancerHeavenlyHoarder: ZodiacPassive {
 
 // MARK: - Zodiaction
 
-/// **Astral Bastion.** Consecrates the ground where the crab stands.
+/// **Bubble Bastion.** Consecrates the ground where the crab stands.
 ///
 /// A 3x3 patch centred on the piece stops taking damage for three committed
 /// moves, and lifts as the fourth begins. Nothing advances the wear of a
@@ -173,9 +173,9 @@ struct CancerHeavenlyHoarder: ZodiacPassive {
 ///
 /// - Note: Sized by `GameRules.sanctuaryRadius`. If a 3x3 proves too strong,
 ///   `0` gives a single square and nothing else needs touching.
-struct CancerZodiaction: Zodiaction {
+struct CancerBubbleBastion: Zodiaction {
 
-    let displayName = "Astral Bastion"
+    let displayName = "Bubble Bastion"
     let summary = "Consecrate a 3x3 around you for 3 moves: those tiles cannot be damaged by anything. Opening a Pentacle inside pays +3 charge."
 
     /// Charge comes from the three passives, plus coins opened under the

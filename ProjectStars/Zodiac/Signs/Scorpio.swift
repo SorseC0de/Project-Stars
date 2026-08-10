@@ -29,10 +29,10 @@ extension ZodiacCatalog {
 
         passives: [
             ScorpioVoidCulling(),
-            ScorpioDeathdream(),
-            ScorpioShed(),
+            ScorpioDeathDream(),
+            ScorpioSamsaricShed(),
         ],
-        zodiaction: ScorpioTailStrike(),
+        zodiaction: ScorpioSnatchingSting(),
         constellation: ZodiacCatalog.scorpioConstellation
     )
 
@@ -75,7 +75,7 @@ struct ScorpioVoidCulling: ZodiacPassive {
     }
 }
 
-// MARK: - Passive 2: Deathdream
+// MARK: - Passive 2: Death Dream
 
 /// Dropping through an Astra hole *straight into* a Terra hole does not kill
 /// Scorpio. It wakes back up on Astra where it fell, and the hole it fell
@@ -84,13 +84,13 @@ struct ScorpioVoidCulling: ZodiacPassive {
 /// Free, unlimited, and the reason Scorpio can treat a broken Astra board as
 /// something to fall through rather than something to fear — but only when the
 /// square below is also open. Falling onto solid Terra is an ordinary landing
-/// and Deathdream never comes up.
+/// and Death Dream never comes up.
 ///
 /// Declared before Shed so it always gets first refusal: it is the cheaper
 /// rescue and costs nothing, where Shed costs the way home.
-struct ScorpioDeathdream: ZodiacPassive {
+struct ScorpioDeathDream: ZodiacPassive {
 
-    let displayName = "Deathdream"
+    let displayName = "Death Dream"
     let summary = "Astra: falling through a hole into a Terra hole returns you to Astra and mends the hole you fell through."
 
     func survivesFatalFall(
@@ -123,13 +123,13 @@ struct ScorpioDeathdream: ZodiacPassive {
 ///
 /// The lockout is enforced at both places a piece can go up: coming to rest on
 /// the island in Terra, and the Nexys Shift Pentacle.
-struct ScorpioShed: ZodiacPassive {
+struct ScorpioSamsaricShed: ZodiacPassive {
 
     /// Keys this sign owns in `SignState.runFlags`.
-    static let usedKey = "scorpio.shed.used"
-    static let ascentLockedKey = "scorpio.shed.ascentLocked"
+    static let usedKey = "scorpio.samsaricShed.used"
+    static let ascentLockedKey = "scorpio.samsaricShed.ascentLocked"
 
-    let displayName = "Shed"
+    let displayName = "Samsaric Shed"
     let summary = "Terra: once per run, dying returns you to the Nexys in Astra — but you can never ascend again."
 
     func survivesFatalFall(
@@ -156,7 +156,7 @@ struct ScorpioShed: ZodiacPassive {
     }
 }
 
-// MARK: - Zodiaction: Tail Strike
+// MARK: - Zodiaction: Snatching Sting
 
 /// A phantasmal tail lunges along Scorpio's facing, collecting any Pentacle it
 /// pierces — three tiles on Terra, the entire row or column on Astra.
@@ -170,9 +170,9 @@ struct ScorpioShed: ZodiacPassive {
 ///
 ///   Extracting a `collect(at:)` that does not assume the piece is there unblocks
 ///   this and Shadow Work's "collide it into a Pentacle" rule at the same time.
-struct ScorpioTailStrike: Zodiaction {
+struct ScorpioSnatchingSting: Zodiaction {
 
-    let displayName = "Tail Strike"
+    let displayName = "Snatching Sting"
     let summary = "Terra: strike 3 tiles ahead. Astra: strike the full row or column. Collects any Pentacle hit. (Not yet implemented.)"
 
     /// Scorpio's charge comes from Void Culling.

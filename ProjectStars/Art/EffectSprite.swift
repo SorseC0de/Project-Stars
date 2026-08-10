@@ -63,13 +63,13 @@ enum EffectSprite: String, CaseIterable, Hashable {
 
     // MARK: Water
 
-    /// The bubbles Cancer's crab walk kicks up. 16 frames.
+    /// The bubbles Cancer's seafoam scuttle kicks up. 16 frames.
     case crabWalk
 
     /// Unassigned. 10 frames, 48px.
     case waterSplash
 
-    /// Cancer's Zodiaction — Astral Bastion — and its alternate. 22 frames each.
+    /// Cancer's Zodiaction — Bubble Bastion — and its alternate. 22 frames each.
     case cancerZodiaction
     case cancerZodiactionAlternate
 
@@ -236,9 +236,9 @@ enum EffectSprite: String, CaseIterable, Hashable {
         }
     }
 
-    /// The strip Aries' Blaze Path leaves on each square it burns.
+    /// The strip Aries' Brazen Blaze leaves on each square it burns.
     ///
-    /// Not in `zodiaction(for:)` on purpose. Blaze Path does not happen where
+    /// Not in `zodiaction(for:)` on purpose. Brazen Blaze does not happen where
     /// the piece is standing when it fires — it happens over the next five
     /// moves, on each tile the ram walks off. Playing it at the pop would be
     /// showing the fire in the one place it is not.

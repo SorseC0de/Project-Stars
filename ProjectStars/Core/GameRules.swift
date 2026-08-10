@@ -167,7 +167,7 @@ enum GameRules {
     // ──────────────────────────────────────────────────────────────────────
     // MARK: - Rules — sanctuary
     //
-    // Cancer's Astral Bastion: ground that refuses to get any worse. See
+    // Cancer's Bubble Bastion: ground that refuses to get any worse. See
     // `SignState.Sanctuary`.
 
     /// How big the bubble drawn on each sheltered square is, in tiles.
@@ -1068,7 +1068,7 @@ enum GameRules {
     static let chargeFlashDuration: TimeInterval = 0.3
     static let chargeFlashStrength: Double = 0.85
 
-    /// How long each square of a crab walk waits before its bubbles come up.
+    /// How long each square of a seafoam scuttle waits before its bubbles come up.
     ///
     /// Paced against the hop rather than the art: the three should be underway
     /// by the time the piece has finished crossing them.

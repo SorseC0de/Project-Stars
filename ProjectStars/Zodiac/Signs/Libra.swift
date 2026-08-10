@@ -23,10 +23,10 @@ extension ZodiacCatalog {
         accentColor: Color(hex: 0xC9_A6_E0),
         movement: .cardinalStep,
         passives: [
-            LibraBalancedImpact(),
-            LibraPerfectBalance(),
+            LibraEquitableImpact(),
+            LibraCarefulCurrent(),
         ],
-        zodiaction: LibraRebalance(),
+        zodiaction: LibraBalancingBreeze(),
         constellation: ZodiacCatalog.libraConstellation
     )
 
@@ -43,7 +43,7 @@ extension ZodiacCatalog {
     )
 }
 
-// MARK: - Passive 1: Balanced Impact
+// MARK: - Passive 1: Equitable Impact
 
 /// Libra never damages what it lands on. The force goes sideways instead, into
 /// the two squares flanking its facing.
@@ -57,9 +57,9 @@ extension ZodiacCatalog {
 /// Flanks off the edge of the board simply do not exist — moving along a border
 /// wears only the inward side, making the rim the safest place for Libra to
 /// travel.
-struct LibraBalancedImpact: ZodiacPassive {
+struct LibraEquitableImpact: ZodiacPassive {
 
-    let displayName = "Balanced Impact"
+    let displayName = "Equitable Impact"
     let summary = "Astra & Terra: damage the two tiles flanking your facing instead of the one you land on."
 
     /// Spare the landing square outright.
@@ -75,7 +75,7 @@ struct LibraBalancedImpact: ZodiacPassive {
     }
 }
 
-// MARK: - Passive 2: Perfect Balance
+// MARK: - Passive 2: Careful Current
 
 /// A row or column that levels out — every square on it at the same wear — is
 /// fully restored. Libra must alternate between the two, never the same axis
@@ -83,20 +83,20 @@ struct LibraBalancedImpact: ZodiacPassive {
 ///
 /// The alternation is what keeps it from being a repair engine: once a row pays
 /// out, the next payout has to come from a column, so Libra has to keep damage
-/// spread evenly across both axes. Balanced Impact's twin trenches are exactly
+/// spread evenly across both axes. Equitable Impact's twin trenches are exactly
 /// the tool for that, which is why the two passives belong together.
 ///
 /// Rows and columns containing the Nexys or its chasm are skipped — a structural
 /// square has no wear state to match, so those lines can never be uniform.
-struct LibraPerfectBalance: ZodiacPassive {
+struct LibraCarefulCurrent: ZodiacPassive {
 
     /// Key this sign owns in `SignState.counters`. `0` row, `1` column.
-    static let lastAxisKey = "libra.lastBalancedAxis"
+    static let lastAxisKey = "libra.lastCarefulAxis"
 
     private static let rowAxis = 0
     private static let columnAxis = 1
 
-    let displayName = "Perfect Balance"
+    let displayName = "Careful Current"
     let summary = "Astra & Terra: a row or column at one uniform wear is fully restored, alternating axes."
 
     func amend(_ events: [GameEvent], context: PassiveContext) -> [GameEvent] {
@@ -148,9 +148,9 @@ struct LibraPerfectBalance: ZodiacPassive {
     }
 }
 
-// MARK: - Zodiaction: Rebalance
+// MARK: - Zodiaction: Balancing Breeze
 
-/// *Provisional name.* Rewrites every tile's state according to the plane's own
+/// Rewrites every tile's state according to the plane's own
 /// logic — mercy below, symmetry above.
 ///
 /// - **Terra** resolves everything toward its extreme: cracked tiles mend
@@ -160,9 +160,9 @@ struct LibraPerfectBalance: ZodiacPassive {
 ///   and — the reason to hold it — every hole becomes healthy while every healthy
 ///   tile becomes a hole. On a wrecked Astra board that is a full reprieve; on a
 ///   fresh one it is a catastrophe. Timing is the whole card.
-struct LibraRebalance: Zodiaction {
+struct LibraBalancingBreeze: Zodiaction {
 
-    let displayName = "Rebalance"
+    let displayName = "Balancing Breeze"
     let summary = "Terra: cracked mend, badly cracked collapse. Astra: cracked ↔ badly cracked, holes ↔ healthy."
 
     /// - TODO: Libra has no charge rule specified. It currently fills only from

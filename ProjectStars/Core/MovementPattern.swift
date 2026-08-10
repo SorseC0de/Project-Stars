@@ -241,7 +241,7 @@ struct MovementPattern: Equatable {
         ]
     )
 
-    /// **Capricorn — Mountain Climber.** Ordinary everywhere, but northward it
+    /// **Capricorn — Capable Climber.** Ordinary everywhere, but northward it
     /// may vault two squares instead. The cooldown is enforced by the passive,
     /// not by the pattern.
     static let mountainClimber = MovementPattern(

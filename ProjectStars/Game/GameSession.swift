@@ -134,7 +134,7 @@ final class GameSession {
 
     /// Drawn effect strips currently playing. See `EffectSprite`.
     ///
-    /// A list rather than one at a time: Aries' Blaze Path burns every tile it
+    /// A list rather than one at a time: Aries' Brazen Blaze burns every tile it
     /// leaves, and a two-square exit lights two of them on the same beat.
     private(set) var effectBursts: [EffectBurst] = []
 
@@ -142,7 +142,7 @@ final class GameSession {
     /// is not flashing.
     private(set) var chargeFlashStartedAt: Date?
 
-    /// The square a crab walk started from, so its first bubble is only played
+    /// The square a seafoam scuttle started from, so its first bubble is only played
     /// once however many squares the walk covers. Cleared when the move commits.
     private var crabWalkOrigin: GridPoint?
 
@@ -433,7 +433,7 @@ final class GameSession {
             flashingTiles.subtract(changes.keys)
 
         case let .tilesWornOnExit(plane, changes):
-            // Blaze Path charges its damage to the square being left, and this
+            // Brazen Blaze charges its damage to the square being left, and this
             // is the fire doing it — on each tile, as it burns, rather than at
             // the pop five moves earlier.
             if zodiac == .aries {
@@ -542,7 +542,7 @@ final class GameSession {
             // is also why the previous `hopDistance >= 2` test never fired —
             // every step of a slide covers exactly one square.
             //
-            // A crab walk is recognised by the piece moving perpendicular to the
+            // A seafoam scuttle is recognised by the piece moving perpendicular to the
             // way it is looking, which only happens when the facing was kept —
             // i.e. exactly on the sidestep, and never on an ordinary step, which
             // turns the piece to face its direction.

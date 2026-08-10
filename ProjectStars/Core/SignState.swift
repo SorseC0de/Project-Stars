@@ -12,7 +12,7 @@ import Foundation
 /// Passives were originally pure decisions over the current board, which was
 /// fine while none of them had memory. Most of the real designs do: Aries counts
 /// a direction streak, Virgo runs a cooldown, Capricorn and Aquarius each get
-/// one use per plane visit, Scorpio's Shed fires once per run, Taurus needs two
+/// one use per plane visit, Scorpio's Samsaric Shed fires once per run, Taurus needs two
 /// footfalls to crack a Terra tile. All of that lives here.
 ///
 /// ## Rules of the road
@@ -40,7 +40,7 @@ import Foundation
 /// | `planeFlags` | **no**                  | no                      |
 /// | `runFlags`   | yes                     | **yes**¹                |
 ///
-/// ¹ Scorpio's Shed is explicitly refreshed by changing pieces, so `runFlags` is
+/// ¹ Scorpio's Samsaric Shed is explicitly refreshed by changing pieces, so `runFlags` is
 /// the one scope a piece change *does* wipe. See `clearedForPieceChange`.
 struct SignState: Equatable {
 
@@ -76,7 +76,7 @@ struct SignState: Equatable {
     /// key means ready.
     var cooldowns: [String: Int] = [:]
 
-    /// Moves remaining on a keyed temporary effect, e.g. Aries' Blaze Path.
+    /// Moves remaining on a keyed temporary effect, e.g. Aries' Brazen Blaze.
     ///
     /// Ticks down the same way. Absent key means inactive.
     var buffs: [String: Int] = [:]
@@ -267,7 +267,7 @@ struct SignState: Equatable {
     /// This state as it should look after the piece becomes a different sign.
     ///
     /// Everything goes, `runFlags` included — the new sign has no business
-    /// inheriting the old one's memory, and Scorpio's Shed is specified to be
+    /// inheriting the old one's memory, and Scorpio's Samsaric Shed is specified to be
     /// refreshed by exactly this.
     var clearedForPieceChange: SignState {
         var copy = SignState()

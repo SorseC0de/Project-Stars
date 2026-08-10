@@ -22,17 +22,17 @@ extension ZodiacCatalog {
         element: .earth,
         accentColor: Color(hex: 0x6B_7A_8F),
 
-        // Mountain Climber. The northward vault is offered by
-        // `CapricornMountainClimber` only while it is off cooldown, and charged
+        // Capable Climber. The northward vault is offered by
+        // `CapricornCapableClimber` only while it is off cooldown, and charged
         // for by the same passive once taken.
         movement: .cardinalStep,
 
         passives: [
-            CapricornMountainClimber(),
-            CapricornSpringboard(),
-            CapricornSurefootedAura(),
+            CapricornCapableClimber(),
+            CapricornPentaclePlatform(),
+            CapricornHeavenlyHoovesAura(),
         ],
-        zodiaction: CapricornSurefooted(),
+        zodiaction: CapricornHeavenlyHooves(),
         constellation: ZodiacCatalog.capricornConstellation
     )
 
@@ -50,7 +50,7 @@ extension ZodiacCatalog {
     )
 }
 
-// MARK: - Passive 1: Mountain Climber
+// MARK: - Passive 1: Capable Climber
 
 /// Northward, the goat may vault two squares instead of stepping one — then must
 /// take a turn before it can do it again.
@@ -62,15 +62,15 @@ extension ZodiacCatalog {
 /// only *offers* the vault, and only while the cooldown is clear; `stateAfterMove`
 /// charges for it, and only when it was actually taken. Offering and charging in
 /// one place would put the cooldown on every northward step, vault or not.
-struct CapricornMountainClimber: ZodiacPassive {
+struct CapricornCapableClimber: ZodiacPassive {
 
     /// Key this sign owns in `SignState.cooldowns`.
-    static let cooldownKey = "capricorn.mountainClimber"
+    static let cooldownKey = "capricorn.capableClimber"
 
     /// Committed moves before another vault is available.
     static let cooldownMoves = 1
 
-    let displayName = "Mountain Climber"
+    let displayName = "Capable Climber"
     let summary = "Astra & Terra: northward moves may vault 2 tiles instead of 1. One turn between vaults."
 
     func adjustedMovement(base: MovementPattern, context: PassiveContext) -> MovementPattern {
@@ -92,9 +92,9 @@ struct CapricornMountainClimber: ZodiacPassive {
     }
 }
 
-// MARK: - Passive 2: Springboard
+// MARK: - Passive 2: Pentacle Platform
 
-/// *Provisional name.* Trade a Pentacle for a launch up to the Nexys.
+/// Trade a Pentacle for a launch up to the Nexys.
 ///
 /// - **Terra:** opening a Pentacle on a tile adjacent to the centre lets you
 ///   spring up to the Nexys in Astra instead of taking the Pentacle.
@@ -109,16 +109,16 @@ struct CapricornMountainClimber: ZodiacPassive {
 ///
 ///   The per-visit limit needs no new machinery: `SignState.planeFlags` is
 ///   cleared on every plane arrival, which is exactly "once per Astra visit".
-struct CapricornSpringboard: ZodiacPassive {
+struct CapricornPentaclePlatform: ZodiacPassive {
 
     /// Key this sign owns in `SignState.planeFlags`.
-    static let usedThisVisitKey = "capricorn.springboard"
+    static let usedThisVisitKey = "capricorn.pentaclePlatform"
 
-    let displayName = "Springboard"
+    let displayName = "Pentacle Platform"
     let summary = "Trade a Pentacle near the centre for a launch to the Nexys. (Not yet implemented.)"
 }
 
-// MARK: - Passive 3: Surefooted aura
+// MARK: - Passive 3: Heavenly Hooves aura
 
 /// The half of the Zodiaction that has to persist: while the aura holds,
 /// Capricorn does not fall.
@@ -127,16 +127,16 @@ struct CapricornSpringboard: ZodiacPassive {
 /// decaying on a timer — `stateAfterPreventingFall` is called only when
 /// `preventsFall` returned `true`, so an aura granted and never needed is still
 /// there next turn.
-struct CapricornSurefootedAura: ZodiacPassive {
+struct CapricornHeavenlyHoovesAura: ZodiacPassive {
 
     /// Key this sign owns in `SignState.buffs`.
-    static let auraKey = "capricorn.surefooted"
+    static let auraKey = "capricorn.heavenlyHooves"
 
     /// Long enough to be a standing promise rather than a countdown. It is spent
     /// by use, not by time.
     static let auraMoves = 999
 
-    let displayName = "Surefooted (active)"
+    let displayName = "Heavenly Hooves (active)"
     let summary = "While the aura holds, the next hole you would fall into is hopped instead."
 
     func preventsFall(from plane: Plane, at point: GridPoint, context: PassiveContext) -> Bool {
@@ -151,7 +151,7 @@ struct CapricornSurefootedAura: ZodiacPassive {
     }
 }
 
-// MARK: - Zodiaction: Surefooted
+// MARK: - Zodiaction: Heavenly Hooves
 
 /// Grants an aura that carries Capricorn over the next hole it would drop into.
 ///
@@ -161,9 +161,9 @@ struct CapricornSurefootedAura: ZodiacPassive {
 ///   `preventsFall` can only answer "do you fall here"; it cannot propel the
 ///   piece onward. That needs a hook returning a follow-up path, which is the
 ///   same requirement as Astral Brook's slide, so the two should share it.
-struct CapricornSurefooted: Zodiaction {
+struct CapricornHeavenlyHooves: Zodiaction {
 
-    let displayName = "Surefooted"
+    let displayName = "Heavenly Hooves"
     let summary = "Astra: hop the next hole you would fall into. Terra: keep hopping to solid ground. (Terra half not yet implemented.)"
 
     /// - TODO: Capricorn has no charge rule specified. It currently fills only
@@ -172,7 +172,7 @@ struct CapricornSurefooted: Zodiaction {
 
     func activate(context: PassiveContext, generator: inout SeededRandom) -> [GameEvent] {
         var state = context.signState
-        state.startBuff(CapricornSurefootedAura.auraKey, moves: CapricornSurefootedAura.auraMoves)
+        state.startBuff(CapricornHeavenlyHoovesAura.auraKey, moves: CapricornHeavenlyHoovesAura.auraMoves)
         return [.signStateChanged(state)]
     }
 }

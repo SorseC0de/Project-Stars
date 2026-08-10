@@ -28,11 +28,11 @@ extension ZodiacCatalog {
         movement: .archer,
 
         passives: [
-            SagittariusLuckyReveal(),
-            SagittariusSafeLanding(),
+            SagittariusFortunateFind(),
+            SagittariusVariableVoyager(),
             SagittariusLuckyLanding(),
         ],
-        zodiaction: SagittariusGoldenArrow(),
+        zodiaction: SagittariusAstralArrow(),
         constellation: ZodiacCatalog.sagittariusConstellation
     )
 
@@ -51,7 +51,7 @@ extension ZodiacCatalog {
     )
 }
 
-// MARK: - Passive 1: Lucky Reveal
+// MARK: - Passive 1: Fortunate Find
 
 /// Three pips when the sparkle you were already walking onto turns out to be the
 /// one hiding the Pentacle.
@@ -60,9 +60,9 @@ extension ZodiacCatalog {
 /// is exactly the archer's character. Note this is narrower than "opened a
 /// Pentacle": it only fires when the coin revealed itself on the very move that
 /// took it, which `MoveSummary.collectedOnRevealTile` isolates.
-struct SagittariusLuckyReveal: ZodiacPassive {
+struct SagittariusFortunateFind: ZodiacPassive {
 
-    let displayName = "Lucky Reveal"
+    let displayName = "Fortunate Find"
     let summary = "Astra & Terra: +3 charge when the sparkle you land on is the one holding the Pentacle."
 
     func meterBonus(from move: MoveSummary, context: PassiveContext) -> Int {
@@ -70,21 +70,21 @@ struct SagittariusLuckyReveal: ZodiacPassive {
     }
 }
 
-// MARK: - Passive 2: Safe Landing
+// MARK: - Passive 2: Variable Voyager
 
 /// A small chance that a badly cracked tile refuses to break — and on Terra, that
 /// it mends a stage instead.
 ///
 /// Rolls against `context.luck`, drawn once per move by the engine, so the hook
 /// stays a pure function and a seeded run stays reproducible.
-struct SagittariusSafeLanding: ZodiacPassive {
+struct SagittariusVariableVoyager: ZodiacPassive {
 
     /// Chance of triggering, in `0..<1`.
     ///
     /// - TODO: Untuned. "Very small" in the design; start low and raise it.
     static let chance = 0.12
 
-    let displayName = "Safe Landing"
+    let displayName = "Variable Voyager"
     let summary = "Small chance a badly cracked tile does not break. On Terra it mends a stage instead."
 
     func modifyWear(_ proposal: WearProposal, context: PassiveContext) -> WearProposal {
@@ -111,7 +111,7 @@ struct SagittariusLuckyLanding: ZodiacPassive {
 
     /// Chance of triggering, in `0..<1`.
     ///
-    /// - TODO: Untuned, as with Safe Landing.
+    /// - TODO: Untuned, as with Variable Voyager.
     static let chance = 0.12
 
     let displayName = "Lucky Landing"
@@ -127,9 +127,9 @@ struct SagittariusLuckyLanding: ZodiacPassive {
     }
 }
 
-// MARK: - Zodiaction: Golden Arrow
+// MARK: - Zodiaction: Astral Arrow
 
-/// *Provisional name.* Fires an arrow into the sky; it comes down on a random
+/// Fires an arrow into the sky; it comes down on a random
 /// tile and waits. Pop the Zodiaction again to warp to wherever it landed.
 ///
 /// - TODO: **Not implemented — needs a persistent world object.** The arrow is a
@@ -149,11 +149,11 @@ struct SagittariusLuckyLanding: ZodiacPassive {
 ///
 ///   The arrow can land on the Nexys, and can be wasted by landing on a hole.
 ///   Both fall out of the warp being an ordinary landing.
-struct SagittariusGoldenArrow: Zodiaction {
+struct SagittariusAstralArrow: Zodiaction {
 
-    let displayName = "Golden Arrow"
+    let displayName = "Astral Arrow"
     let summary = "Fire an arrow to a random tile; pop again to warp to it. (Not yet implemented.)"
 
-    /// Sagittarius' charge comes from Lucky Reveal.
+    /// Sagittarius' charge comes from Fortunate Find.
     func meterGain(from move: MoveSummary, context: PassiveContext) -> Int { 0 }
 }

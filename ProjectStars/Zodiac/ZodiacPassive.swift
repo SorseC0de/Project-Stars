@@ -72,7 +72,7 @@ protocol ZodiacPassive {
 
     /// Whether wear lands on the tile being entered or the one being left.
     ///
-    /// Aquarius is airborne and always damages on exit; Aries' Blaze Path
+    /// Aquarius is airborne and always damages on exit; Aries' Brazen Blaze
     /// switches to exit for its duration. Default: `.onEntry`.
     func wearTiming(context: PassiveContext) -> WearTiming
 
@@ -127,8 +127,8 @@ protocol ZodiacPassive {
     ///
     /// The only hook that sees a move *after* the fact. Passives are otherwise
     /// consulted during resolution and cannot observe the state the board settled
-    /// into, which is exactly what Gemini's Mirrored Healing (react to repairs)
-    /// and Libra's Perfect Balance (react to a row levelling out) need.
+    /// into, which is exactly what Gemini's Mirrored Mending (react to repairs)
+    /// and Libra's Careful Current (react to a row levelling out) need.
     ///
     /// - Parameter events: Everything the move produced, in order.
     /// - Returns: Extra events to apply after it. Return `[]` for no reaction.
@@ -152,7 +152,7 @@ protocol ZodiacPassive {
 
     /// Whether this sign is currently barred from returning to Astra.
     ///
-    /// Scorpio's Shed buys one death at the cost of the way back up.
+    /// Scorpio's Samsaric Shed buys one death at the cost of the way back up.
     func blocksAscent(context: PassiveContext) -> Bool
 
     /// Replaces a move that would otherwise run off the board.
@@ -161,7 +161,7 @@ protocol ZodiacPassive {
     /// override a legal move. Return the squares to travel instead — normally a
     /// single square, since passing through a mirror is a jump, not a walk.
     ///
-    /// Gemini's Mirrors is the only user: from a centre-edge square, moving out
+    /// Gemini's Reflective Rifts is the only user: from a centre-edge square, moving out
     /// through that edge arrives at the opposite one.
     func wrappedMove(
         from origin: GridPoint,
@@ -179,7 +179,7 @@ protocol ZodiacPassive {
     /// Overrides which sparkling tile the Pentacle appears on.
     ///
     /// The reveal is normally a random pick among the surviving sparkles. Virgo's
-    /// Controlled Landing bends it: whatever square the move is heading for, if
+    /// Controlled Compensation bends it: whatever square the move is heading for, if
     /// it was sparkling, that is where the coin turns up.
     ///
     /// - Returns: A square from `candidates`, or `nil` to leave the roll alone.
@@ -228,7 +228,7 @@ struct WearProposal: Equatable {
     /// How many health stages to advance.
     ///
     /// Zero spares the tile entirely. **Negative repairs it** — Sagittarius'
-    /// Safe Landing does not merely refuse to break a badly cracked Terra tile,
+    /// Variable Voyager does not merely refuse to break a badly cracked Terra tile,
     /// it mends one stage back. A passive that wants that returns a negative
     /// here rather than needing a separate healing hook.
     var stages: Int

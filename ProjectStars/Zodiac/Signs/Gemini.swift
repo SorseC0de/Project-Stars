@@ -24,11 +24,11 @@ extension ZodiacCatalog {
         accentColor: Color(hex: 0xE8_C1_5A),
         movement: .cardinalStep,
         passives: [
-            GeminiMirroredHealing(),
-            GeminiMirrors(),
+            GeminiMirroredMending(),
+            GeminiReflectiveRifts(),
             GeminiSplitSoul(),
         ],
-        zodiaction: GeminiReflection(),
+        zodiaction: GeminiMirroredMandate(),
         constellation: ZodiacCatalog.geminiConstellation
     )
 
@@ -48,7 +48,7 @@ extension ZodiacCatalog {
     )
 }
 
-// MARK: - Passive 1: Mirrored Healing
+// MARK: - Passive 1: Mirrored Mending
 
 /// Every repair made to an Astra tile is echoed onto the Terra tile directly
 /// beneath it.
@@ -61,9 +61,9 @@ extension ZodiacCatalog {
 /// Reads the events the move actually produced rather than trying to predict
 /// them, so it mirrors repairs from any source — a Pentacle, a landing, a
 /// Zodiaction — without needing to know which.
-struct GeminiMirroredHealing: ZodiacPassive {
+struct GeminiMirroredMending: ZodiacPassive {
 
-    let displayName = "Mirrored Healing"
+    let displayName = "Mirrored Mending"
     let summary = "Astra: any repair to an Astra tile also repairs the Terra tile beneath it."
 
     func amend(_ events: [GameEvent], context: PassiveContext) -> [GameEvent] {
@@ -107,7 +107,7 @@ struct GeminiMirroredHealing: ZodiacPassive {
     }
 }
 
-// MARK: - Passive 2: Mirrors
+// MARK: - Passive 2: Reflective Rifts
 
 /// Four mirrors hang in the sky beyond the middle of each edge. Stepping out
 /// through one puts Gemini at the opposite edge.
@@ -120,14 +120,14 @@ struct GeminiMirroredHealing: ZodiacPassive {
 /// wall — so the mirrors are a route Gemini has to navigate *to*, not a general
 /// immunity to edges. Passing through is a jump, so nothing is crossed on the
 /// way and only the arrival square takes wear.
-struct GeminiMirrors: ZodiacPassive {
+struct GeminiReflectiveRifts: ZodiacPassive {
 
-    let displayName = "Mirrors"
+    let displayName = "Reflective Rifts"
     let summary = "Astra: step out through the middle of any edge to reappear at the opposite edge."
 
     /// The four squares a mirror hangs beyond, and where each one leads.
     ///
-    /// Shared with `MirrorsView`, which draws them, so the visual can never drift
+    /// Shared with `ReflectiveRiftsView`, which draws them, so the visual can never drift
     /// from the rule.
     static func portals(size: Int) -> [(edge: SwipeDirection, from: GridPoint, to: GridPoint)] {
         let middle = size / 2
@@ -177,9 +177,9 @@ struct GeminiSplitSoul: ZodiacPassive {
     let summary = "Falling from Astra splits you in two, controlled on alternating turns. (Not yet implemented.)"
 }
 
-// MARK: - Zodiaction: Reflection
+// MARK: - Zodiaction: Mirrored Mandate
 
-/// *Provisional name.* Stamps the left half of the board onto the right.
+/// Stamps the left half of the board onto the right.
 ///
 /// Column by column, the right side becomes whatever the left side is — damage,
 /// repair and holes alike. The centre column is the axis and is untouched, and
@@ -187,9 +187,9 @@ struct GeminiSplitSoul: ZodiacPassive {
 ///
 /// Identical on both planes, which is deliberate: it is the one Gemini effect
 /// that does not care which twin, or which plane, you are on.
-struct GeminiReflection: Zodiaction {
+struct GeminiMirroredMandate: Zodiaction {
 
-    let displayName = "Reflection"
+    let displayName = "Mirrored Mandate"
     let summary = "Astra & Terra: the right half of the board becomes a mirror of the left."
 
     /// - TODO: Gemini's charge is specified to come from rejoining the two
@@ -230,11 +230,11 @@ struct GeminiReflection: Zodiaction {
 /// doorways rather than squares. `BoardView` is deliberately unclipped so they
 /// can sit past the grid's frame.
 ///
-/// The positions come from `GeminiMirrors.portals(size:)`, the same table the
+/// The positions come from `GeminiReflectiveRifts.portals(size:)`, the same table the
 /// movement rule reads, so what is drawn can never drift from what works.
 ///
-/// Astra only, and only while Gemini is the piece — see `GeminiMirrors`.
-struct MirrorsView: View {
+/// Astra only, and only while Gemini is the piece — see `GeminiReflectiveRifts`.
+struct ReflectiveRiftsView: View {
 
     let metrics: PixelArtMetrics
 
@@ -264,7 +264,7 @@ struct MirrorsView: View {
     }
 
     private var portals: [(edge: SwipeDirection, from: GridPoint, to: GridPoint)] {
-        GeminiMirrors.portals(size: metrics.gridSize)
+        GeminiReflectiveRifts.portals(size: metrics.gridSize)
     }
 
     /// One oval, sitting just outside the edge square it serves.

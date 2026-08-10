@@ -190,7 +190,7 @@ struct BoardView: View {
     @ViewBuilder
     private func mirrors(plane: Plane, metrics: PixelArtMetrics) -> some View {
         if session.zodiac == .gemini, plane == .astra {
-            MirrorsView(metrics: metrics, accent: session.zodiac.definition.accentColor)
+            ReflectiveRiftsView(metrics: metrics, accent: session.zodiac.definition.accentColor)
                 .frame(width: metrics.boardSize, height: metrics.boardSize)
         }
     }
@@ -230,7 +230,7 @@ struct BoardView: View {
         }
     }
 
-    /// The ground Cancer's Astral Bastion is holding, if one is standing.
+    /// The ground Cancer's Bubble Bastion is holding, if one is standing.
     @ViewBuilder
     private func sanctuary(plane: Plane, metrics: PixelArtMetrics) -> some View {
         if let standing = session.engine.signState.sanctuary, standing.plane == plane {
