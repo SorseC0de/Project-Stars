@@ -30,13 +30,38 @@ struct SparkleView: View {
     var index: Int = 0
 
     var body: some View {
-        placeholder
+        ZStack {
+            tileGlow
+            placeholder
+        }
         .frame(width: size, height: size)
         // Evaluated from the clock rather than driven by a repeating animation,
         // so each sparkle can run at its own rate without needing its own
         // animation state.
         .modifier(SparklePulse(index: index))
         .allowsHitTesting(false)
+    }
+
+    /// Light thrown onto the square underneath, so the tile is marked and not
+    /// just overlaid.
+    ///
+    /// Counter-offset by `sparkleNudge`: the sparkle itself sits a couple of
+    /// pixels east to clear the art beneath it, but a glow *on* the square
+    /// belongs centred on the square.
+    private var tileGlow: some View {
+        Circle()
+            .fill(Palette.sparkleGlow(on: plane))
+            .frame(
+                width: size * GameRules.sparkleTileGlowSize,
+                height: size * GameRules.sparkleTileGlowSize
+            )
+            .blur(radius: size * GameRules.sparkleTileGlowBlur)
+            .opacity(GameRules.sparkleTileGlowOpacity)
+            .blendMode(.plusLighter)
+            .offset(
+                x: -GameRules.sparkleNudge.width,
+                y: -GameRules.sparkleNudge.height
+            )
     }
 
     // TODO: Once the real sparkle art lands it will likely be a multi-frame

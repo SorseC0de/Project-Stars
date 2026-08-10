@@ -758,6 +758,18 @@ enum GameRules {
 
     static let sparkleNudge = CGSize(width: 2, height: 0)
 
+    /// The wash of light a sparkle throws onto the square it is marking.
+    ///
+    /// A sparkle floating above a tile says *something is here*; the tile
+    /// itself catching that light says *this tile*. On Astra it also reads as
+    /// the cloud glowing from within, which is what the plane wants to be doing.
+    ///
+    /// Faint by design — it is a hint under the sparkle, not a second sparkle.
+    /// Size and blur are fractions of a tile.
+    static let sparkleTileGlowSize: CGFloat = 0.78
+    static let sparkleTileGlowBlur: CGFloat = 0.15
+    static let sparkleTileGlowOpacity: Double = 0.22
+
     // ──────────────────────────────────────────────────────────────────────
     // MARK: - Smoke
     //
