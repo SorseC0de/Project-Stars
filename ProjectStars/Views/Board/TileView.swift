@@ -38,10 +38,15 @@ struct TileView: View {
 
     var body: some View {
         ZStack {
-            if plane == .astra, tile.kind == .normal {
+            if plane == .astra, tile.kind == .normal, !hasDrawnCloud {
                 // Astra has no tiles — see `CloudTileView`. Structural squares
                 // (the island and its chasm) still draw normally: those are not
                 // made of cloud.
+                //
+                // The generated cluster steps aside the moment drawn cloud
+                // exists on the sheet, the same way every placeholder in this
+                // game does. A sprite is also far cheaper than 39 shapes a
+                // frame — see the note on `CloudTileView.body`.
                 CloudTileView(
                     health: tile.health,
                     shade: shade,
@@ -66,6 +71,11 @@ struct TileView: View {
                     .opacity(isFlashing ? 0.9 : 0)
             }
         }
+    }
+
+    /// Whether Astra's tiles have been drawn, in which case they win.
+    private var hasDrawnCloud: Bool {
+        SpriteLoader.hasAsset(for: .tileFace(.astra, shade, popped: isPopped))
     }
 
     // MARK: - Layers
