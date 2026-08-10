@@ -42,11 +42,56 @@ struct SanctuaryView: View {
                 .opacity(GameRules.sanctuaryFieldOpacity * (0.75 + 0.25 * beat))
 
                 border(beat: beat)
+
+                bubbles(at: timeline.date.timeIntervalSinceReferenceDate)
             }
             .blendMode(.plusLighter)
         }
         .frame(width: metrics.boardSize, height: metrics.boardSize)
         .allowsHitTesting(false)
+    }
+
+    /// The drawn water, one bubble per sheltered square, looping for as long as
+    /// the Bastion stands.
+    ///
+    /// The lit floor says *which squares*; this says *what is happening to
+    /// them*. Neither alone is enough — a floor tint is easy to miss under the
+    /// board's own colour, and bubbles without an edge do not tell you where the
+    /// protection stops.
+    private func bubbles(at now: TimeInterval) -> some View {
+        ZStack {
+            ForEach(points, id: \.self) { point in
+                ForEach(Array(EffectSprite.cancerBastion.enumerated()), id: \.offset) { layer, effect in
+                    // The lower bubble runs slower *and* starts later. Rate
+                    // alone still lets them meet at the top of every cycle.
+                    // Two lags at once: the lower bubble trails the upper one,
+                    // and every square trails every other. Nine bubbles in
+                    // lockstep read as one animation stamped nine times.
+                    let lag = Double(EffectSprite.cancerBastion.count - 1 - layer)
+                        * GameRules.sanctuaryLayerStagger
+                        + Self.offset(of: point) * effect.duration
+                    let frame = Int(max(now - lag, 0) / effect.rate.frameDuration) % effect.frames
+                    let side = metrics.tileSize * GameRules.sanctuaryTileSpan
+
+                    PixelSprite(id: .effect(effect), frame: frame) { EmptyView() }
+                        .frame(width: side, height: side)
+                        .offset(y: -effect.groundLift * metrics.scale)
+                        .position(metrics.center(of: point))
+                }
+            }
+        }
+    }
+
+    /// How far into its own cycle a square's bubble sits, `0`…`1`.
+    ///
+    /// Hashed from the square so it is stable: a bubble that reshuffled its
+    /// phase between frames would flicker rather than loop.
+    private static func offset(of point: GridPoint) -> Double {
+        var z = UInt64(bitPattern: Int64(point.x &* 73_856_093 &+ point.y &* 19_349_663))
+        z = (z ^ (z >> 33)) &* 0xFF51_AFD7_ED55_8CCD
+        z = (z ^ (z >> 33)) &* 0xC4CE_B9FE_1A85_EC53
+        z ^= z >> 33
+        return Double(z % 1_000) / 1_000
     }
 
     /// The edge, drawn around the whole patch rather than around each square —

@@ -547,16 +547,8 @@ final class GameSession {
             for layer in EffectSprite.zodiaction(for: zodiac) {
                 playEffect(layer, at: engine.piece.point, on: plane)
             }
-            if zodiac == .leo {
-                // The flare belongs where the sun will hang, not where Leo is
-                // standing. The event that places it has not been applied yet,
-                // so the square is derived the same way the Zodiaction derives
-                // it.
-                raiseTheSun(
-                    at: engine.piece.point.offset(by: engine.piece.facing.unitOffset),
-                    on: plane
-                )
-            }
+            // Leo's sun is drawn from engine state by `SunView`, summon flare
+            // included — one appearance rather than a burst followed by a sun.
             withAnimation(.easeOut(duration: event.displayDuration)) {
                 engine.apply(event)
             }
@@ -1039,17 +1031,6 @@ extension GameSession {
             try? await Task.sleep(nanoseconds: UInt64(effect.duration * 1_000_000_000))
             self?.effectBursts.removeAll { $0.id == burst.id }
         }
-    }
-
-    /// Leo's Zodiaction: the flare of it being summoned.
-    ///
-    /// Only the summon. The sun itself is not an effect that plays — it is a
-    /// thing on the board with a lifetime, drawn from engine state by `SunView`
-    /// for as long as `SignState.sun` says it is burning. Scheduling it as a
-    /// burst here would have it play once and vanish while the sun was still
-    /// four moves from going out.
-    func raiseTheSun(at point: GridPoint, on plane: Plane) {
-        playEffect(.leoZodiactionSummon, at: point, on: plane)
     }
 
     /// Recolours the piece for a moment. Fired whenever the meter gains.

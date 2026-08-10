@@ -129,28 +129,31 @@ enum EffectSprite: String, CaseIterable, Hashable {
         }
     }
 
-    /// True for effects that happen *on the ground* rather than in the air.
+    /// How far this strip rides up from the middle of its square, in art
+    /// pixels.
     ///
     /// A strip is a square of art centred on a square of board, which puts its
     /// middle at the middle of the tile. That is right for something hanging
-    /// over the square — a sun, a Zodiaction bursting overhead — and wrong for
-    /// anything sitting on the floor, which wants its *base* on the tile and so
-    /// has to ride up by `GameRules.effectGroundLift`.
+    /// over the square — a sun, a burst overhead — and wrong for anything
+    /// sitting on the floor, which wants its *base* on the tile.
     ///
-    /// Declared per effect rather than guessed from the art: whether a flame is
-    /// standing on the tile or floating above it is a fact about what it depicts,
-    /// and nothing in the pixels says which.
-    var isGrounded: Bool {
+    /// A number rather than a flag, because "on the ground" is not one height:
+    /// each of these was drawn with its own idea of where the floor is inside
+    /// its 64px frame, and there is nothing in the pixels that says so.
+    var groundLift: CGFloat {
         switch self {
-        case .ariesZodiaction, .astralBlaze, .leoPridefulLanding,
-             .fireMisc, .sagittariusJump,
-             .cancerZodiaction, .cancerZodiactionAlternate:
-            true
+        case .ariesZodiaction, .astralBlaze, .sagittariusJump: 8
+        case .fireMisc: 6
+        case .cancerZodiaction, .cancerZodiactionAlternate: 4
+        case .leoPridefulLanding: 0
         case .leoZodiactionOne, .leoZodiactionTwo, .leoZodiactionSummon,
-             .libraZodiaction:
-            false
+             .libraZodiaction: 0
         }
     }
+
+    /// True for anything that sits on the floor rather than hanging over it.
+    /// Presentation only — the gallery labels with it.
+    var isGrounded: Bool { groundLift > 0 }
 
     /// How brightly this strip blooms.
     ///

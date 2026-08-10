@@ -50,9 +50,8 @@ struct EffectSpriteView: View {
                 let art = PixelSprite(id: .effect(effect), frame: frame) { EmptyView() }
                     .frame(width: side, height: side)
 
-                let lift = effect.isGrounded
-                    ? -GameRules.effectGroundLift * (tileSize / CGFloat(GameRules.tilePixelSize))
-                    : 0
+                let lift = -effect.groundLift
+                    * (tileSize / CGFloat(GameRules.tilePixelSize))
 
                 ZStack {
                     // The light it casts, under the art rather than over it, so

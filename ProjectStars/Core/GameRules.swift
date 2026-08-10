@@ -170,6 +170,13 @@ enum GameRules {
     // Cancer's Astral Bastion: ground that refuses to get any worse. See
     // `SignState.Sanctuary`.
 
+    /// How big the bubble drawn on each sheltered square is, in tiles.
+    ///
+    /// Smaller than a standard effect: this is one per square across the whole
+    /// patch, and at full size nine of them would be a wall of water rather than
+    /// nine protected tiles.
+    static let sanctuaryTileSpan: CGFloat = 1.1
+
     /// How far it reaches from the square it is raised on.
     ///
     /// `1` gives the 3x3. Drop it to `0` for a single square if the ability
@@ -178,7 +185,15 @@ enum GameRules {
     static let sanctuaryRadius = 1
 
     /// How many committed moves it stands for.
-    static let sanctuaryMoves = 3
+    static let sanctuaryMoves = 5
+
+    /// How far the Bastion's lower bubble lags its upper one, in seconds.
+    ///
+    /// The two strips are near enough identical, so a difference in rate alone
+    /// is hard to see — they still line up at the start of every cycle. Offsetting
+    /// where one *begins* is what makes the pair read as two bodies of water
+    /// rather than one drawn twice.
+    static let sanctuaryLayerStagger: TimeInterval = 0.22
 
     /// Bonus charge for opening a Pentacle inside it.
     static let sanctuaryPickupCharge = 3
@@ -207,6 +222,14 @@ enum GameRules {
 
     /// How many squares the Pentacle is dragged each move the sun burns.
     static let sunPullPerMove = 1
+
+    /// The frames of the sun strip that repeat while it burns.
+    ///
+    /// Everything before `sunLoopStart` is it arriving, everything from
+    /// `sunLoopEnd` on is it going out, and the middle covers a duration nobody
+    /// knew when the art was drawn. Both are indices into a 22-frame strip.
+    static let sunLoopStart = 6
+    static let sunLoopEnd = 16
 
     /// How bright the sun is on its final move, so its last turn is visible as
     /// its last turn.
@@ -975,8 +998,14 @@ enum GameRules {
     //
     // The apparition a Zodiaction summons.
 
-    /// A Zodiaction firing.
-    static let zodiactionDuration: TimeInterval = 0.35
+    /// How long the replay pauses on the pop itself.
+    ///
+    /// Short, because it no longer needs to cover anything: the spectral head,
+    /// the effect strips and Leo's sun all run on their own timestamps and keep
+    /// playing while the Zodiaction's consequences resolve underneath them. A
+    /// long hold here only delayed those consequences — Leo's Nexys visibly sat
+    /// still for a third of a second before starting down.
+    static let zodiactionDuration: TimeInterval = 0.08
 
     /// Seconds an apparition is on screen when a Zodiaction fires.
     static let spectralHeadDuration: TimeInterval = 1.15
