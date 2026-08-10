@@ -202,14 +202,25 @@ enum Palette {
     /// Polaris' sparks use.
     static let cloudSpeckleTones: [Color] = [lightBlue, yellow]
 
+    /// The same flecks on a raised cloud.
+    ///
+    /// Blue on blue is invisible, so the pairing inverts: magenta takes the
+    /// place the pale blue holds everywhere else. Gold works against both and
+    /// stays put.
+    static let cloudRaisedSpeckleTones: [Color] = [magenta, yellow]
+
+    static func speckleTones(raised: Bool) -> [Color] {
+        raised ? cloudRaisedSpeckleTones : cloudSpeckleTones
+    }
+
     /// The cloud a Pentacle is sitting on.
     ///
     /// Lifting a cluster four pixels is not enough on its own — a raised cloud
     /// against neighbouring clouds is still just cloud, and the pop is the one
-    /// thing on the board that has to be readable at a glance. Pale blue over a
-    /// magenta body: far enough from either chequer tone to be unmistakable,
-    /// close enough to still belong to Astra.
-    static let cloudRaised: [Color] = [cyan, lightBlue, darkMagenta]
+    /// thing on the board that has to be readable at a glance. Pale blues down to a
+    /// deep one: far enough from either chequer tone to be unmistakable, close
+    /// enough to still belong to Astra.
+    static let cloudRaised: [Color] = [cyan, lightBlue, darkBlue]
 
     static func cloudTones(_ shade: TileShade, raised: Bool = false) -> [Color] {
         if raised { return cloudRaised }

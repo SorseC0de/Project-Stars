@@ -115,7 +115,7 @@ struct CloudTileView: View {
         ZStack {
             ForEach(0..<GameRules.cloudSpeckleCount, id: \.self) { index in
                 let fleck = CloudCluster.speckle(index, at: point, time: now)
-                let tones = Palette.cloudSpeckleTones
+                let tones = Palette.speckleTones(raised: isRaised)
 
                 Circle()
                     .fill(tones[index % tones.count])
