@@ -82,7 +82,9 @@ struct CloudTileView: View {
                     count: GameRules.cloudGlintCount,
                     salt: 4_096,
                     tones: Palette.cloudSpeckleTones,
-                    additive: true
+                    additive: true,
+                    sizeScale: GameRules.cloudGlintLitScale,
+                    within: GameRules.cloudGlintLitReach
                 )
             }
             // The whole cluster shrinks toward its own centre as it wears.
@@ -137,17 +139,27 @@ struct CloudTileView: View {
     ///   - salt: Offsets the hashes, so the buried set and the lit set are not
     ///     the same curls drawn twice in different colours.
     ///   - additive: Light adds; cloudstuff does not.
+    ///   - sizeScale: Shrinks the whole set.
+    ///   - within: Holds the set inside a disc of this radius, in art pixels.
+    ///     Left `nil`, curls scatter across the square and may overhang it.
     private func glints(
         at now: TimeInterval,
         count: Int,
         salt: Int,
         tones: [Color],
-        additive: Bool
+        additive: Bool,
+        sizeScale: CGFloat = 1,
+        within reach: CGFloat? = nil
     ) -> some View {
         ZStack {
             ForEach(0..<count, id: \.self) { index in
-                let glint = CloudCluster.glint(index + salt, at: point, time: now)
-                let span = GameRules.cloudGlintLength * scale * glint.length
+                let glint = CloudCluster.glint(
+                    index + salt,
+                    at: point,
+                    time: now,
+                    within: reach
+                )
+                let span = GameRules.cloudGlintLength * scale * glint.length * sizeScale
 
                 CloudGlintSpiral(turns: GameRules.cloudGlintTurns)
                     .stroke(
@@ -369,7 +381,8 @@ enum CloudCluster {
     static func glint(
         _ index: Int,
         at point: GridPoint,
-        time: TimeInterval
+        time: TimeInterval,
+        within reach: CGFloat?
     ) -> (x: CGFloat, y: CGFloat, angle: Double, length: CGFloat, opacity: Double) {
         let across = hash(point, salt: index + 701)
         let up = hash(point, salt: index + 809)
@@ -396,9 +409,24 @@ enum CloudCluster {
         let span = GameRules.cloudGlintMinScale
             + (GameRules.cloudGlintMaxScale - GameRules.cloudGlintMinScale) * CGFloat(size)
 
+        // Held inside the cluster, or scattered across the whole square.
+        let place: (x: CGFloat, y: CGFloat)
+        if let reach {
+            let angle = across * 2 * .pi
+            // Square-rooted: sampling radius uniformly would crowd the centre,
+            // because a disc has more area the further out you go.
+            let radius = reach * CGFloat(up.squareRoot())
+            place = (CGFloat(cos(angle)) * radius, CGFloat(sin(angle)) * radius)
+        } else {
+            place = (
+                CGFloat(across - 0.5) * GameRules.cloudGlintSpread,
+                CGFloat(up - 0.5) * GameRules.cloudGlintSpread
+            )
+        }
+
         return (
-            x: CGFloat(across - 0.5) * GameRules.cloudGlintSpread,
-            y: CGFloat(up - 0.5) * GameRules.cloudGlintSpread,
+            x: place.x,
+            y: place.y,
             angle: rest + spin,
             length: span * (0.9 + 0.2 * CGFloat(wave)),
             opacity: 0.45 + 0.55 * wave

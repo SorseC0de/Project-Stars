@@ -317,6 +317,16 @@ enum GameRules {
     /// under a layer.
     static let cloudGlintMaskCount = 2
 
+    /// How much smaller the lit blue-and-gold curls are than the cloud-toned
+    /// ones, and how far out from the centre they are allowed to sit.
+    ///
+    /// They are held inside the cluster rather than scattered across the square
+    /// like the cloud-toned curls: those are cloudstuff and can run off the
+    /// edge, but a fleck of light hanging in empty sky has nothing to be caught
+    /// in. Same reach the speckles use, for the same reason.
+    static let cloudGlintLitScale: CGFloat = 0.5
+    static let cloudGlintLitReach: CGFloat = 5.6
+
     /// How far from the square's centre curls are scattered, in art pixels
     /// across the full span.
     ///
