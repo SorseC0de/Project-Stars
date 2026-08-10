@@ -42,6 +42,21 @@ protocol Zodiaction {
     /// charge rule in this game: every sign builds its meter its own way, and a
     /// shared fallback would let a sign quietly ship without one. Return `0` for
     /// moves that do not charge this sign.
+    ///
+    /// ## A sign with no charge rule at all is not unfinished
+    ///
+    /// Several signs charge from Pentacles alone, and that is a **balance
+    /// lever, not a gap**. It is the quiet nerf applied to the board-control and
+    /// passive-heavy signs, whose strength is spread across every turn rather
+    /// than concentrated in a super.
+    ///
+    /// The reverse is also deliberate. Pisces charges from two passives and so
+    /// almost always has its Zodiaction available — but Surging Stream does very
+    /// little, and that is the trade. Its whole game is living rent-free on
+    /// Astra, not popping a super.
+    ///
+    /// So: do not "fix" a sign by giving it a charge rule because the others
+    /// have one. Ask what that sign's strength already is.
     func meterGain(from move: MoveSummary, context: PassiveContext) -> Int
 
     /// The events popping the Zodiaction produces.
