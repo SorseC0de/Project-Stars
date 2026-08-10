@@ -26,7 +26,7 @@ extension ZodiacCatalog {
         passives: [
             LeoPridefulPlant(),
         ],
-        zodiaction: LeoBeckoningBlaze(),
+        zodiaction: LeoAureoleAttraction(),
         constellation: ZodiacCatalog.leoConstellation
     )
 
@@ -62,7 +62,7 @@ struct LeoPridefulPlant: ZodiacPassive {
     }
 }
 
-// MARK: - Zodiaction: Beckoning Blaze
+// MARK: - Zodiaction: Aureole Attraction
 
 /// Hangs a small sun over the square Leo faces.
 ///
@@ -89,12 +89,12 @@ struct LeoPridefulPlant: ZodiacPassive {
 ///
 /// The sun is not placed at all in that case: it did its work in one move, and
 /// leaving it burning would give the pull five free moves on top of the island.
-struct LeoBeckoningBlaze: Zodiaction {
+struct LeoAureoleAttraction: Zodiaction {
 
     /// Key this sign owns in `SignState.runFlags`.
-    static let nexysPullKey = "leo.beckoningBlaze"
+    static let nexysPullKey = "leo.aureoleAttraction"
 
-    let displayName = "Beckoning Blaze"
+    let displayName = "Aureole Attraction"
     let summary = "Spawn a small sun on the tile ahead for 5 moves: it mends that tile and drags the Pentacle one square toward it each move."
 
     /// Leo's charge comes from Prideful Plant.
@@ -148,7 +148,7 @@ struct LeoBeckoningBlaze: Zodiaction {
     }
 }
 
-/// The sun Leo's Beckoning Blaze hangs over a square.
+/// The sun Leo's Aureole Attraction hangs over a square.
 ///
 /// ## Why this is not an `EffectSpriteView`
 ///
