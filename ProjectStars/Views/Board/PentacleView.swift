@@ -148,7 +148,7 @@ struct PentacleView: View {
             // motions from reading as one.
             PaletteGlow(colors: Palette.polarisSparkTones,
                         radius: GameRules.pentacleGlowRadius * scale,
-                        trail: 1) {
+                        intensity: GameRules.polarisGlowIntensity) {
                 sprite
             }
             .rotationEffect(.degrees(spin(at: phase)))

@@ -291,12 +291,13 @@ enum GameRules {
     }
 
     /// Puffs in one cluster.
-    static let cloudPuffCount = 8
+    static let cloudPuffCount = 13
 
-    /// The bright cap on a crown puff, as a fraction of the puff itself, and how
-    /// far up it sits. Together these are the cel-shaded highlight.
-    static let cloudCapScale: CGFloat = 0.62
-    static let cloudCapRise: CGFloat = 0.3
+    /// Flecks of light scattered through each cloud, and how big they are in
+    /// art pixels. They twinkle on their own clocks, like the sparks.
+    static let cloudSpeckleCount = 6
+    static let cloudSpeckleSize: CGFloat = 1.3
+    static let cloudSpeckleSpread: CGFloat = 5.6
 
     /// How far a puff swells and shrinks, as a fraction of its size.
     ///
@@ -359,19 +360,26 @@ enum GameRules {
 
     /// How many lagging after-images a charged piece's gems leave — see
     /// `GemTrailView`. Zero switches the streak off entirely.
-    static let gemTrailCount = 5
+    static let gemTrailCount = 7
 
     /// How soft each after-image is, in art pixels. Widens further back.
-    static let gemTrailRadius: CGFloat = 1.5
+    static let gemTrailRadius: CGFloat = 2.4
 
     /// What fraction of the previous copy's brightness each one keeps.
-    static let gemTrailFalloff: Double = 0.72
+    static let gemTrailFalloff: Double = 0.88
 
     /// Seconds of spring response per step of lag.
     ///
     /// This is the knob that decides whether the gems streak or merely smear:
     /// raise it and the tail stretches further behind the piece.
-    static let gemTrailLag: TimeInterval = 0.14
+    static let gemTrailLag: TimeInterval = 0.22
+
+    /// How many times each after-image is drawn on top of itself.
+    ///
+    /// A gem is three or four pixels; blurred once it is barely there. Additive
+    /// blending means restacking the same copy is simply brighter, which is the
+    /// cheapest way to make a small light carry across a whole square.
+    static let gemTrailBoost = 3
 
     /// A single hop between tiles.
     static let hopDuration: TimeInterval = 0.20
@@ -560,14 +568,18 @@ enum GameRules {
     static let pentacleOrbitPeriod: TimeInterval = 3.1
 
     /// How far the coin's bright entries bloom, in art pixels.
-    static let pentacleGlowRadius: CGFloat = 1.6
+    static let pentacleGlowRadius: CGFloat = 1.2
 
     /// Seconds Polaris takes to turn once. Negative is counter-clockwise.
     static let polarisSpinPeriod: TimeInterval = -6.5
 
     /// How strongly the coin's highlights bloom. Below 1 the glow is thinner
     /// than the mask it is drawn from.
-    static let pentacleGlowIntensity: Double = 0.55
+    static let pentacleGlowIntensity: Double = 0.26
+
+    /// Polaris' own bloom. Separate from the gold coin's: the star is already
+    /// the brightest thing on the board before anything is added to it.
+    static let polarisGlowIntensity: Double = 0.3
 
     /// Sparks orbiting Polaris.
     ///

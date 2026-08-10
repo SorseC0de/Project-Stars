@@ -89,7 +89,7 @@ struct PolarisSparksView: View {
             // orbit.
             y: CGFloat(sin(angle)) * radius * 0.45,
             size: base * (1 - swing / 2 + swing * twinkle),
-            opacity: 0.55 + 0.45 * Double(twinkle)
+            opacity: 0.28 + 0.4 * Double(twinkle)
         )
     }
 }

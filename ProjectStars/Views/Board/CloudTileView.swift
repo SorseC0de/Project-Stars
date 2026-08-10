@@ -46,11 +46,13 @@ struct CloudTileView: View {
             let drift = drift(at: now)
 
             ZStack {
-                // Underside first, top surface last: the muffin's lit crown has
-                // to overlap the shaded body, not the other way round.
+                // Deepest first: the lit crown has to land on top of the
+                // shaded body, not the other way round.
                 ForEach(CloudCluster.drawOrder, id: \.self) { index in
                     puffView(index, at: now)
                 }
+
+                speckles(at: now)
             }
             // The whole cluster shrinks toward its own centre as it wears.
             .scaleEffect(GameRules.cloudScale(health))
@@ -61,7 +63,7 @@ struct CloudTileView: View {
         .overlay {
             if isFlashing {
                 Circle()
-                    .fill(Palette.ice)
+                    .fill(Palette.pink)
                     .frame(width: size * 0.5, height: size * 0.5)
                     .blendMode(.plusLighter)
                     .opacity(0.5)
@@ -75,21 +77,27 @@ struct CloudTileView: View {
         let puff = CloudCluster.puff(index, at: point)
         let diameter = puff.radius * 2 * scale * CloudCluster.pulse(index, at: point, time: now)
 
-        return ZStack {
-            Circle().fill(CloudCluster.tone(puff, tones: tones))
+        return Circle()
+            .fill(CloudCluster.tone(puff, tones: tones))
+            .frame(width: diameter, height: diameter)
+            .offset(x: puff.x * scale, y: puff.y * scale)
+    }
 
-            // A smaller, brighter cap on the puffs facing the sky. This is the
-            // whole cel-shaded read: two flat tones meeting on a hard edge,
-            // rather than a gradient that would turn to mud across 16 pixels.
-            if puff.depth < 0.5 {
+    /// Flecks of blue and gold caught in the cloudstuff.
+    private func speckles(at now: TimeInterval) -> some View {
+        ZStack {
+            ForEach(0..<GameRules.cloudSpeckleCount, id: \.self) { index in
+                let fleck = CloudCluster.speckle(index, at: point, time: now)
+                let tones = Palette.cloudSpeckleTones
+
                 Circle()
-                    .fill(tones[0])
-                    .scaleEffect(GameRules.cloudCapScale)
-                    .offset(y: -puff.radius * scale * GameRules.cloudCapRise)
+                    .fill(tones[index % tones.count])
+                    .frame(width: fleck.size * scale, height: fleck.size * scale)
+                    .offset(x: fleck.x * scale, y: fleck.y * scale)
+                    .opacity(fleck.opacity)
             }
         }
-        .frame(width: diameter, height: diameter)
-        .offset(x: puff.x * scale, y: puff.y * scale)
+        .blendMode(.plusLighter)
     }
 
     private var tones: [Color] { Palette.cloudTones(shade) }
@@ -124,30 +132,49 @@ enum CloudCluster {
         let y: CGFloat
         let radius: CGFloat
 
-        /// `0` for the sunlit top surface, `1` for the shaded underside.
+        /// `0` for the lit crown, `1` for the shadowed body beneath it.
         ///
-        /// Authored rather than derived from `y`, because the jitter that keeps
-        /// squares from looking stamped would otherwise flip a puff's shading
-        /// when it nudged across the midline.
+        /// Authored rather than derived from position, because the jitter that
+        /// keeps squares from looking stamped would otherwise flip a puff's
+        /// layer when it nudged across a boundary — and because from directly
+        /// above, position tells you nothing about depth anyway.
         let depth: Double
     }
 
-    /// The base arrangement: a flattish muffin — a broad domed crown carrying
-    /// most of the mass, tucking into a narrower base.
+    /// The base arrangement: three stacked layers of puffs filling the square,
+    /// darkest and broadest underneath.
     ///
-    /// Authored top-first. Clouds seen from slightly above are top-heavy; the
-    /// earlier wide-bodied arrangement read as a puddle.
+    /// ## Why it is round rather than cloud-shaped
+    ///
+    /// This is a top-down board. A cloud drawn in profile — flat base, domed
+    /// top — is a side-scroller's cloud, and reads as a sticker lying on the
+    /// grid. Seen from above there is no up: the mass spreads as far vertically
+    /// as it does horizontally, and the cluster nearly fills its cell so that
+    /// neighbours crowd each other and the squares read as a continuous deck.
+    ///
+    /// ## Why the layers do not cover each other
+    ///
+    /// The broad dark layer is deliberately wider than the light one on top of
+    /// it, and the light puffs are spaced to leave gaps. Dark showing between
+    /// them is what gives the cluster depth — a solid light cap would be a
+    /// circle, not a volume.
     private static let base: [Puff] = [
-        // The crown, left to right.
-        Puff(x: -4.7, y: -1.4, radius: 3.3, depth: 0.15),
-        Puff(x: -1.7, y: -2.7, radius: 3.9, depth: 0.0),
-        Puff(x:  1.8, y: -2.5, radius: 3.8, depth: 0.05),
-        Puff(x:  4.8, y: -1.2, radius: 3.1, depth: 0.2),
-        // The base, tucked in under it.
-        Puff(x: -2.6, y:  1.5, radius: 2.9, depth: 0.7),
-        Puff(x:  0.4, y:  1.9, radius: 3.0, depth: 0.75),
-        Puff(x:  3.0, y:  1.3, radius: 2.7, depth: 0.7),
-        Puff(x:  0.2, y:  3.5, radius: 2.1, depth: 1.0),
+        // The shadowed body, spread wide so it shows through everywhere above.
+        Puff(x:  0.0, y:  0.0, radius: 5.4, depth: 1.0),
+        Puff(x: -3.4, y: -3.0, radius: 4.2, depth: 0.95),
+        Puff(x:  3.4, y: -3.0, radius: 4.2, depth: 0.95),
+        Puff(x: -3.4, y:  3.2, radius: 4.2, depth: 0.95),
+        Puff(x:  3.4, y:  3.2, radius: 4.2, depth: 0.95),
+        // The mid tone, pushed out to the four compass points.
+        Puff(x:  0.0, y: -4.4, radius: 3.6, depth: 0.5),
+        Puff(x:  0.0, y:  4.4, radius: 3.4, depth: 0.55),
+        Puff(x: -4.6, y:  0.0, radius: 3.6, depth: 0.5),
+        Puff(x:  4.6, y:  0.0, radius: 3.6, depth: 0.55),
+        // The lit crown, spaced so the body shows between the four of them.
+        Puff(x: -2.0, y: -1.8, radius: 3.4, depth: 0.0),
+        Puff(x:  2.0, y: -1.6, radius: 3.4, depth: 0.05),
+        Puff(x: -1.7, y:  2.0, radius: 3.0, depth: 0.1),
+        Puff(x:  1.9, y:  2.1, radius: 2.9, depth: 0.05),
     ]
 
     /// Painter's order: deepest first, so the crown lands on top.
@@ -189,6 +216,31 @@ enum CloudCluster {
         let wave = sin(time / period * 2 * .pi + hash(point, salt: index + 211) * 2 * .pi)
 
         return 1 + GameRules.cloudPulseSwing * CGFloat(wave) / 2
+    }
+
+    /// One fleck of light, and how bright it is right now.
+    ///
+    /// Scattered through the cluster rather than placed on it: these are what
+    /// make the cloudstuff read as astral rather than as weather.
+    static func speckle(
+        _ index: Int,
+        at point: GridPoint,
+        time: TimeInterval
+    ) -> (x: CGFloat, y: CGFloat, size: CGFloat, opacity: Double) {
+        let angle = hash(point, salt: index + 401) * 2 * .pi
+        let reach = GameRules.cloudSpeckleSpread * CGFloat(hash(point, salt: index + 503))
+        let roll = hash(point, salt: index + 601)
+
+        let period = GameRules.cloudPulseFastest
+            + (GameRules.cloudPulseSlowest - GameRules.cloudPulseFastest) * roll
+        let wave = (sin(time / period * 2 * .pi + roll * 2 * .pi) + 1) / 2
+
+        return (
+            x: CGFloat(cos(angle)) * reach,
+            y: CGFloat(sin(angle)) * reach,
+            size: GameRules.cloudSpeckleSize * (0.6 + 0.8 * CGFloat(wave)),
+            opacity: 0.35 + 0.65 * wave
+        )
     }
 
     /// This square's drift offset, so neighbouring clouds do not breathe in

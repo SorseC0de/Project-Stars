@@ -185,13 +185,20 @@ enum Palette {
     /// Flat steps rather than a gradient: the clouds are meant to read as
     /// cel-shaded volumes, and a gradient across a 16px cell would just look
     /// like mud.
-    static let cloudLight: [Color] = [ice, cyan, lightBlue]
+    static let cloudLight: [Color] = [pink, magenta, purple]
 
     /// The same cloud on the board's darker squares.
     ///
     /// A step down each, not a different colour — the chequer has to read as
     /// lighting, not as two kinds of cloud.
-    static let cloudDark: [Color] = [cyan, lightBlue, blue]
+    static let cloudDark: [Color] = [magenta, darkMagenta, purple]
+
+    /// The flecks of light scattered through the cloudstuff.
+    ///
+    /// The two entries that are *not* in the magenta run, so they read as
+    /// something caught in the cloud rather than as more of it. Same pairing
+    /// Polaris' sparks use.
+    static let cloudSpeckleTones: [Color] = [lightBlue, yellow]
 
     static func cloudTones(_ shade: TileShade) -> [Color] {
         switch shade {

@@ -42,23 +42,32 @@ struct GemTrailView: View {
     var body: some View {
         let gem = GemTones.forElement(zodiac.element)
 
-        PixelSprite(id: .piece(zodiac)) { Color.clear }
-            .frame(width: tileSize, height: tileSize * 2)
+        ZStack {
+            ForEach(0..<GameRules.gemTrailBoost, id: \.self) { _ in
+                PixelSprite(id: .piece(zodiac)) { Color.clear }
+                    .frame(width: tileSize, height: tileSize * 2)
             // Light the gem first, then keep only that entry: the trail is the
             // gems alone, never a ghost of the whole figure.
-            .paletteSwap([PaletteSwap(gem.dim, gem.lit)])
-            .colorEffect(
-                ShaderLibrary.paletteGlowMask(.floatArray(gem.lit.shaderComponents))
-            )
-            .blur(radius: GameRules.gemTrailRadius * scale * (1 + CGFloat(step) * 0.45))
-            .opacity(pow(GameRules.gemTrailFalloff, Double(step + 1)))
-            // Matches `PieceView`'s figure box exactly, so the streak comes off
-            // the gems and not off some point near them.
-            .offset(y: -tileSize / 2 - GameRules.pieceLift * scale)
-            // Additive: two on-palette colours summed are brighter than either
-            // and still on-palette, which is how light reads without a
-            // fifty-eighth entry.
-            .blendMode(.plusLighter)
-            .allowsHitTesting(false)
+                    .paletteSwap([PaletteSwap(gem.dim, gem.lit)])
+                    .colorEffect(
+                        ShaderLibrary.paletteGlowMask(
+                            .floatArray(gem.lit.shaderComponents)
+                        )
+                    )
+                    .blur(
+                        radius: GameRules.gemTrailRadius * scale
+                            * (1 + CGFloat(step) * 0.45)
+                    )
+            }
+        }
+        .opacity(pow(GameRules.gemTrailFalloff, Double(step + 1)))
+        // Matches `PieceView`'s figure box exactly, so the streak comes off
+        // the gems and not off some point near them.
+        .offset(y: -tileSize / 2 - GameRules.pieceLift * scale)
+        // Additive: two on-palette colours summed are brighter than either
+        // and still on-palette, which is how light reads without a
+        // fifty-eighth entry.
+        .blendMode(.plusLighter)
+        .allowsHitTesting(false)
     }
 }
