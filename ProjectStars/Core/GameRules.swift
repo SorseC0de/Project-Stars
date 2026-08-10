@@ -301,6 +301,29 @@ enum GameRules {
     /// Peak height of a hop's arc, above the straight line between squares.
     static let hopArcHeight: CGFloat = 6
 
+    /// Extra arc height per tile travelled beyond the first, as a fraction of
+    /// `hopArcHeight`.
+    ///
+    /// A two-tile vault clearing the same height as a one-tile step reads as
+    /// the piece being *dragged* across rather than jumping — the eye reads
+    /// distance covered against height reached, and a flat long jump looks
+    /// weightless. At `0.6`, a Scorpio vault arcs 1.6x and a Sagittarius shot
+    /// 2.2x.
+    ///
+    /// Applies to jumps *and* to long slides, though a slide is emitted one
+    /// square at a time so in practice only jumps ever see a distance above one.
+    static let hopArcHeightPerExtraTile: CGFloat = 0.6
+
+    /// Extra hop time per tile travelled beyond the first, as a fraction of
+    /// `hopDuration`.
+    ///
+    /// Zero by default, so every move takes the same time however far it goes —
+    /// which is the stated intent. Worth knowing it is here: a jump three times
+    /// as long and twice as high in the same time is moving very fast
+    /// vertically, and if a Sagittarius shot ever reads as snapping rather than
+    /// arcing, this is the knob. Try `0.25`.
+    static let hopDurationPerExtraTile: Double = 0
+
     /// Widest and flattest the piece gets, winding up and on impact.
     static let hopSquashX: CGFloat = 1.28
 

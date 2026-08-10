@@ -83,6 +83,9 @@ final class GameSession {
     /// drifts as it shrinks away.
     private(set) var nexysTravellingUp = false
 
+    /// How many squares the current hop covers. Scales its arc.
+    private(set) var hopDistance: Int = 1
+
     /// When the current hop began, for evaluating `HopPose`.
     ///
     /// A timestamp rather than an animation, so the pose is a pure function of
@@ -202,6 +205,7 @@ final class GameSession {
         blockedDirection = nil
         hopCount = 0
         hopStartedAt = nil
+        hopDistance = 1
         fallSpin = 0
         smokeMagnitude = 1
         shakeStartedAt = nil
@@ -452,13 +456,14 @@ final class GameSession {
                 await introducePentacle(id)
             }
 
-        case let .pieceStepped(_, to, plane):
+        case let .pieceStepped(from, to, plane):
+            hopDistance = max(from.manhattanDistance(to: to), 1)
             hopCount += 1
             hopStartedAt = .now
-            withAnimation(.spring(response: GameRules.hopDuration * 1.6, dampingFraction: 0.72)) {
+            withAnimation(.spring(response: hopDuration * 1.6, dampingFraction: 0.72)) {
                 engine.apply(event)
             }
-            await sleep(event.displayDuration)
+            await sleep(hopDuration)
 
             // Dust on the *landing*, not the launch. Firing it with the step
             // put the puff at the destination before the piece got there.
@@ -918,6 +923,17 @@ extension GameSession {
     var visiblePickup: RevealedPickup? {
         guard let pickup = engine.revealedPickup, pickup.plane == visiblePlane else { return nil }
         return pickup
+    }
+
+    /// How long the current hop takes.
+    ///
+    /// Scales with distance only if `hopDurationPerExtraTile` is non-zero; at
+    /// its default of zero every hop takes the same time however far it goes.
+    /// Read by both the animation and the beat the replay waits, so the two can
+    /// never disagree about how long a hop is.
+    var hopDuration: TimeInterval {
+        GameRules.hopDuration
+            * (1 + Double(hopDistance - 1) * GameRules.hopDurationPerExtraTile)
     }
 
     /// True while the player may act.

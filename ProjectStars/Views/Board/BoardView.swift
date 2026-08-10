@@ -397,7 +397,10 @@ struct BoardView: View {
     /// How the piece is deformed mid-hop.
     private func hopPose(at date: Date) -> HopPose {
         guard let started = session.hopStartedAt else { return .rest }
-        return .at(progress: date.timeIntervalSince(started) / GameRules.hopDuration)
+        return .at(
+            progress: date.timeIntervalSince(started) / session.hopDuration,
+            distance: session.hopDistance
+        )
     }
 
     /// How far through an arrival the piece is, `0` at the top of its fall and

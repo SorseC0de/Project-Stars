@@ -62,7 +62,18 @@ struct HopPose: Equatable {
     ///
     /// Anything outside `0..<1` is ``rest`` — including a negative, so a hop
     /// scheduled slightly in the future does not deform the piece early.
-    static func at(progress: Double) -> HopPose {
+    /// - Parameter distance: Squares this hop covers. A longer jump arcs
+    ///   higher — see `GameRules.hopArcHeightPerExtraTile`.
+    static func at(progress: Double, distance: Int = 1) -> HopPose {
+        var pose = at(progress: progress)
+        guard distance > 1 else { return pose }
+
+        let extra = CGFloat(distance - 1) * GameRules.hopArcHeightPerExtraTile
+        pose.lift *= (1 + extra)
+        return pose
+    }
+
+    private static func at(progress: Double) -> HopPose {
         guard progress > 0, progress < 1 else { return .rest }
 
         let table = stops
