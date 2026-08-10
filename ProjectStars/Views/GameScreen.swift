@@ -100,6 +100,7 @@ struct GameScreen: View {
     /// - **R** restarts the run with the same sign.
     /// - **N** sends the Nexys to the other plane (debug builds only).
     /// - **Z** fills the Zodiaction meter (debug builds only).
+    /// - **X** fills *and* pops it, skipping the hold (debug builds only).
     private var keyboardCommands: some View {
         ZStack {
             // Reach 0 — the nearest option. A key press carries no magnitude, so
@@ -121,6 +122,9 @@ struct GameScreen: View {
 
             Button("Fill Zodiaction") { session.debugFillZodiaction() }
                 .keyboardShortcut("z", modifiers: [])
+
+            Button("Pop Zodiaction") { session.debugPopZodiaction() }
+                .keyboardShortcut("x", modifiers: [])
             #endif
         }
         .frame(width: 0, height: 0)

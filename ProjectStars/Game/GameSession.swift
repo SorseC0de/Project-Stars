@@ -283,6 +283,19 @@ final class GameSession {
         run(events)
     }
 
+/// Fills the meter *and* pops it, in one keypress. Debug builds only.
+    ///
+    /// Popping normally means holding the input surface, which is the right
+    /// gesture in play and a poor one for testing — every tweak to a Zodiaction's
+    /// animation costs a charge and a hold.
+    func debugPopZodiaction() {
+        guard acceptsInput else { return }
+        if engine.zodiactionMeter < engine.zodiactionMeterMax {
+            for event in engine.planFillZodiaction() { engine.apply(event) }
+        }
+        fireZodiaction()
+    }
+
     /// Sends the Nexys to the other plane. Debug builds only.
     ///
     /// Goes through `GameEngine.planNexysShift()` rather than firing the event
@@ -442,6 +455,13 @@ final class GameSession {
             // nothing below this one.
             await animateDescent(duration: GameRules.fallDuration / 2)
             engine.apply(event)
+            await sleep(event.displayDuration)
+
+        case let .zodiactionFired(zodiac, plane):
+            summonSpectralHead(zodiac, on: plane)
+            withAnimation(.easeOut(duration: event.displayDuration)) {
+                engine.apply(event)
+            }
             await sleep(event.displayDuration)
 
         case let .pieceTeleported(from, _, fromPlane, toPlane):

@@ -133,13 +133,16 @@ struct LowPolyMesh {
             for face in Self.faces {
                 let vertices = face.indices.map { world[$0] }
 
-                // Back-face cull: drop anything facing away, so the inside of the
-                // far side never shows through a translucent fill.
-                let a = vertices[1] - vertices[0]
-                let b = vertices[2] - vertices[0]
-                let normalZ = a.x * b.y - a.y * b.x
-                guard normalZ < 0 else { continue }
-
+                // No back-face culling, deliberately. Getting the winding sign
+                // right depends on the handedness of the projection and the
+                // screen's flipped Y, and getting it backwards silently draws
+                // *nothing*. Painter's ordering already hides the far side:
+                // faces are opaque within the canvas and later ones overwrite
+                // earlier ones.
+                //
+                // This is also why the translucency and the additive blend are
+                // applied to the finished canvas rather than per face — inner
+                // faces would otherwise accumulate and wash the shape out.
                 let depth = vertices.reduce(Float(0)) { $0 + $1.z } / Float(vertices.count)
 
                 let points = vertices.map { vertex -> CGPoint in

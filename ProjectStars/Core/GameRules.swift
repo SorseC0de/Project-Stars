@@ -161,7 +161,10 @@ enum GameRules {
     static let spectralHeadScale: CGFloat = 1.15
 
     /// How far above the piece it hangs, in cells, before it starts rising.
-    static let spectralHeadRise: CGFloat = 1.5
+    ///
+    /// Clear of the piece rather than over it: the piece is a two-cell sprite,
+    /// so anything under about two cells of lift lands on its head.
+    static let spectralHeadRise: CGFloat = 2.3
 
     /// Radians per second it turns.
     static let spectralHeadSpin: Float = 1.6

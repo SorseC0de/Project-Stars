@@ -56,8 +56,14 @@ struct SpectralHeadView: View {
             }
             .frame(width: tileSize * 4, height: tileSize * 4)
             .opacity(pose.opacity)
-            // Light, not paint — see `ElementFX`.
-            .blendMode(.plusLighter)
+            // Normal blending, unlike the sparks and beams.
+            //
+            // Additive is right for small bright motes, which are usually seen
+            // against the dark. A head is a large *form* over a pale board, and
+            // added to cream tiles the fire ramp saturates straight to white —
+            // the silhouette survives but the colour does not. Alpha keeps the
+            // ramp readable on both planes; the ghostliness comes from the
+            // translucency and the rise, not from the blend.
             // Rises off the piece as it fades.
             .offset(y: -tileSize * (GameRules.spectralHeadRise + CGFloat(progress) * 0.6))
         }
