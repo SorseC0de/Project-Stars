@@ -1,8 +1,11 @@
 //
-//  PentaclePreview.swift
+//  PentacleGallery.swift
 //  Project Stars
 //
 //  A Pentacle on a raised tile, in isolation, for judging its art.
+//
+//  Lives under Views/Previews rather than Views/Board: this is a tool for
+//  looking at the game, not a part of it.
 //
 
 import SwiftUI
@@ -111,9 +114,13 @@ struct PentaclePreview: View {
     PentacleGallery()
 }
 
-/// The interactive shell. `#Preview` cannot hold state of its own, so the
-/// controls live in a real view.
-private struct PentacleGallery: View {
+/// The interactive shell: the patch, plus controls for which coin and which
+/// plane.
+///
+/// A real `View` rather than code inside `#Preview`, so the canvas has something
+/// named to render and so it can be composed into a larger sheet later.
+struct PentacleGallery: View {
+
 
     @State private var appearance: PentacleAppearance = .standard
     @State private var plane: Plane = .astra
@@ -149,6 +156,7 @@ private struct PentacleGallery: View {
                     .frame(maxWidth: .infinity)
             }
             .padding(.horizontal, 24)
+
         }
         .padding(.vertical, 28)
         .frame(maxWidth: .infinity, maxHeight: .infinity)

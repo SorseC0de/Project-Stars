@@ -60,7 +60,11 @@ Views/
     PentacleIntroView · PentacleBannerView · PieceChoiceOverlay
 
   Effects/                  transient visuals
-    ElementalBurstView
+    ElementalBurstView · SmokeBurstView · WarpBeamView · ScreenShake
+    Spectral/               the Zodiaction apparitions
+
+  Previews/                 Xcode canvas tools, not part of the game
+    PentacleGallery · SpectralHeadGallery
 ```
 
 Note `TileChoiceOverlay` is filed under `Board/` rather than `Overlays/` despite
