@@ -558,21 +558,33 @@ struct AlignmentEffect: PickupEffect {
 
 /// Polaris — pinned to the north-middle square, and nowhere else.
 ///
-/// The spawn rule is the finished part: `requiredSpawnPoint` keeps it to
-/// `(3, 0)`, so it is only ever eligible when a sparkle set happens to cover the
-/// top-centre tile, and the reveal is forced there. The catalogue enforces both
-/// halves.
+/// Mends **all of Terra**, holes included, from wherever you are standing. Not
+/// one tile and not one line: the entire lower plane comes back.
 ///
-/// - TODO: **The effect itself is not designed yet** — it was forgotten in the
-///   spec. `weight` is `0` so Polaris cannot currently spawn; give it a real
-///   `plan` body and raise the weight to put it in rotation. Everything else
-///   about it, including the distinct on-board appearance, is already wired.
+/// ## Why it mends the plane you are probably not on
+///
+/// Astra already repairs itself every time you leave it
+/// (`GameRules.astraRestoresOnDescent`) — it is Terra that accumulates damage
+/// with nothing to undo it, and a long run ends because the ground below has
+/// run out. Polaris is the one answer to that, which is why it is worth the
+/// walk to the top of the board.
+///
+/// Opened from Astra it also fills the Zodiaction meter outright. Mending a
+/// plane you are not standing on is a promise rather than a rescue, and the
+/// charge is what makes taking it *now* worth as much as taking it later.
+///
+/// ## Why it is not on the ordinary rarity ladder
+///
+/// `requiredSpawnPoint` keeps it to `(3, 0)` — it is only ever a candidate when
+/// a sparkle set happens to cover the top-centre tile, and the reveal is forced
+/// there. That restriction is its rarity, so it rolls as a common; see
+/// `rollsAsRarity`. The catalogue enforces both halves.
 struct PolarisEffect: PickupEffect {
 
     let id: PickupID = .polaris
     let rarity: PickupRarity = .legendary
     let displayName = "Polaris"
-    let summary = "Effect not yet designed."
+    let summary = "Mend the whole of Terra, holes included. Taken from Astra, also fills your meter."
     let glyph = "★"
 
     /// Bright and starlit rather than the anonymous gold coin — a legendary is
@@ -587,12 +599,9 @@ struct PolarisEffect: PickupEffect {
     /// was never seen.
     let rollsAsRarity: PickupRarity = .common
 
-    /// Out of rotation until it does something.
-    ///
-    /// - Important: This is the only thing keeping it off the board. Set it to
-    ///   `3` — the Astral Tear's weight — the moment `plan` does something,
-    ///   and it is in.
-    let weight = 0
+    /// The Astral Tear's weight, so that when it is a candidate at all it is as
+    /// likely as the commonest thing in the game.
+    let weight = 3
 
     /// The north-middle tile. Polaris appears here or not at all.
     let requiredSpawnPoint: GridPoint? = GridPoint(GameRules.gridSize / 2, 0)
@@ -602,7 +611,17 @@ struct PolarisEffect: PickupEffect {
         choice: PickupChoiceResult?,
         generator: inout SeededRandom
     ) -> [GameEvent] {
-        []
+        // `planeRestored` already returns every ordinary tile to healthy, holes
+        // among them. The Nexys and its chasm are structural and stay as they
+        // are, which is correct: the island is not damage.
+        var events: [GameEvent] = [.planeRestored(plane: .terra)]
+
+        // From Astra the repair is for later, so the charge is for now.
+        if context.plane == .astra, context.zodiactionMeter < context.zodiactionMeterMax {
+            events.append(.zodiactionMeterChanged(to: context.zodiactionMeterMax))
+        }
+
+        return events
     }
 }
 
