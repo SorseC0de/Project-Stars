@@ -778,6 +778,17 @@ enum GameRules {
     /// How far a puff drifts from the landing point, in art pixels.
     static let smokeSpread: CGFloat = 9
 
+    /// Astra's landings throw curls of cloudstuff rather than dust — see
+    /// `SmokeBurstView`. Turns are low for the same reason the cloud's are: much
+    /// past one and a half stops reading as a gesture.
+    static let smokeSwirlTurns: Double = 1.25
+    static let smokeSwirlThickness: CGFloat = 1.1
+
+    /// How much bigger a swirl is than a dust puff, and how far it winds over
+    /// its life, in degrees. Signed per swirl, so a burst unwinds both ways.
+    static let smokeSwirlScale: CGFloat = 2.2
+    static let smokeSwirlSpin: Double = 200
+
     // ──────────────────────────────────────────────────────────────────────
     // MARK: - Cursor
     //

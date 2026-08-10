@@ -50,7 +50,16 @@ struct SmokeBurstView: View {
             let progress = CGFloat(progress(at: timeline.date))
 
             Group {
-                if usesSprite {
+                if plane == .astra {
+                    // Astra has no ground to kick dust off. What a landing
+                    // disturbs there is the cloudstuff itself.
+                    ZStack {
+                        ForEach(0..<GameRules.smokePuffCount, id: \.self) { index in
+                            swirl(index, progress: progress)
+                        }
+                    }
+                    .blendMode(.plusLighter)
+                } else if usesSprite {
                     sprite(progress: progress)
                 } else {
                     ZStack {
@@ -109,6 +118,31 @@ struct SmokeBurstView: View {
             .fill(Palette.smokePuff)
             // Puffs start small, swell, then thin out as they fade.
             .frame(width: layout.size, height: layout.size)
+            .offset(x: layout.x, y: layout.y)
+            .opacity(layout.opacity)
+    }
+
+    /// One curl of disturbed cloudstuff, thrown along the same arc a dust puff
+    /// would take but unwinding as it goes.
+    private func swirl(_ index: Int, progress: CGFloat) -> some View {
+        let layout = geometry(for: index, progress: progress)
+        let tones = Palette.astraSmokeTones
+        let span = layout.size * GameRules.smokeSwirlScale
+
+        // Alternating sign so a burst unwinds both ways at once.
+        let spin = Double(progress) * GameRules.smokeSwirlSpin
+            * (index.isMultiple(of: 2) ? 1 : -1)
+
+        return CloudGlintSpiral(turns: GameRules.smokeSwirlTurns)
+            .stroke(
+                tones[index % tones.count],
+                style: StrokeStyle(
+                    lineWidth: GameRules.smokeSwirlThickness * scale,
+                    lineCap: .round
+                )
+            )
+            .frame(width: span, height: span)
+            .rotationEffect(.degrees(spin))
             .offset(x: layout.x, y: layout.y)
             .opacity(layout.opacity)
     }

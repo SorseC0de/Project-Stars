@@ -47,7 +47,8 @@ struct TileView: View {
                     shade: shade,
                     point: point,
                     size: size,
-                    isFlashing: isFlashing
+                    isFlashing: isFlashing,
+                    isRaised: isPopped
                 )
             } else {
                 face

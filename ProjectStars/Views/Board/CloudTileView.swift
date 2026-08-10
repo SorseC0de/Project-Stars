@@ -37,6 +37,10 @@ struct CloudTileView: View {
     /// True for one beat after this square changes state.
     var isFlashing: Bool = false
 
+    /// True for the cloud a Pentacle is sitting on, which is tinted rather than
+    /// only lifted. See `Palette.cloudRaised`.
+    var isRaised: Bool = false
+
     /// Whole-pixel scale, for art-pixel distances.
     private var scale: CGFloat { size / CGFloat(GameRules.tilePixelSize) }
 
@@ -158,7 +162,7 @@ struct CloudTileView: View {
         .blendMode(additive ? .plusLighter : .normal)
     }
 
-    private var tones: [Color] { Palette.cloudTones(shade) }
+    private var tones: [Color] { Palette.cloudTones(shade, raised: isRaised) }
 
     /// A slow wander, out of phase per square.
     ///

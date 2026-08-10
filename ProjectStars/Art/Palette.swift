@@ -202,10 +202,21 @@ enum Palette {
     /// Polaris' sparks use.
     static let cloudSpeckleTones: [Color] = [lightBlue, yellow]
 
-    static func cloudTones(_ shade: TileShade) -> [Color] {
+    /// The cloud a Pentacle is sitting on.
+    ///
+    /// Lifting a cluster four pixels is not enough on its own — a raised cloud
+    /// against neighbouring clouds is still just cloud, and the pop is the one
+    /// thing on the board that has to be readable at a glance. Pale blue over a
+    /// magenta body: far enough from either chequer tone to be unmistakable,
+    /// close enough to still belong to Astra.
+    static let cloudRaised: [Color] = [cyan, lightBlue, darkMagenta]
+
+    static func cloudTones(_ shade: TileShade, raised: Bool = false) -> [Color] {
+        if raised { return cloudRaised }
+
         switch shade {
-        case .light: cloudLight
-        case .dark: cloudDark
+        case .light: return cloudLight
+        case .dark: return cloudDark
         }
     }
 
@@ -260,6 +271,10 @@ enum Palette {
 
     /// Smoke kicked up by a landing.
     static var smokePuff: Color { smoke }
+
+    /// Astra's version: not dust but disturbed cloudstuff, in the same tones the
+    /// plane is built from plus the gold that runs through it.
+    static let astraSmokeTones: [Color] = [magenta, yellow, lightBlue, pink, cyan]
 
     /// Warning colour for the game-over state.
     static var danger: Color { red }
