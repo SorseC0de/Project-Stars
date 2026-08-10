@@ -39,6 +39,7 @@ struct BoardView: View {
             edgeLayer(board: board, plane: plane, metrics: metrics)
             faceLayer(board: board, plane: plane, metrics: metrics)
 
+            sanctuary(plane: plane, metrics: metrics)
             sparkles(metrics: metrics)
             tileChoice(metrics: metrics)
 
@@ -159,6 +160,14 @@ struct BoardView: View {
         if session.zodiac == .gemini, plane == .astra {
             MirrorsView(metrics: metrics, accent: session.zodiac.definition.accentColor)
                 .frame(width: metrics.boardSize, height: metrics.boardSize)
+        }
+    }
+
+    /// The ground Cancer's Astral Bastion is holding, if one is standing.
+    @ViewBuilder
+    private func sanctuary(plane: Plane, metrics: PixelArtMetrics) -> some View {
+        if let standing = session.engine.signState.sanctuary, standing.plane == plane {
+            SanctuaryView(sanctuary: standing, metrics: metrics)
         }
     }
 

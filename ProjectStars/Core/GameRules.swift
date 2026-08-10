@@ -158,6 +158,35 @@ enum GameRules {
     static let placeholderZodiactionMeterGain = 1
 
     // ──────────────────────────────────────────────────────────────────────
+    // ──────────────────────────────────────────────────────────────────────
+    // MARK: - Rules — sanctuary
+    //
+    // Cancer's Astral Bastion: ground that refuses to get any worse. See
+    // `SignState.Sanctuary`.
+
+    /// How far it reaches from the square it is raised on.
+    ///
+    /// `1` gives the 3x3. Drop it to `0` for a single square if the ability
+    /// proves too strong — the region is derived from this, so that is the only
+    /// change needed.
+    static let sanctuaryRadius = 1
+
+    /// How many committed moves it stands for.
+    static let sanctuaryMoves = 3
+
+    /// Bonus charge for opening a Pentacle inside it.
+    static let sanctuaryPickupCharge = 3
+
+    /// How brightly the protected floor is lit, and how heavy its edge is in art
+    /// pixels. See `SanctuaryView`.
+    static let sanctuaryFieldOpacity: Double = 0.22
+    static let sanctuaryBorderWidth: CGFloat = 1
+
+    /// Seconds per pulse, and the quicker one it switches to on its final move
+    /// so the player can see it about to lapse.
+    static let sanctuaryPulsePeriod: TimeInterval = 2.4
+    static let sanctuaryFinalPulsePeriod: TimeInterval = 1.1
+
     // MARK: - Rules — Pentacle effects
     //
     // What individual Pentacles are worth. The effects themselves are in

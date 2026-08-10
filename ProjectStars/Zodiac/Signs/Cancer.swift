@@ -108,17 +108,63 @@ struct CancerHeavenlyHoarder: ZodiacPassive {
 
 // MARK: - Zodiaction
 
-/// - TODO: **Undesigned.** The one sign with no Zodiaction concept yet.
+/// **Astral Bastion.** Consecrates the ground where the crab stands.
 ///
-///   Shape worth considering, given the three passives above all pull toward the
-///   Nexys: something that makes the island itself do work — moving it, or
-///   turning the ring around it into safe ground. That would make Cancer the sign
-///   that plays the centre, which nothing else currently does.
+/// A 3x3 patch centred on the piece stops taking damage for three committed
+/// moves, and lifts as the fourth begins. Nothing advances the wear of a
+/// sheltered square: not footfalls, not a Pentacle's blast, not another sign's
+/// Zodiaction, not a passive. Repair still works — this is protection, not
+/// stasis.
+///
+/// ## Why the patch does not follow the piece
+///
+/// The crab consecrates *ground*, and ground stays where it is. A sanctuary
+/// that travelled would be a three-move invulnerability, which is a different
+/// and much duller ability; one that stays put is a place — somewhere to
+/// retreat to, work outward from, and get back to before it lapses. It also
+/// gives the three passives above something to point at, since all three
+/// already pull Cancer toward holding a spot rather than roaming.
+///
+/// ## The Pentacle bonus
+///
+/// Opening a coin inside the patch pays `GameRules.sanctuaryPickupCharge`
+/// straight back into the meter. The bonus lives here rather than in a fourth
+/// passive because it only exists while the Bastion is standing — it is part of
+/// the ability, not part of the sign.
+///
+/// - Note: Sized by `GameRules.sanctuaryRadius`. If a 3x3 proves too strong,
+///   `0` gives a single square and nothing else needs touching.
 struct CancerZodiaction: Zodiaction {
 
-    let displayName = "—"
-    let summary = "Zodiaction not yet designed."
+    let displayName = "Astral Bastion"
+    let summary = "Consecrate a 3x3 around you for 3 moves: those tiles cannot be damaged by anything. Opening a Pentacle inside pays +3 charge."
 
-    /// Cancer's charge comes entirely from its passives.
-    func meterGain(from move: MoveSummary, context: PassiveContext) -> Int { 0 }
+    /// Charge comes from the three passives, plus coins opened under the
+    /// Bastion's own roof.
+    func meterGain(from move: MoveSummary, context: PassiveContext) -> Int {
+        guard move.collectedPickup != nil else { return 0 }
+
+        // The sanctuary as it stood when the coin was opened. Read from the
+        // context rather than from the engine because by the time charge is
+        // priced the move has already resolved — and a Bastion expiring on this
+        // very move must still pay for the coin taken under it.
+        guard context.signState.isSheltered(move.restingPoint, on: move.endingPlane)
+        else { return 0 }
+
+        return GameRules.sanctuaryPickupCharge
+    }
+
+    func activate(context: PassiveContext, generator: inout SeededRandom) -> [GameEvent] {
+        var state = context.signState
+        state.sanctuary = SignState.Sanctuary(
+            centre: context.piecePoint,
+            plane: context.plane,
+            movesRemaining: GameRules.sanctuaryMoves,
+            radius: GameRules.sanctuaryRadius
+        )
+
+        // Re-raising it on the same square is a refresh, not a second one:
+        // `sanctuary` holds one region, and this replaces it outright.
+        return [.signStateChanged(state)]
+    }
 }

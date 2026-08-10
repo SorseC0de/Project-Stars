@@ -106,6 +106,50 @@ struct SignState: Equatable {
     /// Free-form per-sign counters for anything the named fields do not cover.
     var counters: [String: Int] = [:]
 
+    // MARK: Sanctuary
+
+    /// The protected patch of board a Zodiaction has thrown up, if any.
+    ///
+    /// A named field rather than a `buffs` entry because a buff is only a
+    /// number of moves — this also has to remember *where* and *on which
+    /// plane*, and the engine has to be able to ask about it on every single
+    /// tile change. Same reasoning as `partialWear`.
+    var sanctuary: Sanctuary?
+
+    /// Ground that refuses to get any worse.
+    struct Sanctuary: Equatable {
+
+        /// The middle of the patch. It does not follow the piece: the ground was
+        /// consecrated where it was standing, and walking away does not take it
+        /// along.
+        var centre: GridPoint
+
+        /// Which board it was raised on. A sanctuary on Astra means nothing to
+        /// the Terra square with the same coordinates.
+        var plane: Plane
+
+        /// Committed moves left before it lifts.
+        var movesRemaining: Int
+
+        /// How far it reaches from the centre, in squares. `1` is the 3x3.
+        var radius: Int
+
+        /// Whether this square is inside the patch.
+        ///
+        /// Chebyshev distance, not Manhattan: the region is a square, so the
+        /// corners are in.
+        func covers(_ point: GridPoint, on plane: Plane) -> Bool {
+            guard plane == self.plane else { return false }
+            return abs(point.x - centre.x) <= radius
+                && abs(point.y - centre.y) <= radius
+        }
+    }
+
+    /// True when this square is currently under a sanctuary.
+    func isSheltered(_ point: GridPoint, on plane: Plane) -> Bool {
+        sanctuary?.covers(point, on: plane) ?? false
+    }
+
     // MARK: - Queries
 
     /// True when a keyed ability is off cooldown.
@@ -177,6 +221,13 @@ struct SignState: Equatable {
     mutating func tickTimers() {
         cooldowns = cooldowns.compactMapValues { $0 > 1 ? $0 - 1 : nil }
         buffs = buffs.compactMapValues { $0 > 1 ? $0 - 1 : nil }
+
+        // Granted with 3, it shelters the three moves after the one that raised
+        // it and lifts as the fourth begins.
+        if var standing = sanctuary {
+            standing.movesRemaining -= 1
+            sanctuary = standing.movesRemaining > 0 ? standing : nil
+        }
     }
 
     // MARK: - Lifetime boundaries

@@ -321,7 +321,7 @@ struct GameEngine {
         //     amended, so a reaction cannot retrigger itself.
         let reactions = sim.piece.zodiac.passives.amend(events, context: sim.passiveContext)
         for reaction in reactions {
-            commit(reaction)
+            if let allowed = sim.sheltered(reaction) { commit(allowed) }
         }
 
         // 6. Fold the move into the sign's memory: advance the direction
@@ -452,7 +452,7 @@ struct GameEngine {
             context: zodiactionContext,
             generator: &sim.rng
         ) {
-            commit(event)
+            if let allowed = sim.sheltered(event) { commit(allowed) }
         }
 
         commit(.zodiactionMeterChanged(to: 0))
@@ -895,6 +895,63 @@ struct GameEngine {
         return result
     }
 
+    // MARK: - Sanctuary
+
+    /// This event with anything a standing sanctuary refuses stripped out of it,
+    /// or `nil` if that leaves nothing to do.
+    ///
+    /// ## Why this is a filter and not a check inside `apply`
+    ///
+    /// `apply` has to be a faithful reading of an event: the session replays the
+    /// very same list the planner produced, and the views animate straight off
+    /// the payloads. An event that says nine tiles crack while only six of them
+    /// do would draw six tiles cracking and three flashing for no reason.
+    /// Sheltered squares are removed while the move is being *planned*, so the
+    /// event never claims something that does not happen.
+    ///
+    /// ## Why it sits at the boundary
+    ///
+    /// The sanctuary protects against damage "by any means", and damage arrives
+    /// from four places: the engine's own wear, a Pentacle's effect, a
+    /// Zodiaction, and a passive reacting to the move. Filtering at each of
+    /// those four handoffs means a Pentacle written next year is covered without
+    /// knowing sanctuaries exist.
+    func sheltered(_ event: GameEvent) -> GameEvent? {
+        guard signState.sanctuary != nil else { return event }
+
+        switch event {
+        case let .tilesWorn(plane, changes):
+            let kept = permitted(changes, on: plane)
+            return kept.isEmpty ? nil : .tilesWorn(plane: plane, changes: kept)
+
+        case let .tilesWornOnExit(plane, changes):
+            let kept = permitted(changes, on: plane)
+            return kept.isEmpty ? nil : .tilesWornOnExit(plane: plane, changes: kept)
+
+        case let .tilesChanged(plane, changes):
+            let kept = permitted(changes, on: plane)
+            return kept.isEmpty ? nil : .tilesChanged(plane: plane, changes: kept)
+
+        default:
+            return event
+        }
+    }
+
+    /// The entries of a tile-change payload a sanctuary allows through.
+    ///
+    /// Damage to a sheltered square is dropped. Repair is not: a sanctuary is
+    /// protection, and there is no reading of it under which mending the ground
+    /// inside it should be forbidden.
+    private func permitted(
+        _ changes: [GridPoint: TileHealth],
+        on plane: Plane
+    ) -> [GridPoint: TileHealth] {
+        changes.filter { point, health in
+            guard signState.isSheltered(point, on: plane) else { return true }
+            return health < self[plane][point].health
+        }
+    }
+
     /// Deals one landing's worth of wear to a tile, after passives have shaped
     /// it.
     ///
@@ -977,9 +1034,13 @@ struct GameEngine {
         }
 
         guard !changes.isEmpty else { return result }
-        commit(onExit
+        // Same rule as everywhere else: a sanctuary refuses the damage, and the
+        // event never claims it happened.
+        guard let allowed = sheltered(onExit
             ? .tilesWornOnExit(plane: plane, changes: changes)
             : .tilesWorn(plane: plane, changes: changes))
+        else { return result }
+        commit(allowed)
 
         return result
     }
@@ -1075,7 +1136,7 @@ struct GameEngine {
         )
 
         for event in effect.plan(context: context, choice: choice, generator: &rng) {
-            commit(event)
+            if let allowed = sheltered(event) { commit(allowed) }
         }
 
         // Arriving somewhere new is landing, and every gameplay check happens on
