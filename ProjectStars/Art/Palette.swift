@@ -256,9 +256,41 @@ enum Palette {
     /// are exactly `cloudLight`/`cloudDark` and `cloudRaised`.
     static func cloudTones(_ shade: TileShade, raiseBlend: Double = 0) -> [Color] {
         cloudRaiseRamp(shade).map { ramp in
-            let step = Int(raiseBlend * Double(ramp.count))
-            return ramp[min(max(step, 0), ramp.count - 1)]
+            let travelled = min(max(raiseBlend, 0), 1)
+
+            guard !GameRules.cloudRaiseSteps else {
+                let step = Int(travelled * Double(ramp.count))
+                return ramp[min(step, ramp.count - 1)]
+            }
+
+            // Continuous: slide along the same ramp, mixing between whichever
+            // two entries the blend currently falls between. Still follows the
+            // authored route rather than cutting straight across colour space,
+            // which is what keeps magenta from passing through grey on its way
+            // to blue.
+            let position = travelled * Double(ramp.count - 1)
+            let lower = min(Int(position), ramp.count - 1)
+            let upper = min(lower + 1, ramp.count - 1)
+
+            return mix(ramp[lower], ramp[upper], amount: position - Double(lower))
         }
+    }
+
+    /// Two colours blended in sRGB.
+    ///
+    /// Only used by the continuous cloud ramp — everything else in this game
+    /// picks palette entries rather than computing colours.
+    static func mix(_ from: Color, _ to: Color, amount: Double) -> Color {
+        let a = from.shaderComponents
+        let b = to.shaderComponents
+        guard a.count >= 3, b.count >= 3 else { return to }
+
+        func blend(_ index: Int) -> Double {
+            let start = Double(a[index]), end = Double(b[index])
+            return start + (end - start) * amount
+        }
+
+        return Color(.sRGB, red: blend(0), green: blend(1), blue: blend(2), opacity: 1)
     }
 
     // MARK: Pieces

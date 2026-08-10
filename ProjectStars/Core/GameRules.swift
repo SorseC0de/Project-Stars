@@ -386,6 +386,14 @@ enum GameRules {
     /// together.
     static let cloudRaiseTintDuration: TimeInterval = 0.3
 
+    /// Whether that change steps through palette entries or blends continuously.
+    ///
+    /// Stepped keeps every frame inside the 47-entry palette; blended does not,
+    /// though both ends of the ramp are palette colours either way and the
+    /// off-palette values only exist for a fraction of a second. Flip it and
+    /// see which reads better.
+    static let cloudRaiseSteps = true
+
     /// How far a cluster drifts, in art pixels, and how long one cycle takes.
     ///
     /// Small and slow. Clouds that visibly wandered would fight the grid the
