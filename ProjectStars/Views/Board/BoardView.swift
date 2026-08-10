@@ -61,6 +61,7 @@ struct BoardView: View {
                 )
             }
 
+            spectralHead(metrics: metrics)
             warpBeam(metrics: metrics)
             dust(metrics: metrics)
             collectBurst(metrics: metrics)
@@ -470,6 +471,24 @@ struct BoardView: View {
     }
 
     // MARK: - Effects
+
+    /// The apparition a Zodiaction summons, hanging over the piece.
+    ///
+    /// Drawn above the sorted objects rather than among them: it is not standing
+    /// on the board, it is looming over it, and depth-sorting it against tiles
+    /// would let a row of ground occlude a ghost.
+    @ViewBuilder
+    private func spectralHead(metrics: PixelArtMetrics) -> some View {
+        if let summon = session.spectralHead, summon.plane == session.visiblePlane {
+            SpectralHeadView(
+                zodiac: summon.zodiac,
+                tileSize: metrics.tileSize,
+                start: summon.start
+            )
+            .position(metrics.center(of: session.engine.piece.point))
+            .id(summon.id)
+        }
+    }
 
     /// The pillar of light at one end of a warp.
     @ViewBuilder

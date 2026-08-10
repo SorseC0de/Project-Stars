@@ -152,6 +152,26 @@ enum GameRules {
     /// How far past the tile the pillar reaches, as a multiple of a cell.
     static let warpBeamHeight: CGFloat = 3.2
 
+    // MARK: Spectral heads
+
+    /// Seconds an apparition is on screen when a Zodiaction fires.
+    static let spectralHeadDuration: TimeInterval = 1.15
+
+    /// Size of the head, in cells.
+    static let spectralHeadScale: CGFloat = 1.15
+
+    /// How far above the piece it hangs, in cells, before it starts rising.
+    static let spectralHeadRise: CGFloat = 1.5
+
+    /// Radians per second it turns.
+    static let spectralHeadSpin: Float = 1.6
+
+    /// Tilt, so it is seen slightly from below — looming rather than level.
+    static let spectralHeadPitch: Float = -0.22
+
+    /// Peak opacity. It is a ghost, not a model.
+    static let spectralHeadOpacity: Double = 0.72
+
     /// Motes riding each pillar of light.
     static let warpSparkCount = 9
 

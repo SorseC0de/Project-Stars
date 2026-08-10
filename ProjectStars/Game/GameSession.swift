@@ -138,6 +138,9 @@ final class GameSession {
     /// The pillar of light currently standing on the board, if any.
     private(set) var warpBeam: WarpBeam?
 
+    /// The apparition summoned by a Zodiaction, if one is on screen.
+    private(set) var spectralHead: SpectralSummon?
+
     /// Whether the pause menu is up. Blocks all input while it is.
     private(set) var isPaused = false
 
@@ -214,6 +217,7 @@ final class GameSession {
         collectBurst = nil
         smoke = nil
         warpBeam = nil
+        spectralHead = nil
         isPaused = false
         flashingTiles = []
 
@@ -753,6 +757,33 @@ extension GameSession {
             try? await Task.sleep(nanoseconds: UInt64(GameRules.smokeDuration * 1_000_000_000))
             guard let self, self.smoke?.id == puff.id else { return }
             self.smoke = nil
+        }
+    }
+}
+
+// MARK: - Spectral heads
+
+/// An apparition hanging over the piece.
+struct SpectralSummon: Identifiable, Equatable {
+    let id = UUID()
+    let zodiac: Zodiac
+    let plane: Plane
+    let start: Date
+}
+
+extension GameSession {
+
+    /// Raises the sign's apparition and clears it once it has faded.
+    func summonSpectralHead(_ zodiac: Zodiac, on plane: Plane) {
+        let summon = SpectralSummon(zodiac: zodiac, plane: plane, start: .now)
+        spectralHead = summon
+
+        Task { [weak self] in
+            try? await Task.sleep(
+                nanoseconds: UInt64(GameRules.spectralHeadDuration * 1_000_000_000)
+            )
+            guard let self, self.spectralHead?.id == summon.id else { return }
+            self.spectralHead = nil
         }
     }
 }
