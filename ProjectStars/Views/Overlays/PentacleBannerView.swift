@@ -81,7 +81,7 @@ struct PentacleBannerView: View {
             return ElementFX.ramp(for: element).mid
         }
 
-        switch effect.rarity {
+        return switch effect.rarity {
         case .common: Palette.textSecondary
         case .uncommon: Palette.pickupUncommon
         case .rare: Palette.pickupRare
