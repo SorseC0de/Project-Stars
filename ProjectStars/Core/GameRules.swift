@@ -302,12 +302,29 @@ enum GameRules {
     /// Little curls of light lying across the upper half of each cloud —
     /// bigger than a speckle, smaller than a puff, so they read as something
     /// caught in the cloudstuff rather than as more scattered dust.
-    static let cloudGlintCount = 3
+    static let cloudGlintCount = 5
+
+    /// Curls drawn *beneath* the lit crown, in the cloud's own magenta tones
+    /// rather than in light. These are meant to look like part of the material,
+    /// half-buried in it, not like something sitting on the surface.
+    static let cloudGlintBuriedCount = 4
 
     /// Width of a curl's bounding box, in art pixels, and the weight of the
     /// line it is drawn with.
     static let cloudGlintLength: CGFloat = 5.2
     static let cloudGlintThickness: CGFloat = 1.1
+
+    /// The range a curl's size is drawn from, as a fraction of that box.
+    ///
+    /// Wide, because a set of curls all the same size reads as a pattern
+    /// stamped on the cloud rather than as things caught in it.
+    static let cloudGlintMinScale: CGFloat = 0.55
+    static let cloudGlintMaxScale: CGFloat = 1.55
+
+    /// Seconds for a curl to turn once, slowest and fastest. Direction is
+    /// chosen per curl, so the cluster has some winding each way.
+    static let cloudGlintSpinSlowest: TimeInterval = 26
+    static let cloudGlintSpinFastest: TimeInterval = 11
 
     /// How many times a curl winds around itself.
     ///

@@ -48,12 +48,34 @@ struct CloudTileView: View {
             ZStack {
                 // Deepest first: the lit crown has to land on top of the
                 // shaded body, not the other way round.
-                ForEach(CloudCluster.drawOrder, id: \.self) { index in
+                ForEach(CloudCluster.bodyOrder, id: \.self) { index in
+                    puffView(index, at: now)
+                }
+
+                // Between the layers, so the crown half-covers them.
+                glints(
+                    at: now,
+                    count: GameRules.cloudGlintBuriedCount,
+                    salt: 0,
+                    tones: [tones[0], tones[1]],
+                    upperOnly: false,
+                    additive: false
+                )
+
+                ForEach(CloudCluster.crownOrder, id: \.self) { index in
                     puffView(index, at: now)
                 }
 
                 speckles(at: now)
-                glints(at: now)
+
+                glints(
+                    at: now,
+                    count: GameRules.cloudGlintCount,
+                    salt: 4_096,
+                    tones: Palette.cloudSpeckleTones,
+                    upperOnly: true,
+                    additive: true
+                )
             }
             // The whole cluster shrinks toward its own centre as it wears.
             .scaleEffect(GameRules.cloudScale(health))
@@ -101,13 +123,32 @@ struct CloudTileView: View {
         .blendMode(.plusLighter)
     }
 
-    /// Curls of light lying across the top of the cluster.
-    private func glints(at now: TimeInterval) -> some View {
+    /// One set of curls.
+    ///
+    /// - Parameters:
+    ///   - salt: Offsets the hashes, so the buried set and the lit set are not
+    ///     the same curls drawn twice in different colours.
+    ///   - upperOnly: Confines the set to the top half. True for the lit curls,
+    ///     because light striking a volume from one side catches the same side
+    ///     of every puff; false for the buried ones, which are material rather
+    ///     than light and belong throughout.
+    ///   - additive: Light adds; cloudstuff does not.
+    private func glints(
+        at now: TimeInterval,
+        count: Int,
+        salt: Int,
+        tones: [Color],
+        upperOnly: Bool,
+        additive: Bool
+    ) -> some View {
         ZStack {
-            ForEach(0..<GameRules.cloudGlintCount, id: \.self) { index in
-                let glint = CloudCluster.glint(index, at: point, time: now)
-                let tones = Palette.cloudSpeckleTones
-
+            ForEach(0..<count, id: \.self) { index in
+                let glint = CloudCluster.glint(
+                    index + salt,
+                    at: point,
+                    time: now,
+                    upperOnly: upperOnly
+                )
                 let span = GameRules.cloudGlintLength * scale * glint.length
 
                 CloudGlintSpiral(turns: GameRules.cloudGlintTurns)
@@ -124,7 +165,7 @@ struct CloudTileView: View {
                     .opacity(glint.opacity)
             }
         }
-        .blendMode(.plusLighter)
+        .blendMode(additive ? .plusLighter : .normal)
     }
 
     private var tones: [Color] { Palette.cloudTones(shade) }
@@ -251,6 +292,14 @@ enum CloudCluster {
     /// Painter's order: deepest first, so the crown lands on top.
     static let drawOrder: [Int] = base.indices.sorted { base[$0].depth > base[$1].depth }
 
+    /// The body and mid layers, and the lit crown, split so curls can be drawn
+    /// between them and end up half-buried in the cloud.
+    static let bodyOrder: [Int] = drawOrder.filter { base[$0].depth >= crownDepth }
+    static let crownOrder: [Int] = drawOrder.filter { base[$0].depth < crownDepth }
+
+    /// Where the crown begins.
+    private static let crownDepth: Double = 0.3
+
     /// This square's version of puff `index`, jittered so no two squares carry
     /// an identical cloud.
     static func puff(_ index: Int, at point: GridPoint) -> Puff {
@@ -322,26 +371,42 @@ enum CloudCluster {
     static func glint(
         _ index: Int,
         at point: GridPoint,
-        time: TimeInterval
+        time: TimeInterval,
+        upperOnly: Bool
     ) -> (x: CGFloat, y: CGFloat, angle: Double, length: CGFloat, opacity: Double) {
         let across = hash(point, salt: index + 701)
         let up = hash(point, salt: index + 809)
         let tilt = hash(point, salt: index + 907)
         let roll = hash(point, salt: index + 1009)
+        let size = hash(point, salt: index + 1103)
+        let way = hash(point, salt: index + 1201)
 
-        let magnitude = GameRules.cloudGlintMinAngle
+        // Resting tilt, leaning either way.
+        let lean = GameRules.cloudGlintMinAngle
             + (GameRules.cloudGlintMaxAngle - GameRules.cloudGlintMinAngle) * tilt
+        let rest = roll < 0.5 ? lean : -lean
 
+        // A slow turn on top of it, winding whichever way this curl was dealt.
+        let spinPeriod = GameRules.cloudGlintSpinFastest
+            + (GameRules.cloudGlintSpinSlowest - GameRules.cloudGlintSpinFastest) * way
+        let spin = (way < 0.5 ? -1.0 : 1.0) * time / spinPeriod * 360
+
+        // Breathes on the same clocks the puffs and speckles use.
         let period = GameRules.cloudPulseFastest
             + (GameRules.cloudPulseSlowest - GameRules.cloudPulseFastest) * roll
         let wave = (sin(time / period * 2 * .pi + tilt * 2 * .pi) + 1) / 2
 
+        let span = GameRules.cloudGlintMinScale
+            + (GameRules.cloudGlintMaxScale - GameRules.cloudGlintMinScale) * CGFloat(size)
+
         return (
             x: CGFloat(across - 0.5) * 9,
-            // Upper half only, and never right at the crown's edge.
-            y: -1 - CGFloat(up) * 4.5,
-            angle: roll < 0.5 ? magnitude : -magnitude,
-            length: 0.85 + 0.3 * CGFloat(wave),
+            y: upperOnly
+                // Never right at the crown's edge.
+                ? -1 - CGFloat(up) * 4.5
+                : CGFloat(up - 0.5) * 9,
+            angle: rest + spin,
+            length: span * (0.9 + 0.2 * CGFloat(wave)),
             opacity: 0.45 + 0.55 * wave
         )
     }
