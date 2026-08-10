@@ -174,6 +174,26 @@ enum Palette {
     static let pentacleRadiant = Color(hex: 0xCFE4FF)
     static let pentacleRadiantHighlight = Color(hex: 0xFFFFFF)
 
+    // MARK: Pieces
+
+    /// The gold form's entries, as drawn in the sheet.
+    ///
+    /// Sampled from the Pisces sprite, not guessed. The gem entry is
+    /// deliberately absent — it must survive into the stone form untouched.
+    static let pieceGoldTones: [Color] = [gold, brown, plum, midnight]
+
+    /// The stone form's entries, in the same order.
+    ///
+    /// Taken from the hand-drawn stone variant, so the generated form matches
+    /// the one piece that was drawn both ways.
+    static let pieceStoneTones: [Color] = [slate, stone, iron, warmBlack]
+
+    /// The greens moss is drawn from.
+    ///
+    /// Three of them, because one flat green reads as paint. `forest` is
+    /// deliberately not here — it is the earth signs' gem.
+    static let mossTones: [Color] = [green, darkGreen, turqoise]
+
     // MARK: Pentacles
 
     /// The five palette entries the gold coin is drawn in, brightest first.

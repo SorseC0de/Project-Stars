@@ -81,3 +81,70 @@ half4 paletteGlowMask(
     }
     return half4(0.0h);
 }
+
+/// Sprinkles moss over a sprite, on whole art pixels, deterministically.
+///
+/// `args` is self-describing so one array carries two lists: the first float is
+/// how many moss colours follow, then that many r,g,b triples, then the r,g,b of
+/// every colour that must be left alone.
+///
+/// ## Why this is generated rather than drawn
+///
+/// The stone variant of a piece is its gold sheet recoloured, and three of those
+/// recoloured entries also carry scattered moss. A palette swap cannot express
+/// that: the mossy pixels are the *same source colour* as their neighbours, so
+/// no colour-matching rule can tell six pixels from the fifty beside them. What
+/// distinguishes them is where they sit — low, and toward the edges, where damp
+/// collects.
+///
+/// So the moss is placed rather than matched. The hash is seeded per piece and
+/// keyed on the art pixel, which makes it stable frame to frame — moss that
+/// crawled would be worse than no moss — and different for every sign without
+/// anyone drawing it.
+[[ stitchable ]]
+half4 paletteMoss(
+    float2 position,
+    half4 color,
+    float2 viewSize,
+    float2 artSize,
+    float seed,
+    float coverage,
+    device const float *args,
+    int count
+) {
+    if (color.a < 0.004h || count < 1) { return color; }
+
+    float3 rgb = straightColor(color);
+
+    // Reserved entries are never overgrown. The gem is the piece's eye, and moss
+    // creeping over it would put out the one pixel that has to stay readable.
+    int mossCount = int(args[0]);
+    int keepStart = 1 + mossCount * 3;
+    for (int i = keepStart; i + 2 < count; i += 3) {
+        float3 keep = float3(args[i], args[i + 1], args[i + 2]);
+        if (distance(rgb, keep) < kPaletteEpsilon) { return color; }
+    }
+    if (mossCount < 1) { return color; }
+
+    // Quantise to the art grid, so moss lands on whole pixels rather than being
+    // smeared across the magnified edges of one.
+    float2 cell = floor(position / (viewSize / artSize));
+
+    // Two independent hashes: one decides whether this pixel is overgrown, the
+    // other which green it takes.
+    float roll = fract(sin(dot(cell, float2(12.9898, 78.233)) + seed) * 43758.5453);
+    float pick = fract(sin(dot(cell, float2(39.3468, 11.135)) + seed * 1.7) * 24634.6345);
+
+    // Damp collects low and at the edges. `bias` runs 0 at the top middle to 1
+    // at the bottom corners, so the same coverage reads as overgrowth creeping
+    // up rather than as noise sprayed evenly over the sprite.
+    float down = cell.y / max(artSize.y - 1.0, 1.0);
+    float out = abs(cell.x / max(artSize.x - 1.0, 1.0) - 0.5) * 2.0;
+    float bias = clamp(down * 0.75 + out * 0.45, 0.0, 1.0);
+
+    if (roll > coverage * bias) { return color; }
+
+    int index = clamp(int(pick * float(mossCount)), 0, mossCount - 1);
+    float3 moss = float3(args[1 + index * 3], args[2 + index * 3], args[3 + index * 3]);
+    return half4(half3(moss * float(color.a)), color.a);
+}

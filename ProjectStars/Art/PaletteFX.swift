@@ -108,3 +108,39 @@ struct PaletteGlow<Content: View>: View {
             .colorEffect(ShaderLibrary.paletteGlowMask(.floatArray(flat)))
     }
 }
+
+// MARK: - Moss
+
+extension View {
+    /// Scatters moss over this view's pixels.
+    ///
+    /// - Parameters:
+    ///   - colors: The greens to draw from.
+    ///   - keeping: Entries never overgrown — the gem, above all.
+    ///   - viewSize: Rendered size, in points.
+    ///   - artSize: The sprite's size in art pixels, so moss lands on whole ones.
+    ///   - seed: Per-piece, so every sign is overgrown differently.
+    ///   - coverage: Roughly how much of the lower half is taken.
+    func paletteMoss(
+        colors: [Color],
+        keeping reserved: [Color],
+        viewSize: CGSize,
+        artSize: CGSize,
+        seed: Float,
+        coverage: Float
+    ) -> some View {
+        var args: [Float] = [Float(colors.count)]
+        args += colors.flatMap(\.shaderComponents)
+        args += reserved.flatMap(\.shaderComponents)
+
+        return colorEffect(
+            ShaderLibrary.paletteMoss(
+                .float2(viewSize.width, viewSize.height),
+                .float2(artSize.width, artSize.height),
+                .float(seed),
+                .float(coverage),
+                .floatArray(args)
+            )
+        )
+    }
+}

@@ -377,6 +377,8 @@ struct BoardView: View {
             zodiac: session.zodiac,
             tileSize: metrics.tileSize,
             scale: metrics.scale,
+            plane: session.visiblePlane,
+            isCharged: session.engine.isZodiactionReady,
             facing: session.engine.piece.facing,
             isFalling: session.isFalling,
             // Standing on the island means riding it.

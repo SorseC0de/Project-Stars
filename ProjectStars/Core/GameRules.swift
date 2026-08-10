@@ -295,6 +295,15 @@ enum GameRules {
     /// something fixed.
     static let pieceShadowLiftSwing: CGFloat = 0.4
 
+    /// Roughly how much of a stone piece's lower half is overgrown.
+    static let pieceMossCoverage: Float = 0.55
+
+    /// How far a charged piece's gem blooms, in art pixels.
+    static let gemGlowRadius: CGFloat = 2
+
+    /// Copies drawn behind a charged gem. Zero is a plain halo.
+    static let gemGlowTrail = 2
+
     /// A single hop between tiles.
     static let hopDuration: TimeInterval = 0.20
 

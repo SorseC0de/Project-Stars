@@ -23,8 +23,17 @@ struct PieceView: View {
     /// Size of a board cell, in points.
     let tileSize: CGFloat
 
+
     /// Whole-pixel scale, for art-pixel offsets.
     let scale: CGFloat
+
+    /// Which plane the piece is standing on.
+    ///
+    /// Decides its material: gold in the sky, mossy stone once it has fallen.
+    var plane: Plane = .astra
+
+    /// True when the Zodiaction is charged or firing, which lights the gem.
+    var isCharged: Bool = false
 
     /// Which way the piece is looking.
     var facing: SwipeDirection = .up
@@ -64,9 +73,7 @@ struct PieceView: View {
                 .offset(y: GameRules.pieceShadowDrop * scale)
                 .opacity(isFalling ? 0 : 1)
 
-            PixelSprite(id: .piece(zodiac)) {
-                placeholder
-            }
+            figure
             .frame(width: tileSize, height: tileSize * 2)
             // Box bottom on the tile bottom: shift up by half a box height minus
             // half a tile.
@@ -86,6 +93,68 @@ struct PieceView: View {
         .scaleEffect(isFalling ? 0.25 : 1)
         .opacity(isFalling ? 0 : 1)
         .allowsHitTesting(false)
+    }
+
+    // MARK: - Material
+
+    /// The sprite, in whichever material this plane calls for, with its gem lit
+    /// if the piece is charged.
+    ///
+    /// All of it is generated from the one gold sheet. Only Pisces was ever
+    /// drawn in stone; every other sign gets its stone form from here, which is
+    /// eleven sprites nobody has to draw twice.
+    @ViewBuilder
+    private var figure: some View {
+        if isCharged {
+            PaletteGlow(
+                colors: [gem.lit],
+                radius: GameRules.gemGlowRadius * scale,
+                trail: GameRules.gemGlowTrail
+            ) {
+                material.paletteSwap([PaletteSwap(gem.dim, gem.lit)])
+            }
+        } else {
+            material
+        }
+    }
+
+    /// Gold in the sky, mossy stone on the ground.
+    @ViewBuilder
+    private var material: some View {
+        switch plane {
+        case .astra:
+            sprite
+
+        case .terra:
+            sprite
+                .paletteSwap(stoneSwaps)
+                .paletteMoss(
+                    colors: Palette.mossTones,
+                    // The gem survives the overgrowth: it is the one pixel that
+                    // has to stay readable.
+                    keeping: [gem.dim, gem.lit],
+                    viewSize: CGSize(width: tileSize, height: tileSize * 2),
+                    artSize: CGSize(
+                        width: GameRules.tilePixelSize,
+                        height: GameRules.tilePixelSize * 2
+                    ),
+                    // Seeded per sign, so no two are overgrown alike.
+                    seed: Float(abs(zodiac.rawValue.hashValue % 10_000)),
+                    coverage: GameRules.pieceMossCoverage
+                )
+        }
+    }
+
+    private var sprite: some View {
+        PixelSprite(id: .piece(zodiac)) {
+            placeholder
+        }
+    }
+
+    private var gem: GemTones { .forElement(zodiac.element) }
+
+    private var stoneSwaps: [PaletteSwap] {
+        zip(Palette.pieceGoldTones, Palette.pieceStoneTones).map(PaletteSwap.init)
     }
 
     /// How much the shadow shrinks at this point in the hop.
