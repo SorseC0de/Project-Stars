@@ -50,16 +50,21 @@ struct EffectSpriteView: View {
                 let art = PixelSprite(id: .effect(effect), frame: frame) { EmptyView() }
                     .frame(width: side, height: side)
 
+                let lift = effect.isGrounded
+                    ? -GameRules.effectGroundLift * (tileSize / CGFloat(GameRules.tilePixelSize))
+                    : 0
+
                 ZStack {
                     // The light it casts, under the art rather than over it, so
                     // the drawn detail stays readable through its own glow.
                     art
                         .blur(radius: GameRules.effectGlowRadius * artScale)
-                        .opacity(GameRules.effectGlowIntensity)
+                        .opacity(effect.glowIntensity)
                         .blendMode(.plusLighter)
 
                     art
                 }
+                .offset(y: lift)
             }
         }
         .allowsHitTesting(false)

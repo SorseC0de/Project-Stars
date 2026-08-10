@@ -120,7 +120,49 @@ enum EffectSprite: String, CaseIterable, Hashable {
     /// and would leave the effect still playing while the player takes their
     /// next turn. At 24 it lands just under a second.
     var rate: SpriteRate {
-        frames >= 20 ? .fps24 : .fps15
+        switch self {
+        // The Bastion is two layers of the same bubble, and the lower one runs
+        // slower on purpose: two identical strips in lockstep read as one
+        // doubled-up drawing, while a beat between them reads as depth.
+        case .cancerZodiaction: .fps15
+        default: frames >= 20 ? .fps24 : .fps15
+        }
+    }
+
+    /// True for effects that happen *on the ground* rather than in the air.
+    ///
+    /// A strip is a square of art centred on a square of board, which puts its
+    /// middle at the middle of the tile. That is right for something hanging
+    /// over the square — a sun, a Zodiaction bursting overhead — and wrong for
+    /// anything sitting on the floor, which wants its *base* on the tile and so
+    /// has to ride up by `GameRules.effectGroundLift`.
+    ///
+    /// Declared per effect rather than guessed from the art: whether a flame is
+    /// standing on the tile or floating above it is a fact about what it depicts,
+    /// and nothing in the pixels says which.
+    var isGrounded: Bool {
+        switch self {
+        case .ariesZodiaction, .astralBlaze, .leoPridefulLanding,
+             .fireMisc, .sagittariusJump,
+             .cancerZodiaction, .cancerZodiactionAlternate:
+            true
+        case .leoZodiactionOne, .leoZodiactionTwo, .leoZodiactionSummon,
+             .libraZodiaction:
+            false
+        }
+    }
+
+    /// How brightly this strip blooms.
+    ///
+    /// Per element, because the art is lit differently: the water strips carry
+    /// their own glow and only need a little help, while the fire ones are drawn
+    /// flatter and need considerably more before they read as giving off light
+    /// rather than as being a picture of fire.
+    var glowIntensity: Double {
+        switch element {
+        case .fire: GameRules.effectGlowFireIntensity
+        default: GameRules.effectGlowIntensity
+        }
     }
 
     /// How long one play-through takes.
@@ -157,6 +199,11 @@ enum EffectSprite: String, CaseIterable, Hashable {
     /// The two strips that make up Leo's sun, drawn stacked.
     static let leoSun: [EffectSprite] = [.leoZodiactionOne, .leoZodiactionTwo]
 
+    /// The two strips that make up Cancer's Bastion, bottom first.
+    ///
+    /// The lower one also runs slower — see `rate`.
+    static let cancerBastion: [EffectSprite] = [.cancerZodiaction, .cancerZodiactionAlternate]
+
     /// The strip a sign throws on a hard landing, *instead of* the dust.
     static func landing(for zodiac: Zodiac) -> EffectSprite? {
         switch zodiac {
@@ -189,14 +236,19 @@ enum EffectSprite: String, CaseIterable, Hashable {
     /// A lookup rather than a switch at the call site: one place decides which
     /// sign owns which strip, and the eight signs with nothing drawn yet simply
     /// return `nil` and keep their programmatic burst.
-    static func zodiaction(for zodiac: Zodiac) -> EffectSprite? {
+    /// The strips a sign's Zodiaction throws where it fires, bottom layer
+    /// first.
+    ///
+    /// A stack rather than one strip: several of these were authored as layers
+    /// meant to be composited, and drawing them singly is not what they are.
+    static func zodiaction(for zodiac: Zodiac) -> [EffectSprite] {
         switch zodiac {
         // Aries is deliberately absent — see `blazeTrail`.
         // Leo is too — its Zodiaction is a summon followed by the stacked sun,
         // which `GameSession.raiseTheSun` sequences.
-        case .cancer: .cancerZodiaction
-        case .libra: .libraZodiaction
-        default: nil
+        case .cancer: cancerBastion
+        case .libra: [.libraZodiaction]
+        default: []
         }
     }
 }

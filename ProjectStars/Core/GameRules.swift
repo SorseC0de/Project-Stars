@@ -1015,6 +1015,14 @@ enum GameRules {
     static let effectGlowRadius: CGFloat = 2.5
     static let effectGlowIntensity: Double = 0.55
 
+    /// Fire needs considerably more than water does — see
+    /// `EffectSprite.glowIntensity`.
+    static let effectGlowFireIntensity: Double = 1.35
+
+    /// How far an on-the-ground effect rides up so its base sits on the tile
+    /// rather than its middle. In art pixels.
+    static let effectGroundLift: CGFloat = 8
+
     static let elementalBurstDuration: TimeInterval = 0.75
 
     // ──────────────────────────────────────────────────────────────────────

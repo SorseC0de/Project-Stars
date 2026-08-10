@@ -544,8 +544,8 @@ final class GameSession {
             summonSpectralHead(zodiac, on: plane)
             // Signs whose Zodiaction has been drawn play it; the rest keep the
             // spectral head and their programmatic burst alone.
-            if let drawn = EffectSprite.zodiaction(for: zodiac) {
-                playEffect(drawn, at: engine.piece.point, on: plane)
+            for layer in EffectSprite.zodiaction(for: zodiac) {
+                playEffect(layer, at: engine.piece.point, on: plane)
             }
             if zodiac == .leo {
                 raiseTheSun(at: engine.piece.point, on: plane)

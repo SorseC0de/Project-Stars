@@ -19,7 +19,7 @@ import SwiftUI
 /// a flat background.
 struct EffectPreview: View {
 
-    var effect: EffectSprite = .ariesZodiaction
+    var item: GalleryEffect = .single(.ariesZodiaction)
     var plane: Plane = .astra
 
     /// Restarting the strip. Bumping it gives the view a new `.id`, which is
@@ -37,9 +37,18 @@ struct EffectPreview: View {
             edges
             faces
 
-            EffectSpriteView(effect: effect, tileSize: tileSize, start: .now)
-                .id(take)
+            // Drawn exactly as the game composites it — stacked layers stacked,
+            // sequenced layers delayed. Looking at a layer on its own says very
+            // little about the effect it is half of.
+            ForEach(Array(item.layers.enumerated()), id: \.offset) { _, layer in
+                EffectSpriteView(
+                    effect: layer.effect,
+                    tileSize: tileSize,
+                    start: Date().addingTimeInterval(layer.delay)
+                )
                 .position(position(of: centre))
+            }
+            .id(take)
         }
         .frame(width: tileSize * CGFloat(span), height: tileSize * CGFloat(span))
     }
@@ -93,7 +102,7 @@ struct EffectPreview: View {
 /// and replaying it.
 struct EffectGallery: View {
 
-    @State private var effect: EffectSprite = .ariesZodiaction
+    @State private var item: GalleryEffect = .single(.ariesZodiaction)
     @State private var plane: Plane = .astra
     @State private var take = 0
     @State private var looping = true
@@ -105,12 +114,12 @@ struct EffectGallery: View {
                 .tracking(4)
                 .foregroundStyle(Palette.textSecondary)
 
-            EffectPreview(effect: effect, plane: plane, take: take, tileSize: 72)
+            EffectPreview(item: item, plane: plane, take: take, tileSize: 72)
 
             VStack(spacing: 10) {
-                Picker("Effect", selection: $effect) {
-                    ForEach(EffectSprite.allCases, id: \.self) { effect in
-                        Text(effect.previewName).tag(effect)
+                Picker("Effect", selection: $item) {
+                    ForEach(GalleryEffect.all, id: \.self) { item in
+                        Text(item.previewName).tag(item)
                     }
                 }
                 .pickerStyle(.menu)
@@ -153,7 +162,7 @@ struct EffectGallery: View {
             guard looping else { return }
             while !Task.isCancelled {
                 try? await Task.sleep(
-                    nanoseconds: UInt64(effect.duration * 1_000_000_000)
+                    nanoseconds: UInt64(item.duration * 1_000_000_000)
                 )
                 guard !Task.isCancelled else { return }
                 take += 1
@@ -162,18 +171,73 @@ struct EffectGallery: View {
     }
 
     /// Restarts the loop when either the strip or the toggle changes.
-    private var loopKey: String { "\(effect.rawValue)-\(looping)" }
+    private var loopKey: String { "\(item.previewName)-\(looping)" }
 
     private var details: String {
-        let fps = effect.duration > 0
-            ? Double(effect.frames) / effect.duration
-            : 0
-        return """
-        \(effect.assetName)
-        \(effect.frames) frames · \(Int(fps.rounded()))fps · \
-        \(String(format: "%.2f", effect.duration))s · \
-        \(String(format: "%.1f", effect.span)) tiles
-        """
+        item.layers.map { layer in
+            let effect = layer.effect
+            let fps = Int((Double(effect.frames) / effect.duration).rounded())
+            let ground = effect.isGrounded ? " · grounded" : ""
+            let delay = layer.delay > 0
+                ? " · starts +\(String(format: "%.2f", layer.delay))s"
+                : ""
+            return "\(effect.assetName) — \(effect.frames)f · \(fps)fps · "
+                + "\(String(format: "%.1f", effect.span))t\(ground)\(delay)"
+        }
+        .joined(separator: "\n")
+    }
+}
+
+// MARK: - What the gallery can show
+
+/// One thing worth looking at: a strip, or a composite the game actually draws.
+enum GalleryEffect: Hashable {
+    case single(EffectSprite)
+    case cancerBastion
+    case leoSun
+
+    /// One layer of it, and how far into the composite it starts.
+    ///
+    /// `delay` is seconds *after* the composite begins. `EffectSpriteView` draws
+    /// nothing before its start date, so a delayed layer simply waits.
+    struct Layer {
+        let effect: EffectSprite
+        let delay: TimeInterval
+    }
+
+    var layers: [Layer] {
+        switch self {
+        case let .single(effect):
+            [Layer(effect: effect, delay: 0)]
+
+        case .cancerBastion:
+            EffectSprite.cancerBastion.map { Layer(effect: $0, delay: 0) }
+
+        case .leoSun:
+            // The summon plays, then the sun follows it.
+            [Layer(effect: .leoZodiactionSummon, delay: 0)]
+                + EffectSprite.leoSun.map {
+                    Layer(effect: $0, delay: EffectSprite.leoZodiactionSummon.duration)
+                }
+        }
+    }
+
+    /// How long the whole composite runs, so the loop waits for all of it.
+    var duration: TimeInterval {
+        layers.map { $0.delay + $0.effect.duration }.max() ?? 0
+    }
+
+    /// The composites first, then every strip on its own for checking the art.
+    static var all: [GalleryEffect] {
+        [.cancerBastion, .leoSun] + EffectSprite.allCases.map { GalleryEffect.single($0) }
+    }
+
+    var previewName: String {
+        switch self {
+        case .cancerBastion: "Cancer — Astral Bastion (stacked)"
+        case .leoSun: "Leo — Sun (summon + stack)"
+        case let .single(effect): effect.previewName
+        }
     }
 }
 
