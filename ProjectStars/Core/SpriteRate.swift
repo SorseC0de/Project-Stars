@@ -2,55 +2,55 @@
 //  SpriteRate.swift
 //  Project Stars
 //
-//  The frame rates pixel-art animation actually gets authored at.
+//  The frame rates pixel-art animation gets authored at.
 //
 
 import Foundation
 
-/// How fast an animated sprite plays.
+/// How fast an animated sprite plays, in frames per second.
 ///
-/// The raw value is the rate in frames per second, so these read as what they
-/// are. Frame timing is computed from elapsed time rather than by counting game
-/// frames, which is what lets any rate work rather than only the ones that
-/// divide the display clock.
+/// A struct of named presets rather than an enum, so fractional rates work and
+/// so a one-off rate can be written inline without amending this file.
+///
+/// Frame timing comes from elapsed time rather than from counting display
+/// ticks, which is what makes any rate expressible.
 ///
 /// | Rate | Ticks per frame at 60Hz | Suits |
 /// |---|---|---|
-/// | `fps30` | 2 | fast, fluid motion — closer to animation than to sprite work |
-/// | `fps25` | 2.4 ⚠︎ | brisk effects |
-/// | `fps20` | 3 | short, sharp bursts — sparks, impacts |
+/// | `fps30` | 2 | fluid motion, closer to animation than sprite work |
+/// | `fps24` | 2.5 | brisk effects; exact on a 120Hz display |
+/// | `fps20` | 3 | short sharp bursts — sparks, impacts |
 /// | `fps15` | 4 | quick effects that still need to read |
-/// | `fps12` | 5 | the house default; most things |
-/// | `fps10` | 6 | slow, weighty, or long loops |
-/// | `fps7` | ~8.6 ⚠︎ | deliberately stilted — drifting, brooding, ominous |
-///
-/// ## The two marked ⚠︎
-///
-/// `fps25` and `fps7` do not divide 60 evenly, so on a 60Hz display their frames
-/// cannot all be held for the same number of ticks: 25 alternates 2-2-3, and 7
-/// alternates 8-9. That unevenness is real and it is visible on a slow, high
-/// contrast animation — which is exactly where `fps7` gets used.
-///
-/// They are here because the choice is yours to make, not because the maths is
-/// clean. If one of them looks like it stutters rather than plays slowly, the
-/// nearest even rates are `fps20`/`fps30` for 25, and `fps10` for 7.
-///
-/// - Note: On a 120Hz display 30, 20, 15, 12 and 10 are all exact; 25 and 7 are
-///   still not.
-enum SpriteRate: Int, CaseIterable {
-    case fps7 = 7
-    case fps10 = 10
-    case fps12 = 12
-    case fps15 = 15
-    case fps20 = 20
-    case fps25 = 25
-    case fps30 = 30
+/// | `fps12` | 5 | the house default |
+/// | `fps10` | 6 | weighty, or long loops |
+/// | `fps7_5` | 8 | slower still — an eighth of the clock, and exact |
+struct SpriteRate: Equatable, Hashable {
 
-    /// Frames per second.
-    var framesPerSecond: Int { rawValue }
+    let framesPerSecond: Double
+
+    init(_ framesPerSecond: Double) {
+        self.framesPerSecond = max(framesPerSecond, 0.01)
+    }
+
+    // MARK: Presets
+
+    static let fps7_5 = SpriteRate(7.5)
+    static let fps10 = SpriteRate(10)
+    static let fps12 = SpriteRate(12)
+    static let fps15 = SpriteRate(15)
+    static let fps20 = SpriteRate(20)
+    static let fps24 = SpriteRate(24)
+    static let fps30 = SpriteRate(30)
+
+    /// The presets, slowest first. For debug readouts and pickers.
+    static let allCases: [SpriteRate] = [
+        .fps7_5, .fps10, .fps12, .fps15, .fps20, .fps24, .fps30,
+    ]
+
+    // MARK: Timing
 
     /// Seconds each art frame is on screen.
-    var frameDuration: TimeInterval { 1 / TimeInterval(rawValue) }
+    var frameDuration: TimeInterval { 1 / framesPerSecond }
 
     /// How long a sheet of `count` frames takes to play through once.
     func duration(frames count: Int) -> TimeInterval {
@@ -58,17 +58,17 @@ enum SpriteRate: Int, CaseIterable {
     }
 
     /// Display ticks each art frame occupies, at the game's clock.
-    ///
-    /// Fractional for the rates that do not divide it — see the type's notes.
     var ticksPerFrame: Double {
-        Double(GameRules.spriteFramesPerSecond) / Double(rawValue)
+        Double(GameRules.spriteFramesPerSecond) / framesPerSecond
     }
 
     /// Whether every frame gets the same number of display ticks.
     ///
-    /// Useful for a debug readout, and for deciding whether a stutter is the
-    /// animation or the rate.
+    /// True for anything that divides the clock — including `fps7_5`, which is
+    /// exactly an eighth of it. Only useful as a debug readout; an uneven rate
+    /// is a legitimate choice, not a mistake.
     var dividesDisplayClock: Bool {
-        GameRules.spriteFramesPerSecond % rawValue == 0
+        let ticks = ticksPerFrame
+        return abs(ticks - ticks.rounded()) < 0.0001
     }
 }
