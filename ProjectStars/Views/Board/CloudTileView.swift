@@ -358,7 +358,10 @@ enum CloudCluster {
         time: TimeInterval
     ) -> (x: CGFloat, y: CGFloat, size: CGFloat, opacity: Double) {
         let angle = hash(point, salt: index + 401) * 2 * .pi
-        let reach = GameRules.cloudSpeckleSpread * CGFloat(hash(point, salt: index + 503))
+        // Square-rooted, like the curls: sampling radius uniformly puts half of
+        // them inside the middle quarter of the disc's area.
+        let reach = GameRules.cloudSpeckleSpread
+            * CGFloat(hash(point, salt: index + 503).squareRoot())
         let roll = hash(point, salt: index + 601)
 
         let period = GameRules.cloudPulseFastest

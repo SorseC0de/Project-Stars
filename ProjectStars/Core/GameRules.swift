@@ -328,6 +328,10 @@ enum GameRules {
     /// like the cloud-toned curls: those are cloudstuff and can run off the
     /// edge, but a fleck of light hanging in empty sky has nothing to be caught
     /// in. Same reach the speckles use, for the same reason.
+    /// **`cloudGlintLitReach` is the knob for how bunched they look.** Same
+    /// units and same caveat as `cloudSpeckleSpread`: it is the radius of the
+    /// disc they sit on, and the cluster itself reaches about 8 art pixels, so
+    /// anything much under that keeps them huddled around the crown.
     static let cloudGlintLitScale: CGFloat = 0.5
     static let cloudGlintLitReach: CGFloat = 7.6
 
