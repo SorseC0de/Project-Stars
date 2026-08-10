@@ -277,19 +277,8 @@ struct CloudTileView: View {
         return wearFrom + (target - wearFrom) * eased
     }
 
-    /// A slow wander, out of phase per square.
-    ///
-    /// Deliberately under an art pixel: a cloud that visibly moved would fight
-    /// the grid the player is counting squares on.
     private func drift(at now: TimeInterval) -> CGSize {
-        let phase = now / GameRules.cloudDriftPeriod * 2 * .pi
-        let offset = CloudCluster.phase(at: point)
-        let amount = GameRules.cloudDriftAmount * scale
-
-        return CGSize(
-            width: CGFloat(sin(phase + offset)) * amount,
-            height: CGFloat(cos(phase * 0.8 + offset)) * amount * 0.6
-        )
+        CloudCluster.drift(at: point, time: now, scale: scale)
     }
 }
 
@@ -518,6 +507,27 @@ enum CloudCluster {
             angle: rest + spin,
             length: span * (0.9 + 0.2 * CGFloat(wave)),
             opacity: 0.45 + 0.55 * wave
+        )
+    }
+
+    /// Where this square's cloud has wandered to, in points.
+    ///
+    /// A slow wander, out of phase per square, deliberately under an art pixel:
+    /// a cloud that visibly moved would fight the grid the player is counting
+    /// squares on.
+    ///
+    /// Public and static because the piece standing on a cloud has to sway with
+    /// it. Two copies of this would drift apart the first time either was
+    /// retuned, and a piece sliding off its own footing is worse than no sway at
+    /// all.
+    static func drift(at point: GridPoint, time: TimeInterval, scale: CGFloat) -> CGSize {
+        let clock = time / GameRules.cloudDriftPeriod * 2 * .pi
+        let offset = phase(at: point)
+        let amount = GameRules.cloudDriftAmount * scale
+
+        return CGSize(
+            width: CGFloat(sin(clock + offset)) * amount,
+            height: CGFloat(cos(clock * 0.8 + offset)) * amount * 0.6
         )
     }
 

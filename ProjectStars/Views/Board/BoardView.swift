@@ -48,6 +48,7 @@ struct BoardView: View {
                 let bob = nexysBob(at: timeline.date, metrics: metrics)
                 let pose = hopPose(at: timeline.date)
                 let arrival = arrivalProgress(at: timeline.date)
+                let sway = cloudSway(at: timeline.date, metrics: metrics)
                 let ascent = ascentPose(at: timeline.date, metrics: metrics)
                 let travel = nexysTravelPose(at: timeline.date, metrics: metrics)
                 objects(
@@ -57,7 +58,8 @@ struct BoardView: View {
                     pose: pose,
                     arrival: arrival,
                     ascent: ascent,
-                    travel: travel
+                    travel: travel,
+                    sway: sway
                 )
             }
 
@@ -259,7 +261,8 @@ struct BoardView: View {
         pose: HopPose,
         arrival: CGFloat,
         ascent: AscentPose,
-        travel: AscentPose
+        travel: AscentPose,
+        sway: CGSize
     ) -> some View {
         ZStack {
             ForEach(BoardObject.draw(objectsOnBoard(plane: plane)), id: \.kind) { object in
@@ -286,7 +289,8 @@ struct BoardView: View {
                         bob: bob,
                         pose: pose,
                         arrival: arrival,
-                        ascent: ascent
+                        ascent: ascent,
+                        sway: sway
                     )
                 }
             }
@@ -383,7 +387,8 @@ struct BoardView: View {
         bob: CGFloat,
         pose: HopPose,
         arrival: CGFloat,
-        ascent: AscentPose
+        ascent: AscentPose,
+        sway: CGSize
     ) -> some View {
         // Falls under gravity rather than at a constant rate: squaring the
         // progress makes it accelerate into the ground.
@@ -417,9 +422,52 @@ struct BoardView: View {
         // Island and passenger travel as one object during an ascent.
         .scaleEffect(ascent.scale)
         .offset(y: ascent.lift)
+        // Standing on a cloud means drifting with it.
+        .offset(sway)
         .position(metrics.center(of: session.engine.piece.point))
         }
         .frame(width: metrics.boardSize, height: metrics.boardSize)
+    }
+
+    /// How far the cloud under the piece has wandered, and therefore how far
+    /// the piece has.
+    ///
+    /// Only while it is standing still. Mid-hop the piece is in the air and off
+    /// its footing entirely, so the sway eases back in over
+    /// `cloudSwayEaseIn` once it lands rather than switching on at the
+    /// moment of contact.
+    ///
+    /// Reads the very same `CloudCluster.drift` the square itself is drawn with
+    /// — a second copy of that maths would drift apart the first time either was
+    /// retuned, and a piece sliding off its own footing is worse than no sway.
+    private func cloudSway(at date: Date, metrics: PixelArtMetrics) -> CGSize {
+        let plane = session.visiblePlane
+        let point = session.engine.piece.point
+
+        // Cloud only: the island is carved rock and the chasm is nothing at all.
+        guard plane == .astra,
+              session.visibleBoard[point].kind == .normal,
+              !session.isFalling
+        else { return .zero }
+
+        let drift = CloudCluster.drift(
+            at: point,
+            time: date.timeIntervalSinceReferenceDate,
+            scale: metrics.scale
+        )
+        let amount = swayAmount(at: date)
+
+        return CGSize(width: drift.width * amount, height: drift.height * amount)
+    }
+
+    /// `0` while the piece is airborne, easing to `1` once it has settled.
+    private func swayAmount(at date: Date) -> CGFloat {
+        guard let started = session.hopStartedAt else { return 1 }
+
+        let settled = date.timeIntervalSince(started) - session.hopDuration
+        let linear = min(max(settled / GameRules.cloudSwayEaseIn, 0), 1)
+
+        return CGFloat(linear * linear * (3 - 2 * linear))
     }
 
     /// Lines of light off the gems of a charged piece.

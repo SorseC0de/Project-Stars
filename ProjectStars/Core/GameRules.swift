@@ -418,6 +418,13 @@ enum GameRules {
     static let cloudDriftAmount: CGFloat = 0.6
     static let cloudDriftPeriod: TimeInterval = 5.5
 
+    /// How long the piece takes to pick up its cloud's sway after landing.
+    ///
+    /// The sway belongs to standing still — mid-hop the piece is off the cloud
+    /// and doing its own thing. Easing it back in rather than switching it on
+    /// keeps the handover from showing.
+    static let cloudSwayEaseIn: TimeInterval = 0.35
+
     /// Seconds a cluster takes to disperse when its square becomes a hole.
     static let cloudPoofDuration: TimeInterval = 0.5
 
