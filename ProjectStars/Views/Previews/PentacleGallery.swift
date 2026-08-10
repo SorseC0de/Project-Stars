@@ -82,7 +82,10 @@ struct PentaclePreview: View {
             )
             .offset(y: isCentre && isRaised ? -GameRules.tilePopLift * scale : 0)
             .animation(
-                .spring(response: GameRules.tilePopResponse, dampingFraction: 0.72),
+                .spring(
+                    response: GameRules.tilePopResponse,
+                    dampingFraction: GameRules.tilePopDamping
+                ),
                 value: isRaised
             )
         }
@@ -93,7 +96,10 @@ struct PentaclePreview: View {
             .position(position(of: centre))
             .offset(y: isRaised ? -GameRules.tilePopLift * scale : 0)
             .animation(
-                .spring(response: GameRules.tilePopResponse, dampingFraction: 0.72),
+                .spring(
+                    response: GameRules.tilePopResponse,
+                    dampingFraction: GameRules.tilePopDamping
+                ),
                 value: isRaised
             )
     }

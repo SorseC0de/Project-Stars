@@ -117,7 +117,12 @@ struct CloudTileView: View {
         guard let raiseChangedAt else { return isRaised ? 1 : 0 }
 
         let elapsed = now - raiseChangedAt.timeIntervalSinceReferenceDate
-        let travelled = min(max(elapsed / GameRules.cloudRaiseTintDuration, 0), 1)
+        let linear = min(max(elapsed / GameRules.cloudRaiseTintDuration, 0), 1)
+
+        // Smoothstep, so the colour eases in and out rather than starting and
+        // stopping dead. The lift it rides on is a spring; a linear tint against
+        // an eased movement is what makes the two read as separate events.
+        let travelled = linear * linear * (3 - 2 * linear)
 
         return isRaised ? travelled : 1 - travelled
     }

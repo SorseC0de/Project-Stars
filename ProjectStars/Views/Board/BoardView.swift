@@ -142,7 +142,10 @@ struct BoardView: View {
             .position(metrics.center(of: point))
             .offset(y: popped ? -GameRules.tilePopLift * metrics.scale : 0)
             .animation(
-                .spring(response: GameRules.tilePopResponse, dampingFraction: 0.72),
+                .spring(
+                    response: GameRules.tilePopResponse,
+                    dampingFraction: GameRules.tilePopDamping
+                ),
                 value: popped
             )
         }

@@ -231,9 +231,18 @@ enum GameRules {
     /// flourish, the tile dropping is a consequence.
     static let tilePopFallResponse: Double = 0.11
 
-    /// Spring response for a tile popping up and dropping back. Lower is
-    /// snappier — a tile is stone, it should not wallow.
-    static let tilePopResponse: Double = 0.14
+    /// Spring response for a tile popping up and dropping back.
+    ///
+    /// Was much snappier when Astra's squares were stone like Terra's. A cloud
+    /// rising is not a slab shoving upward, and at 0.14 the move was over before
+    /// the eye could follow the colour change riding on it.
+    static let tilePopResponse: Double = 0.45
+
+    /// How much the pop overshoots. Near 1 barely bounces at all.
+    ///
+    /// High on purpose: the wobble that made a stone tile feel struck reads as
+    /// a wobble in the cloud itself, which is the one thing it should not do.
+    static let tilePopDamping: Double = 0.92
 
     /// How far a tile's edge strip is pushed down so its visible sliver lands
     /// at the bottom of the square.
@@ -384,15 +393,17 @@ enum GameRules {
     /// How long a cloud takes to change colour as it is raised under a
     /// Pentacle. Matched to `tilePopResponse` so the tint and the lift land
     /// together.
-    static let cloudRaiseTintDuration: TimeInterval = 0.3
+    static let cloudRaiseTintDuration: TimeInterval = 0.45
 
     /// Whether that change steps through palette entries or blends continuously.
     ///
     /// Stepped keeps every frame inside the 47-entry palette; blended does not,
     /// though both ends of the ramp are palette colours either way and the
-    /// off-palette values only exist for a fraction of a second. Flip it and
-    /// see which reads better.
-    static let cloudRaiseSteps = true
+    /// off-palette values only exist for a fraction of a second.
+    ///
+    /// Blended, having looked at both: three hard cuts over half a second read
+    /// as the cloud glitching, not as it changing.
+    static let cloudRaiseSteps = false
 
     /// How far a cluster drifts, in art pixels, and how long one cycle takes.
     ///
