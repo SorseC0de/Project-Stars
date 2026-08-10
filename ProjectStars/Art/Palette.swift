@@ -189,9 +189,11 @@ enum Palette {
 
     /// The same cloud on the board's darker squares.
     ///
-    /// A step down each, not a different colour — the chequer has to read as
-    /// lighting, not as two kinds of cloud.
-    static let cloudDark: [Color] = [magenta, darkMagenta, purple]
+    /// A full step down the magenta run each, not a half one. The chequer has to
+    /// read as lighting rather than as two kinds of cloud, but it is also the
+    /// *only* thing separating one square from the next — there are no grid
+    /// lines — so tones a shade apart left the board mush.
+    static let cloudDark: [Color] = [darkMagenta, purple, dusk]
 
     /// The flecks of light scattered through the cloudstuff.
     ///

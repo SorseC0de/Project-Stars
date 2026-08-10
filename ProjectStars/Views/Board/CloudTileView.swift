@@ -53,6 +53,7 @@ struct CloudTileView: View {
                 }
 
                 speckles(at: now)
+                glints(at: now)
             }
             // The whole cluster shrinks toward its own centre as it wears.
             .scaleEffect(GameRules.cloudScale(health))
@@ -95,6 +96,27 @@ struct CloudTileView: View {
                     .frame(width: fleck.size * scale, height: fleck.size * scale)
                     .offset(x: fleck.x * scale, y: fleck.y * scale)
                     .opacity(fleck.opacity)
+            }
+        }
+        .blendMode(.plusLighter)
+    }
+
+    /// Slivers of light lying across the top of the cluster.
+    private func glints(at now: TimeInterval) -> some View {
+        ZStack {
+            ForEach(0..<GameRules.cloudGlintCount, id: \.self) { index in
+                let glint = CloudCluster.glint(index, at: point, time: now)
+                let tones = Palette.cloudSpeckleTones
+
+                Ellipse()
+                    .fill(tones[index % tones.count])
+                    .frame(
+                        width: GameRules.cloudGlintLength * scale * glint.length,
+                        height: GameRules.cloudGlintThickness * scale
+                    )
+                    .rotationEffect(.degrees(glint.angle))
+                    .offset(x: glint.x * scale, y: glint.y * scale)
+                    .opacity(glint.opacity)
             }
         }
         .blendMode(.plusLighter)
@@ -240,6 +262,38 @@ enum CloudCluster {
             y: CGFloat(sin(angle)) * reach,
             size: GameRules.cloudSpeckleSize * (0.6 + 0.8 * CGFloat(wave)),
             opacity: 0.35 + 0.65 * wave
+        )
+    }
+
+    /// One glint: where it lies, how it leans, and how bright it is now.
+    ///
+    /// Confined to the upper half of the cluster. Light striking a volume from
+    /// one side catches the same side of every puff; scattering these evenly
+    /// would undo the layering the shading just established.
+    static func glint(
+        _ index: Int,
+        at point: GridPoint,
+        time: TimeInterval
+    ) -> (x: CGFloat, y: CGFloat, angle: Double, length: CGFloat, opacity: Double) {
+        let across = hash(point, salt: index + 701)
+        let up = hash(point, salt: index + 809)
+        let tilt = hash(point, salt: index + 907)
+        let roll = hash(point, salt: index + 1009)
+
+        let magnitude = GameRules.cloudGlintMinAngle
+            + (GameRules.cloudGlintMaxAngle - GameRules.cloudGlintMinAngle) * tilt
+
+        let period = GameRules.cloudPulseFastest
+            + (GameRules.cloudPulseSlowest - GameRules.cloudPulseFastest) * roll
+        let wave = (sin(time / period * 2 * .pi + tilt * 2 * .pi) + 1) / 2
+
+        return (
+            x: CGFloat(across - 0.5) * 9,
+            // Upper half only, and never right at the crown's edge.
+            y: -1 - CGFloat(up) * 4.5,
+            angle: roll < 0.5 ? magnitude : -magnitude,
+            length: 0.85 + 0.3 * CGFloat(wave),
+            opacity: 0.45 + 0.55 * wave
         )
     }
 

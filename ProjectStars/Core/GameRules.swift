@@ -299,6 +299,18 @@ enum GameRules {
     static let cloudSpeckleSize: CGFloat = 1.3
     static let cloudSpeckleSpread: CGFloat = 5.6
 
+    /// Thin angled slivers of light lying across the upper half of each cloud —
+    /// bigger than a speckle, smaller than a puff, so they read as a highlight
+    /// catching an edge rather than as more scattered dust.
+    static let cloudGlintCount = 3
+    static let cloudGlintLength: CGFloat = 4.6
+    static let cloudGlintThickness: CGFloat = 1.3
+
+    /// The range a glint's tilt is drawn from, in degrees. Signed at random, so
+    /// they lean both ways; never near flat and never near upright.
+    static let cloudGlintMinAngle: Double = 20
+    static let cloudGlintMaxAngle: Double = 80
+
     /// How far a puff swells and shrinks, as a fraction of its size.
     ///
     /// Small on purpose: this is a cloud breathing, not a balloon. The life
