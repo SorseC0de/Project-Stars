@@ -65,6 +65,11 @@ struct PentacleView: View {
                     y: orbit.height + GameRules.pentacleShadowDrop * scale
                 )
 
+                if appearance == .radiant {
+                    PolarisSparksView(size: size, scale: scale, phase: phase, layer: .behind)
+                        .offset(x: orbit.width, y: float(at: timeline.date) - GameRules.pentacleLift * scale)
+                }
+
                 coin(phase: phase)
                     // Floats clear of its own glow, then drifts — the gap
                     // between coin and pool is what sells the hover.
@@ -74,9 +79,10 @@ struct PentacleView: View {
                     )
 
                 if appearance == .radiant {
-                    PolarisSparksView(size: size, scale: scale, phase: phase)
+                    PolarisSparksView(size: size, scale: scale, phase: phase, layer: .inFront)
                         .offset(x: orbit.width, y: float(at: timeline.date) - GameRules.pentacleLift * scale)
                 }
+
             }
         }
         .transition(.scale(scale: 0.2).combined(with: .opacity))
@@ -126,7 +132,8 @@ struct PentacleView: View {
         switch appearance {
         case .standard:
             PaletteGlow(colors: Palette.pentacleGlowTones,
-                        radius: GameRules.pentacleGlowRadius * scale) {
+                        radius: GameRules.pentacleGlowRadius * scale,
+                        intensity: GameRules.pentacleGlowIntensity) {
                 sprite
             }
 

@@ -7,7 +7,7 @@
 
 import SwiftUI
 
-/// One square of Astra, drawn as a tight cluster of small clouds.
+/// One square of Astra, drawn as a cluster of small astral clouds.
 ///
 /// ## Why wear shrinks rather than cracks
 ///
@@ -42,16 +42,14 @@ struct CloudTileView: View {
 
     var body: some View {
         TimelineView(.animation) { timeline in
-            let drift = drift(at: timeline.date)
+            let now = timeline.date.timeIntervalSinceReferenceDate
+            let drift = drift(at: now)
 
             ZStack {
-                ForEach(0..<GameRules.cloudPuffCount, id: \.self) { index in
-                    let puff = CloudCluster.puff(index, at: point)
-
-                    Circle()
-                        .fill(tones[index % tones.count])
-                        .frame(width: puff.radius * 2 * scale, height: puff.radius * 2 * scale)
-                        .offset(x: puff.x * scale, y: puff.y * scale)
+                // Underside first, top surface last: the muffin's lit crown has
+                // to overlap the shaded body, not the other way round.
+                ForEach(CloudCluster.drawOrder, id: \.self) { index in
+                    puffView(index, at: now)
                 }
             }
             // The whole cluster shrinks toward its own centre as it wears.
@@ -63,7 +61,7 @@ struct CloudTileView: View {
         .overlay {
             if isFlashing {
                 Circle()
-                    .fill(Palette.white)
+                    .fill(Palette.ice)
                     .frame(width: size * 0.5, height: size * 0.5)
                     .blendMode(.plusLighter)
                     .opacity(0.5)
@@ -72,14 +70,36 @@ struct CloudTileView: View {
         .allowsHitTesting(false)
     }
 
+    /// One puff, breathing on its own clock.
+    private func puffView(_ index: Int, at now: TimeInterval) -> some View {
+        let puff = CloudCluster.puff(index, at: point)
+        let diameter = puff.radius * 2 * scale * CloudCluster.pulse(index, at: point, time: now)
+
+        return ZStack {
+            Circle().fill(CloudCluster.tone(puff, tones: tones))
+
+            // A smaller, brighter cap on the puffs facing the sky. This is the
+            // whole cel-shaded read: two flat tones meeting on a hard edge,
+            // rather than a gradient that would turn to mud across 16 pixels.
+            if puff.depth < 0.5 {
+                Circle()
+                    .fill(tones[0])
+                    .scaleEffect(GameRules.cloudCapScale)
+                    .offset(y: -puff.radius * scale * GameRules.cloudCapRise)
+            }
+        }
+        .frame(width: diameter, height: diameter)
+        .offset(x: puff.x * scale, y: puff.y * scale)
+    }
+
     private var tones: [Color] { Palette.cloudTones(shade) }
 
     /// A slow wander, out of phase per square.
     ///
     /// Deliberately under an art pixel: a cloud that visibly moved would fight
     /// the grid the player is counting squares on.
-    private func drift(at date: Date) -> CGSize {
-        let phase = date.timeIntervalSinceReferenceDate / GameRules.cloudDriftPeriod * 2 * .pi
+    private func drift(at now: TimeInterval) -> CGSize {
+        let phase = now / GameRules.cloudDriftPeriod * 2 * .pi
         let offset = CloudCluster.phase(at: point)
         let amount = GameRules.cloudDriftAmount * scale
 
@@ -103,22 +123,35 @@ enum CloudCluster {
         let x: CGFloat
         let y: CGFloat
         let radius: CGFloat
+
+        /// `0` for the sunlit top surface, `1` for the shaded underside.
+        ///
+        /// Authored rather than derived from `y`, because the jitter that keeps
+        /// squares from looking stamped would otherwise flip a puff's shading
+        /// when it nudged across the midline.
+        let depth: Double
     }
 
-    /// The base arrangement: a wide low body with two bumps riding on top.
+    /// The base arrangement: a flattish muffin — a broad domed crown carrying
+    /// most of the mass, tucking into a narrower base.
     ///
-    /// Ordered so alternating indices alternate shades — neighbouring puffs take
-    /// different tones, which is what produces the cel-shaded read rather than
-    /// one flat blob.
+    /// Authored top-first. Clouds seen from slightly above are top-heavy; the
+    /// earlier wide-bodied arrangement read as a puddle.
     private static let base: [Puff] = [
-        Puff(x: 0.0, y: 1.0, radius: 4.6),
-        Puff(x: -4.2, y: 1.8, radius: 3.2),
-        Puff(x: 4.2, y: 1.8, radius: 3.2),
-        Puff(x: -2.0, y: -2.2, radius: 3.0),
-        Puff(x: 2.4, y: -1.8, radius: 3.2),
-        Puff(x: -1.4, y: 3.2, radius: 2.8),
-        Puff(x: 2.0, y: 3.2, radius: 2.6),
+        // The crown, left to right.
+        Puff(x: -4.7, y: -1.4, radius: 3.3, depth: 0.15),
+        Puff(x: -1.7, y: -2.7, radius: 3.9, depth: 0.0),
+        Puff(x:  1.8, y: -2.5, radius: 3.8, depth: 0.05),
+        Puff(x:  4.8, y: -1.2, radius: 3.1, depth: 0.2),
+        // The base, tucked in under it.
+        Puff(x: -2.6, y:  1.5, radius: 2.9, depth: 0.7),
+        Puff(x:  0.4, y:  1.9, radius: 3.0, depth: 0.75),
+        Puff(x:  3.0, y:  1.3, radius: 2.7, depth: 0.7),
+        Puff(x:  0.2, y:  3.5, radius: 2.1, depth: 1.0),
     ]
+
+    /// Painter's order: deepest first, so the crown lands on top.
+    static let drawOrder: [Int] = base.indices.sorted { base[$0].depth > base[$1].depth }
 
     /// This square's version of puff `index`, jittered so no two squares carry
     /// an identical cloud.
@@ -129,8 +162,33 @@ enum CloudCluster {
         return Puff(
             x: template.x + (wobble - 0.5) * 1.6,
             y: template.y + (hash(point, salt: index + 31) - 0.5) * 1.2,
-            radius: template.radius * (0.85 + wobble * 0.3)
+            radius: template.radius * (0.85 + wobble * 0.3),
+            depth: template.depth
         )
+    }
+
+    /// Which tone a puff takes, from its depth.
+    ///
+    /// Shading by height rather than by index: the cluster has to read as one
+    /// lit volume, and alternating tones around the ring made it read as a
+    /// handful of separate balls.
+    static func tone(_ puff: Puff, tones: [Color]) -> Color {
+        let step = Int(puff.depth * Double(tones.count))
+        return tones[min(step, tones.count - 1)]
+    }
+
+    /// How much bigger or smaller this puff is right now.
+    ///
+    /// Each puff has its own period *and* its own phase, so the cluster boils
+    /// gently instead of inflating and deflating as one lump — which is the
+    /// difference between something alive and something being scaled.
+    static func pulse(_ index: Int, at point: GridPoint, time: TimeInterval) -> CGFloat {
+        let roll = hash(point, salt: index + 101)
+        let period = GameRules.cloudPulseFastest
+            + (GameRules.cloudPulseSlowest - GameRules.cloudPulseFastest) * roll
+        let wave = sin(time / period * 2 * .pi + hash(point, salt: index + 211) * 2 * .pi)
+
+        return 1 + GameRules.cloudPulseSwing * CGFloat(wave) / 2
     }
 
     /// This square's drift offset, so neighbouring clouds do not breathe in

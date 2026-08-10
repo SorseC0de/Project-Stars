@@ -88,13 +88,19 @@ struct BoardView: View {
 
     // MARK: - Board layers
 
-    /// The plane's background. Falls back to a flat tint before art exists.
+    /// The plane's background, when there is art for it.
+    ///
+    /// No fallback fill. `SkyView` is already behind the whole upper square —
+    /// Astra's starfield, Terra's daylight — and a flat tinted rectangle here
+    /// covered it up, boxing the cloud grid inside a square that should not be
+    /// visible at all.
+    @ViewBuilder
     private func backdrop(plane: Plane, metrics: PixelArtMetrics) -> some View {
-        PixelSprite(id: .planeBackground(plane)) {
-            Rectangle().fill(Palette.planeTint(plane))
+        if SpriteLoader.hasAsset(for: .planeBackground(plane)) {
+            PixelSprite(id: .planeBackground(plane)) { Color.clear }
+                .frame(width: metrics.boardSize, height: metrics.boardSize)
+                .animation(.easeInOut(duration: 0.25), value: plane)
         }
-        .frame(width: metrics.boardSize, height: metrics.boardSize)
-        .animation(.easeInOut(duration: 0.25), value: plane)
     }
 
     /// Pass one: every tile's edge, pushed down so its visible sliver sits at
@@ -130,7 +136,8 @@ struct BoardView: View {
                 shade: .at(point),
                 size: metrics.tileSize,
                 isPopped: popped,
-                isFlashing: session.flashingTiles.contains(point)
+                isFlashing: session.flashingTiles.contains(point),
+                point: point
             )
             .position(metrics.center(of: point))
             .offset(y: popped ? -GameRules.tilePopLift * metrics.scale : 0)
@@ -380,7 +387,10 @@ struct BoardView: View {
         let shadowScale = GameRules.fallArrivalShadowMin
             + (1 - GameRules.fallArrivalShadowMin) * arrival * arrival
 
-        return PieceView(
+        return ZStack {
+            gemTrail(metrics: metrics)
+
+            PieceView(
             zodiac: session.zodiac,
             tileSize: metrics.tileSize,
             scale: metrics.scale,
@@ -401,6 +411,35 @@ struct BoardView: View {
         .scaleEffect(ascent.scale)
         .offset(y: ascent.lift)
         .position(metrics.center(of: session.engine.piece.point))
+        }
+        .frame(width: metrics.boardSize, height: metrics.boardSize)
+    }
+
+    /// Lines of light off the gems of a charged piece.
+    ///
+    /// Each copy is placed at the piece's current square but given its own,
+    /// slower spring — `.animation(_:value:)` overrides the replay's
+    /// transaction — so they arrive late and the gems streak. See `GemTrailView`.
+    @ViewBuilder
+    private func gemTrail(metrics: PixelArtMetrics) -> some View {
+        if session.engine.isZodiactionReady, !session.isFalling {
+            ForEach(0..<GameRules.gemTrailCount, id: \.self) { step in
+                GemTrailView(
+                    zodiac: session.zodiac,
+                    tileSize: metrics.tileSize,
+                    scale: metrics.scale,
+                    step: step
+                )
+                .position(metrics.center(of: session.engine.piece.point))
+                .animation(
+                    .spring(
+                        response: GameRules.gemTrailLag * Double(step + 2),
+                        dampingFraction: 0.9
+                    ),
+                    value: session.engine.piece.point
+                )
+            }
+        }
     }
 
     /// How the piece is deformed mid-hop.

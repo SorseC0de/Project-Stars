@@ -43,7 +43,7 @@ struct CloudPoofView: View {
                     let drift = drift(puff, progress: progress)
 
                     Circle()
-                        .fill(Palette.cloudTones(shade)[index % 2])
+                        .fill(CloudCluster.tone(puff, tones: Palette.cloudTones(shade)))
                         // Swells as it thins: dispersing cloud spreads out
                         // rather than simply fading, which is what separates it
                         // from something being switched off.

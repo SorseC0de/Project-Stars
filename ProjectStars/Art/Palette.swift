@@ -176,18 +176,22 @@ enum Palette {
 
     // MARK: Astra clouds
 
-    /// The two shades one cloud alternates between, lit cell.
+    /// The tones one cloud is shaded with on a lit square, crown first.
     ///
-    /// Two tones rather than a gradient: the clouds are meant to read as
+    /// Astral rather than meteorological: these are not weather, they are the
+    /// stuff Astra is made of, and the plane is named for the stars. Kept in the
+    /// same cool family Polaris' sparks live in so the two read as one world.
+    ///
+    /// Flat steps rather than a gradient: the clouds are meant to read as
     /// cel-shaded volumes, and a gradient across a 16px cell would just look
     /// like mud.
-    static let cloudLight: [Color] = [white, lightGray]
+    static let cloudLight: [Color] = [ice, cyan, lightBlue]
 
     /// The same cloud on the board's darker squares.
     ///
     /// A step down each, not a different colour — the chequer has to read as
     /// lighting, not as two kinds of cloud.
-    static let cloudDark: [Color] = [lightGray, gray]
+    static let cloudDark: [Color] = [cyan, lightBlue, blue]
 
     static func cloudTones(_ shade: TileShade) -> [Color] {
         switch shade {
