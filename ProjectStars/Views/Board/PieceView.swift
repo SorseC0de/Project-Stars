@@ -56,6 +56,10 @@ struct PieceView: View {
     /// off-screen. The shadow deliberately does not move with it.
     var dropOffset: CGFloat = 0
 
+    /// How hard the piece is currently flashing its element's colour, `0`…`1`.
+    /// Driven by charge gain — see `GameSession.chargeFlashStartedAt`.
+    var chargeFlash: Double = 0
+
     /// Size of the shadow relative to its resting size. Swells from small to
     /// full as a falling piece nears the ground.
     var shadowScale: CGFloat = 1
@@ -103,8 +107,13 @@ struct PieceView: View {
     /// All of it is generated from the one gold sheet. Only Pisces was ever
     /// drawn in stone; every other sign gets its stone form from here, which is
     /// eleven sprites nobody has to draw twice.
-    @ViewBuilder
     private var figure: some View {
+        lit.colorFlash(ElementFX.ramp(for: zodiac.element).mid, amount: chargeFlash)
+    }
+
+    /// The sprite with its gem lit, before any flash is laid over it.
+    @ViewBuilder
+    private var lit: some View {
         if isCharged {
             PaletteGlow(
                 colors: [gem.lit],

@@ -126,6 +126,53 @@ enum EffectSprite: String, CaseIterable, Hashable {
     /// How long one play-through takes.
     var duration: TimeInterval { rate.duration(frames: frames) }
 
+    /// How wide it is drawn, in tiles.
+    ///
+    /// Per-effect rather than one global size: these were authored by different
+    /// hands at different scales, and a strip that reads as a burst covering
+    /// three squares is a different thing from one meant to sit on a single
+    /// tile. Defaults to `GameRules.effectSpan`.
+    var span: CGFloat {
+        switch self {
+        default: GameRules.effectSpan
+        }
+    }
+
+    /// The strip Aries' Blaze Path leaves on each square it burns.
+    ///
+    /// Not in `zodiaction(for:)` on purpose. Blaze Path does not happen where
+    /// the piece is standing when it fires — it happens over the next five
+    /// moves, on each tile the ram walks off. Playing it at the pop would be
+    /// showing the fire in the one place it is not.
+    static let blazeTrail = EffectSprite.ariesZodiaction
+
+    /// The strip a sign throws when its meter gains, if one has been drawn.
+    static func chargeGain(for zodiac: Zodiac) -> EffectSprite? {
+        switch zodiac {
+        case .aries: .fireMisc
+        default: nil
+        }
+    }
+
+    /// The two strips that make up Leo's sun, drawn stacked.
+    static let leoSun: [EffectSprite] = [.leoZodiactionOne, .leoZodiactionTwo]
+
+    /// The strip a sign throws on a hard landing, *instead of* the dust.
+    static func landing(for zodiac: Zodiac) -> EffectSprite? {
+        switch zodiac {
+        case .leo: .leoPridefulLanding
+        default: nil
+        }
+    }
+
+    /// The strip a sign throws when it clears ground in a single bound.
+    static func longJump(for zodiac: Zodiac) -> EffectSprite? {
+        switch zodiac {
+        case .sagittarius: .sagittariusJump
+        default: nil
+        }
+    }
+
     /// The effect that belongs to a Pentacle, if one has been drawn.
     ///
     /// Only Astral Blaze so far. The other three Essences keep the shader burst
@@ -144,8 +191,9 @@ enum EffectSprite: String, CaseIterable, Hashable {
     /// return `nil` and keep their programmatic burst.
     static func zodiaction(for zodiac: Zodiac) -> EffectSprite? {
         switch zodiac {
-        case .aries: .ariesZodiaction
-        case .leo: .leoZodiactionOne
+        // Aries is deliberately absent — see `blazeTrail`.
+        // Leo is too — its Zodiaction is a summon followed by the stacked sun,
+        // which `GameSession.raiseTheSun` sequences.
         case .cancer: .cancerZodiaction
         case .libra: .libraZodiaction
         default: nil

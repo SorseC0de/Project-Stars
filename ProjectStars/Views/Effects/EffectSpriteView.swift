@@ -47,14 +47,31 @@ struct EffectSpriteView: View {
             let frame = Int(elapsed / effect.rate.frameDuration)
 
             if elapsed >= 0, frame < effect.frames {
-                PixelSprite(id: .effect(effect), frame: frame) { EmptyView() }
+                let art = PixelSprite(id: .effect(effect), frame: frame) { EmptyView() }
                     .frame(width: side, height: side)
+
+                ZStack {
+                    // The light it casts, under the art rather than over it, so
+                    // the drawn detail stays readable through its own glow.
+                    art
+                        .blur(radius: GameRules.effectGlowRadius * artScale)
+                        .opacity(GameRules.effectGlowIntensity)
+                        .blendMode(.plusLighter)
+
+                    art
+                }
             }
         }
         .allowsHitTesting(false)
     }
 
     private var side: CGFloat {
-        tileSize * GameRules.effectSpan * magnitude
+        tileSize * effect.span * magnitude
+    }
+
+    /// Points per art pixel at the size this is being drawn, so the bloom is
+    /// measured in the art's own units rather than in screen points.
+    private var artScale: CGFloat {
+        side / CGFloat(GameRules.effectPixelSize)
     }
 }

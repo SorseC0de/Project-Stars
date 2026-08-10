@@ -132,8 +132,15 @@ final class GameSession {
     /// The elemental burst currently playing, if any. Presentation only.
     private(set) var elementalBurst: ElementalBurst?
 
-    /// A drawn effect strip currently playing, if any. See `EffectSprite`.
-    private(set) var effectBurst: EffectBurst?
+    /// Drawn effect strips currently playing. See `EffectSprite`.
+    ///
+    /// A list rather than one at a time: Aries' Blaze Path burns every tile it
+    /// leaves, and a two-square exit lights two of them on the same beat.
+    private(set) var effectBursts: [EffectBurst] = []
+
+    /// When the piece last gained charge, for the colour flash. `nil` when it
+    /// is not flashing.
+    private(set) var chargeFlashStartedAt: Date?
 
     /// Sparkles flying off a Pentacle that was just opened.
     private(set) var collectBurst: ElementalBurst?
@@ -227,7 +234,8 @@ final class GameSession {
         lastCollectedPickup = nil
         pentacleBanner = nil
         elementalBurst = nil
-        effectBurst = nil
+        effectBursts = []
+        chargeFlashStartedAt = nil
         collectBurst = nil
         smoke = nil
         cloudPoofs = []
@@ -393,7 +401,24 @@ final class GameSession {
             }
             await sleep(GameRules.planeRestoreDuration)
 
-        case let .tilesWorn(plane, changes), let .tilesWornOnExit(plane, changes):
+        case let .tilesWornOnExit(plane, changes):
+            // Blaze Path charges its damage to the square being left, and this
+            // is the fire doing it — on each tile, as it burns, rather than at
+            // the pop five moves earlier.
+            if zodiac == .aries {
+                for point in changes.keys {
+                    playEffect(EffectSprite.blazeTrail, at: point, on: plane)
+                }
+            }
+            disperseClouds(in: changes, on: plane)
+            flashingTiles.formUnion(changes.keys)
+            withAnimation(.easeOut(duration: GameRules.tileDamageDuration)) {
+                engine.apply(event)
+            }
+            await sleep(event.displayDuration)
+            flashingTiles.subtract(changes.keys)
+
+        case let .tilesWorn(plane, changes):
             disperseClouds(in: changes, on: plane)
             flashingTiles.formUnion(changes.keys)
             withAnimation(.easeOut(duration: GameRules.tileDamageDuration)) {
@@ -477,6 +502,14 @@ final class GameSession {
             hopDistance = max(from.manhattanDistance(to: to), 1)
             hopCount += 1
             hopStartedAt = .now
+
+            // Their full three-tile bound, thrown from the square pushed off.
+            // Not any long move: a two-square sidestep is not the leap this
+            // draws.
+            if hopDistance >= GameRules.longJumpDistance,
+               let drawn = EffectSprite.longJump(for: zodiac) {
+                playEffect(drawn, at: from, on: plane)
+            }
             withAnimation(.spring(response: hopDuration * 1.6, dampingFraction: 0.72)) {
                 engine.apply(event)
             }
@@ -493,12 +526,29 @@ final class GameSession {
             engine.apply(event)
             await sleep(event.displayDuration)
 
+        case let .zodiactionMeterChanged(to):
+            // Gaining charge flashes the piece its element's colour, and a sign
+            // with a drawn strip for it throws that too.
+            if to > engine.zodiactionMeter {
+                flashCharge()
+                if let drawn = EffectSprite.chargeGain(for: zodiac) {
+                    playEffect(drawn, at: engine.piece.point, on: engine.piece.plane)
+                }
+            }
+            withAnimation(.easeInOut(duration: max(event.displayDuration, 0.01))) {
+                engine.apply(event)
+            }
+            await sleep(event.displayDuration)
+
         case let .zodiactionFired(zodiac, plane):
             summonSpectralHead(zodiac, on: plane)
             // Signs whose Zodiaction has been drawn play it; the rest keep the
             // spectral head and their programmatic burst alone.
             if let drawn = EffectSprite.zodiaction(for: zodiac) {
                 playEffect(drawn, at: engine.piece.point, on: plane)
+            }
+            if zodiac == .leo {
+                raiseTheSun(at: engine.piece.point, on: plane)
             }
             withAnimation(.easeOut(duration: event.displayDuration)) {
                 engine.apply(event)
@@ -574,12 +624,18 @@ final class GameSession {
         }
         fallArrivalStartedAt = nil
 
-        // Impact.
-        kickUpDust(
-            at: engine.piece.point,
-            on: engine.piece.plane,
-            magnitude: GameRules.smokeFallMagnitude
-        )
+        // Impact. The lion does not raise dust — it lands, and the ground
+        // knows about it. Its own strip stands in for the puff entirely rather
+        // than playing over it.
+        if let drawn = EffectSprite.landing(for: zodiac) {
+            playEffect(drawn, at: engine.piece.point, on: engine.piece.plane)
+        } else {
+            kickUpDust(
+                at: engine.piece.point,
+                on: engine.piece.plane,
+                magnitude: GameRules.smokeFallMagnitude
+            )
+        }
         hopStartedAt = nil          // no squash: this is a landing, not a hop
         shakeStartedAt = .now
 
@@ -953,12 +1009,50 @@ extension GameSession {
     /// the effect illustrates resolved the instant its events were applied.
     func playEffect(_ effect: EffectSprite, at point: GridPoint, on plane: Plane) {
         let burst = EffectBurst(effect: effect, center: point, plane: plane, start: .now)
-        effectBurst = burst
+        effectBursts.append(burst)
 
         Task { [weak self] in
             try? await Task.sleep(nanoseconds: UInt64(effect.duration * 1_000_000_000))
-            guard let self, self.effectBurst?.id == burst.id else { return }
-            self.effectBurst = nil
+            self?.effectBursts.removeAll { $0.id == burst.id }
+        }
+    }
+
+    /// Leo's Zodiaction: the summon, then the sun it leaves hanging.
+    ///
+    /// The sun is two strips drawn on top of each other rather than one — that
+    /// is how the art was authored, and stacking them is what makes it read as a
+    /// body of fire instead of a flat disc.
+    ///
+    /// - Note: The summon plays out first and the sun follows it. Once Leo's
+    ///   Zodiaction is actually designed the sun will want to *persist* for
+    ///   however many moves it lasts rather than playing once; that is a change
+    ///   to how long this is scheduled for, not to what it draws.
+    func raiseTheSun(at point: GridPoint, on plane: Plane) {
+        playEffect(.leoZodiactionSummon, at: point, on: plane)
+
+        Task { [weak self] in
+            try? await Task.sleep(
+                nanoseconds: UInt64(EffectSprite.leoZodiactionSummon.duration * 1_000_000_000)
+            )
+            guard let self else { return }
+            for layer in EffectSprite.leoSun {
+                self.playEffect(layer, at: point, on: plane)
+            }
+        }
+    }
+
+    /// Recolours the piece for a moment. Fired whenever the meter gains.
+    func flashCharge() {
+        chargeFlashStartedAt = .now
+
+        Task { [weak self] in
+            try? await Task.sleep(
+                nanoseconds: UInt64(GameRules.chargeFlashDuration * 1_000_000_000)
+            )
+            guard let self else { return }
+            let elapsed = Date.now.timeIntervalSince(self.chargeFlashStartedAt ?? .now)
+            // Only clear it if nothing has re-flashed in the meantime.
+            if elapsed >= GameRules.chargeFlashDuration { self.chargeFlashStartedAt = nil }
         }
     }
 

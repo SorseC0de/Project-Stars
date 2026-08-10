@@ -990,9 +990,30 @@ enum GameRules {
     /// How wide a drawn effect strip is drawn, in tiles.
     ///
     /// The art is four tiles across at native size, which would swallow the
-    /// board. Two and a half reads as an effect happening *to* a square and its
-    /// neighbours rather than as a picture laid over the whole plane.
-    static let effectSpan: CGFloat = 2.5
+    /// board. At one and a half it reads as something happening *to* a square
+    /// rather than as a picture laid over the plane. Overridable per effect —
+    /// see `EffectSprite.span`.
+    static let effectSpan: CGFloat = 1.5
+
+    /// How long the piece stays recoloured after gaining charge, and how far
+    /// the recolour goes at its peak.
+    ///
+    /// Short: this fires on most moves, and anything that fires that often has
+    /// to be felt rather than watched.
+    static let chargeFlashDuration: TimeInterval = 0.3
+    static let chargeFlashStrength: Double = 0.85
+
+    /// How many squares a hop must cover to count as a leap worth drawing —
+    /// Sagittarius' full bound rather than any long step.
+    static let longJumpDistance = 3
+
+    /// The bloom thrown by a drawn effect: blur radius in art pixels, and how
+    /// bright the additive copy is.
+    ///
+    /// The strips are lit art already; this is the light they cast on the board
+    /// around them, which is what stops them reading as decals.
+    static let effectGlowRadius: CGFloat = 2.5
+    static let effectGlowIntensity: Double = 0.55
 
     static let elementalBurstDuration: TimeInterval = 0.75
 

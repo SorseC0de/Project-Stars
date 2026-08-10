@@ -164,10 +164,10 @@ struct BoardView: View {
         }
     }
 
-    /// A drawn effect strip, over the square that set it off.
-    @ViewBuilder
+    /// The drawn effect strips currently playing, each over the square that set
+    /// it off.
     private func effectBurst(metrics: PixelArtMetrics) -> some View {
-        if let burst = session.effectBurst, burst.plane == session.visiblePlane {
+        ForEach(session.effectBursts.filter { $0.plane == session.visiblePlane }) { burst in
             EffectSpriteView(
                 effect: burst.effect,
                 tileSize: metrics.tileSize,
@@ -175,6 +175,19 @@ struct BoardView: View {
             )
             .position(metrics.center(of: burst.center))
         }
+    }
+
+    /// How hard the piece is flashing right now.
+    ///
+    /// Eases out rather than in: a charge is a hit, so the colour arrives all at
+    /// once and leaves gradually.
+    private func chargeFlash(at date: Date) -> Double {
+        guard let started = session.chargeFlashStartedAt else { return 0 }
+
+        let elapsed = date.timeIntervalSince(started) / GameRules.chargeFlashDuration
+        guard elapsed >= 0, elapsed <= 1 else { return 0 }
+
+        return GameRules.chargeFlashStrength * (1 - elapsed) * (1 - elapsed)
     }
 
     /// The ground Cancer's Astral Bastion is holding, if one is standing.
