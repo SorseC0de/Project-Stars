@@ -415,8 +415,28 @@ enum CloudCluster {
     ///
     /// Stable across frames and across launches: a cluster that reshuffled would
     /// read as static rather than as cloud.
+    ///
+    /// ## Why the avalanche step matters
+    ///
+    /// The obvious version — `(x * A) ^ (y * B) ^ (salt * C)` — is not good
+    /// enough here, and fails in a way that is visible on screen. A curl takes
+    /// its `x` from one salt and its `y` from another, and those two salts
+    /// always differ by the same amount. XOR barely propagates that difference
+    /// into the low bits, so the two draws come back nearly equal and every curl
+    /// lands near the line `y = x`: a cluster of spirals strung along a 45°
+    /// diagonal.
+    ///
+    /// This is the murmur3 finalizer, which is built to make one bit of input
+    /// change about half the output bits. Neighbouring salts decorrelate, and
+    /// the scatter is actually a scatter.
     private static func hash(_ point: GridPoint, salt: Int) -> Double {
-        let mixed = (point.x &* 73_856_093) ^ (point.y &* 19_349_663) ^ (salt &* 83_492_791)
-        return Double(abs(mixed) % 10_000) / 10_000
+        let seed = point.x &* 73_856_093 &+ point.y &* 19_349_663 &+ salt &* 83_492_791
+
+        var z = UInt64(bitPattern: Int64(seed))
+        z = (z ^ (z >> 33)) &* 0xFF51_AFD7_ED55_8CCD
+        z = (z ^ (z >> 33)) &* 0xC4CE_B9FE_1A85_EC53
+        z ^= z >> 33
+
+        return Double(z % 10_000) / 10_000
     }
 }
