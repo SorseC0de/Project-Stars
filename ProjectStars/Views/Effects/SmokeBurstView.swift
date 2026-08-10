@@ -99,7 +99,7 @@ struct SmokeBurstView: View {
             .frame(width: side, height: side)
             // Sits low: dust kicks up from the ground, not from the piece's
             // middle.
-            .offset(y: tileSize * 0.28)
+            .offset(y: GameRules.smokeDrop * scale)
     }
 
     private func puff(_ index: Int, progress: CGFloat) -> some View {

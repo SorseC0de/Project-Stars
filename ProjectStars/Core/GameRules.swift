@@ -22,7 +22,11 @@ import Foundation
 ///   a rule that fires on a clock.
 enum GameRules {
 
+    // ──────────────────────────────────────────────────────────────────────
     // MARK: - Board
+    //
+    // The shape of the world. These change what the game *is*, not how it
+    // feels.
 
     /// Edge length of each plane, in tiles.
     static let gridSize = 7
@@ -46,7 +50,10 @@ enum GameRules {
     /// Which way the piece looks before it has moved.
     static let startingFacing: SwipeDirection = .down
 
-    // MARK: - Landing
+    // ──────────────────────────────────────────────────────────────────────
+    // MARK: - Rules — landing and wear
+    //
+    // What a landing costs.
 
     /// How much wear a normal landing inflicts on the tile landed on.
     ///
@@ -59,6 +66,12 @@ enum GameRules {
     /// drop can chain through several floors. When `false`, falling is "free"
     /// and only the tile you jumped to wears.
     static let fallingLandingCausesWear = true
+
+    // ──────────────────────────────────────────────────────────────────────
+    // MARK: - Rules — planes
+    //
+    // How the two boards relate: what survives a descent, and how you get
+    // back up.
 
     /// When `true`, **Astra fully repairs itself the moment the player leaves it
     /// for Terra**.
@@ -82,16 +95,19 @@ enum GameRules {
     /// one your own descent repaired.
     static let nexysAscendsFromTerra = true
 
-    // MARK: - Sparkles & pickups
+    /// When `true`, changing plane discards a pickup stranded on the plane the
+    /// piece just left and starts a fresh sparkle phase on the new one.
+    ///
+    /// Without this a fall would leave the pickup somewhere the piece may not
+    /// be able to return to, breaking the guarantee that one is always
+    /// available.
+    static let relocatePickupOnPlaneChange = true
+
+    // ──────────────────────────────────────────────────────────────────────
+    // MARK: - Rules — sparkles and Pentacle spawning
     //
-    // The cycle has exactly two states and no timers:
-    //
-    //   sparkle phase — five tiles shimmer, no pickup is visible
-    //        ↓ the player commits a move
-    //   pickup phase  — the sparkles vanish and the pickup appears on one of
-    //                   the tiles they occupied, before the piece lands
-    //        ↓ the player collects it
-    //   sparkle phase — a new set rolls immediately
+    // Where the coin hides and how the hunt is shaped. How sparkles *look* is
+    // under Sparkles.
 
     /// How many tiles sparkle at once, at most.
     ///
@@ -119,83 +135,12 @@ enum GameRules {
     /// Holes, the Nexys, and the Nexys chasm are excluded structurally by
     /// `Tile.canHostSparkle` and are not optional.
     static let sparklesAvoidPiece = true
-    
-    /// Opacity of the sparkles marking candidate Pentacle tiles, at their
-    /// brightest.
-    static let sparkleOpacity: Double = 1.0
 
-    /// Shortest and longest time a sparkle takes to complete one pulse.
-    ///
-    /// Each sparkle picks its own period from this range. A single shared period
-    /// makes five sparkles read as one blinking object however you stagger their
-    /// phases — it is the *rate* differing that makes them look independent.
-    static let sparklePulseFastest: TimeInterval = 0.7
-    static let sparklePulseSlowest: TimeInterval = 1.6
-
-    /// Scale the smoke sprite is drawn at, relative to its natural two cells.
-    static let smokeSpriteScale: CGFloat = 0.75
-
-    /// Above this magnitude the drawn scatter is used instead of the sprite.
-    ///
-    /// The sprite is one fixed puff — right for a footfall, too small and too
-    /// tidy for a body hitting the ground after falling a whole plane. Heavy
-    /// landings keep the procedural scatter, which can be thrown as wide as it
-    /// needs to be.
-    static let smokeSpriteMaxMagnitude: CGFloat = 1.2
-
-    /// Size multiplier for the puff thrown up by taking a Pentacle.
-    static let smokeCollectMagnitude: CGFloat = 1.5
-
-    /// Seconds a pillar of light lasts at each end of a warp.
-    static let warpBeamDuration: TimeInterval = 0.30
-
-    /// How far past the tile the pillar reaches, as a multiple of a cell.
-    static let warpBeamHeight: CGFloat = 3.2
-
-    // MARK: Spectral heads
-
-    /// Seconds an apparition is on screen when a Zodiaction fires.
-    static let spectralHeadDuration: TimeInterval = 1.15
-
-    /// Size of the head, in cells.
-    static let spectralHeadScale: CGFloat = 1.15
-
-    /// How far above the piece it hangs, in cells, before it starts rising.
-    ///
-    /// Clear of the piece rather than over it: the piece is a two-cell sprite,
-    /// so anything under about two cells of lift lands on its head.
-    static let spectralHeadRise: CGFloat = 2.3
-
-    /// Radians per second it turns.
-    static let spectralHeadSpin: Float = 1.6
-
-    /// Tilt, so it is seen slightly from below — looming rather than level.
-    static let spectralHeadPitch: Float = -0.22
-
-    /// Peak opacity. It is a ghost, not a model.
-    static let spectralHeadOpacity: Double = 0.72
-
-    /// Motes riding each pillar of light.
-    static let warpSparkCount = 9
-
-    /// Seconds the burst of sparkles from an opened Pentacle lasts.
-    static let collectBurstDuration: TimeInterval = 0.55
-
-    /// How many sparkles fly out of an opened Pentacle.
-    static let collectBurstCount = 10
-
-    /// How far they travel, in art pixels.
-    static let collectBurstSpread: CGFloat = 16
-
-    /// When `true`, changing plane discards a pickup stranded on the plane the
-    /// piece just left and starts a fresh sparkle phase on the new one.
-    ///
-    /// Without this a fall would leave the pickup somewhere the piece may not
-    /// be able to return to, breaking the guarantee that one is always
-    /// available.
-    static let relocatePickupOnPlaneChange = true
-
-    // MARK: - Zodiactions
+    // ──────────────────────────────────────────────────────────────────────
+    // MARK: - Rules — Zodiactions
+    //
+    // Meter cost and the fallback charge rule. Per-sign charging lives in
+    // each sign's own file.
 
     /// Pips needed to fill a Zodiaction meter, unless a sign overrides
     /// `meterMax`. The meter is drawn as discrete ticks, not a smooth bar.
@@ -212,9 +157,11 @@ enum GameRules {
     ///   placeholder, and each will be replaced independently.
     static let placeholderZodiactionMeterGain = 1
 
-    // MARK: - Pentacle effects
+    // ──────────────────────────────────────────────────────────────────────
+    // MARK: - Rules — Pentacle effects
     //
-    // - TODO: All untuned placeholders pending balancing.
+    // What individual Pentacles are worth. The effects themselves are in
+    // Pickups/Effects/.
 
     /// Charge granted by the Z-Charge Pentacle.
     static let zChargePentacleAmount = 3
@@ -229,7 +176,8 @@ enum GameRules {
     /// mere damage, so the effect scales with how ruined the board already is.
     static let astralBlazeChargePerBreak = 2
 
-    // MARK: - Scoring
+    // ──────────────────────────────────────────────────────────────────────
+    // MARK: - Rules — scoring
 
     /// Points awarded per successful move.
     static let scorePerMove = 1
@@ -237,7 +185,13 @@ enum GameRules {
     /// Points awarded per pickup collected.
     static let scorePerPickup = 10
 
+    // ──────────────────────────────────────────────────────────────────────
     // MARK: - Input
+    //
+    // How a drag becomes a move.
+
+    /// Minimum drag length, in points, before a swipe counts as a move.
+    static let minimumSwipeDistance: CGFloat = 24
 
     /// Extra drag length, in points, that selects each successive distance for
     /// signs whose movement offers more than one.
@@ -246,14 +200,23 @@ enum GameRules {
     /// is a much worse error than having to drag a little further.
     static let swipeReachStep: CGFloat = 46
 
-    /// Minimum drag length, in points, before a swipe counts as a move.
-    static let minimumSwipeDistance: CGFloat = 24
-
-    // MARK: - Pixel-art layout
+    // ──────────────────────────────────────────────────────────────────────
+    // MARK: - Sprite frame rates
     //
-    // All distances are in **art pixels**, not points — views multiply by
-    // `PixelArtMetrics.scale`. Every number here is a knob; none of them is a
-    // rule.
+    // One rate per animated sprite. See `SpriteRate` for what each rate
+    // suits.
+
+    /// The clock every rate is measured against.
+    static let spriteFramesPerSecond = 60
+
+    /// What an animation runs at when it has not asked for a rate.
+    static let defaultSpriteRate = SpriteRate.fps12
+
+    // ──────────────────────────────────────────────────────────────────────
+    // MARK: - Tiles
+    //
+    // The board's surface: how a tile lifts for a coin, how it wears, how its
+    // edge is seated.
 
     /// How far a tile lifts when a Pentacle sits on it, revealing the edge
     /// strip drawn underneath.
@@ -272,116 +235,6 @@ enum GameRules {
     /// snappier — a tile is stone, it should not wallow.
     static let tilePopResponse: Double = 0.14
 
-    /// A Pentacle is drawn 48x48 — coin in the middle cell, sparkle ring
-    /// spilling a full cell in every direction — then halved.
-    ///
-    /// Three cells at half scale is 1.5, so the coin itself lands at half a tile.
-    /// Halving happens by shrinking the frame, not by resampling: `PixelSprite`
-    /// draws with nearest-neighbour and no antialiasing, so the art stays hard-
-    /// edged rather than turning to mush.
-    static let pentacleCellSpan: CGFloat = 1.5
-
-    /// How far the coin's shadow sits below the tile centre, in art pixels.
-    /// Negative is up.
-    static let pentacleShadowDrop: CGFloat = 0
-
-    /// How far the coin itself floats above its shadow, in art pixels.
-    static let pentacleLift: CGFloat = 8
-
-    /// Opacity of the pool of light under the coin, at its brightest.
-    static let pentacleShadowOpacity: Double = 0.3
-
-    /// How far the coin's glow orbits the tile centre, in art pixels.
-    ///
-    /// The coin circles as it hovers; its light circles with it. Zero pins the
-    /// pool to the centre.
-    static let pentacleOrbitRadius: CGFloat = 2.5
-
-    /// Seconds for one full orbit.
-    static let pentacleOrbitPeriod: TimeInterval = 3.1
-
-    /// How much smaller the pool gets at the top of the coin's float, as a
-    /// fraction of its resting size. Shrinking as the coin rises is what sells
-    /// the height rather than a flat drift.
-    static let pentacleShadowScaleSwing: CGFloat = 0.3
-
-    /// How far a Pentacle drifts either side of its resting height.
-    static let pentacleFloatAmplitude: CGFloat = 1.5
-
-    /// Seconds for one full up-and-down of a Pentacle.
-    static let pentacleFloatPeriod: TimeInterval = 1.6
-
-    // MARK: Hop
-
-    /// Peak height of a hop's arc, above the straight line between squares.
-    static let hopArcHeight: CGFloat = 6
-
-    /// Widest and flattest the piece gets, winding up and on impact.
-    static let hopSquashX: CGFloat = 1.28
-    static let hopSquashY: CGFloat = 0.76
-
-    /// Tallest and thinnest the piece gets, at the top of the arc.
-    static let hopStretchX: CGFloat = 0.80
-    static let hopStretchY: CGFloat = 1.24
-
-    // MARK: Smoke
-
-    /// Puffs kicked up by a landing.
-    static let smokePuffCount = 7
-
-    // MARK: - Sprite frame rates
-    //
-    // One rate per animation, chosen from `SpriteRate`. That type lists what
-    // each rate suits and flags the two that do not divide the display clock
-    // evenly.
-
-    /// The clock every rate is measured against.
-    static let spriteFramesPerSecond = 60
-
-    /// What an animation runs at when it has not asked for a rate.
-    static let defaultSpriteRate = SpriteRate.fps12
-
-    /// Landing dust. Matches the GameMaker build.
-    static let smokeRate = SpriteRate.fps12
-
-    /// The Pentacle coin's glint.
-    static let pentacleRate = SpriteRate.fps12
-
-    /// Frames in a landing puff's sheet.
-    static let smokeFrameCount = 5
-
-    /// Seconds a puff takes to play through.
-    ///
-    /// Derived from the rate rather than set independently, so the sprite and
-    /// the scatter that stands in for it always last exactly as long.
-    static var smokeDuration: TimeInterval {
-        smokeRate.duration(frames: smokeFrameCount)
-    }
-
-    /// How far into its own animation a puff begins, `0`…`1`.
-    ///
-    /// A puff spends its first frames small and thin, so even when it is fired
-    /// on exactly the same event as the thing it belongs to — a tile slamming
-    /// flat, a coin bursting — it reads as arriving late. Starting partway in
-    /// skips the ramp and lands the dust *with* the impact.
-    ///
-    /// Raise it to make dust hit harder and sooner; `0` restores the full
-    /// ramp-in.
-    static let smokeLeadIn: Double = 0.15
-
-    /// How solid a puff is at its densest.
-    static let smokeOpacity: Double = 0.95
-
-    /// Size multiplier for the cloud thrown up by landing after a fall, as
-    /// against an ordinary hop.
-    static let smokeFallMagnitude: CGFloat = 2.1
-
-    /// How far a puff drifts from the landing point, in art pixels.
-    static let smokeSpread: CGFloat = 9
-
-    /// Diameter of a puff at its largest, in art pixels.
-    static let smokePuffSize: CGFloat = 4
-
     /// How far a tile's edge strip is pushed down so its visible sliver lands
     /// at the bottom of the square.
     ///
@@ -394,6 +247,36 @@ enum GameRules {
     /// behind the face, and below 12 a lifted tile exposes backdrop instead of
     /// edge.
     static let tileEdgeDrop: CGFloat = 12
+
+    /// A tile visibly cracking.
+    static let tileDamageDuration: TimeInterval = 0.16
+
+    /// A tile cracking under a piece that is *leaving* it.
+    ///
+    /// Near-instant, unlike wear on arrival. Exit damage is emitted before the
+    /// hop, so any pause here is a pause before the piece moves at all — which
+    /// reads as the game hanging rather than as the tile breaking. It cracks
+    /// while the piece is already on its way.
+    static let tileDamageOnExitDuration: TimeInterval = 0.02
+
+    /// A tile visibly repairing.
+    static let tileHealDuration: TimeInterval = 0.22
+
+    /// A whole area changing state at once. Longer than a single tile, because
+    /// there is more to read.
+    static let areaEffectDuration: TimeInterval = 0.42
+
+    /// A whole plane repairing itself behind a descending player.
+    static let planeRestoreDuration: TimeInterval = 0.30
+
+    // ──────────────────────────────────────────────────────────────────────
+    // MARK: - Piece
+    //
+    // Where it sits on its tile, how it hops, how it falls.
+
+    /// Extra lift applied to a piece on top of resting its 16x32 box on the
+    /// tile. Positive is up.
+    static let pieceLift: CGFloat = 1
 
     /// How far the shadow sits below a piece's own centre.
     ///
@@ -411,6 +294,54 @@ enum GameRules {
     /// the shadow stays on the ground where the eye can measure it against
     /// something fixed.
     static let pieceShadowLiftSwing: CGFloat = 0.4
+
+    /// A single hop between tiles.
+    static let hopDuration: TimeInterval = 0.20
+
+    /// Peak height of a hop's arc, above the straight line between squares.
+    static let hopArcHeight: CGFloat = 6
+
+    /// Widest and flattest the piece gets, winding up and on impact.
+    static let hopSquashX: CGFloat = 1.28
+
+    static let hopSquashY: CGFloat = 0.76
+
+    /// Tallest and thinnest the piece gets, at the top of the arc.
+    static let hopStretchX: CGFloat = 0.80
+
+    static let hopStretchY: CGFloat = 1.24
+
+    /// A drop from Astra down to Terra.
+    static let fallDuration: TimeInterval = 0.72
+
+    /// How far the piece spins as it drops between planes.
+    ///
+    /// Negative is counter-clockwise. Applied as a running total rather than a
+    /// target angle, so the spin always turns the same way instead of unwinding
+    /// on the way back.
+    static let fallSpinDegrees: Double = -1080
+
+    /// Seconds the piece takes to fall in from off-screen onto the lower plane.
+    static let fallArrivalDuration: TimeInterval = 0.42
+
+    /// How far above the board the piece starts its arrival, as a multiple of
+    /// the board's own height. Above 1 it begins genuinely off-screen.
+    static let fallArrivalHeight: CGFloat = 1.15
+
+    /// How small the destination tile's shadow starts, before the piece nears
+    /// it. Growing this shadow is what telegraphs the incoming landing.
+    static let fallArrivalShadowMin: CGFloat = 0.15
+
+    /// A teleport: the piece vanishing and reappearing elsewhere.
+    static let teleportDuration: TimeInterval = 0.28
+
+    /// The piece transforming into another sign.
+    static let pieceChangeDuration: TimeInterval = 0.40
+
+    // ──────────────────────────────────────────────────────────────────────
+    // MARK: - Nexys
+    //
+    // The island: where it rests, how it drifts, how it carries and travels.
 
     /// How far the Nexys island's *art* sits above where an ordinary tile would.
     ///
@@ -454,15 +385,188 @@ enum GameRules {
     /// directly north of it, so it never hides the piece.
     static let nexysFadedOpacity: Double = 0.33
 
-    /// Extra lift applied to a piece on top of resting its 16x32 box on the
-    /// tile. Positive is up.
-    static let pieceLift: CGFloat = 1
+    /// The Nexys island travelling between planes.
+    static let nexysShiftDuration: TimeInterval = 0.40
+
+    /// Seconds the island takes to leave a plane.
+    static let nexysTravelDepartDuration: TimeInterval = 0.34
+
+    /// Seconds it takes to swell back in on the other plane.
+    static let nexysTravelArriveDuration: TimeInterval = 0.34
+
+    /// How far the island drifts as it leaves, as a fraction of the board's
+    /// height. Small — it shrinks away rather than flying off.
+    static let nexysTravelDrift: CGFloat = 0.18
+
+    /// Seconds the island takes to carry the piece up out of Terra.
+    static let ascentRiseDuration: TimeInterval = 0.55
+
+    /// Seconds the island and piece take to swell back in on Astra.
+    static let ascentGrowDuration: TimeInterval = 0.40
+
+    /// How far above the board the pair travel before the plane swaps, as a
+    /// multiple of the board's height. Above 1 they leave the screen entirely.
+    static let ascentRiseHeight: CGFloat = 1.2
+
+    /// Peak whiteout at the moment the planes swap. Zero disables the flash.
+    static let ascentFlashOpacity: Double = 0.55
+
+    // ──────────────────────────────────────────────────────────────────────
+    // MARK: - Pentacle
+    //
+    // The coin, and the pool of light under it.
+
+    /// The Pentacle coin's glint.
+    static let pentacleRate = SpriteRate.fps12
+
+    /// A Pentacle is drawn 48x48 — coin in the middle cell, sparkle ring
+    /// spilling a full cell in every direction — then halved.
+    ///
+    /// Three cells at half scale is 1.5, so the coin itself lands at half a tile.
+    /// Halving happens by shrinking the frame, not by resampling: `PixelSprite`
+    /// draws with nearest-neighbour and no antialiasing, so the art stays hard-
+    /// edged rather than turning to mush.
+    static let pentacleCellSpan: CGFloat = 1.5
+
+    /// How far the coin itself floats above its shadow, in art pixels.
+    static let pentacleLift: CGFloat = 8
+
+    /// How far a Pentacle drifts either side of its resting height.
+    static let pentacleFloatAmplitude: CGFloat = 1.5
+
+    /// Seconds for one full up-and-down of a Pentacle.
+    static let pentacleFloatPeriod: TimeInterval = 1.6
+
+    /// How far the coin's shadow sits below the tile centre, in art pixels.
+    /// Negative is up.
+    static let pentacleShadowDrop: CGFloat = 0
+
+    /// Opacity of the pool of light under the coin, at its brightest.
+    static let pentacleShadowOpacity: Double = 0.3
+
+    /// How much smaller the pool gets at the top of the coin's float, as a
+    /// fraction of its resting size. Shrinking as the coin rises is what sells
+    /// the height rather than a flat drift.
+    static let pentacleShadowScaleSwing: CGFloat = 0.3
+
+    /// How far the coin's glow orbits the tile centre, in art pixels.
+    ///
+    /// The coin circles as it hovers; its light circles with it. Zero pins the
+    /// pool to the centre.
+    static let pentacleOrbitRadius: CGFloat = 2.5
+
+    /// Seconds for one full orbit.
+    static let pentacleOrbitPeriod: TimeInterval = 3.1
+
+    /// The pickup appearing and the sparkles vanishing.
+    ///
+    /// Zero because both happen *as the piece starts moving* — they are one
+    /// beat with the hop, not a step before it.
+    static let pickupRevealDuration: TimeInterval = 0
+
+    /// Beat held after collecting a pickup, before new sparkles appear.
+    static let pickupCollectDuration: TimeInterval = 0.20
+
+    // ──────────────────────────────────────────────────────────────────────
+    // MARK: - Sparkles
+    //
+    // The shimmer on candidate tiles. Drawn rather than sprited — see
+    // `SparkleView`.
+
+    /// Opacity of the sparkles marking candidate Pentacle tiles, at their
+    /// brightest.
+    static let sparkleOpacity: Double = 1.0
+
+    /// Shortest and longest time a sparkle takes to complete one pulse.
+    ///
+    /// Each sparkle picks its own period from this range. A single shared period
+    /// makes five sparkles read as one blinking object however you stagger their
+    /// phases — it is the *rate* differing that makes them look independent.
+    static let sparklePulseFastest: TimeInterval = 0.7
+
+    static let sparklePulseSlowest: TimeInterval = 1.6
 
     /// Nudge applied to sparkles so they sit dead centre in their square.
     ///
     /// **In points, not art pixels** — the sparkle is drawn rather than
     /// sprited, so it has no pixel grid to align to.
     static let sparkleNudge = CGSize(width: 2, height: 0)
+
+    // ──────────────────────────────────────────────────────────────────────
+    // MARK: - Smoke
+    //
+    // Dust from a landing. Sprite for footfalls, procedural scatter for heavy
+    // ones.
+
+    /// Landing dust. Matches the GameMaker build.
+    static let smokeRate = SpriteRate.fps12
+
+    /// Frames in a landing puff's sheet.
+    static let smokeFrameCount = 5
+
+    /// Seconds a puff takes to play through.
+    ///
+    /// Derived from the rate rather than set independently, so the sprite and
+    /// the scatter that stands in for it always last exactly as long.
+    static var smokeDuration: TimeInterval {
+        smokeRate.duration(frames: smokeFrameCount)
+    }
+
+    /// How far below the tile's centre the puff sits, in art pixels.
+    ///
+    /// Dust rises from where a foot met the ground, not from the middle of the
+    /// piece — but the sprite is two cells tall and centred, so most of it is
+    /// above the contact point already. This only needs to nudge it clear.
+    static let smokeDrop: CGFloat = 0.5
+
+    /// Scale the smoke sprite is drawn at, relative to its natural two cells.
+    static let smokeSpriteScale: CGFloat = 0.75
+
+    /// Above this magnitude the drawn scatter is used instead of the sprite.
+    ///
+    /// The sprite is one fixed puff — right for a footfall, too small and too
+    /// tidy for a body hitting the ground after falling a whole plane. Heavy
+    /// landings keep the procedural scatter, which can be thrown as wide as it
+    /// needs to be.
+    static let smokeSpriteMaxMagnitude: CGFloat = 1.2
+
+    /// How far into its own animation a puff begins, `0`…`1`.
+    ///
+    /// A puff spends its first frames small and thin, so even when it is fired
+    /// on exactly the same event as the thing it belongs to — a tile slamming
+    /// flat, a coin bursting — it reads as arriving late. Starting partway in
+    /// skips the ramp and lands the dust *with* the impact.
+    ///
+    /// Raise it to make dust hit harder and sooner; `0` restores the full
+    /// ramp-in.
+    static let smokeLeadIn: Double = 0.15
+
+    /// How solid a puff is at its densest.
+    static let smokeOpacity: Double = 0.95
+
+    /// Size multiplier for the puff thrown up by taking a Pentacle.
+    static let smokeCollectMagnitude: CGFloat = 1.5
+
+    /// Size multiplier for the cloud thrown up by landing after a fall, as
+    /// against an ordinary hop.
+    static let smokeFallMagnitude: CGFloat = 2.1
+
+    /// Puffs kicked up by a landing.
+    static let smokePuffCount = 7
+
+    /// Diameter of a puff at its largest, in art pixels.
+    static let smokePuffSize: CGFloat = 4
+
+    /// How far a puff drifts from the landing point, in art pixels.
+    static let smokeSpread: CGFloat = 9
+
+    // ──────────────────────────────────────────────────────────────────────
+    // MARK: - Cursor
+    //
+    // The four brackets marking where a move lands.
+
+    /// How far the cursor sits above the centre of the square it marks.
+    static let cursorLift: CGFloat = 2
 
     /// How far the cursor's brackets sit from their tight resting position at
     /// the peak of a flare.
@@ -480,117 +584,76 @@ enum GameRules {
     /// Opacity of the cursor when the move is off the board entirely.
     static let cursorImpossibleOpacity: Double = 0.5//0.35
 
-    /// How far the cursor sits above the centre of the square it marks.
-    static let cursorLift: CGFloat = 2
-
-    // MARK: - Backdrops
-
-    /// Stars twinkling behind Astra.
-    static let astraStarCount = 60
-
-    /// Clouds drifting behind Terra.
-    static let terraCloudCount = 7
-
-    // MARK: - Animation timing (seconds)
+    // ──────────────────────────────────────────────────────────────────────
+    // MARK: - Warp beams
     //
-    // Presentation only. See the note at the top of this file: none of these
-    // gate a rule.
+    // The pillar of light at each end of a teleport.
 
-    /// The pickup appearing and the sparkles vanishing.
+    /// Seconds a pillar of light lasts at each end of a warp.
+    static let warpBeamDuration: TimeInterval = 0.30
+
+    /// How far past the tile the pillar reaches, as a multiple of a cell.
+    static let warpBeamHeight: CGFloat = 3.2
+
+    /// Motes riding each pillar of light.
+    static let warpSparkCount = 9
+
+    // ──────────────────────────────────────────────────────────────────────
+    // MARK: - Collect burst
+    //
+    // Sparks off an opened — or destroyed — Pentacle.
+
+    /// Seconds the burst of sparkles from an opened Pentacle lasts.
+    static let collectBurstDuration: TimeInterval = 0.55
+
+    /// How many sparkles fly out of an opened Pentacle.
+    static let collectBurstCount = 10
+
+    /// How far they travel, in art pixels.
+    static let collectBurstSpread: CGFloat = 16
+
+    // ──────────────────────────────────────────────────────────────────────
+    // MARK: - Spectral heads
+    //
+    // The apparition a Zodiaction summons.
+
+    /// A Zodiaction firing.
+    static let zodiactionDuration: TimeInterval = 0.35
+
+    /// Seconds an apparition is on screen when a Zodiaction fires.
+    static let spectralHeadDuration: TimeInterval = 1.15
+
+    /// Size of the head, in cells.
+    static let spectralHeadScale: CGFloat = 1.15
+
+    /// How far above the piece it hangs, in cells, before it starts rising.
     ///
-    /// Zero because both happen *as the piece starts moving* — they are one
-    /// beat with the hop, not a step before it.
-    static let pickupRevealDuration: TimeInterval = 0
+    /// Clear of the piece rather than over it: the piece is a two-cell sprite,
+    /// so anything under about two cells of lift lands on its head.
+    static let spectralHeadRise: CGFloat = 2.3
 
-    /// A single hop between tiles.
-    static let hopDuration: TimeInterval = 0.20
+    /// Radians per second it turns.
+    static let spectralHeadSpin: Float = 1.6
 
-    /// A drop from Astra down to Terra.
-    static let fallDuration: TimeInterval = 0.72
+    /// Tilt, so it is seen slightly from below — looming rather than level.
+    static let spectralHeadPitch: Float = -0.22
+
+    /// Peak opacity. It is a ghost, not a model.
+    static let spectralHeadOpacity: Double = 0.72
+
+    // ──────────────────────────────────────────────────────────────────────
+    // MARK: - Elemental bursts
+    //
+    // The Metal-shaded flourish an Astral Essence plays.
 
     /// How long an elemental burst plays for. Purely cosmetic; the rule it
     /// illustrates has already resolved.
     static let elementalBurstDuration: TimeInterval = 0.75
 
-    /// A whole area changing state at once. Longer than a single tile, because
-    /// there is more to read.
-    static let areaEffectDuration: TimeInterval = 0.42
-
-    /// A tile visibly cracking.
-    static let tileDamageDuration: TimeInterval = 0.16
-
-    /// A tile cracking under a piece that is *leaving* it.
-    ///
-    /// Near-instant, unlike wear on arrival. Exit damage is emitted before the
-    /// hop, so any pause here is a pause before the piece moves at all — which
-    /// reads as the game hanging rather than as the tile breaking. It cracks
-    /// while the piece is already on its way.
-    static let tileDamageOnExitDuration: TimeInterval = 0.02
-
-    /// A tile visibly repairing.
-    static let tileHealDuration: TimeInterval = 0.22
-
-    /// Beat held after collecting a pickup, before new sparkles appear.
-    static let pickupCollectDuration: TimeInterval = 0.20
-
-    /// A teleport: the piece vanishing and reappearing elsewhere.
-    static let teleportDuration: TimeInterval = 0.28
-
-    /// The piece transforming into another sign.
-    static let pieceChangeDuration: TimeInterval = 0.40
-
-    /// A whole plane repairing itself behind a descending player.
-    static let planeRestoreDuration: TimeInterval = 0.30
-
-    /// Seconds the piece takes to fall in from off-screen onto the lower plane.
-    static let fallArrivalDuration: TimeInterval = 0.42
-
-    /// How far above the board the piece starts its arrival, as a multiple of
-    /// the board's own height. Above 1 it begins genuinely off-screen.
-    static let fallArrivalHeight: CGFloat = 1.15
-
-    /// How small the destination tile's shadow starts, before the piece nears
-    /// it. Growing this shadow is what telegraphs the incoming landing.
-    static let fallArrivalShadowMin: CGFloat = 0.15
-
-    /// How far the piece spins as it drops between planes.
-    ///
-    /// Negative is counter-clockwise. Applied as a running total rather than a
-    /// target angle, so the spin always turns the same way instead of unwinding
-    /// on the way back.
-    static let fallSpinDegrees: Double = -1080
-
-    // MARK: Ascent
-
-    /// Seconds the island takes to carry the piece up out of Terra.
-    static let ascentRiseDuration: TimeInterval = 0.55
-
-    /// Seconds the island and piece take to swell back in on Astra.
-    static let ascentGrowDuration: TimeInterval = 0.40
-
-    /// How far above the board the pair travel before the plane swaps, as a
-    /// multiple of the board's height. Above 1 they leave the screen entirely.
-    static let ascentRiseHeight: CGFloat = 1.2
-
-    /// Peak whiteout at the moment the planes swap. Zero disables the flash.
-    static let ascentFlashOpacity: Double = 0.55
-
-    // MARK: Nexys travel
+    // ──────────────────────────────────────────────────────────────────────
+    // MARK: - Screen shake
     //
-    // The island moving *without* a passenger — the Nexys Shift Pentacle, and
-    // the debug key. Distinct from an ascent, which the player rides.
-
-    /// Seconds the island takes to leave a plane.
-    static let nexysTravelDepartDuration: TimeInterval = 0.34
-
-    /// Seconds it takes to swell back in on the other plane.
-    static let nexysTravelArriveDuration: TimeInterval = 0.34
-
-    /// How far the island drifts as it leaves, as a fraction of the board's
-    /// height. Small — it shrinks away rather than flying off.
-    static let nexysTravelDrift: CGFloat = 0.18
-
-    // MARK: Screen shake
+    // The jolt of a heavy landing.
 
     /// Seconds a shake takes to die away.
     static let shakeDuration: TimeInterval = 0.38
@@ -601,12 +664,21 @@ enum GameRules {
     /// Oscillations per second.
     static let shakeFrequency: Double = 17
 
-    /// The Nexys island travelling between planes.
-    static let nexysShiftDuration: TimeInterval = 0.40
+    // ──────────────────────────────────────────────────────────────────────
+    // MARK: - Backdrops
+    //
+    // What sits behind the board on each plane.
 
-    /// A Zodiaction firing.
-    static let zodiactionDuration: TimeInterval = 0.35
+    /// Stars twinkling behind Astra.
+    static let astraStarCount = 60
+
+    /// Clouds drifting behind Terra.
+    static let terraCloudCount = 7
+
+    // ──────────────────────────────────────────────────────────────────────
+    // MARK: - Game over
 
     /// Pause before the game-over overlay appears.
     static let gameOverDelay: TimeInterval = 0.35
+
 }
