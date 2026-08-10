@@ -52,7 +52,7 @@ struct PentacleView: View {
                     tileSize: size,
                     widthFraction: 0.34,
                     opacity: GameRules.pentacleShadowOpacity,
-                    color: Palette.white,
+                    color: poolColor,
                     blendMode: .plusLighter
                 )
                 // Shrinks as the coin rises and swells as it dips — a pool of
@@ -65,19 +65,18 @@ struct PentacleView: View {
                     y: orbit.height + GameRules.pentacleShadowDrop * scale
                 )
 
-                PixelSprite(id: .pentacle(appearance)) {
-                    placeholder
+                coin(phase: phase)
+                    // Floats clear of its own glow, then drifts — the gap
+                    // between coin and pool is what sells the hover.
+                    .offset(
+                        x: orbit.width,
+                        y: float(at: timeline.date) - GameRules.pentacleLift * scale
+                    )
+
+                if appearance == .radiant {
+                    PolarisSparksView(size: size, scale: scale, phase: phase)
+                        .offset(x: orbit.width, y: float(at: timeline.date) - GameRules.pentacleLift * scale)
                 }
-                .frame(
-                    width: size * GameRules.pentacleCellSpan,
-                    height: size * GameRules.pentacleCellSpan
-                )
-                // Floats clear of its own glow, then drifts — the gap between
-                // coin and pool is what sells the hover.
-                .offset(
-                    x: orbit.width,
-                    y: float(at: timeline.date) - GameRules.pentacleLift * scale
-                )
             }
         }
         .transition(.scale(scale: 0.2).combined(with: .opacity))
@@ -105,6 +104,74 @@ struct PentacleView: View {
             width: CGFloat(cos(turns)) * radius,
             height: CGFloat(sin(turns)) * radius * 0.4
         )
+    }
+
+    /// What the coin spills onto the tile beneath it.
+    ///
+    /// Shadow Work pools `midnight` rather than white — it is the one coin whose
+    /// light is an absence.
+    private var poolColor: Color {
+        switch appearance {
+        case .standard: Palette.white
+        case .shadow: Palette.midnight
+        case .radiant: Palette.lightBlue
+        }
+    }
+
+    // MARK: - The coin itself
+
+    /// The sprite, recoloured and lit according to which coin this is.
+    @ViewBuilder
+    private func coin(phase: TimeInterval) -> some View {
+        switch appearance {
+        case .standard:
+            PaletteGlow(colors: Palette.pentacleGlowTones,
+                        radius: GameRules.pentacleGlowRadius * scale) {
+                sprite
+            }
+
+        case .shadow:
+            // The same sheet as the gold coin, five entries swapped. No bloom:
+            // a shadow that glowed would not be one.
+            sprite.paletteSwap(shadowSwaps)
+
+        case .radiant:
+            // Polaris turns as well as drifting, and turns the other way — the
+            // orbit is clockwise, so a counter-clockwise spin keeps the two
+            // motions from reading as one.
+            PaletteGlow(colors: Palette.polarisSparkTones,
+                        radius: GameRules.pentacleGlowRadius * scale,
+                        trail: 1) {
+                sprite
+            }
+            .rotationEffect(.degrees(spin(at: phase)))
+        }
+    }
+
+    private var sprite: some View {
+        PixelSprite(id: .pentacle(appearance)) {
+            placeholder
+        }
+        .frame(width: size * spriteSpan, height: size * spriteSpan)
+    }
+
+    /// How many cells the sprite covers.
+    ///
+    /// The gold and shadow coins carry their own sparkle and need three; Polaris
+    /// is a single star and supplies its motion from the view instead.
+    private var spriteSpan: CGFloat {
+        appearance == .radiant ? 1 : GameRules.pentacleCellSpan
+    }
+
+    /// The gold coin's entries paired with Shadow Work's, in order.
+    private var shadowSwaps: [PaletteSwap] {
+        zip(Palette.pentacleTones, Palette.pentacleShadowTones).map(PaletteSwap.init)
+    }
+
+    /// Polaris' rotation. The period is negative, which is what turns it
+    /// counter-clockwise.
+    private func spin(at phase: TimeInterval) -> Double {
+        phase / GameRules.polarisSpinPeriod * 360
     }
 
     private func float(at date: Date) -> CGFloat {

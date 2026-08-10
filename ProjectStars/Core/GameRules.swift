@@ -481,6 +481,21 @@ enum GameRules {
     /// Seconds for one full orbit.
     static let pentacleOrbitPeriod: TimeInterval = 3.1
 
+    /// How far the coin's bright entries bloom, in art pixels.
+    static let pentacleGlowRadius: CGFloat = 2.5
+
+    /// Seconds Polaris takes to turn once. Negative is counter-clockwise.
+    static let polarisSpinPeriod: TimeInterval = -6.5
+
+    /// Sparks orbiting Polaris.
+    static let polarisSparkCount = 9
+
+    /// How far they sit from the star, in art pixels.
+    static let polarisSparkRadius: CGFloat = 9
+
+    /// Seconds they take to circle it.
+    static let polarisSparkPeriod: TimeInterval = 4.2
+
     /// The pickup appearing and the sparkles vanishing.
     ///
     /// Zero because both happen *as the piece starts moving* — they are one

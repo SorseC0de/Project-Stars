@@ -174,6 +174,25 @@ enum Palette {
     static let pentacleRadiant = Color(hex: 0xCFE4FF)
     static let pentacleRadiantHighlight = Color(hex: 0xFFFFFF)
 
+    // MARK: Pentacles
+
+    /// The five palette entries the gold coin is drawn in, brightest first.
+    ///
+    /// Read from the sprite rather than guessed — these are exactly what is in
+    /// `Pentacle.png`.
+    static let pentacleTones: [Color] = [white, yellowGreen, yellow, gold, orange]
+
+    /// Shadow Work's coin: the same five entries, swapped one for one.
+    ///
+    /// Ordered to match `pentacleTones`, so the two lists zip into the swap.
+    static let pentacleShadowTones: [Color] = [midnight, steel, navy, dusk, smoke]
+
+    /// Entries that bloom on the gold coin.
+    static let pentacleGlowTones: [Color] = [white, yellowGreen, yellow]
+
+    /// Polaris' sparks.
+    static let polarisSparkTones: [Color] = [yellow, pink, lightBlue]
+
     /// Rarity tints, used wherever a tier needs to read before the words do.
     static let pickupUncommon = Color(hex: 0x6FD4A8)
     static let pickupRare = Color(hex: 0x8FA8F0)

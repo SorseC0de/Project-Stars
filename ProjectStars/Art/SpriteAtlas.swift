@@ -197,6 +197,21 @@ enum SpriteAtlas {
         // Eight 48x48 frames laid out left to right. The coin itself is the
         // middle cell; the surrounding ring is the sparkle, which is why this is
         // drawn three tiles wide rather than one.
+        // Shadow Work's coin is the *same sheet*, recoloured at draw time by a
+        // palette swap — see `PentacleView`. Keeping it as one sheet means the
+        // two can never fall out of step when the coin is redrawn.
+        map[.pentacle(.shadow)] = .cells(
+            sheet: pentacleSheet,
+            column: 0, row: 0,
+            width: 3, height: 3,
+            frames: 8,
+            frameDuration: GameRules.pentacleRate.frameDuration
+        )
+
+        // Polaris: a single 16x16 star on the master sheet. No frames of its
+        // own — all of its motion is applied by the view.
+        map[.pentacle(.radiant)] = .cells(column: 12, row: 5)
+
         map[.pentacle(.standard)] = .cells(
             sheet: pentacleSheet,
             column: 0, row: 0,
