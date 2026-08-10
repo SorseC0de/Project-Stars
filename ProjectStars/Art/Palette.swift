@@ -255,7 +255,12 @@ enum Palette {
     /// `0` is a resting cloud and `1` a fully raised one; the ends of the ramps
     /// are exactly `cloudLight`/`cloudDark` and `cloudRaised`.
     static func cloudTones(_ shade: TileShade, raiseBlend: Double = 0) -> [Color] {
-        cloudRaiseRamp(shade).map { ramp in
+        // The overwhelmingly common cases, and worth taking early: every cloud
+        // but one is resting, and this runs per layer per cloud per frame.
+        if raiseBlend <= 0 { return shade == .light ? cloudLight : cloudDark }
+        if raiseBlend >= 1 { return cloudRaised }
+
+        return cloudRaiseRamp(shade).map { ramp in
             let travelled = min(max(raiseBlend, 0), 1)
 
             guard !GameRules.cloudRaiseSteps else {

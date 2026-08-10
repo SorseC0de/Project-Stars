@@ -50,59 +50,33 @@ struct CloudTileView: View {
     /// not under the Pentacle, which must not play a transition on appear.
     @State private var raiseChangedAt: Date?
 
+    /// The wear scale this cluster is easing away from, and when it started.
+    ///
+    /// A `Canvas` has no view identity for SwiftUI to hang an implicit
+    /// animation on, so the shrink is timed by hand — like every other effect
+    /// in this game, and unlike the `.animation(value: health)` this replaces.
+    @State private var wearFrom: CGFloat = 1
+    @State private var wearStartedAt: Date?
+
+    // MARK: - Body
+    //
+    // ## Why this is a Canvas and not a ZStack
+    //
+    // A cluster is 13 puffs, 18 speckles and 8 curls: 39 shapes. Times 49
+    // squares that is roughly 1,900 SwiftUI views, every one of them rebuilt
+    // every frame because everything here is a function of the clock. Astra
+    // could not hold 60fps.
+    //
+    // None of those views need identity, layout, hit testing or transitions —
+    // they are pixels. `Canvas` draws them as primitives with none of that
+    // machinery, which is what this is for.
+
     var body: some View {
         TimelineView(.animation) { timeline in
-            let now = timeline.date.timeIntervalSinceReferenceDate
-            let drift = drift(at: now)
-            let blend = raiseBlend(at: now)
-            let tones = Palette.cloudTones(shade, raiseBlend: blend)
-
-            ZStack {
-                // Deepest first: the lit crown has to land on top of the
-                // shaded body, not the other way round.
-                ForEach(CloudCluster.bodyOrder, id: \.self) { index in
-                    puffView(index, at: now, tones: tones)
-                }
-
-                // Between the layers, so the crown half-covers them.
-                glints(
-                    at: now,
-                    count: GameRules.cloudGlintBuriedCount,
-                    salt: 0,
-                    tones: [tones[0], tones[1]],
-                    additive: false
-                )
-
-                ForEach(CloudCluster.crownOrder, id: \.self) { index in
-                    puffView(index, at: now, tones: tones)
-                }
-
-                // Cloud-coloured, over the crown: these cut across the buried
-                // curls and mix the two sets together.
-                glints(
-                    at: now,
-                    count: GameRules.cloudGlintMaskCount,
-                    salt: 2_048,
-                    tones: [tones[0]],
-                    additive: false
-                )
-
-                speckles(at: now, blend: blend)
+            Canvas { context, canvas in
+                draw(&context, in: canvas, at: timeline.date.timeIntervalSinceReferenceDate)
             }
-            // The whole cluster shrinks toward its own centre as it wears.
-            .scaleEffect(GameRules.cloudScale(health))
-            .offset(x: drift.width, y: drift.height)
-            .animation(.spring(response: 0.34, dampingFraction: 0.75), value: health)
-        }
-        .frame(width: size, height: size)
-        .overlay {
-            if isFlashing {
-                Circle()
-                    .fill(Palette.pink)
-                    .frame(width: size * 0.5, height: size * 0.5)
-                    .blendMode(.plusLighter)
-                    .opacity(0.5)
-            }
+            .frame(width: size, height: size)
         }
         .allowsHitTesting(false)
         // Nothing in here may be animated by anybody else.
@@ -114,16 +88,167 @@ struct CloudTileView: View {
         // channels runs past the ends of the ramp: a magenta cloud turning blue
         // takes a detour through red, because its dominant channel overshoots
         // while the others undershoot.
-        //
-        // The wear shrink below sets its own animation explicitly, which
-        // survives this.
         .transaction { $0.animation = nil }
         // The raised cloud is a different view from the ordinary one — it is
         // depth-sorted with the pieces rather than laid down with the board — so
         // it arrives already raised and has to start its ramp on appear.
         .onAppear { if isRaised { raiseChangedAt = .now } }
         .onChange(of: isRaised) { raiseChangedAt = .now }
+        .onChange(of: health) { old, _ in
+            wearFrom = GameRules.cloudScale(old)
+            wearStartedAt = .now
+        }
     }
+
+    /// Paints one cluster.
+    ///
+    /// Order is the whole design: shaded body, curls half-buried in it, lit
+    /// crown over those, cloud-toned curls stitching the two together, then the
+    /// flecks of light on top.
+    private func draw(_ context: inout GraphicsContext, in canvas: CGSize, at now: TimeInterval) {
+        let wear = wearScale(at: now)
+        guard wear > 0 else { return }
+
+        let blend = raiseBlend(at: now)
+        let tones = Palette.cloudTones(shade, raiseBlend: blend)
+        let drift = drift(at: now)
+
+        // Everything below is authored in art pixels from the square's centre,
+        // so the centre becomes the origin and the wear shrink becomes a scale
+        // about it.
+        context.translateBy(
+            x: canvas.width / 2 + drift.width,
+            y: canvas.height / 2 + drift.height
+        )
+        context.scaleBy(x: wear, y: wear)
+
+        for index in CloudCluster.bodyOrder {
+            fill(puff: index, into: &context, tones: tones, at: now)
+        }
+
+        stroke(
+            curls: GameRules.cloudGlintBuriedCount,
+            salt: 0,
+            tones: [tones[0], tones[1]],
+            into: &context,
+            at: now
+        )
+
+        for index in CloudCluster.crownOrder {
+            fill(puff: index, into: &context, tones: tones, at: now)
+        }
+
+        stroke(
+            curls: GameRules.cloudGlintMaskCount,
+            salt: 2_048,
+            tones: [tones[0]],
+            into: &context,
+            at: now
+        )
+
+        // Light adds; cloudstuff does not.
+        context.blendMode = .plusLighter
+        speckles(into: &context, blend: blend, at: now)
+
+        if isFlashing {
+            let radius = size * 0.25
+            context.fill(
+                Path(ellipseIn: CGRect(x: -radius, y: -radius, width: radius * 2, height: radius * 2)),
+                with: .color(Palette.pink.opacity(0.5))
+            )
+        }
+    }
+
+    // MARK: - Pieces of the cluster
+
+    /// One puff, breathing on its own clock.
+    private func fill(
+        puff index: Int,
+        into context: inout GraphicsContext,
+        tones: [Color],
+        at now: TimeInterval
+    ) {
+        let puff = CloudCluster.puff(index, at: point)
+        let radius = puff.radius * scale * CloudCluster.pulse(index, at: point, time: now)
+
+        let box = CGRect(
+            x: puff.x * scale - radius,
+            y: puff.y * scale - radius,
+            width: radius * 2,
+            height: radius * 2
+        )
+        context.fill(Path(ellipseIn: box), with: .color(CloudCluster.tone(puff, tones: tones)))
+    }
+
+    /// One set of curls.
+    ///
+    /// - Parameter salt: Offsets the hashes, so the buried set and the ones
+    ///   stitched over the crown are not the same curls drawn twice.
+    private func stroke(
+        curls count: Int,
+        salt: Int,
+        tones: [Color],
+        into context: inout GraphicsContext,
+        at now: TimeInterval
+    ) {
+        let style = StrokeStyle(
+            lineWidth: GameRules.cloudGlintThickness * scale,
+            lineCap: .round
+        )
+
+        for index in 0..<count {
+            let glint = CloudCluster.glint(index + salt, at: point, time: now)
+            let span = GameRules.cloudGlintLength * scale * glint.length
+
+            // Built around the origin so it turns about its own middle, then
+            // carried out to where it sits.
+            let box = CGRect(x: -span / 2, y: -span / 2, width: span, height: span)
+            let path = CloudGlintSpiral(turns: GameRules.cloudGlintTurns)
+                .path(in: box)
+                .applying(
+                    CGAffineTransform(translationX: glint.x * scale, y: glint.y * scale)
+                        .rotated(by: glint.angle * .pi / 180)
+                )
+
+            context.stroke(
+                path,
+                with: .color(tones[index % tones.count].opacity(glint.opacity)),
+                style: style
+            )
+        }
+    }
+
+    /// Flecks of light caught in the cloudstuff.
+    private func speckles(
+        into context: inout GraphicsContext,
+        blend: Double,
+        at now: TimeInterval
+    ) {
+        // Swapped at the ramp's midpoint rather than crossfaded: two palette
+        // entries have no legal colours between them.
+        let tones = Palette.speckleTones(raised: blend >= 0.5)
+
+        for index in 0..<GameRules.cloudSpeckleCount {
+            let fleck = CloudCluster.speckle(index, at: point, time: now)
+            let radius = fleck.size * scale / 2
+
+            let box = CGRect(
+                x: fleck.x * scale - radius,
+                y: fleck.y * scale - radius,
+                width: radius * 2,
+                height: radius * 2
+            )
+            context.fill(
+                Path(ellipseIn: box),
+                with: .color(
+                    tones[index % tones.count]
+                        .opacity(fleck.opacity * GameRules.cloudSpeckleOpacity)
+                )
+            )
+        }
+    }
+
+    // MARK: - Clocks
 
     /// How far along the colour ramp this cloud is, `0` resting to `1` raised.
     private func raiseBlend(at now: TimeInterval) -> Double {
@@ -140,72 +265,17 @@ struct CloudTileView: View {
         return isRaised ? travelled : 1 - travelled
     }
 
-    /// One puff, breathing on its own clock.
-    private func puffView(_ index: Int, at now: TimeInterval, tones: [Color]) -> some View {
-        let puff = CloudCluster.puff(index, at: point)
-        let diameter = puff.radius * 2 * scale * CloudCluster.pulse(index, at: point, time: now)
+    /// How much of the cluster is left, easing toward its new wear state.
+    private func wearScale(at now: TimeInterval) -> CGFloat {
+        let target = GameRules.cloudScale(health)
+        guard let wearStartedAt else { return target }
 
-        return Circle()
-            .fill(CloudCluster.tone(puff, tones: tones))
-            .frame(width: diameter, height: diameter)
-            .offset(x: puff.x * scale, y: puff.y * scale)
+        let elapsed = now - wearStartedAt.timeIntervalSinceReferenceDate
+        let linear = min(max(elapsed / GameRules.cloudWearDuration, 0), 1)
+        let eased = CGFloat(linear * linear * (3 - 2 * linear))
+
+        return wearFrom + (target - wearFrom) * eased
     }
-
-    /// Flecks of blue and gold caught in the cloudstuff.
-    private func speckles(at now: TimeInterval, blend: Double) -> some View {
-        ZStack {
-            ForEach(0..<GameRules.cloudSpeckleCount, id: \.self) { index in
-                let fleck = CloudCluster.speckle(index, at: point, time: now)
-                // Swapped at the ramp's midpoint rather than crossfaded: two
-                // palette entries have no legal colours between them.
-                let tones = Palette.speckleTones(raised: blend >= 0.5)
-
-                Circle()
-                    .fill(tones[index % tones.count])
-                    .frame(width: fleck.size * scale, height: fleck.size * scale)
-                    .offset(x: fleck.x * scale, y: fleck.y * scale)
-                    .opacity(fleck.opacity)
-            }
-        }
-        .blendMode(.plusLighter)
-    }
-
-    /// One set of curls.
-    ///
-    /// - Parameters:
-    ///   - salt: Offsets the hashes, so the buried set and the lit set are not
-    ///     the same curls drawn twice in different colours.
-    ///   - additive: Light adds; cloudstuff does not.
-    private func glints(
-        at now: TimeInterval,
-        count: Int,
-        salt: Int,
-        tones: [Color],
-        additive: Bool
-    ) -> some View {
-        ZStack {
-            ForEach(0..<count, id: \.self) { index in
-                let glint = CloudCluster.glint(index + salt, at: point, time: now)
-                let span = GameRules.cloudGlintLength * scale * glint.length
-
-                CloudGlintSpiral(turns: GameRules.cloudGlintTurns)
-                    .stroke(
-                        tones[index % tones.count],
-                        style: StrokeStyle(
-                            lineWidth: GameRules.cloudGlintThickness * scale,
-                            lineCap: .round
-                        )
-                    )
-                    .frame(width: span, height: span)
-                    .rotationEffect(.degrees(glint.angle))
-                    .offset(x: glint.x * scale, y: glint.y * scale)
-                    .opacity(glint.opacity)
-            }
-        }
-        .blendMode(additive ? .plusLighter : .normal)
-    }
-
-
 
     /// A slow wander, out of phase per square.
     ///

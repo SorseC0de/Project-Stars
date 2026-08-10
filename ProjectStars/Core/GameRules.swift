@@ -317,6 +317,9 @@ enum GameRules {
     /// in the middle of the cloud no matter how random the scatter is.
     static let cloudSpeckleSpread: CGFloat = 7.8
 
+    /// Overall brightness of the flecks, on top of their own twinkle.
+    static let cloudSpeckleOpacity: Double = 0.5
+
     /// Little curls of light lying across the upper half of each cloud —
     /// bigger than a speckle, smaller than a puff, so they read as something
     /// caught in the cloudstuff rather than as more scattered dust.
@@ -394,6 +397,9 @@ enum GameRules {
     /// Pentacle. Matched to `tilePopResponse` so the tint and the lift land
     /// together.
     static let cloudRaiseTintDuration: TimeInterval = 0.45
+
+    /// How long the cluster takes to shrink when the square wears.
+    static let cloudWearDuration: TimeInterval = 0.34
 
     /// Whether that change steps through palette entries or blends continuously.
     ///
