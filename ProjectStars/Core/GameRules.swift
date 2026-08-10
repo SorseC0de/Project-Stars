@@ -364,7 +364,7 @@ enum GameRules {
     /// completely — which is how it went missing. The piece's opaque pixels end
     /// about two art pixels below the tile's centre, so the shadow has to clear
     /// that to be seen at all.
-    static let pieceShadowDrop: CGFloat = 4
+    static let pieceShadowDrop: CGFloat = 2
 
     /// How much smaller the piece's shadow gets at the top of a hop, as a
     /// fraction of its resting size.

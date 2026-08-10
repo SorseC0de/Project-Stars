@@ -19,7 +19,7 @@ struct PieceShadowView: View {
     let tileSize: CGFloat
 
     /// Fraction of a cell the shadow spans.
-    var widthFraction: CGFloat = 0.62
+    var widthFraction: CGFloat = 0.75
 
     /// How flat it is, as a fraction of its own width.
     var flatness: CGFloat = 0.34

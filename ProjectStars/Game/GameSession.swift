@@ -406,6 +406,17 @@ final class GameSession {
                 await present(follow)
             }
 
+        case let .pickupDestroyed(_, plane, point):
+            // Sparks, but no banner and no dust: nothing landed here, and
+            // nothing was gained. The coin simply went down with the tile.
+            collectBurst = ElementalBurst(element: .air, center: point, plane: plane, start: .now)
+            clearCollectBurstLater()
+
+            withAnimation(.easeOut(duration: event.displayDuration)) {
+                engine.apply(event)
+            }
+            await sleep(event.displayDuration)
+
         case let .pickupCollected(id, plane, point):
             lastCollectedPickup = id
             pentacleBanner = id
@@ -415,14 +426,7 @@ final class GameSession {
             kickUpDust(at: point, on: plane, magnitude: GameRules.smokeCollectMagnitude)
             collectBurst = ElementalBurst(element: .air, center: point, plane: plane, start: .now)
 
-            let burstID = collectBurst?.id
-            Task { [weak self] in
-                try? await Task.sleep(
-                    nanoseconds: UInt64(GameRules.collectBurstDuration * 1_000_000_000)
-                )
-                guard let self, self.collectBurst?.id == burstID else { return }
-                self.collectBurst = nil
-            }
+            clearCollectBurstLater()
 
             // Elemental Pentacles throw their burst as they open. Only the four
             // Astral Essences declare an element; everything else is silent.
@@ -774,6 +778,18 @@ struct SmokePuff: Identifiable, Equatable {
 }
 
 extension GameSession {
+
+    /// Clears the sparkle burst once it has played out.
+    func clearCollectBurstLater() {
+        let burstID = collectBurst?.id
+        Task { [weak self] in
+            try? await Task.sleep(
+                nanoseconds: UInt64(GameRules.collectBurstDuration * 1_000_000_000)
+            )
+            guard let self, self.collectBurst?.id == burstID else { return }
+            self.collectBurst = nil
+        }
+    }
 
     /// Throws up dust at a square, and clears it once it has settled.
     ///

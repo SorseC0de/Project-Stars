@@ -1169,11 +1169,34 @@ struct GameEngine {
     private mutating func ensurePentacleAvailable(previousPlane: Plane) -> [GameEvent] {
         guard !isGameOver, pendingChoice == nil else { return [] }
 
+        var events: [GameEvent] = []
+
+        // A coin whose tile has broken underneath it goes down with it. Area
+        // effects and board-wide Zodiactions can open a hole anywhere, the
+        // Pentacle's own square included — and a coin left hovering over a hole
+        // is not just odd to look at, it is unreachable, since landing there
+        // drops the piece straight through.
+        //
+        // Checked here rather than at each place a tile can break: this is
+        // already the one function every planner ends with, and every one of
+        // them can break a tile.
+        if let pickup = revealedPickup,
+           pickup.plane == piece.plane,
+           !self[pickup.plane][pickup.point].isSolid {
+            let destroyed = GameEvent.pickupDestroyed(
+                id: pickup.id,
+                plane: pickup.plane,
+                point: pickup.point
+            )
+            apply(destroyed)
+            events.append(destroyed)
+        }
+
         let changedPlane = piece.plane != previousPlane && GameRules.relocatePickupOnPlaneChange
         let stranded = revealedPickup.map { $0.plane != piece.plane } ?? false
         let nothingAvailable = sparkles == nil && revealedPickup == nil
 
-        guard changedPlane || stranded || nothingAvailable else { return [] }
+        guard changedPlane || stranded || nothingAvailable else { return events }
 
         let plane = piece.plane
         let board = self[plane]
@@ -1183,10 +1206,11 @@ struct GameEngine {
             board: board,
             piecePoint: point,
             using: &rng
-        ) else { return [] }
+        ) else { return events }
 
         apply(spawn)
-        return [spawn]
+        events.append(spawn)
+        return events
     }
 
     /// Rolls a sparkle set together with the pickup hiding inside it.
@@ -1303,6 +1327,11 @@ struct GameEngine {
             for point in self[plane].allPoints where self[plane][point].kind == .normal {
                 self[plane][point].health = .healthy
             }
+
+        case .pickupDestroyed:
+            revealedPickup = nil
+            pendingPickup = nil
+            sparkles = nil
 
         case .pickupCollected:
             revealedPickup = nil

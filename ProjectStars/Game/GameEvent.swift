@@ -123,6 +123,12 @@ enum GameEvent: Equatable {
     /// pickup produces follow immediately after this one.
     case pickupCollected(id: PickupID, plane: Plane, point: GridPoint)
 
+    /// The Pentacle fell into a hole opened underneath it.
+    ///
+    /// Distinct from `pickupCollected`: nobody got it. The coin is destroyed and
+    /// the hunt restarts, which is why a fresh sparkle set always follows.
+    case pickupDestroyed(id: PickupID, plane: Plane, point: GridPoint)
+
     /// A fresh sparkle set appeared, hiding `pickup`. Starts a new sparkle
     /// phase and replaces any previous set.
     case sparklesSpawned(set: SparkleSet, pickup: PickupID)
@@ -173,6 +179,7 @@ enum GameEvent: Equatable {
         case .choiceResolved: 0
         case .signStateChanged: 0
         case .pickupCollected: GameRules.pickupCollectDuration
+        case .pickupDestroyed: GameRules.pickupCollectDuration
         case .sparklesSpawned: 0.10
         case .nexysMoved: GameRules.nexysShiftDuration
         case .zodiactionMeterChanged: 0
