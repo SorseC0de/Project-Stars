@@ -56,7 +56,7 @@ struct SparkleView: View {
                 height: size * GameRules.sparkleTileGlowSize
             )
             .blur(radius: size * GameRules.sparkleTileGlowBlur)
-            .opacity(GameRules.sparkleTileGlowOpacity)
+            .opacity(GameRules.sparkleTileGlowOpacity * bloom)
             .blendMode(.plusLighter)
             .offset(
                 x: -GameRules.sparkleNudge.width,
@@ -69,6 +69,11 @@ struct SparkleView: View {
     // swap it in here — nothing outside this file needs to change.
 
     // MARK: - Placeholder art
+
+    /// How much bloom this plane can take before the glyph is lost in it.
+    private var bloom: Double {
+        plane == .terra ? GameRules.sparkleGlowTerraDamping : 1
+    }
 
     private var placeholder: some View {
         let glow = Palette.sparkleGlow(on: plane)
@@ -87,7 +92,7 @@ struct SparkleView: View {
                             radius: size * GameRules.sparkleGlowRadius
                                 * (1 + CGFloat(step) * 0.9)
                         )
-                        .opacity(GameRules.sparkleGlowIntensity / Double(step + 1))
+                        .opacity(GameRules.sparkleGlowIntensity * bloom / Double(step + 1))
                 }
             }
             .blendMode(.plusLighter)

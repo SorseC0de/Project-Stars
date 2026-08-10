@@ -756,6 +756,14 @@ enum GameRules {
     static let sparkleGlowLayers = 3
     static let sparkleGlowIntensity: Double = 0.9
 
+    /// How much of the bloom Terra keeps.
+    ///
+    /// Additive light needs dark ground. Astra's clouds are deep magenta and a
+    /// blue bloom stays legible on them, but Terra's tiles are bright warm
+    /// earth — gold added on top of that saturates, and the star's points are
+    /// the first thing to go. Same effect, less of it, so the shape survives.
+    static let sparkleGlowTerraDamping: Double = 0.45
+
     static let sparkleNudge = CGSize(width: 2, height: 0)
 
     /// The wash of light a sparkle throws onto the square it is marking.
