@@ -105,6 +105,19 @@ struct CloudTileView: View {
             }
         }
         .allowsHitTesting(false)
+        // Nothing in here may be animated by anybody else.
+        //
+        // Every colour and size below is recomputed each frame from the clock
+        // above. If an ancestor installs a transaction — the pop's spring does
+        // exactly that — SwiftUI starts a *second* interpolation toward each new
+        // value on every frame. Springs overshoot, and overshoot on colour
+        // channels runs past the ends of the ramp: a magenta cloud turning blue
+        // takes a detour through red, because its dominant channel overshoots
+        // while the others undershoot.
+        //
+        // The wear shrink below sets its own animation explicitly, which
+        // survives this.
+        .transaction { $0.animation = nil }
         // The raised cloud is a different view from the ordinary one — it is
         // depth-sorted with the pieces rather than laid down with the board — so
         // it arrives already raised and has to start its ramp on appear.
