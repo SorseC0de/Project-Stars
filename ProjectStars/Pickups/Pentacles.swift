@@ -1,0 +1,692 @@
+//
+//  Pentacles.swift
+//  Project Stars
+//
+//  Every Pentacle: what it is, how often it turns up, and what it does.
+//
+
+import Foundation
+
+//  ─────────────────────────────────────────────────────────────────────────
+//  ADDING A PENTACLE
+//
+//  Everything needed lives in this file, on purpose. Three steps, in order:
+//
+//    1. A case in `PickupID`, under the rarity it belongs to.
+//    2. A `PickupEffect` struct further down, in the same order.
+//    3. A line in `PickupCatalog.allEffects`.
+//
+//  Miss step 3 and `PickupCatalog.effect(for:)` traps on first use rather than
+//  failing quietly — the id exists but nothing implements it, and that is worth
+//  finding immediately.
+//
+//  The protocol these conform to, and the context they are handed, are in
+//  `PickupEffect.swift`. That file is the machinery; this one is the content.
+//  ─────────────────────────────────────────────────────────────────────────
+
+// MARK: - PickupID
+
+/// Stable identifier for every Pentacle effect in the game.
+///
+/// State stores this rather than the effect object, which keeps the engine
+/// `Equatable` and `Codable` and makes save/replay straightforward. Look the
+/// behaviour up through `PickupCatalog.effect(for:)`.
+///
+/// - Note: Names marked provisional in the design are marked here too. Renaming
+///   a case changes its `rawValue`, which is both the asset suffix and the
+///   `PentacleCodex` storage key — so a rename also resets that effect's
+///   first-encounter prompt. That is usually what you want during design.
+enum PickupID: String, CaseIterable, Codable, Identifiable, Hashable {
+
+    // MARK: Common
+
+    /// *Provisional name.* Grants a flat amount of Zodiaction charge.
+    case zCharge
+
+    /// *Provisional name.* Fully repairs one random damaged tile on this plane.
+    case restoreTile
+
+    // MARK: Uncommon
+
+    /// Astral Essence — Water. Slides you to the border, damaging as you go.
+    case astralBrook
+
+    /// Astral Essence — Air. Teleports you to a tile of your choosing.
+    case astralBreeze
+
+    /// Astral Essence — Fire. Damages the 3x3 around you, paying out charge.
+    case astralBlaze
+
+    /// Astral Essence — Earth. Repairs the 3x3 around you.
+    case astralBlossom
+
+    /// *Provisional name.* Teleports you to a random corner, safe or not.
+    case cornerWarp
+
+    /// Brings the island to your plane, or warps you onto it if it is already
+    /// there.
+    case nexysShift
+
+    // MARK: Rare
+
+    /// Changes your piece to a random other sign, whether you like it or not.
+    case forcedFate
+
+    /// Lets you choose a new sign — including the one you already have.
+    case alignment
+
+    // MARK: Legendary
+
+    /// Only ever spawns from a sparkle on the north-middle tile.
+    case polaris
+
+    /// Spawns a mirrored shadow of your piece.
+    case shadowWork
+
+    var id: String { rawValue }
+}
+
+/// Grants a flat amount of Zodiaction charge.
+///
+/// The plainest effect in the game on purpose: it is the baseline the others are
+/// measured against, and the one that makes a Pentacle worth taking even when
+/// the board is in good shape.
+struct ZChargeEffect: PickupEffect {
+
+    let id: PickupID = .zCharge
+    let rarity: PickupRarity = .common
+    let displayName = "Z-Charge"
+    let summary = "Gain \(GameRules.zChargePentacleAmount) Zodiaction charge."
+    let glyph = "⚡"
+
+    /// Commonest thing in the tier.
+    let weight = 3
+
+    func plan(
+        context: PickupContext,
+        choice: PickupChoiceResult?,
+        generator: inout SeededRandom
+    ) -> [GameEvent] {
+        let target = context.meter(afterGaining: GameRules.zChargePentacleAmount)
+        guard target != context.zodiactionMeter else { return [] }
+        return [.zodiactionMeterChanged(to: target)]
+    }
+}
+
+/// Fully repairs one randomly-chosen damaged tile on the plane the piece is on.
+///
+/// **Fully**, not by one step — a hole goes straight back to healthy. That makes
+/// it worth taking on a board that has already broken rather than only on one
+/// that is starting to.
+///
+/// On a plane with nothing left to fix it does not fizzle: it pays out a point
+/// of Zodiaction charge instead, so a well-kept board never makes a Pentacle
+/// feel wasted.
+struct RestoreTileEffect: PickupEffect {
+
+    let id: PickupID = .restoreTile
+    let rarity: PickupRarity = .common
+    let displayName = "Restore Tile"
+    let summary = "Fully repairs one damaged tile here. If none are damaged, gain 1 Zodiaction charge instead."
+    let glyph = "✚"
+
+    let weight = 3
+
+    func plan(
+        context: PickupContext,
+        choice: PickupChoiceResult?,
+        generator: inout SeededRandom
+    ) -> [GameEvent] {
+        // The Nexys and its chasm are structural and never candidates —
+        // `repairablePoints` already excludes them.
+        let candidates = context.currentBoard.repairablePoints
+
+        guard let target = candidates.randomElement(using: &generator) else {
+            let meter = context.meter(afterGaining: GameRules.restoreTileBonusCharge)
+            guard meter != context.zodiactionMeter else { return [] }
+            return [.zodiactionMeterChanged(to: meter)]
+        }
+
+        return [.tileHealed(plane: context.plane, point: target, to: .healthy)]
+    }
+}
+
+/// Sweeps the piece along its facing to the far edge of the board, wearing every
+/// tile it crosses.
+///
+/// The water essence: it *flows*. Holes do not stop it — the piece passes
+/// straight over them — so the slide only ends at the border. But it is not
+/// free: the square it comes to rest on is landed on like any other, so a border
+/// tile that is already a hole drops the piece exactly as it would normally.
+///
+/// This is the one effect that lays down a line of damage across a whole rank or
+/// file, which makes it a strong charge-builder for signs that pay out on wear
+/// and a serious liability for anyone who needs the board intact.
+struct AstralBrookEffect: PickupEffect {
+
+    let id: PickupID = .astralBrook
+    let rarity: PickupRarity = .uncommon
+    let displayName = "Astral Brook"
+    let summary = "Slide to the far edge along your facing, damaging every tile you cross and passing over holes."
+    let glyph = "≈"
+    let element: ZodiacElement? = .water
+
+    /// The slide applies its own wear square by square, so the engine must not
+    /// charge the destination a second time on arrival.
+    let arrivalWearsTile = false
+
+    func plan(
+        context: PickupContext,
+        choice: PickupChoiceResult?,
+        generator: inout SeededRandom
+    ) -> [GameEvent] {
+        // Facing a wall, the water simply flows the other way. Without this the
+        // Pentacle is a dud whenever it is opened on a border tile facing out —
+        // which is common, since the border is where sliding tends to strand you.
+        var heading = context.facing
+        if !context.currentBoard.contains(context.piecePoint.offset(by: heading.unitOffset)) {
+            heading = context.facing.opposite
+        }
+        let step = heading.unitOffset
+
+        var events: [GameEvent] = []
+
+        // Turn to face the way the water actually carries you. Without this the
+        // piece arrives at the far wall still looking back the way it came, and
+        // every facing-dependent thing that follows — the cursor, Libra's flanks,
+        // Sagittarius' forward stride — reads the wrong direction.
+        if heading != context.facing {
+            events.append(.pieceTurned(to: heading))
+        }
+
+        var from = context.piecePoint
+        var point = from.offset(by: step)
+
+        // Walk to the border. Damage is computed against the board as the effect
+        // finds it, tile by tile, because the same square is never crossed twice
+        // in a straight line.
+        while context.currentBoard.contains(point) {
+            events.append(.pieceStepped(from: from, to: point, plane: context.plane))
+
+            let tile = context.currentBoard[point]
+            if tile.canBeWorn {
+                events.append(
+                    .tileDamaged(plane: context.plane, point: point, to: tile.health.damaged)
+                )
+            }
+
+            from = point
+            point = point.offset(by: step)
+        }
+
+        return events
+    }
+}
+
+/// Teleports the piece to any square on the current plane, chosen by the player.
+///
+/// The air essence: it *goes anywhere*. No restrictions at all — holes, the
+/// Nexys, the chasm are all legal destinations, which makes this both the most
+/// flexible escape in the game and a way to deliberately drop yourself to Terra
+/// on your own terms.
+///
+/// Arriving is landing, so the destination is worn and every landing check runs:
+/// pick a hole and you fall through it, pick the Terra Nexys and you ride it up.
+struct AstralBreezeEffect: PickupEffect {
+
+    let id: PickupID = .astralBreeze
+    let rarity: PickupRarity = .uncommon
+    let displayName = "Astral Breeze"
+    let summary = "Teleport to any square on this plane — holes and the Nexys included."
+    let glyph = "❁"
+
+    /// The player picks the destination, so this effect suspends the move.
+    let element: ZodiacElement? = .air
+    let choice: PickupChoice = .tile
+
+    func plan(
+        context: PickupContext,
+        choice: PickupChoiceResult?,
+        generator: inout SeededRandom
+    ) -> [GameEvent] {
+        guard case let .tile(destination) = choice,
+              context.currentBoard.contains(destination)
+        else { return [] }
+
+        return [
+            .pieceTeleported(
+                from: context.piecePoint,
+                to: destination,
+                fromPlane: context.plane,
+                toPlane: context.plane
+            )
+        ]
+    }
+}
+
+/// Burns the ring of tiles around the piece, paying out Zodiaction charge for
+/// the damage.
+///
+/// The square underfoot is deliberately **not** included. Burning your own tile
+/// out from under you was not an interesting risk — it was a way to end the run
+/// while standing still, with no decision attached.
+///
+/// The fire essence: it *destroys, and you profit*. Every tile it wears is worth
+/// a point of charge, and every tile it breaks outright is worth two — so it
+/// pays best on a board that was already half gone, and turns a collapsing plane
+/// into a full meter.
+///
+/// The square under the piece burns too. Fire does not spare its caster.
+struct AstralBlazeEffect: PickupEffect {
+
+    let id: PickupID = .astralBlaze
+    let rarity: PickupRarity = .uncommon
+    let displayName = "Astral Blaze"
+    let summary = "The ring of tiles around you loses one stage. Gain 1 charge per tile damaged, 2 per tile broken."
+    let glyph = "✷"
+    let element: ZodiacElement? = .fire
+
+    func plan(
+        context: PickupContext,
+        choice: PickupChoiceResult?,
+        generator: inout SeededRandom
+    ) -> [GameEvent] {
+        // The blaze goes up all at once, so the whole ring travels as one
+        // `tilesChanged` rather than nine separate hits.
+        var changes: [GridPoint: TileHealth] = [:]
+        var charge = 0
+
+        for point in context.piecePoint.surrounding(includingSelf: false) {
+            guard context.currentBoard.contains(point) else { continue }
+
+            let tile = context.currentBoard[point]
+            guard tile.canBeWorn else { continue }
+
+            let health = tile.health.damaged
+            changes[point] = health
+
+            // Breaking a tile outright is worth double.
+            charge += health.isHole
+                ? GameRules.astralBlazeChargePerBreak
+                : GameRules.astralBlazeChargePerDamage
+        }
+
+        var events: [GameEvent] = []
+        if !changes.isEmpty {
+            events.append(.tilesChanged(plane: context.plane, changes: changes))
+        }
+
+        let meter = context.meter(afterGaining: charge)
+        if meter != context.zodiactionMeter {
+            events.append(.zodiactionMeterChanged(to: meter))
+        }
+
+        return events
+    }
+}
+
+/// Repairs the ring of tiles around the piece by one stage each.
+///
+/// Matched to Astral Blaze's footprint — the square underfoot is excluded — so
+/// the two elemental area effects read as a pair.
+///
+/// The earth essence: it *mends what can still be mended*. Holes are past
+/// saving and are skipped entirely — this shores up a board that is wearing
+/// thin, it does not resurrect one that has already collapsed. Compare
+/// `RestoreTileEffect`, which fixes one square completely no matter how far gone.
+struct AstralBlossomEffect: PickupEffect {
+
+    let id: PickupID = .astralBlossom
+    let rarity: PickupRarity = .uncommon
+    let displayName = "Astral Blossom"
+    let summary = "The ring of tiles around you recovers one stage. Holes are beyond help."
+    let glyph = "✽"
+
+    func plan(
+        context: PickupContext,
+        choice: PickupChoiceResult?,
+        generator: inout SeededRandom
+    ) -> [GameEvent] {
+        // Everything blooms together — one `tilesChanged`, not a ripple.
+        var changes: [GridPoint: TileHealth] = [:]
+
+        for point in context.piecePoint.surrounding(includingSelf: false) {
+            guard context.currentBoard.contains(point) else { continue }
+
+            let tile = context.currentBoard[point]
+            // Holes are past saving: the blossom mends damage, it does not
+            // rebuild what has already fallen through.
+            guard tile.canBeRepaired, !tile.health.isHole else { continue }
+
+            changes[point] = tile.health.healed
+        }
+
+        guard !changes.isEmpty else { return [] }
+        return [.tilesChanged(plane: context.plane, changes: changes)]
+    }
+}
+
+/// Teleports the piece to a random corner of the current plane.
+///
+/// Deliberately indiscriminate — it does not check what is there. A corner that
+/// has already broken is a perfectly legal destination and you will drop through
+/// it. That gamble is the effect.
+struct CornerWarpEffect: PickupEffect {
+
+    let id: PickupID = .cornerWarp
+    let rarity: PickupRarity = .uncommon
+    let displayName = "Corner Warp"
+    let summary = "Teleport to a random corner. It does not care what is waiting there."
+    let glyph = "⟀"
+
+    func plan(
+        context: PickupContext,
+        choice: PickupChoiceResult?,
+        generator: inout SeededRandom
+    ) -> [GameEvent] {
+        let last = context.currentBoard.size - 1
+        let corners = [
+            GridPoint(0, 0),
+            GridPoint(last, 0),
+            GridPoint(0, last),
+            GridPoint(last, last),
+        ]
+
+        guard let destination = corners.randomElement(using: &generator) else { return [] }
+        guard destination != context.piecePoint else { return [] }
+
+        return [
+            .pieceTeleported(
+                from: context.piecePoint,
+                to: destination,
+                fromPlane: context.plane,
+                toPlane: context.plane
+            )
+        ]
+    }
+}
+
+/// Closes the distance between the piece and the Nexys island, whichever way
+/// round that happens to be.
+///
+/// One Pentacle, two behaviours, decided entirely by where the island already
+/// is:
+///
+/// - **Island on the other plane** → it moves to yours. You are not carried; it
+///   comes to you.
+/// - **Island already on your plane** → you warp onto it.
+///
+/// That makes it self-sequencing rather than conditional-and-often-useless.
+/// Stranded on a decaying Terra with the island above, the first one you open
+/// calls it down and the second puts you on it — and landing on the island in
+/// Terra rides it back up to a freshly restored Astra
+/// (`GameRules.nexysAscendsFromTerra`). On Astra it is simply a free trip to the
+/// safest square on the board.
+///
+/// Warping onto it is a landing like any other, so every landing check runs —
+/// which is exactly what makes the second step ascend rather than needing a
+/// special case here.
+struct NexysShiftEffect: PickupEffect {
+
+    let id: PickupID = .nexysShift
+    let rarity: PickupRarity = .uncommon
+    let displayName = "Nexys Shift"
+    let summary = "Brings the Nexys island to your plane, or warps you onto it if it is already here."
+    let glyph = "◈"
+
+    func plan(
+        context: PickupContext,
+        choice: PickupChoiceResult?,
+        generator: inout SeededRandom
+    ) -> [GameEvent] {
+        // Island elsewhere: call it down (or up) to you. `carryingPiece: false`
+        // — the island travels alone, you are already where you are.
+        guard context.nexysPlane == context.plane else {
+            return [.nexysMoved(to: context.plane, carryingPiece: false)]
+        }
+
+        // Island here: go to it.
+        guard context.piecePoint != GameRules.nexysPoint else { return [] }
+
+        return [
+            .pieceTeleported(
+                from: context.piecePoint,
+                to: GameRules.nexysPoint,
+                fromPlane: context.plane,
+                toPlane: context.plane
+            )
+        ]
+    }
+}
+
+/// Swaps the piece for a randomly chosen *different* sign.
+///
+/// One of only two things in the game that changes your sign mid-run, and the
+/// one that does not ask. Always a genuine change — it never rolls the sign you
+/// already have, because "nothing happened" is not a rare Pentacle.
+struct ForcedFateEffect: PickupEffect {
+
+    let id: PickupID = .forcedFate
+    let rarity: PickupRarity = .rare
+    let displayName = "Forced Fate"
+    let summary = "Your sign changes at random. You do not get a say."
+    let glyph = "✦"
+
+    func plan(
+        context: PickupContext,
+        choice: PickupChoiceResult?,
+        generator: inout SeededRandom
+    ) -> [GameEvent] {
+        let others = Zodiac.allCases.filter { $0 != context.zodiac }
+        guard let replacement = others.randomElement(using: &generator) else { return [] }
+        return [.pieceChanged(to: replacement)]
+    }
+}
+
+/// Lets the player choose any sign, including the one they already control.
+///
+/// The counterpart to `ForcedFateEffect`, and the reason keeping the same sign
+/// is an explicit option rather than a wasted pickup: sometimes the right answer
+/// really is "stay as I am", and the effect should let you say so rather than
+/// punishing you for opening it.
+struct AlignmentEffect: PickupEffect {
+
+    let id: PickupID = .alignment
+    let rarity: PickupRarity = .rare
+    let displayName = "Alignment"
+    let summary = "Choose any sign to become — including the one you already are."
+    let glyph = "✧"
+
+    /// The player picks, so this effect suspends the move.
+    let choice: PickupChoice = .piece
+
+    func plan(
+        context: PickupContext,
+        choice: PickupChoiceResult?,
+        generator: inout SeededRandom
+    ) -> [GameEvent] {
+        guard case let .piece(chosen) = choice else { return [] }
+        guard chosen != context.zodiac else { return [] }
+        return [.pieceChanged(to: chosen)]
+    }
+}
+
+/// Polaris — pinned to the north-middle square, and nowhere else.
+///
+/// The spawn rule is the finished part: `requiredSpawnPoint` keeps it to
+/// `(3, 0)`, so it is only ever eligible when a sparkle set happens to cover the
+/// top-centre tile, and the reveal is forced there. The catalogue enforces both
+/// halves.
+///
+/// - TODO: **The effect itself is not designed yet** — it was forgotten in the
+///   spec. `weight` is `0` so Polaris cannot currently spawn; give it a real
+///   `plan` body and raise the weight to put it in rotation. Everything else
+///   about it, including the distinct on-board appearance, is already wired.
+struct PolarisEffect: PickupEffect {
+
+    let id: PickupID = .polaris
+    let rarity: PickupRarity = .legendary
+    let displayName = "Polaris"
+    let summary = "Effect not yet designed."
+    let glyph = "★"
+
+    /// Bright and starlit rather than the anonymous gold coin — a legendary is
+    /// rare enough that telegraphing it is the point.
+    let appearance: PentacleAppearance = .radiant
+
+    /// Out of rotation until it does something.
+    let weight = 0
+
+    /// The north-middle tile. Polaris appears here or not at all.
+    let requiredSpawnPoint: GridPoint? = GridPoint(GameRules.gridSize / 2, 0)
+
+    func plan(
+        context: PickupContext,
+        choice: PickupChoiceResult?,
+        generator: inout SeededRandom
+    ) -> [GameEvent] {
+        []
+    }
+}
+
+/// Shadow Work — spawns a mirrored double of your piece.
+///
+/// - TODO: **Scaffolded, not implemented.** `weight` is `0`, so it cannot spawn
+///   and the game stays coherent without it. Unlike every other effect in the
+///   catalogue this one is not a single burst of events — it introduces a
+///   second entity that persists and acts every turn, which the engine has no
+///   concept of yet. The full spec is recorded below so none of it is lost.
+///
+/// ## The Pentacle itself
+///
+/// Appears as a desaturated, dark coin (`appearance == .shadow`), spawning very
+/// rarely *in place of* an ordinary Pentacle. Once it is on the board it does
+/// not sit still: every move the player makes, it moves one square **toward**
+/// them, until it is caught.
+///
+/// ## What opening it does
+///
+/// Spawns a shadow copy of the player's piece on the Nexys. If the Nexys is not
+/// on the player's plane, it instead spawns a **visual-only** shadow duplicate of
+/// the island at the centre — one the player cannot step on — and puts the
+/// shadow piece there.
+///
+/// ## The shadow's behaviour
+///
+/// It mirrors the player exactly: move west one square, it moves east one. It
+/// wears tiles on landing precisely as the player does, so it roughly doubles
+/// the rate the board is destroyed.
+///
+/// ## Getting rid of it
+///
+/// - **Collide with it** → it vanishes and the Zodiaction meter fills completely.
+/// - **Drive it into a hole**, or **into a Pentacle** → destroyed, half meter.
+///
+/// ## The one exception
+///
+/// If the shadow spawned on a *shadow* Nexys — i.e. the real island was on the
+/// other plane — then driving it into the centre chasm does **not** work: it
+/// lands safely on its shadow island instead. Deliberate. The chasm is a
+/// guaranteed hole on every board, which would otherwise make disposing of the
+/// shadow trivial.
+///
+/// ## What building it needs
+///
+/// 1. Engine state: shadow position/plane, and the shadow-Nexys marker.
+/// 2. Events: shadow spawned, stepped, destroyed — plus reusing `.tileDamaged`
+///    for the wear it causes.
+/// 3. A hook in the move pipeline to mirror the player's committed offset and
+///    settle the shadow, after the player's own travel resolves.
+/// 4. A hook for the Pentacle's own pre-collection movement, which is the first
+///    thing in the game that moves a revealed Pentacle.
+struct ShadowWorkEffect: PickupEffect {
+
+    let id: PickupID = .shadowWork
+    let rarity: PickupRarity = .legendary
+    let displayName = "Shadow Work"
+    let summary = "A mirrored shadow of your piece appears and copies every move you make."
+    let glyph = "☾"
+
+    /// Desaturated and dark, so it is recognisable on sight.
+    let appearance: PentacleAppearance = .shadow
+
+    /// Out of rotation until the shadow entity exists.
+    let weight = 0
+
+    func plan(
+        context: PickupContext,
+        choice: PickupChoiceResult?,
+        generator: inout SeededRandom
+    ) -> [GameEvent] {
+        []
+    }
+}
+
+// MARK: - PickupCatalog
+
+/// The registry of every Pentacle, and the roll that decides which one spawns.
+enum PickupCatalog {
+
+    /// Every implemented effect, keyed by id.
+    static let allEffects: [PickupID: any PickupEffect] = [
+        .zCharge: ZChargeEffect(),
+        .restoreTile: RestoreTileEffect(),
+
+        .astralBrook: AstralBrookEffect(),
+        .astralBreeze: AstralBreezeEffect(),
+        .astralBlaze: AstralBlazeEffect(),
+        .astralBlossom: AstralBlossomEffect(),
+        .cornerWarp: CornerWarpEffect(),
+        .nexysShift: NexysShiftEffect(),
+
+        .forcedFate: ForcedFateEffect(),
+        .alignment: AlignmentEffect(),
+
+        .polaris: PolarisEffect(),
+        .shadowWork: ShadowWorkEffect(),
+    ]
+
+    /// The effect for an id. Traps on an unregistered id, which can only happen
+    /// if a `PickupID` case was added without its implementation.
+    static func effect(for id: PickupID) -> any PickupEffect {
+        guard let effect = allEffects[id] else {
+            preconditionFailure("No PickupEffect registered for \(id.rawValue)")
+        }
+        return effect
+    }
+
+    /// Rolls the Pentacle to hide in a sparkle set.
+    ///
+    /// Two stages — tier, then effect within the tier — so the odds of a
+    /// legendary do not shift every time a common one is added.
+    ///
+    /// - Parameter sparklePoints: Squares the set covers. Effects with a
+    ///   `requiredSpawnPoint` are only eligible when the set includes it, which
+    ///   is how Polaris stays pinned to the north-middle tile.
+    static func rollPickup(
+        sparklePoints: [GridPoint],
+        using generator: inout SeededRandom
+    ) -> PickupID? {
+        let covered = Set(sparklePoints)
+
+        /// Effects in `rarity` that could legally appear in this set.
+        func eligible(in rarity: PickupRarity) -> [(value: PickupID, weight: Int)] {
+            allEffects.values
+                .filter { effect in
+                    guard effect.rarity == rarity, effect.weight > 0 else { return false }
+                    guard let required = effect.requiredSpawnPoint else { return true }
+                    return covered.contains(required)
+                }
+                .map { (value: $0.id, weight: $0.weight) }
+        }
+
+        // Only offer tiers that actually have something to give, so an empty
+        // legendary tier cannot swallow a roll.
+        let tiers = PickupRarity.allCases
+            .filter { !eligible(in: $0).isEmpty }
+            .map { (value: $0, weight: $0.weight) }
+
+        guard let tier = generator.pick(weighted: tiers) else { return nil }
+        return generator.pick(weighted: eligible(in: tier))
+    }
+}

@@ -7,68 +7,6 @@
 
 import Foundation
 
-// MARK: - PickupID
-
-/// Stable identifier for every Pentacle effect in the game.
-///
-/// State stores this rather than the effect object, which keeps the engine
-/// `Equatable` and `Codable` and makes save/replay straightforward. Look the
-/// behaviour up through `PickupCatalog.effect(for:)`.
-///
-/// - Note: Names marked provisional in the design are marked here too. Renaming
-///   a case changes its `rawValue`, which is both the asset suffix and the
-///   `PentacleCodex` storage key — so a rename also resets that effect's
-///   first-encounter prompt. That is usually what you want during design.
-enum PickupID: String, CaseIterable, Codable, Identifiable, Hashable {
-
-    // MARK: Common
-
-    /// *Provisional name.* Grants a flat amount of Zodiaction charge.
-    case zCharge
-
-    /// *Provisional name.* Fully repairs one random damaged tile on this plane.
-    case restoreTile
-
-    // MARK: Uncommon
-
-    /// Astral Essence — Water. Slides you to the border, damaging as you go.
-    case astralBrook
-
-    /// Astral Essence — Air. Teleports you to a tile of your choosing.
-    case astralBreeze
-
-    /// Astral Essence — Fire. Damages the 3x3 around you, paying out charge.
-    case astralBlaze
-
-    /// Astral Essence — Earth. Repairs the 3x3 around you.
-    case astralBlossom
-
-    /// *Provisional name.* Teleports you to a random corner, safe or not.
-    case cornerWarp
-
-    /// Brings the island to your plane, or warps you onto it if it is already
-    /// there.
-    case nexysShift
-
-    // MARK: Rare
-
-    /// Changes your piece to a random other sign, whether you like it or not.
-    case forcedFate
-
-    /// Lets you choose a new sign — including the one you already have.
-    case alignment
-
-    // MARK: Legendary
-
-    /// Only ever spawns from a sparkle on the north-middle tile.
-    case polaris
-
-    /// Spawns a mirrored shadow of your piece.
-    case shadowWork
-
-    var id: String { rawValue }
-}
-
 // MARK: - PickupRarity
 
 /// How often a tier of Pentacle turns up.
@@ -103,7 +41,7 @@ enum PickupRarity: String, CaseIterable, Codable {
 /// Ordinary Pentacles are deliberately identical — the coin is a loot box. The
 /// legendaries are the documented exception: they are rare enough that
 /// telegraphing them is the point.
-enum PentacleAppearance: String, Codable {
+enum PentacleAppearance: String, CaseIterable, Codable {
     /// The standard gold coin. Every common, uncommon and rare uses this.
     case standard
 
@@ -260,73 +198,4 @@ extension PickupEffect {
     var requiredSpawnPoint: GridPoint? { nil }
     var choice: PickupChoice { .none }
     var arrivalWearsTile: Bool { true }
-}
-
-// MARK: - PickupCatalog
-
-/// The registry of every Pentacle, and the roll that decides which one spawns.
-enum PickupCatalog {
-
-    /// Every implemented effect, keyed by id.
-    static let allEffects: [PickupID: any PickupEffect] = [
-        .zCharge: ZChargeEffect(),
-        .restoreTile: RestoreTileEffect(),
-
-        .astralBrook: AstralBrookEffect(),
-        .astralBreeze: AstralBreezeEffect(),
-        .astralBlaze: AstralBlazeEffect(),
-        .astralBlossom: AstralBlossomEffect(),
-        .cornerWarp: CornerWarpEffect(),
-        .nexysShift: NexysShiftEffect(),
-
-        .forcedFate: ForcedFateEffect(),
-        .alignment: AlignmentEffect(),
-
-        .polaris: PolarisEffect(),
-        .shadowWork: ShadowWorkEffect(),
-    ]
-
-    /// The effect for an id. Traps on an unregistered id, which can only happen
-    /// if a `PickupID` case was added without its implementation.
-    static func effect(for id: PickupID) -> any PickupEffect {
-        guard let effect = allEffects[id] else {
-            preconditionFailure("No PickupEffect registered for \(id.rawValue)")
-        }
-        return effect
-    }
-
-    /// Rolls the Pentacle to hide in a sparkle set.
-    ///
-    /// Two stages — tier, then effect within the tier — so the odds of a
-    /// legendary do not shift every time a common one is added.
-    ///
-    /// - Parameter sparklePoints: Squares the set covers. Effects with a
-    ///   `requiredSpawnPoint` are only eligible when the set includes it, which
-    ///   is how Polaris stays pinned to the north-middle tile.
-    static func rollPickup(
-        sparklePoints: [GridPoint],
-        using generator: inout SeededRandom
-    ) -> PickupID? {
-        let covered = Set(sparklePoints)
-
-        /// Effects in `rarity` that could legally appear in this set.
-        func eligible(in rarity: PickupRarity) -> [(value: PickupID, weight: Int)] {
-            allEffects.values
-                .filter { effect in
-                    guard effect.rarity == rarity, effect.weight > 0 else { return false }
-                    guard let required = effect.requiredSpawnPoint else { return true }
-                    return covered.contains(required)
-                }
-                .map { (value: $0.id, weight: $0.weight) }
-        }
-
-        // Only offer tiers that actually have something to give, so an empty
-        // legendary tier cannot swallow a roll.
-        let tiers = PickupRarity.allCases
-            .filter { !eligible(in: $0).isEmpty }
-            .map { (value: $0, weight: $0.weight) }
-
-        guard let tier = generator.pick(weighted: tiers) else { return nil }
-        return generator.pick(weighted: eligible(in: tier))
-    }
 }
