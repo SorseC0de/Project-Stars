@@ -144,6 +144,20 @@ final class GameSession {
 
     /// The square a seafoam scuttle started from, so its first bubble is only played
     /// once however many squares the walk covers. Cleared when the move commits.
+    /// Squares the piece has recently left, newest first.
+    ///
+    /// Real positions, not interpolated ones — see `AfterimageView` for why that
+    /// is the whole difference between an afterimage and a smear.
+    private(set) var afterimages: [Afterimage] = []
+
+    /// One square the piece was on, and when it left.
+    struct Afterimage: Identifiable, Equatable {
+        let id = UUID()
+        let point: GridPoint
+        let plane: Plane
+        let born: Date
+    }
+
     private var crabWalkOrigin: GridPoint?
 
     /// The strip owed to the tiles the Pentacle just opened is about to change.
@@ -247,6 +261,7 @@ final class GameSession {
         effectBursts = []
         pluming = nil
         crabWalkOrigin = nil
+        afterimages = []
         chargeFlashStartedAt = nil
         collectBurst = nil
         smoke = nil
@@ -548,7 +563,8 @@ final class GameSession {
                 await introducePentacle(id)
             }
 
-        case .pieceSlid:
+        case let .pieceSlid(from, _, plane):
+            leaveAfterimage(at: from, on: plane)
             // No hop pose, no dust, no beat to speak of: the squares run
             // together so the whole sweep reads as one movement. Linear on
             // purpose — a spring per square would make the current stutter.
@@ -558,6 +574,7 @@ final class GameSession {
             await sleep(event.displayDuration)
 
         case let .pieceStepped(from, to, plane):
+            leaveAfterimage(at: from, on: plane)
             hopDistance = max(from.manhattanDistance(to: to), 1)
             hopCount += 1
             hopStartedAt = .now
@@ -1125,6 +1142,17 @@ extension GameSession {
                 nanoseconds: UInt64((delay + effect.duration) * 1_000_000_000)
             )
             self?.effectBursts.removeAll { $0.id == burst.id }
+        }
+    }
+
+    /// Remembers a square the piece has just left.
+    ///
+    /// Kept short: an afterimage is the last half second, and the oldest one
+    /// falls off the end rather than fading forever.
+    private func leaveAfterimage(at point: GridPoint, on plane: Plane) {
+        afterimages.insert(Afterimage(point: point, plane: plane, born: .now), at: 0)
+        if afterimages.count > GameRules.afterimageCount {
+            afterimages.removeLast(afterimages.count - GameRules.afterimageCount)
         }
     }
 

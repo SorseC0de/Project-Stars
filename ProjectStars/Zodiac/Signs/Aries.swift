@@ -66,12 +66,21 @@ struct AriesSearingStride: ZodiacPassive {
     static let requiredStreak = 3
 
     let displayName = "Searing Stride"
-    let summary = "Astra & Terra: +1 charge for each consecutive move in the same direction after the second."
+    let summary = "Astra & Terra: +1 charge for each consecutive move in the same direction after the second. Silent while Brazen Blaze burns."
 
     func meterBonus(from move: MoveSummary, context: PassiveContext) -> Int {
+        // Not while Brazen Blaze burns.
+        //
+        // The two make a loop otherwise: Blaze defers damage to the tile being
+        // left, so a burning Aries can run a straight line over ground it has
+        // not touched yet, taking no wear on arrival and charging a pip a move
+        // for doing it — which pays for the next Blaze. An ability should not
+        // fund its own repeat.
+        guard !context.signState.isActive(AriesBrazenBlazeCarrier.buffKey) else { return 0 }
+
         // `signState` is updated before charging, so the streak already counts
         // the move being priced. Length 1 is a fresh direction and pays nothing.
-        context.signState.streakLength >= Self.requiredStreak ? 1 : 0
+        return context.signState.streakLength >= Self.requiredStreak ? 1 : 0
     }
 }
 

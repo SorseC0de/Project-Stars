@@ -18,13 +18,18 @@ import SwiftUI
 ///   which makes the trail a readable record of the last half second rather than
 ///   a smear of one hue.
 ///
-/// ## Why it lags rather than remembering
+/// ## Why it remembers rather than lags
 ///
-/// Same trick as `GemTrailView`: every copy is placed at the piece's *current*
-/// square and given its own slower spring, so `.animation(_:value:)` overrides
-/// the replay's transaction and the copy arrives late. No position history to
-/// keep, and nothing to clean up — when the piece stops, the copies settle onto
-/// it and the trail closes.
+/// The first version placed every copy at the piece's *current* square under its
+/// own slower spring. That is a smear, not an afterimage: the ghosts are always
+/// somewhere between two squares, sliding continuously, and they read as one
+/// blurred object being dragged.
+///
+/// An afterimage is a snapshot. Each copy is pinned to a square the piece
+/// **actually stood on** and does not move at all — it appears where the piece
+/// was, holds, and fades. The result is deliberately choppy, one ghost per
+/// square, which is what makes it read as a trail of images rather than motion
+/// blur.
 struct AfterimageView: View {
 
     let zodiac: Zodiac
@@ -38,8 +43,11 @@ struct AfterimageView: View {
     /// Whole-pixel scale, for art-pixel offsets.
     let scale: CGFloat
 
-    /// How far back in the trail this copy is. `0` rides closest to the piece.
+    /// How far back in the trail this copy is. `0` is the square just left.
     let step: Int
+
+    /// How far through its life this ghost is, `0` fresh to `1` gone.
+    let age: Double
 
     var body: some View {
         PixelSprite(id: .piece(zodiac)) { Color.clear }
@@ -48,7 +56,9 @@ struct AfterimageView: View {
                 zip(Palette.pieceGoldTones, Palette.trailTones(for: element))
                     .map(PaletteSwap.init)
             )
-            .opacity(pow(GameRules.afterimageFalloff, Double(step + 1)))
+            // Fades on its own clock as well as by distance, so a ghost never
+            // outlives the moment it is a record of.
+            .opacity(pow(GameRules.afterimageFalloff, Double(step + 1)) * (1 - age))
             // Matches `PieceView`'s figure box, so the ghost sits where the
             // piece was rather than near it.
             .offset(y: -tileSize / 2 - GameRules.pieceLift * scale)

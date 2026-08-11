@@ -300,11 +300,17 @@ enum GameRules {
     /// pixels. They ring the figure, not the tile it is standing on.
     static let starSparkLift: CGFloat = 8
 
+    /// How long one afterimage lasts before it is gone.
+    ///
+    /// Short. It is a record of where the piece just was, not a decoration that
+    /// hangs around behind a piece standing still.
+    static let afterimageLife: TimeInterval = 0.45
+
     /// How many afterimages a piece drags behind it.
     ///
     /// Drawn by a full meter and by the star, in elemental colour either way —
     /// see `AfterimageView`.
-    static let afterimageCount = 4
+    static let afterimageCount = 3
 
     /// Seconds of spring response per step of lag.
     ///

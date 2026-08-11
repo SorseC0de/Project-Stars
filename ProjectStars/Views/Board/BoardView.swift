@@ -529,7 +529,7 @@ struct BoardView: View {
         if hover != 0 { shadowScale *= GameRules.hoverShadowScale }
 
         return ZStack {
-            afterimages(metrics: metrics, starring: starElement)
+            afterimages(metrics: metrics, starring: starElement, at: Date())
             gemTrail(metrics: metrics)
 
             PieceView(
@@ -623,41 +623,47 @@ struct BoardView: View {
     /// Drawn by a charged meter in the sign's own element, and by the star in
     /// all four at once. Under the piece, so it is never dimmed by a ghost
     /// passing over it.
+    ///
+    /// Each ghost is pinned to a square the piece really stood on and never
+    /// moves — see `AfterimageView`.
     @ViewBuilder
-    private func afterimages(metrics: PixelArtMetrics, starring: ZodiacElement?) -> some View {
+    private func afterimages(
+        metrics: PixelArtMetrics,
+        starring: ZodiacElement?,
+        at date: Date
+    ) -> some View {
         let charged = session.engine.isZodiactionReady
 
         if starring != nil || charged, !session.isFalling {
             let elements = ZodiacElement.allCases
-            let now = Date().timeIntervalSinceReferenceDate / GameRules.starCyclePeriod
-            let current = Int(now * Double(elements.count))
+            let cycle = date.timeIntervalSinceReferenceDate / GameRules.starCyclePeriod
+            let current = Int(cycle * Double(elements.count))
 
-            ForEach(0..<GameRules.afterimageCount, id: \.self) { step in
-                // Starred, each ghost wears the colour from `step` places back
-                // in the cycle — what the piece was wearing when it was where
-                // the ghost is. Merely charged, they all wear the sign's own.
-                let index = ((current - step - 1) % elements.count + elements.count)
-                    % elements.count
-                let element = starring == nil
-                    ? session.zodiac.element
-                    : elements[index]
+            ForEach(Array(session.afterimages.enumerated()), id: \.element.id) { step, ghost in
+                let age = date.timeIntervalSince(ghost.born) / GameRules.afterimageLife
 
-                AfterimageView(
-                    zodiac: session.zodiac,
-                    element: element,
-                    tileSize: metrics.tileSize,
-                    scale: metrics.scale,
-                    step: step
-                )
-                .position(metrics.center(of: session.engine.piece.point))
-                .animation(
-                    .spring(
-                        response: GameRules.afterimageLag * Double(step + 2),
-                        dampingFraction: 0.9
-                    ),
-                    value: session.engine.piece.point
-                )
+                if ghost.plane == session.visiblePlane, age < 1 {
+                    // Starred, each ghost wears the colour from `step` places
+                    // back in the cycle — what the piece was wearing when it was
+                    // standing there. Merely charged, they all wear the sign's.
+                    let index = ((current - step - 1) % elements.count + elements.count)
+                        % elements.count
+
+                    AfterimageView(
+                        zodiac: session.zodiac,
+                        element: starring == nil ? session.zodiac.element : elements[index],
+                        tileSize: metrics.tileSize,
+                        scale: metrics.scale,
+                        step: step,
+                        age: age
+                    )
+                    .position(metrics.center(of: ghost.point))
+                }
             }
+            // Pinned, and pinned means pinned: an inherited transaction would
+            // animate a ghost from wherever the last one was, which is exactly
+            // the sliding this replaced.
+            .transaction { $0.animation = nil }
         }
     }
 
