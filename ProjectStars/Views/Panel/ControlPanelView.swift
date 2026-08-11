@@ -244,11 +244,6 @@ private struct MainFaceView: View {
                 }
                 .frame(width: 74, height: 30)
 
-                // The keyboard has Z for this; a phone does not.
-                CelButton(tint: Palette.stone) { session.debugFillZodiaction() } label: {
-                    Text("FILL").font(.system(size: 10, weight: .heavy, design: .monospaced))
-                }
-                .frame(width: 60, height: 30)
             }
         }
     }
