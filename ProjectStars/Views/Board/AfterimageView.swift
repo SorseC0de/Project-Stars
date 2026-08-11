@@ -1,21 +1,22 @@
 //
-//  StarTrailView.swift
+//  AfterimageView.swift
 //  Project Stars
 //
-//  The colours the star leaves behind it.
+//  The colours a piece leaves behind it.
 //
 
 import SwiftUI
 
-/// One afterimage of a starred piece, in a colour it was wearing a moment ago.
+/// One afterimage of the piece, in an element's colours.
 ///
-/// ## Why the colours differ per copy
+/// Two states leave a trail, and they say different things with it:
 ///
-/// The star cycles the piece through all four elements. If every afterimage wore
-/// the *current* colour the trail would be a smear of one hue — but each copy
-/// lags in time, so each one should wear the colour from when it was there.
-/// Copy `step` takes the element `step` places back in the cycle, which makes
-/// the trail a readable record of the last half second.
+/// - **A full meter** trails the sign's own element. The piece itself stays gold
+///   — this is what carries the state, streaming off it.
+/// - **The star** cycles all four, and each copy wears the colour from when it
+///   was there: copy `step` takes the element `step` places back in the cycle,
+///   which makes the trail a readable record of the last half second rather than
+///   a smear of one hue.
 ///
 /// ## Why it lags rather than remembering
 ///
@@ -24,7 +25,7 @@ import SwiftUI
 /// the replay's transaction and the copy arrives late. No position history to
 /// keep, and nothing to clean up — when the piece stops, the copies settle onto
 /// it and the trail closes.
-struct StarTrailView: View {
+struct AfterimageView: View {
 
     let zodiac: Zodiac
 
@@ -47,7 +48,7 @@ struct StarTrailView: View {
                 zip(Palette.pieceGoldTones, Palette.trailTones(for: element))
                     .map(PaletteSwap.init)
             )
-            .opacity(pow(GameRules.starTrailFalloff, Double(step + 1)))
+            .opacity(pow(GameRules.afterimageFalloff, Double(step + 1)))
             // Matches `PieceView`'s figure box, so the ghost sits where the
             // piece was rather than near it.
             .offset(y: -tileSize / 2 - GameRules.pieceLift * scale)

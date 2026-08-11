@@ -122,11 +122,16 @@ struct PieceView: View {
     @ViewBuilder
     private var lit: some View {
         if isCharged {
+            // The gold blooms, and the eyes with it. Both entries, not just the
+            // gem: a charged piece should look lit from inside rather than
+            // wearing two bright pixels.
             PaletteGlow(
-                colors: [gem.lit],
+                colors: [Palette.gold, gem.lit],
                 radius: GameRules.gemGlowRadius * scale,
                 trail: GameRules.gemGlowTrail
             ) {
+                // The eyes keep the old rule — the sign's element, on both
+                // planes — while the body stays gold.
                 material.paletteSwap([PaletteSwap(gem.dim, gem.lit)])
             }
         } else {
@@ -140,7 +145,7 @@ struct PieceView: View {
         // Colour burns the stone off: gold on both planes for as long as it
         // lasts, which is most of how you can tell at a glance that something is
         // up — and the gold is then swapped for whichever element is being worn.
-        switch wornElement == nil ? plane : .astra {
+        switch isGilded ? .astra : plane {
         case .astra:
             recoloured(sprite)
 
@@ -188,11 +193,18 @@ struct PieceView: View {
         }
     }
 
-    /// The element the piece is currently dressed in, if any. The star wins,
-    /// since it is the rarer state and the one that should be unmistakable.
-    private var wornElement: ZodiacElement? {
-        starElement ?? (isCharged ? zodiac.element : nil)
-    }
+    /// The element the piece's *body* is dressed in, if any.
+    ///
+    /// Only the star. A charged piece stays gold — its element is carried by the
+    /// lit eyes and by the trail streaming off it, which is a louder signal than
+    /// recolouring the figure and leaves the star's recolour meaning one thing
+    /// and one thing only.
+    private var wornElement: ZodiacElement? { starElement }
+
+    /// Whether the figure is drawn in gold rather than its plane's material.
+    ///
+    /// Both a full meter and the star burn the stone off, on both planes.
+    private var isGilded: Bool { isCharged || starElement != nil }
 
     private var sprite: some View {
         PixelSprite(id: .piece(zodiac)) {

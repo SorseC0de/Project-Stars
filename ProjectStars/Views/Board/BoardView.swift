@@ -529,7 +529,7 @@ struct BoardView: View {
         if hover != 0 { shadowScale *= GameRules.hoverShadowScale }
 
         return ZStack {
-            starTrail(metrics: metrics, element: starElement)
+            afterimages(metrics: metrics, starring: starElement)
             gemTrail(metrics: metrics)
 
             PieceView(
@@ -618,26 +618,33 @@ struct BoardView: View {
         return CGFloat(linear * linear * (3 - 2 * linear))
     }
 
-    /// The colours a starred piece drags behind it.
+    /// The colours a piece drags behind it.
     ///
-    /// Drawn under the piece, and under the gem trail, so neither is dimmed by
-    /// a ghost passing over it.
+    /// Drawn by a charged meter in the sign's own element, and by the star in
+    /// all four at once. Under the piece, so it is never dimmed by a ghost
+    /// passing over it.
     @ViewBuilder
-    private func starTrail(metrics: PixelArtMetrics, element: ZodiacElement?) -> some View {
-        if element != nil, !session.isFalling {
+    private func afterimages(metrics: PixelArtMetrics, starring: ZodiacElement?) -> some View {
+        let charged = session.engine.isZodiactionReady
+
+        if starring != nil || charged, !session.isFalling {
             let elements = ZodiacElement.allCases
             let now = Date().timeIntervalSinceReferenceDate / GameRules.starCyclePeriod
             let current = Int(now * Double(elements.count))
 
-            ForEach(0..<GameRules.starTrailCount, id: \.self) { step in
-                // The colour from `step` places back in the cycle: what the
-                // piece was wearing when it was where this ghost is.
+            ForEach(0..<GameRules.afterimageCount, id: \.self) { step in
+                // Starred, each ghost wears the colour from `step` places back
+                // in the cycle — what the piece was wearing when it was where
+                // the ghost is. Merely charged, they all wear the sign's own.
                 let index = ((current - step - 1) % elements.count + elements.count)
                     % elements.count
+                let element = starring == nil
+                    ? session.zodiac.element
+                    : elements[index]
 
-                StarTrailView(
+                AfterimageView(
                     zodiac: session.zodiac,
-                    element: elements[index],
+                    element: element,
                     tileSize: metrics.tileSize,
                     scale: metrics.scale,
                     step: step
@@ -645,7 +652,7 @@ struct BoardView: View {
                 .position(metrics.center(of: session.engine.piece.point))
                 .animation(
                     .spring(
-                        response: GameRules.starTrailLag * Double(step + 2),
+                        response: GameRules.afterimageLag * Double(step + 2),
                         dampingFraction: 0.9
                     ),
                     value: session.engine.piece.point

@@ -300,22 +300,21 @@ enum GameRules {
     /// pixels. They ring the figure, not the tile it is standing on.
     static let starSparkLift: CGFloat = 8
 
-    /// How many afterimages the star drags behind it, and how far each lags.
+    /// How many afterimages a piece drags behind it.
     ///
-    /// Each copy wears the colour the piece was wearing a step *earlier* in the
-    /// cycle, so the trail is literally an after-image — the recent past of the
-    /// piece, strung out behind it.
-    static let starTrailCount = 4
+    /// Drawn by a full meter and by the star, in elemental colour either way —
+    /// see `AfterimageView`.
+    static let afterimageCount = 4
 
     /// Seconds of spring response per step of lag.
     ///
     /// This is the dial for how far the trail stretches: each ghost's spring is
     /// this times its distance back, so raising it makes every one of them
     /// arrive later and the tail longer.
-    static let starTrailLag: TimeInterval = 0.26
+    static let afterimageLag: TimeInterval = 0.26
 
     /// What fraction of the previous ghost's opacity each one keeps.
-    static let starTrailFalloff: Double = 0.82
+    static let afterimageFalloff: Double = 0.82
 
     // ── Hovering ──────────────────────────────────────────────────────────
 
