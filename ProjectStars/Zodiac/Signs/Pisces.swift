@@ -73,7 +73,16 @@ struct PiscesAstralAttunement: ZodiacPassive {
 
     func meterBonus(from move: MoveSummary, context: PassiveContext) -> Int {
         if move.endingPlane == .astra { return 1 }
-        return move.startingPlane == .terra ? -1 : 0
+        guard move.startingPlane == .terra else { return 0 }
+
+        // The first move after arriving is free.
+        //
+        // Without this Upstream cannot be used at all: Gaia Geyser fills the
+        // meter on the descent, Upstream refuses on that same turn, and the very
+        // next move drains a pip — so the one turn it is available is the one
+        // turn it is forbidden. The free move is the window.
+        let settling = context.moveCount == context.signState.planeArrivalMove + 1
+        return settling ? 0 : -1
     }
 }
 
@@ -105,10 +114,12 @@ struct PiscesGaiaGeyser: ZodiacPassive {
 /// *Provisional name for the pair.* Two entirely different effects sharing one
 /// meter, split by plane.
 ///
-/// - **Terra — Upstream:** swim back up to Astra. The only self-sufficient ascent
-///   in the game; every other route needs the Nexys. It cannot be used on the
-///   same turn as the fall that brought you down, so a descent always costs at
-///   least one turn on Terra.
+/// - **Terra — Upstream:** swim back up to Astra, punching through the cloud
+///   directly overhead and surfacing one square along from it. The only
+///   self-sufficient ascent in the game; every other route needs the Nexys.
+///   It cannot be used on the same turn as the fall that brought you down, so a
+///   descent always costs at least one turn on Terra — and the hole it leaves
+///   means Pisces never returns to an unbroken Astra.
 /// - **Astra — Downstream:** the Astral Brook, run from the meter instead of
 ///   from a coin. Sweeps to the far edge along the facing, wearing every tile
 ///   crossed and passing over holes.
@@ -122,7 +133,7 @@ struct PiscesSurgingStream: Zodiaction {
     /// the ability *is* on each plane, and the panel will want them set smaller
     /// under the name once the bottom display is revamped for larger text.
     let subtitle = "Upstream / Downstream"
-    let summary = "Terra: swim back up to Astra. Astra: sweep to the far edge, damaging every tile you cross."
+    let summary = "Terra: surface on Astra one square along, holing the cloud you came through. Astra: sweep to the far edge, damaging every tile you cross."
 
     /// Pisces' charge comes entirely from Astral Attunement and Gaia Geyser.
     func meterGain(from move: MoveSummary, context: PassiveContext) -> Int { 0 }
@@ -144,14 +155,40 @@ struct PiscesSurgingStream: Zodiaction {
     // MARK: Terra — Upstream
 
     private func upstream(_ context: PassiveContext) -> [GameEvent] {
-        [
-            .pieceTeleported(
-                from: context.piecePoint,
-                to: context.piecePoint,
-                fromPlane: .terra,
-                toPlane: .astra
-            )
-        ]
+        let origin = context.piecePoint
+
+        // Brook rules at a wall: surfacing forward would put the fish off the
+        // board, so it comes up the other way instead — still one square, never
+        // straight up.
+        var heading = context.facing
+        if !context.currentBoard.contains(origin.offset(by: heading.unitOffset)) {
+            heading = context.facing.opposite
+        }
+        let surface = origin.offset(by: heading.unitOffset)
+        guard context.currentBoard.contains(surface) else { return [] }
+
+        var events: [GameEvent] = []
+        if heading != context.facing {
+            events.append(.pieceTurned(to: heading))
+        }
+
+        // Punch through the cloud directly overhead. That hole is the price:
+        // Pisces never returns to an unbroken Astra, and the way back up is
+        // always visible in the board afterwards.
+        //
+        // Skipped over the island, which is not cloud and cannot be swum
+        // through — there the fish simply surfaces beside it.
+        if origin != GameRules.nexysPoint {
+            events.append(.tileDamaged(plane: .astra, point: origin, to: .hole))
+        }
+
+        // Then up and one square along, so the piece emerges next to the hole it
+        // just made rather than hovering over it.
+        events.append(
+            .pieceTeleported(from: origin, to: surface, fromPlane: .terra, toPlane: .astra)
+        )
+
+        return events
     }
 
     // MARK: Astra — Downstream
