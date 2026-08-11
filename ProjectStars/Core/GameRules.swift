@@ -220,6 +220,17 @@ enum GameRules {
     /// outrun the leak, or crossing the board to a coin is a net loss.
     static let aridAquanautCharge = 5
 
+    /// How often an Astral Essence turns out to be the fifth one.
+    ///
+    /// Rolled *inside* the Essence result rather than beside it, so the Bolt
+    /// cannot dilute anything else: the odds of getting "an Essence" are
+    /// unchanged, and this decides which one you got. At the Essences' combined
+    /// 17% it works out near 1.3% of all coins.
+    static let astralBoltChance = 0.08
+
+    /// How many stages of wear each square in the Bolt's cross takes.
+    static let astralBoltWear = 1
+
     /// Extra charge for opening an Astral Essence that matches your element.
     ///
     /// Undocumented in the coin's own summary on purpose: it is a reward for

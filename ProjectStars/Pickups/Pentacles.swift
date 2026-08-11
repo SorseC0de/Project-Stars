@@ -60,6 +60,10 @@ enum PickupID: String, CaseIterable, Codable, Identifiable, Hashable {
     /// Astral Essence — Earth. Repairs the 3x3 around you.
     case astralBlossom
 
+    /// Astral Essence — the fifth. Storms your row and column, and fills the
+    /// meter. See `AstralBoltEffect`.
+    case astralBolt
+
     /// *Provisional name.* Teleports you to a random corner, safe or not.
     case cornerWarp
 
@@ -253,6 +257,83 @@ struct AstralBrookEffect: PickupEffect {
             point = point.offset(by: step)
         }
 
+        return events
+    }
+}
+
+/// Astral Bolt — the fifth Essence, and the one nothing is attuned to.
+///
+/// A storm strikes the whole row and column through the piece: every ordinary
+/// square on both lines takes a stage of wear, and the meter fills outright.
+///
+/// ## Why it is worth being rare
+///
+/// It is the only effect in the game that is unambiguously *both*. A full meter
+/// is the strongest thing a coin can hand you; thirteen squares of damage is the
+/// most any coin has ever done to the board, and it lands on the two lines you
+/// are standing at the intersection of — the ground you are most likely to be
+/// using next. Taking it is a decision, not a windfall.
+///
+/// ## Why no element
+///
+/// The four Essences each belong to three signs, which is what makes the
+/// affinity bonus mean something. Lightning belongs to none of them: `element`
+/// is `nil`, so no piece is ever attuned to it and nobody gets the bonus. That
+/// is deliberate — it is the one that is not part of the wheel.
+///
+/// ## How it is rolled
+///
+/// Not by weight. `weight` is `0`, so it never appears in the ordinary draw;
+/// instead the catalogue rolls it *inside* an Essence result — see
+/// `PickupCatalog.rollPickup`. So the odds of drawing "an Essence" are exactly
+/// what they were, and this only decides which one turned up.
+struct AstralBoltEffect: PickupEffect {
+
+    let id: PickupID = .astralBolt
+    let rarity: PickupRarity = .uncommon
+
+    /// Never drawn directly — see the note above.
+    let weight = 0
+
+    let displayName = "Astral Bolt"
+    let summary = "Lightning strikes your row and column, damaging every tile on both — and fills your meter."
+    let glyph = "⚡︎"
+
+    /// The strike does its own damage square by square, so the engine must not
+    /// charge the destination a second time on arrival.
+    let arrivalWearsTile = false
+
+    func plan(
+        context: PickupContext,
+        choice: PickupChoiceResult?,
+        generator: inout SeededRandom
+    ) -> [GameEvent] {
+        let board = context.currentBoard
+        let origin = context.piecePoint
+
+        // The cross, with the piece's own square included: it is standing at the
+        // centre of the strike, and being spared would make it the one safe
+        // place in an effect that is supposed to cost something.
+        var changes: [GridPoint: TileHealth] = [:]
+        for point in board.allPoints where point.x == origin.x || point.y == origin.y {
+            let tile = board[point]
+            guard tile.kind == .normal, tile.canBeWorn else { continue }
+
+            var health = tile.health
+            for _ in 0..<GameRules.astralBoltWear where health != .hole {
+                health = health.damaged
+            }
+            if health != tile.health { changes[point] = health }
+        }
+
+        var events: [GameEvent] = []
+        if !changes.isEmpty {
+            // One strike, so one event — see `GameEvent.tilesChanged`.
+            events.append(.tilesChanged(plane: context.plane, changes: changes))
+        }
+        if context.zodiactionMeter < context.zodiactionMeterMax {
+            events.append(.zodiactionMeterChanged(to: context.zodiactionMeterMax))
+        }
         return events
     }
 }
@@ -734,6 +815,7 @@ enum PickupCatalog {
         .astralBreeze: AstralBreezeEffect(),
         .astralBlaze: AstralBlazeEffect(),
         .astralBlossom: AstralBlossomEffect(),
+        .astralBolt: AstralBoltEffect(),
         .cornerWarp: CornerWarpEffect(),
         .nexysShift: NexysShiftEffect(),
 
@@ -746,6 +828,11 @@ enum PickupCatalog {
 
     /// The effect for an id. Traps on an unregistered id, which can only happen
     /// if a `PickupID` case was added without its implementation.
+    /// The four Essences that can turn out to be the fifth.
+    static let essences: Set<PickupID> = [
+        .astralBrook, .astralBreeze, .astralBlaze, .astralBlossom,
+    ]
+
     static func effect(for id: PickupID) -> any PickupEffect {
         guard let effect = allEffects[id] else {
             preconditionFailure("No PickupEffect registered for \(id.rawValue)")
@@ -791,6 +878,17 @@ enum PickupCatalog {
             .map { (value: $0, weight: $0.weight) }
 
         guard let tier = generator.pick(weighted: tiers) else { return nil }
-        return generator.pick(weighted: eligible(in: tier))
+        guard let drawn = generator.pick(weighted: eligible(in: tier)) else { return nil }
+
+        // The fifth Essence is rolled *inside* the result, not beside it: the
+        // odds of drawing an Essence at all are untouched, and this only decides
+        // which one it turned out to be. Rolled from the same generator, so a
+        // seeded run still replays exactly.
+        if Self.essences.contains(drawn) {
+            let roll = Double(generator.next() % 10_000) / 10_000
+            if roll < GameRules.astralBoltChance { return .astralBolt }
+        }
+
+        return drawn
     }
 }
