@@ -126,7 +126,7 @@ struct PiscesGaiaGeyser: ZodiacPassive {
 struct PiscesAridAquanaut: ZodiacPassive {
 
     let displayName = "Arid Aquanaut"
-    let summary = "Terra: Z-Charge and Astral Tear trade drop rates — charge becomes the common find."
+    let summary = "Terra: Z-Charge and Astral Tear trade drop rates, and Z-Charge grants \(GameRules.aridAquanautCharge) instead of \(GameRules.zChargePentacleAmount)."
 
     func pickupWeight(_ base: Int, for id: PickupID, context: PassiveContext) -> Int {
         guard context.plane == .terra else { return base }
@@ -136,6 +136,18 @@ struct PiscesAridAquanaut: ZodiacPassive {
         case .restoreTile: return PickupCatalog.effect(for: .zCharge).weight
         default: return base
         }
+    }
+
+    /// And a Z-Charge found down there is worth more than it is to anyone else.
+    ///
+    /// Making it *common* was not enough on its own. A coin can spawn across the
+    /// board, and the walk to it costs a pip a square — so an ordinary grant can
+    /// arrive having already paid for itself, and a run of distant spawns leaves
+    /// the meter falling however many coins are opened. The larger grant is what
+    /// makes the trip worth taking.
+    func chargeFromPickup(_ base: Int, id: PickupID, plane: Plane) -> Int {
+        guard plane == .terra, id == .zCharge else { return base }
+        return GameRules.aridAquanautCharge
     }
 }
 

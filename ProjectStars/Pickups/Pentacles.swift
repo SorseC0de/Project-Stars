@@ -109,7 +109,13 @@ struct ZChargeEffect: PickupEffect {
         choice: PickupChoiceResult?,
         generator: inout SeededRandom
     ) -> [GameEvent] {
-        let target = context.meter(afterGaining: GameRules.zChargePentacleAmount)
+        // The piece may value this differently — Pisces on Terra does.
+        let amount = context.zodiac.definition.passives.chargeFromPickup(
+            GameRules.zChargePentacleAmount,
+            id: id,
+            plane: context.plane
+        )
+        let target = context.meter(afterGaining: amount)
         guard target != context.zodiactionMeter else { return [] }
         return [.zodiactionMeterChanged(to: target)]
     }
@@ -236,7 +242,7 @@ struct AstralBrookEffect: PickupEffect {
         // finds it, tile by tile, because the same square is never crossed twice
         // in a straight line.
         while board.contains(point) {
-            events.append(.pieceStepped(from: from, to: point, plane: plane))
+            events.append(.pieceSlid(from: from, to: point, plane: plane))
 
             let tile = board[point]
             if tile.canBeWorn {

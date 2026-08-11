@@ -145,6 +145,14 @@ enum GameEvent: Equatable {
     /// the hunt restarts, which is why a fresh sparkle set always follows.
     case pickupDestroyed(id: PickupID, plane: Plane, point: GridPoint)
 
+    /// The piece slid one square, without leaving the ground.
+    ///
+    /// Distinct from `pieceStepped`, which is a *hop*: it squashes, arcs, kicks
+    /// up dust on landing and takes a full beat. Water carrying you along does
+    /// none of that, and a chain of hops across seven squares reads as a rabbit
+    /// rather than a current. Same effect on the board, different motion.
+    case pieceSlid(from: GridPoint, to: GridPoint, plane: Plane)
+
     /// The Pentacle was dragged one square by something — Leo's sun so far.
     ///
     /// Moves the *coin only*. The tile it was sitting on stays raised where it
@@ -194,6 +202,7 @@ enum GameEvent: Equatable {
         switch self {
         case .moveBlocked: 0.18
         case .pickupRevealed: GameRules.pickupRevealDuration
+        case .pieceSlid: GameRules.slideStepDuration
         case .pickupMoved: GameRules.hopDuration
         case .tileStamped: GameRules.tilePopResponse
         case .moveCommitted: 0

@@ -529,6 +529,15 @@ final class GameSession {
                 await introducePentacle(id)
             }
 
+        case .pieceSlid:
+            // No hop pose, no dust, no beat to speak of: the squares run
+            // together so the whole sweep reads as one movement. Linear on
+            // purpose — a spring per square would make the current stutter.
+            withAnimation(.linear(duration: event.displayDuration)) {
+                engine.apply(event)
+            }
+            await sleep(event.displayDuration)
+
         case let .pieceStepped(from, to, plane):
             hopDistance = max(from.manhattanDistance(to: to), 1)
             hopCount += 1

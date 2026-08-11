@@ -1257,6 +1257,17 @@ struct GameEngine {
             commit(.planeRestored(plane: .astra))
         }
 
+        // An Essence opened by its own element pays a little charge on top.
+        // Applied here rather than in the four effects: it is a rule about the
+        // *piece*, not about any one coin, and adding a fifth Essence should not
+        // mean remembering to write this again.
+        if let element = effect.element, element == piece.zodiac.element {
+            let target = min(zodiactionMeter + GameRules.elementAffinityCharge, zodiactionMeterMax)
+            if target != zodiactionMeter {
+                commit(.zodiactionMeterChanged(to: target))
+            }
+        }
+
         commit(.scoreAwarded(GameRules.scorePerPickup))
         return events
     }
@@ -1469,6 +1480,9 @@ struct GameEngine {
 
         case let .pieceTurned(direction):
             piece.facing = direction
+
+        case let .pieceSlid(_, to, _):
+            piece.point = to
 
         case let .pieceStepped(_, to, _):
             piece.point = to

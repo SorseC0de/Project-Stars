@@ -209,6 +209,24 @@ enum GameRules {
     static let sanctuaryFinalPulsePeriod: TimeInterval = 1.1
 
     // ──────────────────────────────────────────────────────────────────────
+    // ──────────────────────────────────────────────────────────────────────
+    // MARK: - Rules — elemental affinity
+
+    /// What a Z-Charge is worth to Pisces on Terra.
+    ///
+    /// Above the ordinary grant because Terra is where Pisces is on a timer:
+    /// Gaia Geyser fills the meter on arrival, Astral Attunement drains it every
+    /// square, and Upstream costs the lot. Finding charge has to be able to
+    /// outrun the leak, or crossing the board to a coin is a net loss.
+    static let aridAquanautCharge = 5
+
+    /// Extra charge for opening an Astral Essence that matches your element.
+    ///
+    /// Undocumented in the coin's own summary on purpose: it is a reward for
+    /// knowing the game rather than a rule the game has to explain, and every
+    /// Essence would otherwise need a sentence about eleven other signs.
+    static let elementAffinityCharge = 3
+
     // MARK: - Rules — Leo's sun
     //
     // See `SignState.Sun` and `LeoSolarPull`.
@@ -1083,6 +1101,14 @@ enum GameRules {
     /// Paced against the hop rather than the art: the three should be underway
     /// by the time the piece has finished crossing them.
     static let crabWalkStagger: TimeInterval = 0.08
+
+    /// How long the piece takes to cross one square while being carried by
+    /// water — the Astral Brook, and Pisces' Downstream.
+    ///
+    /// Much shorter than a hop: the squares run together into one movement
+    /// rather than reading as separate steps, which is the whole difference
+    /// between sliding and hopping.
+    static let slideStepDuration: TimeInterval = 0.055
 
     /// How many squares a hop must cover to count as a leap worth drawing —
     /// Sagittarius' full bound rather than any long step.

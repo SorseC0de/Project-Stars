@@ -181,6 +181,13 @@ protocol ZodiacPassive {
     /// should read the other effect's weight rather than hardcode a number.
     func pickupWeight(_ base: Int, for id: PickupID, context: PassiveContext) -> Int
 
+    /// Changes what a Pentacle's charge is worth to this sign.
+    ///
+    /// Takes the plane rather than a whole `PassiveContext`, because it is asked
+    /// from inside a pickup effect — which has its own context and no business
+    /// building a passive one.
+    func chargeFromPickup(_ base: Int, id: PickupID, plane: Plane) -> Int
+
     /// Replaces a move that would otherwise run off the board.
     ///
     /// Consulted only when the ordinary path is illegal, so it can never
@@ -357,6 +364,10 @@ extension ZodiacPassive {
     }
 
     func pickupWeight(_ base: Int, for id: PickupID, context: PassiveContext) -> Int {
+        base
+    }
+
+    func chargeFromPickup(_ base: Int, id: PickupID, plane: Plane) -> Int {
         base
     }
 
@@ -601,6 +612,10 @@ extension Array where Element == any ZodiacPassive {
     /// compose rather than one silently winning.
     func pickupWeight(_ base: Int, for id: PickupID, context: PassiveContext) -> Int {
         reduce(base) { $1.pickupWeight($0, for: id, context: context) }
+    }
+
+    func chargeFromPickup(_ base: Int, id: PickupID, plane: Plane) -> Int {
+        reduce(base) { $1.chargeFromPickup($0, id: id, plane: plane) }
     }
 
     /// First passive that owns this edge wins.
