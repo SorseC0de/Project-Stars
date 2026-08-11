@@ -47,6 +47,7 @@ struct ZodiactionBarView: View {
             .padding(.horizontal, 16)
         }
         .frame(height: GameRules.zodiactionButtonHeight)
+        .padding(.horizontal, 10)
     }
 
     /// Pips rather than a bar: the meter is a whole number of charges and the

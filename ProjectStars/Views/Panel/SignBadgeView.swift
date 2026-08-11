@@ -28,7 +28,7 @@ struct SignBadgeView: View {
     var size: CGFloat = GameRules.badgeSize
 
     var body: some View {
-        HStack(spacing: size * 0.34) {
+        HStack(spacing: size * 0.25) {
             mark(icon: signIcon, tint: Palette.gold, side: size)
             mark(icon: elementIcon, tint: elementTint, side: size * GameRules.badgeElementScale)
         }

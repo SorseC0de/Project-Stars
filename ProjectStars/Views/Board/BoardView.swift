@@ -456,11 +456,11 @@ struct BoardView: View {
 
         // Two objects at two places: the coin can be dragged off the tile that
         // popped up for it, and the tile stays where it is.
-        for raised in session.visibleRaisedTiles {
-            objects.append(BoardObject(kind: .raisedTile, point: raised.point))
+        for (slot, raised) in session.visibleRaisedTiles.enumerated() {
+            objects.append(BoardObject(kind: .raisedTile, point: raised.point, slot: slot))
         }
-        for pickup in session.visiblePickups {
-            objects.append(BoardObject(kind: .pentacle, point: pickup.point))
+        for (slot, pickup) in session.visiblePickups.enumerated() {
+            objects.append(BoardObject(kind: .pentacle, point: pickup.point, slot: slot))
         }
         if session.engine.nexysPlane == plane {
             objects.append(BoardObject(kind: .nexys, point: GameRules.nexysPoint))

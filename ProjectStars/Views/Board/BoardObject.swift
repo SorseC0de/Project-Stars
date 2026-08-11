@@ -59,18 +59,28 @@ struct BoardObject: Identifiable, Equatable {
     /// The square this object stands on.
     let point: GridPoint
 
+    /// Which of its kind this is, when a kind can appear more than once.
+    ///
+    /// Only the Pentacle and its raised square can — Sagittarius may have two
+    /// out at a time. Everything else is always slot zero.
+    var slot: Int = 0
+
     /// Stable across movement — see `BoardObjectKind`.
     ///
-    /// The kind alone was enough while every kind was unique. Sagittarius can
-    /// put two Pentacles out, and two objects sharing an identity make SwiftUI
-    /// draw one of them; the square disambiguates without costing the stability
-    /// that made the kind the identity in the first place.
+    /// **The square must not be part of this.** Identity is what tells SwiftUI
+    /// that the thing at the new position is the *same* thing that was at the
+    /// old one; key it on position and every move destroys one view and creates
+    /// another, which it renders as a cross-fade rather than a movement. The
+    /// piece visibly faded from square to square.
+    ///
+    /// The slot disambiguates the kinds that can repeat without costing that,
+    /// because it does not change when the object moves.
     struct ID: Hashable {
         let kind: BoardObjectKind
-        let point: GridPoint
+        let slot: Int
     }
 
-    var id: ID { ID(kind: kind, point: point) }
+    var id: ID { ID(kind: kind, slot: slot) }
 
     /// Order within a row, lowest drawn first.
     ///
