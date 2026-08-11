@@ -73,16 +73,7 @@ struct PiscesAstralAttunement: ZodiacPassive {
 
     func meterBonus(from move: MoveSummary, context: PassiveContext) -> Int {
         if move.endingPlane == .astra { return 1 }
-        guard move.startingPlane == .terra else { return 0 }
-
-        // The first move after arriving is free.
-        //
-        // Without this Upstream cannot be used at all: Gaia Geyser fills the
-        // meter on the descent, Upstream refuses on that same turn, and the very
-        // next move drains a pip — so the one turn it is available is the one
-        // turn it is forbidden. The free move is the window.
-        let settling = context.moveCount == context.signState.planeArrivalMove + 1
-        return settling ? 0 : -1
+        return move.startingPlane == .terra ? -1 : 0
     }
 }
 
@@ -120,6 +111,13 @@ struct PiscesGaiaGeyser: ZodiacPassive {
 ///   It cannot be used on the same turn as the fall that brought you down, so a
 ///   descent always costs at least one turn on Terra — and the hole it leaves
 ///   means Pisces never returns to an unbroken Astra.
+///
+///   That the meter is no longer full by the time the turn passes is
+///   **deliberate**, not an oversight: Gaia Geyser fills it on the descent and
+///   Astral Attunement immediately starts draining, so Upstream is not simply
+///   there for the taking. The way back to full is Z-Charge, which nets +2 on
+///   Terra — three collected against the one pip the move costs. Do not "fix"
+///   this by exempting a move from the drain.
 /// - **Astra — Downstream:** the Astral Brook, run from the meter instead of
 ///   from a coin. Sweeps to the far edge along the facing, wearing every tile
 ///   crossed and passing over holes.
