@@ -190,6 +190,16 @@ protocol ZodiacPassive {
     /// other, so it is a choice rather than a haul.
     func secondPickupChance(context: PassiveContext) -> Double
 
+    /// How often the Pentacle is dragged toward the piece on an ordinary step.
+    ///
+    /// Distinct from Leo's sun, which drags the coin toward *itself*. Where both
+    /// would act the piece wins — see `GameEngine.planPickupPull`.
+    func magneticPullChance(context: PassiveContext) -> Double
+
+    /// How often a sparkle phase comes up mirrored, doubling its shape across
+    /// the board's middle.
+    func mirroredSparkleChance(context: PassiveContext) -> Double
+
     /// Changes what a Pentacle's charge is worth to this sign.
     ///
     /// Takes the plane rather than a whole `PassiveContext`, because it is asked
@@ -377,6 +387,8 @@ extension ZodiacPassive {
     }
 
     func secondPickupChance(context: PassiveContext) -> Double { 0 }
+    func magneticPullChance(context: PassiveContext) -> Double { 0 }
+    func mirroredSparkleChance(context: PassiveContext) -> Double { 0 }
 
     func chargeFromPickup(_ base: Int, id: PickupID, plane: Plane) -> Int {
         base
@@ -629,6 +641,14 @@ extension Array where Element == any ZodiacPassive {
     /// The best offer among the sign's passives.
     func secondPickupChance(context: PassiveContext) -> Double {
         map { $0.secondPickupChance(context: context) }.max() ?? 0
+    }
+
+    func magneticPullChance(context: PassiveContext) -> Double {
+        map { $0.magneticPullChance(context: context) }.max() ?? 0
+    }
+
+    func mirroredSparkleChance(context: PassiveContext) -> Double {
+        map { $0.mirroredSparkleChance(context: context) }.max() ?? 0
     }
 
     func chargeFromPickup(_ base: Int, id: PickupID, plane: Plane) -> Int {

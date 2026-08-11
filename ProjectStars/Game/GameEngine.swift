@@ -215,11 +215,13 @@ struct GameEngine {
         let openingBoard = self[openingPlane]
         let openingPoint = piece.point
         let openingWeighting = pickupWeighting()
+        let mirrorChance = piece.zodiac.passives.mirroredSparkleChance(context: passiveContext)
         if let opening = Self.rollSparkles(
             on: openingPlane,
             board: openingBoard,
             piecePoint: openingPoint,
             weighting: openingWeighting,
+            mirrorChance: mirrorChance,
             using: &rng
         ).map({ staged($0) }) {
             apply(opening)
@@ -342,7 +344,7 @@ struct GameEngine {
             // 4b. Leo's sun drags the coin a square closer to itself. Before
             //     the reachability check below, so a coin dragged onto a hole is
             //     destroyed by the same rule that governs any coin over a hole.
-            events += sim.planSunPull()
+            events += sim.planPickupPull()
 
             // 5. Keep a Pentacle reachable. See `ensurePentacleAvailable`.
             events += sim.ensurePentacleAvailable(previousPlane: startingPlane)
@@ -1085,33 +1087,80 @@ struct GameEngine {
     /// dragged over a hole is dealt with by `ensurePentacleAvailable`, which
     /// already destroys any coin left standing on nothing and starts a fresh
     /// glow phase; special-casing it here would be a second copy of that rule.
-    mutating func planSunPull() -> [GameEvent] {
-        guard let sun = signState.sun,
-              let coin = revealedPickups.first(where: { $0.plane == sun.plane })
-        else { return [] }
+    mutating func planPickupPull() -> [GameEvent] {
+        // The piece wins where both would act. A sun on the far side of the
+        // board must never tug a coin away from a lion the coin was just drawn
+        // to — the reward for having a sun out is the extra square below, not a
+        // contest.
+        if let magnetic = planMagneticPull() { return magnetic }
+        return planSunPull()
+    }
 
+    /// Leo's Magnetic Mane: the coin drifts toward the *piece*.
+    ///
+    /// Returns `nil` when it does not fire, which is what lets the sun take the
+    /// turn instead.
+    private mutating func planMagneticPull() -> [GameEvent]? {
+        let chance = piece.zodiac.passives.magneticPullChance(context: passiveContext)
+        guard chance > 0 else { return nil }
+
+        let roll = Double(rng.next() % 10_000) / 10_000
+        guard roll < chance else { return nil }
+
+        // An Aten burning is worth an extra square, rather than a second puller.
+        let steps = signState.sun == nil
+            ? GameRules.magneticManeSteps
+            : GameRules.magneticManeStepsWithSun
+
+        return pullCoins(toward: piece.point, on: piece.plane, steps: steps)
+    }
+
+    /// Leo's sun: the coin drifts toward the Aten.
+    private mutating func planSunPull() -> [GameEvent] {
+        guard let sun = signState.sun else { return [] }
+        return pullCoins(toward: sun.point, on: sun.plane, steps: GameRules.sunPullPerMove)
+    }
+
+    /// Walks every coin on `plane` some squares closer to `target`.
+    ///
+    /// Shortest path *including diagonals*, so a coin two across and two down
+    /// arrives in two moves rather than four — it is being pulled, not walked
+    /// around a grid.
+    ///
+    /// Deliberately does not care what is on the destination square. A coin
+    /// dragged over a hole is dealt with by `ensurePentacleAvailable`, which
+    /// already destroys any coin left standing on nothing and starts a fresh
+    /// glow phase; special-casing it here would be a second copy of that rule.
+    private mutating func pullCoins(
+        toward target: GridPoint,
+        on plane: Plane,
+        steps: Int
+    ) -> [GameEvent] {
         var events: [GameEvent] = []
-        var from = coin.point
 
-        for _ in 0..<GameRules.sunPullPerMove {
-            guard from != sun.point else { break }
+        for coin in revealedPickups where coin.plane == plane {
+            var from = coin.point
 
-            // One step along each axis that is not already lined up, which is a
-            // diagonal whenever both are out.
-            let to = GridPoint(
-                from.x + (sun.point.x - from.x).signum(),
-                from.y + (sun.point.y - from.y).signum()
-            )
+            for _ in 0..<steps {
+                guard from != target else { break }
 
-            let event = GameEvent.pickupMoved(
-                id: coin.id,
-                plane: coin.plane,
-                from: from,
-                to: to
-            )
-            apply(event)
-            events.append(event)
-            from = to
+                // One step along each axis that is not already lined up,
+                // which is a diagonal whenever both are out.
+                let to = GridPoint(
+                    from.x + (target.x - from.x).signum(),
+                    from.y + (target.y - from.y).signum()
+                )
+
+                let event = GameEvent.pickupMoved(
+                    id: coin.id,
+                    plane: coin.plane,
+                    from: from,
+                    to: to
+                )
+                apply(event)
+                events.append(event)
+                from = to
+            }
         }
 
         return events
@@ -1528,11 +1577,13 @@ struct GameEngine {
         let board = self[plane]
         let point = piece.point
         let weighting = pickupWeighting()
+        let mirrorChance = piece.zodiac.passives.mirroredSparkleChance(context: passiveContext)
         guard let spawn = Self.rollSparkles(
             on: plane,
             board: board,
             piecePoint: point,
             weighting: weighting,
+            mirrorChance: mirrorChance,
             using: &rng
         ).map({ staged($0) }) else { return events }
 
@@ -1547,14 +1598,22 @@ struct GameEngine {
         board: Board,
         piecePoint: GridPoint,
         weighting: (PickupID, Int) -> Int,
+        mirrorChance: Double,
         using generator: inout SeededRandom
     ) -> GameEvent? {
-        guard let set = SparkleSet.spawn(
+        guard let spawned = SparkleSet.spawn(
             on: plane,
             board: board,
             avoiding: piecePoint,
             using: &generator
         ) else { return nil }
+
+        // Libra's Stellar Scales folds the shape across the board.
+        var set = spawned
+        if mirrorChance > 0 {
+            let roll = Double(generator.next() % 10_000) / 10_000
+            if roll < mirrorChance { set = spawned.mirrored(on: board) }
+        }
 
         guard let pickup = PickupCatalog.rollPickup(
             sparklePoints: set.points,

@@ -24,6 +24,7 @@ extension ZodiacCatalog {
         movement: .cardinalStep,
         passives: [
             AriesSearingStride(),
+            AriesSixSinge(),
             AriesBrazenBlazeCarrier(),
         ],
         zodiaction: AriesBrazenBlaze(),
@@ -81,6 +82,39 @@ struct AriesSearingStride: ZodiacPassive {
         // `signState` is updated before charging, so the streak already counts
         // the move being priced. Length 1 is a fresh direction and pays nothing.
         return context.signState.streakLength >= Self.requiredStreak ? 1 : 0
+    }
+}
+
+// MARK: - Passive: Six Singe
+
+/// Crossing the whole board in one direction fills the meter.
+///
+/// Six moves is edge to edge on a seven-wide board, so this cannot be done twice
+/// without turning — and turning is the one thing Searing Stride already
+/// punishes. It is the same idea taken to its end: the ram commits, and the
+/// reward for committing completely is everything.
+///
+/// ## Why the bonus is computed rather than written down
+///
+/// It is defined as *whatever tops up the meter*, so it has to know what Searing
+/// Stride already paid over those six moves — which is one pip per move from the
+/// third onward. Writing the answer as a literal would quietly become wrong the
+/// first time either the meter size or the streak threshold moved.
+struct AriesSixSinge: ZodiacPassive {
+
+    let displayName = "Six Singe"
+    let summary = "Astra & Terra: crossing the board in a straight line tops your meter up to full."
+
+    func meterBonus(from move: MoveSummary, context: PassiveContext) -> Int {
+        guard context.signState.streakLength == GameRules.sixSingeLength else { return 0 }
+
+        // What Searing Stride paid on the way: one per move once the streak
+        // reached its threshold. Silent under Brazen Blaze, which pays nothing.
+        let strideMoves = context.signState.isActive(AriesBrazenBlazeCarrier.buffKey)
+            ? 0
+            : max(GameRules.sixSingeLength - (AriesSearingStride.requiredStreak - 1), 0)
+
+        return max(context.zodiac.zodiaction.meterMax - strideMoves, 0)
     }
 }
 

@@ -33,6 +33,32 @@ struct SparkleSet: Equatable, Codable {
         points.contains(point)
     }
 
+    /// This set folded across the board's middle, on whichever axis adds more.
+    ///
+    /// Libra's Stellar Scales. Both reflections are tried — left/right and
+    /// top/bottom — and the one producing the most *new* legal squares wins. A
+    /// shape already sitting on the centre line mirrors onto itself, so choosing
+    /// by yield is what keeps the passive from occasionally doing nothing.
+    ///
+    /// Reflected squares that cannot host a sparkle are dropped rather than
+    /// nudged, exactly as the original shape loses members to holes.
+    func mirrored(on board: Board) -> SparkleSet {
+        let last = board.size - 1
+
+        func fold(_ transform: (GridPoint) -> GridPoint) -> [GridPoint] {
+            points
+                .map(transform)
+                .filter { board.contains($0) && board[$0].canHostSparkle && !points.contains($0) }
+        }
+
+        let across = fold { GridPoint(last - $0.x, $0.y) }
+        let down = fold { GridPoint($0.x, last - $0.y) }
+        let added = across.count >= down.count ? across : down
+
+        guard !added.isEmpty else { return self }
+        return SparkleSet(plane: plane, pattern: pattern, points: points + added)
+    }
+
     /// True when the shape lost members to holes or the Nexys. The gaps are
     /// information the player can read — and, with care, engineer.
     var isPartial: Bool {

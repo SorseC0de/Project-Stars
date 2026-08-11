@@ -25,6 +25,7 @@ extension ZodiacCatalog {
         passives: [
             LibraEquitableImpact(),
             LibraCarefulCurrent(),
+            LibraStellarScales(),
         ],
         zodiaction: LibraBalancingBreeze(),
         constellation: ZodiacCatalog.libraConstellation
@@ -145,6 +146,30 @@ struct LibraCarefulCurrent: ZodiacPassive {
             return line
         }
         return nil
+    }
+}
+
+// MARK: - Passive 3: Stellar Scales
+
+/// The sparkle phase sometimes comes up mirrored — the same shape again, folded
+/// across the board's middle.
+///
+/// Up to ten sparkles instead of five, which is not simply twice the odds: a
+/// mirrored set covers both halves of the board, so wherever the piece happens
+/// to be standing there is something worth walking to. The scales balance the
+/// hunt as well as the ground.
+///
+/// Commoner on Astra, where Libra is at home, and rare below.
+struct LibraStellarScales: ZodiacPassive {
+
+    let displayName = "Stellar Scales"
+    let summary = "Astra: 5% chance the sparkle phase appears mirrored across the board. Terra: 1%."
+
+    func mirroredSparkleChance(context: PassiveContext) -> Double {
+        switch context.plane {
+        case .astra: GameRules.stellarScalesChanceAstra
+        case .terra: GameRules.stellarScalesChanceTerra
+        }
     }
 }
 

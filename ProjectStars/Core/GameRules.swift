@@ -300,6 +300,25 @@ enum GameRules {
     /// pixels. They ring the figure, not the tile it is standing on.
     static let starSparkLift: CGFloat = 8
 
+    /// How long a straight line has to be for Aries' Six Singe to pay.
+    ///
+    /// Six moves crosses a seven-wide board end to end, so it cannot be done
+    /// twice in a row without turning — which is the point.
+    static let sixSingeLength = 6
+
+    /// How often Leo's Magnetic Mane drags the Pentacle a square closer, by
+    /// plane. Rolled once per ordinary step.
+    static let magneticManeChanceAstra = 0.01
+    static let magneticManeChanceTerra = 0.05
+
+    /// How far it drags, and how far it drags while an Aten is burning.
+    static let magneticManeSteps = 1
+    static let magneticManeStepsWithSun = 2
+
+    /// How often Libra's Stellar Scales mirrors a sparkle phase, by plane.
+    static let stellarScalesChanceAstra = 0.05
+    static let stellarScalesChanceTerra = 0.01
+
     /// How often Sagittarius' Fortunate Find turns up a second Pentacle, by
     /// plane.
     ///

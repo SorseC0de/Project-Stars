@@ -25,6 +25,8 @@ extension ZodiacCatalog {
         movement: .cardinalStep,
         passives: [
             LeoPridefulPlant(),
+            LeoMagneticMane(),
+            LeoRallyingRoar(),
         ],
         zodiaction: LeoAttractingAten(),
         constellation: ZodiacCatalog.leoConstellation
@@ -60,6 +62,58 @@ struct LeoPridefulPlant: ZodiacPassive {
     func meterBonus(from move: MoveSummary, context: PassiveContext) -> Int {
         move.fell ? 3 : 0
     }
+}
+
+// MARK: - Passive: Magnetic Mane
+
+/// The Pentacle sometimes drifts a square toward the lion, unprompted.
+///
+/// Rare on purpose — one step in a hundred up top, one in twenty below. It is
+/// not a way to fetch a coin, it is the occasional sense that the board is
+/// paying attention to you, which is what a lion should feel like.
+///
+/// ## What happens when an Aten is up
+///
+/// The coin comes *to the piece*, not to the sun, and travels an extra square
+/// for the trouble. Leo's sun already drags the coin toward itself every move;
+/// this overrides that for the turn it fires, so a sun on the far side of the
+/// board never pulls a coin away from a lion the coin was just drawn to. The
+/// reward for having a sun out is the extra distance, not a tug of war.
+struct LeoMagneticMane: ZodiacPassive {
+
+    let displayName = "Magnetic Mane"
+    let summary = "Astra & Terra: a small chance each step that the Pentacle drifts a square toward you — two while an Aten burns."
+
+    func magneticPullChance(context: PassiveContext) -> Double {
+        switch context.plane {
+        case .astra: GameRules.magneticManeChanceAstra
+        case .terra: GameRules.magneticManeChanceTerra
+        }
+    }
+}
+
+// MARK: - Passive: Rallying Roar
+
+/// On Terra, the island offers a change of sign instead of a ride.
+///
+/// - TODO: **Not implemented.** The rule is settled and the engine is most of
+///   the way there; what is missing is the choice itself. Stepping onto the
+///   Nexys while it sits on Terra currently rides it straight back up — see
+///   `GameRules.nexysAscendsFromTerra`. This would offer the player a piece
+///   change instead, via the same `PickupChoice.piece` machinery Alignment
+///   already uses, and then let the island leave *without* them the moment they
+///   step off it in any direction.
+///
+///   It needs: a way for a landing to raise a choice (today only a Pentacle
+///   can), and a flag on `SignState` for an island that has been dismissed and
+///   is waiting to go. Both are small; neither exists yet.
+///
+///   The intent is Leo as the leadership sign — the one piece that commands the
+///   Nexys rather than merely catching a lift on it.
+struct LeoRallyingRoar: ZodiacPassive {
+
+    let displayName = "Rallying Roar"
+    let summary = "Terra: step onto the Nexys to change sign instead of riding up. (Not yet implemented.)"
 }
 
 // MARK: - Zodiaction: Attracting Aten
