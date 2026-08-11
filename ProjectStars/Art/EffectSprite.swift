@@ -33,8 +33,11 @@ enum EffectSprite: String, CaseIterable, Hashable {
 
     // MARK: Fire
 
-    /// Aries' Zodiaction. 8 frames.
+    /// Aries' Zodiaction: the trail it leaves on each burning tile. 8 frames.
     case ariesZodiaction
+
+    /// Aries' Zodiaction: the flare of it being lit. 16 frames.
+    case ariesActivation
 
     /// The Pentacle, not a sign. 10 frames.
     case astralBlaze
@@ -107,7 +110,7 @@ enum EffectSprite: String, CaseIterable, Hashable {
         switch self {
         case .ariesZodiaction, .astralBlaze, .leoPridefulLanding,
              .leoZodiactionOne, .leoZodiactionTwo, .leoZodiactionSummon,
-             .fireMisc, .sagittariusJump, .explosion:
+             .fireMisc, .sagittariusJump, .explosion, .ariesActivation:
             .fire
         case .cancerZodiaction, .cancerZodiactionAlternate, .libraZodiaction,
              .crabWalk, .waterSplash:
@@ -123,6 +126,7 @@ enum EffectSprite: String, CaseIterable, Hashable {
     var file: String {
         switch self {
         case .ariesZodiaction: "aries_zaction"
+        case .ariesActivation: "aries_zaction2"
         case .astralBlaze: "astralblaze"
         case .lightning1: "lightning1"
         case .lightning2: "lightning2"
@@ -180,7 +184,7 @@ enum EffectSprite: String, CaseIterable, Hashable {
         case .fireMisc, .leoZodiactionSummon: 9
         case .astralBlaze, .waterSplash,
              .lightning1, .lightning2, .lightning3, .lightning4: 10
-        case .crabWalk: 16
+        case .crabWalk, .ariesActivation: 16
         case .explosion: 28
         case .astralBloom: 16
         case .leoPridefulLanding: 11
@@ -206,7 +210,7 @@ enum EffectSprite: String, CaseIterable, Hashable {
         case .astralBlaze, .astralBloom: .fps12
         // Long strips of dissipating smoke: at 15 the tail crawls.
         case .explosion: .fps20
-        case .crabWalk, .waterSplash: .fps15
+        case .crabWalk, .waterSplash, .ariesActivation: .fps15
         // Tuned from `GameRules` — see the note there.
         case .lightning1, .lightning2, .lightning3, .lightning4: GameRules.lightningRate
         default: frames >= 20 ? .fps24 : .fps15
@@ -227,6 +231,8 @@ enum EffectSprite: String, CaseIterable, Hashable {
     var groundLift: CGFloat {
         switch self {
         case .ariesZodiaction, .astralBlaze, .sagittariusJump: 8
+        // Bursts around the piece rather than at its feet.
+        case .ariesActivation: 4
         case .fireMisc: 6
         case .cancerZodiaction, .cancerZodiactionAlternate: 2
         case .explosion, .crabWalk, .waterSplash: 4
@@ -419,7 +425,9 @@ enum EffectSprite: String, CaseIterable, Hashable {
     /// meant to be composited, and drawing them singly is not what they are.
     static func zodiaction(for zodiac: Zodiac) -> [EffectSprite] {
         switch zodiac {
-        // Aries is deliberately absent — see `blazeTrail`.
+        // Aries has two: this is the flare of Brazen Blaze catching, while
+        // `blazeTrail` burns on each tile it leaves over the moves that follow.
+        case .aries: [.ariesActivation]
         // Leo is too — its Zodiaction is a summon followed by the stacked sun,
         // which `GameSession.raiseTheSun` sequences.
         case .cancer: cancerBastion

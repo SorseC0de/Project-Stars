@@ -243,6 +243,7 @@ private extension EffectSprite {
     var previewName: String {
         switch self {
         case .ariesZodiaction: "Aries — Brazen Blaze trail"
+        case .ariesActivation: "Aries — Brazen Blaze ignition"
         case .astralBlaze: "Astral Blaze"
         case .explosion: "Explosion (unassigned)"
         case .lightning1: "Astral Bolt — strike 1"

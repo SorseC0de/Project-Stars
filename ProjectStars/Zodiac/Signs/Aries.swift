@@ -98,7 +98,7 @@ struct AriesBrazenBlazeCarrier: ZodiacPassive {
     static let buffKey = "aries.brazenBlaze"
 
     let displayName = "Brazen Blaze (active)"
-    let summary = "While Brazen Blaze burns: damage lands on the tile you leave, at double strength."
+    let summary = "While Brazen Blaze burns: damage lands on the tile you leave — doubled on Terra."
 
     func wearTiming(context: PassiveContext) -> WearTiming {
         context.signState.isActive(Self.buffKey) ? .onExit : .onEntry
@@ -106,6 +106,17 @@ struct AriesBrazenBlazeCarrier: ZodiacPassive {
 
     func modifyWear(_ proposal: WearProposal, context: PassiveContext) -> WearProposal {
         guard context.signState.isActive(Self.buffKey) else { return proposal }
+
+        // Doubled on Terra only.
+        //
+        // Aries is a fire sign, so Terra is where it is meant to be strong — and
+        // where doubled damage is survivable, since Terra is not the plane you
+        // fall *out of*. On Astra the same doubling opens holes under a piece
+        // with a whole other plane beneath it, which turns the ability into a
+        // way to lose rather than a way to travel. Up there Blaze still moves
+        // the damage behind you, which is the half of it worth having.
+        guard context.plane == .terra else { return proposal }
+
         var burned = proposal
         burned.stages = proposal.stages * 2
         return burned
@@ -114,8 +125,17 @@ struct AriesBrazenBlazeCarrier: ZodiacPassive {
 
 // MARK: - Zodiaction: Brazen Blaze
 
-/// For the next five moves, wear is charged to the tile being left rather than
-/// the one being entered — and at double strength.
+/// For the next several moves, wear is charged to the tile being left rather
+/// than the one being entered — and at double strength.
+///
+/// ## Why the duration is also the drawback
+///
+/// Lengthening it does not straightforwardly buff the sign. More moves under
+/// Blaze is more ground you survive now and more of the board gone later, since
+/// every one of those moves is doubled damage charged to somewhere you have
+/// already been. The knob buys short-term safety with long-term board — which is
+/// about as Aries as a mechanic gets, and the reason it can be raised without
+/// much fear.
 ///
 /// Trading entry damage for exit damage is not a straight upgrade: it means the
 /// square you are standing on is the one that breaks, so a burning Aries leaves a
@@ -124,7 +144,7 @@ struct AriesBrazenBlazeCarrier: ZodiacPassive {
 struct AriesBrazenBlaze: Zodiaction {
 
     let displayName = "Brazen Blaze"
-    let summary = "5 moves: damage the tile you leave instead of the one you land on, doubled."
+    let summary = "\(GameRules.brazenBlazeMoves) moves: damage the tile you leave instead of the one you land on. Doubled on Terra."
 
     /// All of Aries' charge comes from Searing Stride, so the Zodiaction itself
     /// adds nothing. There is deliberately no universal charge rule.
@@ -132,7 +152,7 @@ struct AriesBrazenBlaze: Zodiaction {
 
     func activate(context: PassiveContext, generator: inout SeededRandom) -> [GameEvent] {
         var state = context.signState
-        state.startBuff(AriesBrazenBlazeCarrier.buffKey, moves: 5)
+        state.startBuff(AriesBrazenBlazeCarrier.buffKey, moves: GameRules.brazenBlazeMoves)
         return [.signStateChanged(state)]
     }
 }
