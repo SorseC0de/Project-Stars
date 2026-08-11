@@ -181,6 +181,15 @@ protocol ZodiacPassive {
     /// should read the other effect's weight rather than hardcode a number.
     func pickupWeight(_ base: Int, for id: PickupID, context: PassiveContext) -> Int
 
+    /// How often a sparkle phase reveals a *second* Pentacle as well as the
+    /// first, `0` to `1`.
+    ///
+    /// The second coin comes up on one of the sparkles the first did not take,
+    /// and is rolled independently — so a sign with this sees rare Pentacles
+    /// more often simply by drawing more of them. Taking either shatters the
+    /// other, so it is a choice rather than a haul.
+    func secondPickupChance(context: PassiveContext) -> Double
+
     /// Changes what a Pentacle's charge is worth to this sign.
     ///
     /// Takes the plane rather than a whole `PassiveContext`, because it is asked
@@ -367,6 +376,8 @@ extension ZodiacPassive {
         base
     }
 
+    func secondPickupChance(context: PassiveContext) -> Double { 0 }
+
     func chargeFromPickup(_ base: Int, id: PickupID, plane: Plane) -> Int {
         base
     }
@@ -437,12 +448,13 @@ struct PassiveContext {
     /// Current Zodiaction meter, in pips.
     let zodiactionMeter: Int
 
-    /// Where the revealed Pentacle is sitting, if one is out on this plane.
+    /// Where the revealed Pentacles are sitting, on this plane.
     ///
-    /// Anything that rewrites the board wholesale has to be able to leave it
+    /// Anything that rewrites the board wholesale has to be able to leave them
     /// alone — a coin dropped into a hole by an ability that also removed
-    /// everywhere a new one could spawn ends the hunt outright.
-    let pickupPoint: GridPoint?
+    /// everywhere a new one could spawn ends the hunt outright. Plural because
+    /// Sagittarius can have two out at once.
+    let pickupPoints: [GridPoint]
 
     /// What the sign remembers between moves — streaks, cooldowns, per-visit
     /// charges. See `SignState`.
@@ -612,6 +624,11 @@ extension Array where Element == any ZodiacPassive {
     /// compose rather than one silently winning.
     func pickupWeight(_ base: Int, for id: PickupID, context: PassiveContext) -> Int {
         reduce(base) { $1.pickupWeight($0, for: id, context: context) }
+    }
+
+    /// The best offer among the sign's passives.
+    func secondPickupChance(context: PassiveContext) -> Double {
+        map { $0.secondPickupChance(context: context) }.max() ?? 0
     }
 
     func chargeFromPickup(_ base: Int, id: PickupID, plane: Plane) -> Int {

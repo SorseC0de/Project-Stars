@@ -185,7 +185,7 @@ struct LibraBalancingBreeze: Zodiaction {
             // tile went with them the coin would be destroyed and there would be
             // nowhere left to spawn its replacement, ending the hunt for good.
             // The scales weigh the ground, not what is standing on it.
-            guard point != context.pickupPoint else { continue }
+            guard !context.pickupPoints.contains(point) else { continue }
             guard let target = swapped(tile.health, on: context.plane),
                   target != tile.health else { continue }
             changes[point] = target

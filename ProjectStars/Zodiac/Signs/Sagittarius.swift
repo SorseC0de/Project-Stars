@@ -63,10 +63,13 @@ extension ZodiacCatalog {
 struct SagittariusFortunateFind: ZodiacPassive {
 
     let displayName = "Fortunate Find"
-    let summary = "Astra & Terra: +3 charge when the sparkle you land on is the one holding the Pentacle."
+    let summary = "Astra & Terra: a sparkle phase sometimes reveals a second Pentacle as well — take either, and the other shatters."
 
-    func meterBonus(from move: MoveSummary, context: PassiveContext) -> Int {
-        move.collectedOnRevealTile ? 3 : 0
+    func secondPickupChance(context: PassiveContext) -> Double {
+        switch context.plane {
+        case .astra: GameRules.secondPickupChanceAstra
+        case .terra: GameRules.secondPickupChanceTerra
+        }
     }
 }
 

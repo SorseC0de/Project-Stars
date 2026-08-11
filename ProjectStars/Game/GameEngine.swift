@@ -82,7 +82,12 @@ struct GameEngine {
     private(set) var pendingPickup: PickupID?
 
     /// The pickup once it has appeared on the board, during a **pickup phase**.
-    private(set) var revealedPickup: RevealedPickup?
+    /// Every Pentacle currently out on the board.
+    ///
+    /// Usually one. Sagittarius' Fortunate Find can put a second one up, so the
+    /// rest of the engine has to cope with a set rather than a single coin —
+    /// taking either shatters the other, so it is never more than briefly two.
+    private(set) var revealedPickups: [RevealedPickup] = []
 
     #if DEBUG
     /// Forces the next Pentacle to be this one, whatever the roll says.
@@ -100,7 +105,7 @@ struct GameEngine {
     /// dragged off by Leo's sun, and the square stays raised until somebody
     /// stands on it. Deriving one from the other made a raised tile teleport
     /// after a coin that had been pulled away from it.
-    private(set) var raisedTile: RevealedPickup?
+    private(set) var raisedTiles: [RevealedPickup] = []
 
     /// A Pentacle that has been opened but is waiting on the player to answer a
     /// question before it can resolve. See `planChoice(_:)`.
@@ -189,8 +194,8 @@ struct GameEngine {
         )
         self.sparkles = nil
         self.pendingPickup = nil
-        self.revealedPickup = nil
-        self.raisedTile = nil
+        self.revealedPickups = []
+        self.raisedTiles = []
         self.pendingChoice = nil
         self.score = 0
         self.moveCount = 0
@@ -281,7 +286,7 @@ struct GameEngine {
         //    the pickup appears on one of the tiles they occupied, all as the
         //    piece begins its hop.
         var revealedThisMove = false
-        if let reveal = sim.rollPickupReveal(destination: move.destination) {
+        for reveal in sim.rollPickupReveal(destination: move.destination) {
             commit(reveal)
             revealedThisMove = true
         }
@@ -690,11 +695,11 @@ struct GameEngine {
     ///
     /// Tiles that are no longer legal hosts are skipped, so the pickup always
     /// lands somewhere the piece can stand.
-    private mutating func rollPickupReveal(destination: GridPoint) -> GameEvent? {
-        guard revealedPickup == nil,
+    private mutating func rollPickupReveal(destination: GridPoint) -> [GameEvent] {
+        guard revealedPickups.isEmpty,
               let sparkles,
               let pickup = pendingPickup
-        else { return nil }
+        else { return [] }
 
         let board = self[sparkles.plane]
         let usable = sparkles.points.filter { board[$0].canHostSparkle }
@@ -702,8 +707,9 @@ struct GameEngine {
         // An effect pinned to one square appears there or not at all — the
         // catalogue only offered it because the set covers that square.
         if let required = PickupCatalog.effect(for: pickup).requiredSpawnPoint {
-            guard usable.contains(required) else { return nil }
-            return .pickupRevealed(id: pickup, plane: sparkles.plane, point: required)
+            guard usable.contains(required) else { return [] }
+            return [.pickupRevealed(id: pickup, plane: sparkles.plane, point: required)]
+                + secondReveal(among: usable, excluding: required, on: sparkles.plane)
         }
 
         // A passive may steer the reveal — Virgo's Controlled Compensation puts the
@@ -714,9 +720,45 @@ struct GameEngine {
             destination: destination,
             context: passiveContext
         )
-        guard let point = steered ?? usable.randomElement(using: &rng) else { return nil }
+        guard let point = steered ?? usable.randomElement(using: &rng) else { return [] }
 
-        return .pickupRevealed(id: pickup, plane: sparkles.plane, point: point)
+        return [.pickupRevealed(id: pickup, plane: sparkles.plane, point: point)]
+            + secondReveal(among: usable, excluding: point, on: sparkles.plane)
+    }
+
+    /// A second Pentacle on one of the sparkles the first did not take.
+    ///
+    /// Sagittarius only, so far — see `ZodiacPassive.secondPickupChance`.
+    ///
+    /// Rolled square first, then effect: the square is one of the leftovers, and
+    /// the catalogue is then asked what could legally appear *there*. Doing it
+    /// the other way round would let something pinned to one tile — Polaris —
+    /// be drawn and then placed somewhere it is not allowed to be.
+    ///
+    /// The roll is independent of the first coin's, which is the quiet part of
+    /// the passive: drawing twice is drawing twice, so a sign with this meets
+    /// the rare Pentacles more often simply by seeing more of them.
+    private mutating func secondReveal(
+        among usable: [GridPoint],
+        excluding taken: GridPoint,
+        on plane: Plane
+    ) -> [GameEvent] {
+        let chance = piece.zodiac.passives.secondPickupChance(context: passiveContext)
+        guard chance > 0 else { return [] }
+
+        let roll = Double(rng.next() % 10_000) / 10_000
+        guard roll < chance else { return [] }
+
+        let leftovers = usable.filter { $0 != taken }
+        guard let point = leftovers.randomElement(using: &rng),
+              let pickup = PickupCatalog.rollPickup(
+                  sparklePoints: [point],
+                  weighting: pickupWeighting(),
+                  using: &rng
+              )
+        else { return [] }
+
+        return [.pickupRevealed(id: pickup, plane: plane, point: point)]
     }
 
     /// What a landing produced, beyond its events.
@@ -861,7 +903,7 @@ struct GameEngine {
             //    The effect may move the piece or mend the ground beneath it, so
             //    anything it changes is picked up by looping round again rather
             //    than assumed away.
-            if revealedPickup != nil, !isGameOver {
+            if !revealedPickups.isEmpty, !isGameOver {
                 let opened = resolvePickupCollection(settleAfterEffect: false)
                 result.events += opened.events
                 result.collectedPickup = result.collectedPickup ?? opened.pickup
@@ -895,10 +937,8 @@ struct GameEngine {
             // 2b. A raised tile with nothing on it is just a step. Standing on
             //     one stamps it flat: no coin, no sparkles, no consequences —
             //     which is the whole of what it does.
-            if let raised = raisedTile,
-               raised.plane == plane,
-               raised.point == point,
-               revealedPickup?.point != point {
+            if raisedTiles.contains(where: { $0.plane == plane && $0.point == point }),
+               !revealedPickups.contains(where: { $0.plane == plane && $0.point == point }) {
                 commit(.tileStamped(plane: plane, point: point))
             }
 
@@ -1047,8 +1087,7 @@ struct GameEngine {
     /// glow phase; special-casing it here would be a second copy of that rule.
     mutating func planSunPull() -> [GameEvent] {
         guard let sun = signState.sun,
-              let coin = revealedPickup,
-              coin.plane == sun.plane
+              let coin = revealedPickups.first(where: { $0.plane == sun.plane })
         else { return [] }
 
         var events: [GameEvent] = []
@@ -1263,12 +1302,10 @@ struct GameEngine {
         covering covered: [GridPoint] = [],
         settleAfterEffect: Bool = true
     ) -> (collected: Bool, pickup: PickupID?, events: [GameEvent]) {
-        guard let pickup = revealedPickup, pickup.plane == piece.plane else {
-            return (false, nil, [])
-        }
-
-        let reached = pickup.point == piece.point || covered.contains(pickup.point)
-        guard reached else { return (false, nil, []) }
+        guard let pickup = revealedPickups.first(where: { coin in
+            coin.plane == piece.plane
+                && (coin.point == piece.point || covered.contains(coin.point))
+        }) else { return (false, nil, []) }
 
         var events: [GameEvent] = []
         func commit(_ event: GameEvent) {
@@ -1277,6 +1314,13 @@ struct GameEngine {
         }
 
         commit(.pickupCollected(id: pickup.id, plane: pickup.plane, point: pickup.point))
+
+        // Taking one shatters any other. Two coins are a choice, not a haul —
+        // and the destruction is the ordinary event, so the tile it was on
+        // stays raised to be stamped flat like any other.
+        for other in revealedPickups where other.id != pickup.id || other.point != pickup.point {
+            commit(.pickupDestroyed(id: other.id, plane: other.plane, point: other.point))
+        }
 
         let effect = PickupCatalog.effect(for: pickup.id)
 
@@ -1462,9 +1506,8 @@ struct GameEngine {
         // Checked here rather than at each place a tile can break: this is
         // already the one function every planner ends with, and every one of
         // them can break a tile.
-        if let pickup = revealedPickup,
-           pickup.plane == piece.plane,
-           !self[pickup.plane][pickup.point].isSolid {
+        for pickup in revealedPickups
+        where pickup.plane == piece.plane && !self[pickup.plane][pickup.point].isSolid {
             let destroyed = GameEvent.pickupDestroyed(
                 id: pickup.id,
                 plane: pickup.plane,
@@ -1475,8 +1518,9 @@ struct GameEngine {
         }
 
         let changedPlane = piece.plane != previousPlane && GameRules.relocatePickupOnPlaneChange
-        let stranded = revealedPickup.map { $0.plane != piece.plane } ?? false
-        let nothingAvailable = sparkles == nil && revealedPickup == nil
+        let stranded = !revealedPickups.isEmpty
+            && revealedPickups.allSatisfy { $0.plane != piece.plane }
+        let nothingAvailable = sparkles == nil && revealedPickups.isEmpty
 
         guard changedPlane || stranded || nothingAvailable else { return events }
 
@@ -1560,7 +1604,7 @@ struct GameEngine {
             moveCount: moveCount,
             score: score,
             zodiactionMeter: zodiactionMeter,
-            pickupPoint: revealedPickup.flatMap { $0.plane == piece.plane ? $0.point : nil },
+            pickupPoints: revealedPickups.filter { $0.plane == piece.plane }.map(\.point),
             signState: signState,
             luck: luck,
             luckAlt: luckAlt
@@ -1581,9 +1625,9 @@ struct GameEngine {
         case let .pickupRevealed(id, plane, point):
             // The sparkle phase ends here: the shimmer goes out as the pickup
             // appears.
-            revealedPickup = RevealedPickup(id: id, plane: plane, point: point)
+            revealedPickups.append(RevealedPickup(id: id, plane: plane, point: point))
             // The tile pops up under it, and from here on the two are separate.
-            raisedTile = RevealedPickup(id: id, plane: plane, point: point)
+            raisedTiles.append(RevealedPickup(id: id, plane: plane, point: point))
             sparkles = nil
             pendingPickup = nil
 
@@ -1657,35 +1701,38 @@ struct GameEngine {
             // Only the square the coin actually went down on. If the sun had
             // dragged it elsewhere first, the tile it popped up from is still
             // standing and still has to be stamped flat by hand.
-            if raisedTile?.plane == plane, raisedTile?.point == point {
-                raisedTile = nil
+            raisedTiles.removeAll { $0.plane == plane && $0.point == point }
+            revealedPickups.removeAll { $0.plane == plane && $0.point == point }
+            // The hunt only restarts once the board is empty of coins.
+            if revealedPickups.isEmpty {
+                pendingPickup = nil
+                sparkles = nil
             }
-            revealedPickup = nil
-            pendingPickup = nil
-            sparkles = nil
 
         case let .pickupCollected(_, plane, point):
-            if raisedTile?.plane == plane, raisedTile?.point == point {
-                raisedTile = nil
+            raisedTiles.removeAll { $0.plane == plane && $0.point == point }
+            revealedPickups.removeAll { $0.plane == plane && $0.point == point }
+            if revealedPickups.isEmpty {
+                pendingPickup = nil
+                sparkles = nil
             }
-            revealedPickup = nil
-            pendingPickup = nil
-            sparkles = nil
             pickupsCollected += 1
 
-        case let .pickupMoved(id, plane, _, to):
-            // The coin alone. `raisedTile` is untouched on purpose.
-            revealedPickup = RevealedPickup(id: id, plane: plane, point: to)
+        case let .pickupMoved(id, plane, from, to):
+            // The coin alone. `raisedTiles` is untouched on purpose.
+            if let index = revealedPickups.firstIndex(where: {
+                $0.plane == plane && $0.point == from
+            }) {
+                revealedPickups[index] = RevealedPickup(id: id, plane: plane, point: to)
+            }
 
         case let .tileStamped(plane, point):
-            if raisedTile?.plane == plane, raisedTile?.point == point {
-                raisedTile = nil
-            }
+            raisedTiles.removeAll { $0.plane == plane && $0.point == point }
 
         case let .sparklesSpawned(set, pickup):
             sparkles = set
             pendingPickup = pickup
-            revealedPickup = nil
+            revealedPickups = []
 
         case let .nexysMoved(destination, carryingPiece):
             nexysPlane = destination

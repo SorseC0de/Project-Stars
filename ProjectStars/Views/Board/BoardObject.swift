@@ -60,7 +60,17 @@ struct BoardObject: Identifiable, Equatable {
     let point: GridPoint
 
     /// Stable across movement — see `BoardObjectKind`.
-    var id: BoardObjectKind { kind }
+    ///
+    /// The kind alone was enough while every kind was unique. Sagittarius can
+    /// put two Pentacles out, and two objects sharing an identity make SwiftUI
+    /// draw one of them; the square disambiguates without costing the stability
+    /// that made the kind the identity in the first place.
+    struct ID: Hashable {
+        let kind: BoardObjectKind
+        let point: GridPoint
+    }
+
+    var id: ID { ID(kind: kind, point: point) }
 
     /// Order within a row, lowest drawn first.
     ///

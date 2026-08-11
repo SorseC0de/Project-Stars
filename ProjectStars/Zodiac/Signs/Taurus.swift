@@ -25,6 +25,7 @@ extension ZodiacCatalog {
         passives: [
             TaurusHooves(),
             TaureanTear(),
+            TaurusGreedyGather(),
         ],
         zodiaction: TaurusFloweringFlop(),
         constellation: ZodiacCatalog.taurusConstellation
@@ -142,6 +143,24 @@ struct TaureanTear: ZodiacPassive {
 
         // Fully, like the coin it follows: a hole goes straight back to healthy.
         return [.tileHealed(plane: context.plane, point: damaged[index], to: .healthy)]
+    }
+}
+
+// MARK: - Passive 3: Greedy Gather
+
+/// Charge for finding the coin on the first square you tried.
+///
+/// The bull does not hunt so much as *arrive*, and being right first time is
+/// worth something. `collectedOnRevealTile` is the exact distinction: the
+/// sparkle you landed on turned out to be the one hiding it, rather than the
+/// coin being somewhere else in the set and walked to afterwards.
+struct TaurusGreedyGather: ZodiacPassive {
+
+    let displayName = "Greedy Gather"
+    let summary = "Astra & Terra: +3 charge when the sparkle you land on is the one holding the Pentacle."
+
+    func meterBonus(from move: MoveSummary, context: PassiveContext) -> Int {
+        move.collectedOnRevealTile ? 3 : 0
     }
 }
 

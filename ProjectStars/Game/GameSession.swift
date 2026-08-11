@@ -1245,17 +1245,15 @@ extension GameSession {
         return sparkles
     }
 
-    /// The revealed pickup, if it is on the visible plane.
-    var visiblePickup: RevealedPickup? {
-        guard let pickup = engine.revealedPickup, pickup.plane == visiblePlane else { return nil }
-        return pickup
+    /// The revealed pickups on the visible plane. Usually one, occasionally two.
+    var visiblePickups: [RevealedPickup] {
+        engine.revealedPickups.filter { $0.plane == visiblePlane }
     }
 
-    /// The popped-up square, which is not always under the coin — see
-    /// `GameEngine.raisedTile`.
-    var visibleRaisedTile: RevealedPickup? {
-        guard let raised = engine.raisedTile, raised.plane == visiblePlane else { return nil }
-        return raised
+    /// The popped-up squares, which are not always under a coin — see
+    /// `GameEngine.raisedTiles`.
+    var visibleRaisedTiles: [RevealedPickup] {
+        engine.raisedTiles.filter { $0.plane == visiblePlane }
     }
 
     /// Leo's sun, if it is burning on the plane being looked at.

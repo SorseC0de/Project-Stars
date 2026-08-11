@@ -55,8 +55,8 @@ struct CloudFieldView: View {
     /// Squares flashing because they just changed state.
     var flashing: Set<GridPoint> = []
 
-    /// The raised square, which draws itself. See the note above.
-    var excluding: GridPoint?
+    /// The raised squares, which draw themselves. See the note above.
+    var excluding: Set<GridPoint> = []
 
     /// What each square was before its current state, and when it changed.
     @State private var wearing: [GridPoint: Ease] = [:]
@@ -72,7 +72,7 @@ struct CloudFieldView: View {
 
             Canvas { context, _ in
                 for point in board.allPoints {
-                    guard point != excluding else { continue }
+                    guard !excluding.contains(point) else { continue }
 
                     let tile = board[point]
                     guard tile.kind == .normal else { continue }

@@ -164,7 +164,7 @@ struct ControlPanelView: View {
                 .font(.system(size: 8, weight: .bold, design: .monospaced))
                 .foregroundStyle(Palette.textSecondary)
 
-            if session.visiblePickup != nil {
+            if !session.visiblePickups.isEmpty {
                 // Pentacle phase. The coin is on the board but sealed, so the
                 // panel must not name what is inside it either.
                 Text("ON BOARD")

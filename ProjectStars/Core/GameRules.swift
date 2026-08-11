@@ -300,6 +300,15 @@ enum GameRules {
     /// pixels. They ring the figure, not the tile it is standing on.
     static let starSparkLift: CGFloat = 8
 
+    /// How often Sagittarius' Fortunate Find turns up a second Pentacle, by
+    /// plane.
+    ///
+    /// Better below, where the hunt is more dangerous and the board does not
+    /// mend itself. Drop these to 0.10 and 0.25 if two coins turn out to be too
+    /// much of the game.
+    static let secondPickupChanceAstra = 0.25
+    static let secondPickupChanceTerra = 0.33
+
     /// How often Taurus' Taurean Tear fires on an Astral Tear.
     ///
     /// At `1` the bull practically does not decay on Terra: Hasty Hooves already

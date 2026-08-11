@@ -134,9 +134,9 @@ struct BoardView: View {
     /// Leaving a gap is correct: a face lifted by 4px uncovers exactly the 4px
     /// edge strip laid down in pass one.
     private func faceLayer(board: Board, plane: Plane, metrics: PixelArtMetrics) -> some View {
-        // The raised square, which is not necessarily the coin's — Leo's sun can
-        // drag a Pentacle off the tile that popped up for it.
-        let poppedPoint = session.visibleRaisedTile?.point
+        // The raised squares, which are not necessarily the coins' — Leo's sun
+        // can drag a Pentacle off the tile that popped up for it.
+        let popped = Set(session.visibleRaisedTiles.map(\.point))
 
         return ZStack {
             // Astra's ordinary squares are one canvas, not 49 — see
@@ -146,11 +146,11 @@ struct BoardView: View {
                     board: board,
                     metrics: metrics,
                     flashing: session.flashingTiles,
-                    excluding: poppedPoint
+                    excluding: popped
                 )
             }
 
-            faces(board: board, plane: plane, metrics: metrics, popped: poppedPoint)
+            faces(board: board, plane: plane, metrics: metrics, popped: popped)
         }
     }
 
@@ -159,31 +159,30 @@ struct BoardView: View {
         board: Board,
         plane: Plane,
         metrics: PixelArtMetrics,
-        popped: GridPoint?
+        popped: Set<GridPoint>
     ) -> some View {
-        let poppedPoint = popped
-
-        return ForEach(board.allPoints.filter { $0 != poppedPoint }, id: \.self) { point in
-            let popped = false
+        ForEach(board.allPoints.filter { !popped.contains($0) }, id: \.self) { point in
+            // The raised squares draw themselves, depth-sorted with the pieces.
+            let isPopped = false
 
             TileView(
                 tile: board[point],
                 plane: plane,
                 shade: .at(point),
                 size: metrics.tileSize,
-                isPopped: popped,
+                isPopped: isPopped,
                 isFlashing: session.flashingTiles.contains(point),
                 point: point,
                 drawnByField: plane == .astra
             )
             .position(metrics.center(of: point))
-            .offset(y: popped ? -GameRules.tilePopLift * metrics.scale : 0)
+            .offset(y: isPopped ? -GameRules.tilePopLift * metrics.scale : 0)
             .animation(
                 .spring(
                     response: GameRules.tilePopResponse,
                     dampingFraction: GameRules.tilePopDamping
                 ),
-                value: popped
+                value: isPopped
             )
         }
     }
@@ -340,7 +339,7 @@ struct BoardView: View {
         if session.engine.nexysPlane == session.visiblePlane, point == GameRules.nexysPoint {
             return bob - GameRules.nexysRaise * metrics.scale
         }
-        if point == session.visibleRaisedTile?.point {
+        if session.visibleRaisedTiles.contains(where: { $0.point == point }) {
             return -GameRules.tilePopLift * metrics.scale
         }
         return 0
@@ -377,7 +376,7 @@ struct BoardView: View {
         starElement: ZodiacElement?
     ) -> some View {
         ZStack {
-            ForEach(BoardObject.draw(objectsOnBoard(plane: plane)), id: \.kind) { object in
+            ForEach(BoardObject.draw(objectsOnBoard(plane: plane))) { object in
                 switch object.kind {
                 case .raisedTile:
                     raisedTile(at: object.point, plane: plane, metrics: metrics)
@@ -423,10 +422,10 @@ struct BoardView: View {
 
         // Two objects at two places: the coin can be dragged off the tile that
         // popped up for it, and the tile stays where it is.
-        if let raised = session.visibleRaisedTile {
+        for raised in session.visibleRaisedTiles {
             objects.append(BoardObject(kind: .raisedTile, point: raised.point))
         }
-        if let pickup = session.visiblePickup {
+        for pickup in session.visiblePickups {
             objects.append(BoardObject(kind: .pentacle, point: pickup.point))
         }
         if session.engine.nexysPlane == plane {
@@ -464,10 +463,10 @@ struct BoardView: View {
     /// upper brackets pass *between* them.
     @ViewBuilder
     private func pentacle(at point: GridPoint, metrics: PixelArtMetrics) -> some View {
-        if let pickup = session.visiblePickup {
-            // Lifted only while it is standing on the raised tile. Dragged off
-            // it, the coin sits on ordinary ground like anything else.
-            let lifted = pickup.point == session.visibleRaisedTile?.point
+        if let pickup = session.visiblePickups.first(where: { $0.point == point }) {
+            // Lifted only while it is standing on a raised tile. Dragged off it,
+            // the coin sits on ordinary ground like anything else.
+            let lifted = session.visibleRaisedTiles.contains { $0.point == point }
 
             PentacleView(
                 appearance: PickupCatalog.effect(for: pickup.id).appearance,
