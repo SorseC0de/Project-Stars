@@ -208,7 +208,7 @@ enum EffectSprite: String, CaseIterable, Hashable {
         case .explosion: .fps20
         case .crabWalk, .waterSplash: .fps15
         // A strike is over before you can look at it.
-        case .lightning1, .lightning2, .lightning3, .lightning4: .fps20
+        case .lightning1, .lightning2, .lightning3, .lightning4: .fps15
         default: frames >= 20 ? .fps24 : .fps15
         }
     }
@@ -231,13 +231,8 @@ enum EffectSprite: String, CaseIterable, Hashable {
         case .cancerZodiaction, .cancerZodiactionAlternate: 2
         case .explosion, .crabWalk, .waterSplash: 4
         // The bolt comes down *onto* the square, so its foot sits on the tile
-        // and the rest of it towers overhead.
-        //
-        // Half the rendered height less half a tile is what puts the strike
-        // point on the ground: at span 2 the frame is 40 art pixels tall, so 20
-        // − 8 = 32, and the extra 4 lifts the very tip of the bolt clear of the
-        // piece's head rather than through it.
-        case .lightning1, .lightning2, .lightning3, .lightning4: 36
+        // and the rest of it towers overhead. Tuned from `GameRules`.
+        case .lightning1, .lightning2, .lightning3, .lightning4: GameRules.lightningLift
         case .leoPridefulLanding: 0
         // Authored centred, so it needs no lift at all.
         case .astralBloom: 0
@@ -310,9 +305,9 @@ enum EffectSprite: String, CaseIterable, Hashable {
         // Drawn at 96px against everything else's 64, and an explosion should
         // look like one.
         case .explosion: 2.4
-        // Two tiles across, five tall. Native size put a bolt across most of
-        // the board, which read as scenery rather than as a strike.
-        case .lightning1, .lightning2, .lightning3, .lightning4: 2
+        // Native size put a bolt across most of the board, which read as
+        // scenery rather than as a strike. Tuned from `GameRules`.
+        case .lightning1, .lightning2, .lightning3, .lightning4: GameRules.lightningSpan
         // Under the piece's feet, not around it.
         case .crabWalk: 1.2
         case .waterSplash: 1.0

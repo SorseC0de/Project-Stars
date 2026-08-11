@@ -300,6 +300,27 @@ enum GameRules {
     /// pixels. They ring the figure, not the tile it is standing on.
     static let starSparkLift: CGFloat = 8
 
+    // ── The strike ────────────────────────────────────────────────────────
+    //
+    // Every other effect's rate, size and offset lives on `EffectSprite`, since
+    // those are facts about a particular strip of art. The Bolt's are here
+    // because they are the ones actually being tuned, and this is where anybody
+    // looks first.
+
+    /// How fast the bolt plays.
+    static let lightningRate = SpriteRate.fps15
+
+    /// How wide it is drawn, in tiles. Height follows from the frame's own
+    /// proportions — the art is 64x160, so this times two and a half.
+    static let lightningSpan: CGFloat = 2
+
+    /// How far it rides up from the middle of its square, in art pixels.
+    ///
+    /// The base that puts the bolt's foot on the tile is `span × 20 − 8`, so 32
+    /// at the current size; anything above that lifts the strike clear of the
+    /// piece's head rather than through it.
+    static let lightningLift: CGFloat = 44
+
     /// Seconds for the piece to cycle once through all four elemental colours.
     static let starCyclePeriod: TimeInterval = 0.9
 
