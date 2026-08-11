@@ -400,6 +400,7 @@ final class GameSession {
     private func replay(_ events: [GameEvent]) async {
         // Per-move presentation bookkeeping, cleared before anything is drawn.
         crabWalkOrigin = nil
+        pluming = nil
 
         for event in events {
             guard !Task.isCancelled else { return }
@@ -440,13 +441,6 @@ final class GameSession {
             await sleep(GameRules.planeRestoreDuration)
 
         case let .tilesChanged(plane, changes):
-            // One plume per square an Essence just rearranged.
-            if let plume = pluming {
-                pluming = nil
-                for point in changes.keys {
-                    playEffect(plume, at: point, on: plane)
-                }
-            }
             disperseClouds(in: changes, on: plane)
             flashingTiles.formUnion(changes.keys)
             withAnimation(.easeOut(duration: GameRules.areaEffectDuration)) {
@@ -490,7 +484,17 @@ final class GameSession {
             await sleep(event.displayDuration)
             flashingTiles.subtract(changes.keys)
 
-        case .tileDamaged(_, let point, _), .tileHealed(_, let point, _):
+        case let .tileDamaged(plane, point, _):
+            // A trailing effect marks each square as the water reaches it.
+            if let plume = pluming { playEffect(plume, at: point, on: plane) }
+            flashingTiles.insert(point)
+            withAnimation(.easeOut(duration: event.displayDuration)) {
+                engine.apply(event)
+            }
+            await sleep(event.displayDuration)
+            flashingTiles.remove(point)
+
+        case .tileHealed(_, let point, _):
             flashingTiles.insert(point)
             withAnimation(.easeOut(duration: event.displayDuration)) {
                 engine.apply(event)
@@ -536,10 +540,26 @@ final class GameSession {
             if let element = PickupCatalog.effect(for: id).element {
                 playBurst(element, at: point, on: plane)
             }
-            // Its drawn strip is *not* played here. An Essence's plume belongs
-            // on the ground it changed, which is not known until the effect's
-            // own events arrive — see `.tilesChanged` below.
-            pluming = EffectSprite.pickup(for: id)
+            // The coin's own strip, laid out by what the coin *does* rather
+            // than by what its events happened to change — see
+            // `EffectSprite.shape(for:)`.
+            if let drawn = EffectSprite.pickup(for: id) {
+                switch EffectSprite.shape(for: id) {
+                case .here:
+                    playEffect(drawn, at: point, on: plane)
+
+                case .ring:
+                    for square in point.neighbourhood(includingSelf: true)
+                    where engine[plane].contains(square) {
+                        playEffect(drawn, at: square, on: plane)
+                    }
+
+                case .trailing:
+                    // Held, and spent square by square as the slide reaches
+                    // them. Cleared when the move ends, in case it never does.
+                    pluming = drawn
+                }
+            }
 
             // The Bolt is the exception: it changes no ground, it strikes *you*.
             // One of four drawings, so the rarest thing in the game is not the

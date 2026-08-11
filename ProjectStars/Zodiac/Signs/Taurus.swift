@@ -113,7 +113,7 @@ struct TaurusHooves: ZodiacPassive {
 struct TaureanTear: ZodiacPassive {
 
     let displayName = "Taurean Tear"
-    let summary = "Astra & Terra: an Astral Tear repairs a second tile too, chosen at random."
+    let summary = "Astra & Terra: an Astral Tear has a \(Int(GameRules.taureanTearChance * 100))% chance to repair a second tile too."
 
     func amend(_ events: [GameEvent], context: PassiveContext) -> [GameEvent] {
         let openedTear = events.contains { event in
@@ -121,6 +121,11 @@ struct TaureanTear: ZodiacPassive {
             return false
         }
         guard openedTear else { return [] }
+
+        // Rolled against `luckAlt` rather than `luck`, which is already spoken
+        // for below: sharing one roll would tie *whether* this fires to *which*
+        // tile it would have picked.
+        guard context.luckAlt < GameRules.taureanTearChance else { return [] }
 
         // The board as it stands *after* the coin's own repair, so the tile it
         // just mended cannot be picked again.

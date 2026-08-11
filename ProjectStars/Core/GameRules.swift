@@ -300,6 +300,13 @@ enum GameRules {
     /// pixels. They ring the figure, not the tile it is standing on.
     static let starSparkLift: CGFloat = 8
 
+    /// How often Taurus' Taurean Tear fires on an Astral Tear.
+    ///
+    /// At `1` the bull practically does not decay on Terra: Hasty Hooves already
+    /// halves what it does to the ground, and mending two tiles a coin outran
+    /// even that. Half the time is still the most reliable repair in the game.
+    static let taureanTearChance = 0.5
+
     /// How many committed moves Aries' Brazen Blaze burns for.
     ///
     /// Safe to raise: a longer burn is more ground survived now and more of the
@@ -318,7 +325,7 @@ enum GameRules {
 
     /// Where they start relative to the piece's centre, and how far they climb,
     /// in art pixels. The foot is positive because they begin at the feet.
-    static let emberFoot: Double = 6
+    static let emberFoot: Double = 2
     static let emberRise: CGFloat = 22
 
     /// How far one wanders sideways as it rises, and how big it starts.

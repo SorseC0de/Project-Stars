@@ -228,11 +228,17 @@ enum EffectSprite: String, CaseIterable, Hashable {
     /// A number rather than a flag, because "on the ground" is not one height:
     /// each of these was drawn with its own idea of where the floor is inside
     /// its 64px frame, and there is nothing in the pixels that says so.
+    ///
+    /// - Important: The piece is drawn **centred on its square**, not standing
+    ///   at the bottom of it — see `PieceView`, where a 16x32 sprite is lifted
+    ///   so its middle sits on the tile. So an effect centred on the tile centre
+    ///   lands at the piece's *feet*, not its middle, and almost everything here
+    ///   wants lifting further than seems right.
     var groundLift: CGFloat {
         switch self {
         case .ariesZodiaction, .astralBlaze, .sagittariusJump: 8
         // Bursts around the piece rather than at its feet.
-        case .ariesActivation: 4
+        case .ariesActivation: 8
         case .fireMisc: 6
         case .cancerZodiaction, .cancerZodiactionAlternate: 2
         case .explosion, .crabWalk, .waterSplash: 4
@@ -398,7 +404,38 @@ enum EffectSprite: String, CaseIterable, Hashable {
         switch id {
         case .astralBlaze: .astralBlaze
         case .astralBlossom: .astralBloom
+        // A stand-in until the water set is filled out — see `waterSplash`.
+        case .astralBrook: .waterSplash
         default: nil
+        }
+    }
+
+    /// Where a coin's strip is played.
+    enum PickupShape {
+        /// On the square the coin was opened on.
+        case here
+
+        /// On all nine squares it works over, whether or not each one changed.
+        case ring
+
+        /// On each square as the effect reaches it, over the course of the
+        /// move — a slide does not happen all at once.
+        case trailing
+    }
+
+    /// How the coin's strip is laid out.
+    ///
+    /// Keyed on the coin rather than on what its events turned out to do. The
+    /// first version played a plume only where a tile actually changed, so an
+    /// Astral Blossom opened on healthy ground drew nothing at all and a Blaze
+    /// over holes drew almost nothing — the effect looked broken exactly when
+    /// the board was in the state that made it useless. What the coin *does* is
+    /// the thing worth showing.
+    static func shape(for id: PickupID) -> PickupShape {
+        switch id {
+        case .astralBlaze, .astralBlossom: .ring
+        case .astralBrook: .trailing
+        default: .here
         }
     }
 
