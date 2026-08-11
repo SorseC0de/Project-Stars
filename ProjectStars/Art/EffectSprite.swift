@@ -207,8 +207,8 @@ enum EffectSprite: String, CaseIterable, Hashable {
         // Long strips of dissipating smoke: at 15 the tail crawls.
         case .explosion: .fps20
         case .crabWalk, .waterSplash: .fps15
-        // A strike is over before you can look at it.
-        case .lightning1, .lightning2, .lightning3, .lightning4: .fps15
+        // Tuned from `GameRules` — see the note there.
+        case .lightning1, .lightning2, .lightning3, .lightning4: GameRules.lightningRate
         default: frames >= 20 ? .fps24 : .fps15
         }
     }
