@@ -551,11 +551,17 @@ struct GameEngine {
             // Unless a passive owns that edge. Gemini's mirrors turn the four
             // centre-edge squares into doorways rather than walls, so an
             // otherwise illegal move becomes a jump to the opposite side.
-            if let wrapped = piece.zodiac.passives.wrappedMove(
+            // Asked of the rifts too when they have been left standing, since
+            // the sign holding the board no longer has the passive that owns
+            // them.
+            let wrap = piece.zodiac.passives.wrappedMove(
                 from: piece.point,
                 direction: direction,
                 context: passiveContext
-            ), wrapped.allSatisfy({ currentBoard.contains($0) }) {
+            ) ?? lingeringRift(from: piece.point, direction: direction)
+
+            if let wrapped = wrap,
+               wrapped.allSatisfy({ currentBoard.contains($0) }) {
                 return ResolvedMove(
                 path: wrapped,
                 style: .jump,
@@ -904,6 +910,9 @@ struct GameEngine {
             }
 
             if remaining.isSolid || hovers {
+                // Coming to rest on somebody else's work claims it.
+                result.events += claimAbandonedWorks()
+
                 // Coming to rest on the island while it sits on Terra rides it
                 // back up. Checked here — at rest — rather than on entering the
                 // square, so a slide that merely crosses the island keeps going.
@@ -943,6 +952,73 @@ struct GameEngine {
         }
 
         return result
+    }
+
+    // MARK: - Abandoned works
+    //
+    // Three secrets, none of them stated anywhere the player can read. All of
+    // them turn on holding a piece that did *not* make the thing being used,
+    // which only happens after a mid-run piece change.
+
+    /// Gemini's rifts, still open under somebody else's feet.
+    ///
+    /// Consulted only when the current sign has no wrap of its own, so Gemini
+    /// holding the board still goes through its own passive.
+    private func lingeringRift(
+        from origin: GridPoint,
+        direction: SwipeDirection
+    ) -> [GridPoint]? {
+        guard signState.riftsLinger else { return nil }
+        return GeminiReflectiveRifts().wrappedMove(
+            from: origin,
+            direction: direction,
+            context: passiveContext
+        )
+    }
+
+    /// Charge claimed from a work its maker has walked away from.
+    ///
+    /// Standing in a Bastion as a water sign that is *not* Cancer, or on an Aten
+    /// as a fire sign that is *not* Leo, fills the meter outright — and consumes
+    /// the thing. The element is the key: the work recognises its own kind, and
+    /// the sign that built it gets nothing, because for them it is already doing
+    /// what it was built to do.
+    ///
+    /// Deliberately undocumented in-game. It is only reachable after a piece
+    /// change, so it rewards a player who noticed that the board keeps what the
+    /// last sign left.
+    private mutating func claimAbandonedWorks() -> [GameEvent] {
+        var events: [GameEvent] = []
+        var state = signState
+        let element = piece.zodiac.element
+        var claimed = false
+
+        if let bastion = state.sanctuary,
+           bastion.covers(piece.point, on: piece.plane),
+           element == .water, piece.zodiac != .cancer {
+            state.sanctuary = nil
+            claimed = true
+        }
+
+        if let aten = state.sun,
+           aten.plane == piece.plane, aten.point == piece.point,
+           element == .fire, piece.zodiac != .leo {
+            state.sun = nil
+            claimed = true
+        }
+
+        guard claimed else { return [] }
+
+        func commit(_ event: GameEvent) {
+            events.append(event)
+            apply(event)
+        }
+
+        commit(.signStateChanged(state))
+        if zodiactionMeter < zodiactionMeterMax {
+            commit(.zodiactionMeterChanged(to: zodiactionMeterMax))
+        }
+        return events
     }
 
     // MARK: - Leo's sun
@@ -1508,6 +1584,10 @@ struct GameEngine {
             piece.point = to
 
         case let .pieceChanged(zodiac):
+            // Leaving Gemini leaves the rifts. See `SignState.riftsLinger`.
+            if piece.zodiac == .gemini, zodiac != .gemini {
+                signState.riftsLinger = true
+            }
             signState = signState.clearedForPieceChange
             // Square, plane and facing all survive the change; only the sign
             // itself is replaced. Charge is kept too — the meter belongs to the

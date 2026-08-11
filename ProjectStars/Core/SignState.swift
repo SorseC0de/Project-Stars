@@ -124,6 +124,14 @@ struct SignState: Equatable {
         var movesRemaining: Int
     }
 
+    /// True once Gemini's rifts have been torn and left behind.
+    ///
+    /// The rifts are a hole in the world, not a property of the twins: change
+    /// piece and they stay open, and whoever is holding the board can use them.
+    /// Set when the piece stops being Gemini, and never cleared — you cannot
+    /// un-tear a hole in space.
+    var riftsLinger = false
+
     /// The protected patch of board a Zodiaction has thrown up, if any.
     ///
     /// A named field rather than a `buffs` entry because a buff is only a
@@ -275,6 +283,15 @@ struct SignState: Equatable {
         // the sign, so it is the one thing that carries across.
         copy.streakDirection = streakDirection
         copy.streakLength = streakLength
+
+        // So do the things that are on the *board* rather than in the sign's
+        // head. A Bastion is consecrated ground and a sun is a body in the sky;
+        // neither cares who raised it, and neither should blink out because the
+        // player became someone else. This is what makes the abandoned-works
+        // bonuses possible — see `GameEngine.claimAbandonedWorks`.
+        copy.sanctuary = sanctuary
+        copy.sun = sun
+        copy.riftsLinger = riftsLinger
         return copy
     }
 }

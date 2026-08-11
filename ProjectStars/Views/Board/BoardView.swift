@@ -189,7 +189,9 @@ struct BoardView: View {
     /// Gemini's mirrors, on Astra only.
     @ViewBuilder
     private func mirrors(plane: Plane, metrics: PixelArtMetrics) -> some View {
-        if session.zodiac == .gemini, plane == .astra {
+        // Drawn for Gemini, and for whoever inherits the rifts afterwards.
+        if session.zodiac == .gemini || session.engine.signState.riftsLinger,
+           plane == .astra {
             ReflectiveRiftsView(metrics: metrics, accent: session.zodiac.definition.accentColor)
                 .frame(width: metrics.boardSize, height: metrics.boardSize)
         }
