@@ -102,6 +102,8 @@ struct GameScreen: View {
     /// - **Z** fills the Zodiaction meter (debug builds only).
     /// - **X** fills *and* pops it, skipping the hold (debug builds only).
     /// - **L** makes the *next* Pentacle an Astral Bolt (debug builds only).
+    /// - **C** cycles the control scheme (debug builds only).
+    /// - **B** cycles the sign-badge treatment (debug builds only).
     private var keyboardCommands: some View {
         ZStack {
             // Reach 0 — the nearest option. A key press carries no magnitude, so
@@ -129,6 +131,12 @@ struct GameScreen: View {
 
             Button("Stage lightning") { session.debugStageLightning() }
                 .keyboardShortcut("l", modifiers: [])
+
+            Button("Cycle controls") { session.debugCycleControls() }
+                .keyboardShortcut("c", modifiers: [])
+
+            Button("Cycle badge") { session.debugCycleBadge() }
+                .keyboardShortcut("b", modifiers: [])
             #endif
         }
         .frame(width: 0, height: 0)

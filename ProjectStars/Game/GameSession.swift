@@ -27,6 +27,30 @@ final class GameSession {
     /// The authoritative state. Views read it; only this class mutates it.
     private(set) var engine: GameEngine
 
+    // MARK: Meter, mirrored
+    //
+    // The engine is the authority; these are what the panel reads.
+    //
+    // Views used to reach through `session.engine.zodiactionMeter`, and the
+    // button did not always notice a change — a debug fill left it showing the
+    // old state until the next move. Mirroring the three facts onto the session
+    // and refreshing them wherever the engine is touched removes the question:
+    // there is one place charge is published, so there is one place it can be
+    // wrong.
+
+    private(set) var zodiactionMeter = 0
+    private(set) var zodiactionMeterMax = GameRules.defaultZodiactionMeterMax
+    private(set) var isZodiactionReady = false
+
+    /// Republishes anything derived from the engine.
+    ///
+    /// Called after every applied event. Cheap, and it cannot go stale.
+    private func publish() {
+        zodiactionMeter = engine.zodiactionMeter
+        zodiactionMeterMax = engine.zodiactionMeterMax
+        isZodiactionReady = engine.isZodiactionReady
+    }
+
     /// What the session is currently doing.
     private(set) var phase: GamePhase = .awaitingInput
 
@@ -239,6 +263,7 @@ final class GameSession {
         self.startingZodiac = zodiac
         self.engine = GameEngine(zodiac: zodiac, seed: seed)
         self.codex = codex ?? .shared
+        publish()
     }
 
     /// Abandons the current run and starts a new one.
@@ -249,6 +274,7 @@ final class GameSession {
         let sign = zodiac ?? startingZodiac
         startingZodiac = sign
         engine = GameEngine(zodiac: sign, seed: seed)
+        publish()
 
         phase = .awaitingInput
         isFalling = false
@@ -360,6 +386,25 @@ final class GameSession {
         fireZodiaction()
     }
 
+    /// Cycles the control scheme. Debug builds only.
+    ///
+    /// Stands in for the selection screen, so both schemes can be felt on a
+    /// device before either is committed to.
+    func debugCycleControls() {
+        let all = GameRules.ControlScheme.allCases
+        let next = (all.firstIndex(of: GameRules.controlScheme) ?? 0) + 1
+        GameRules.controlScheme = all[next % all.count]
+        publish()
+    }
+
+    /// Cycles the sign-badge treatment. Debug builds only.
+    func debugCycleBadge() {
+        let all = GameRules.BadgeStyle.allCases
+        let next = (all.firstIndex(of: GameRules.badgeStyle) ?? 0) + 1
+        GameRules.badgeStyle = all[next % all.count]
+        publish()
+    }
+
     /// Stages the Astral Bolt as the next Pentacle. Debug builds only.
     ///
     /// Only the *next* one, and it does not disturb the coin already on the
@@ -422,6 +467,8 @@ final class GameSession {
     /// Applies a plan to the engine one event at a time, animating each and
     /// waiting out its display duration before the next.
     private func replay(_ events: [GameEvent]) async {
+        defer { publish() }
+
         // Per-move presentation bookkeeping, cleared before anything is drawn.
         crabWalkOrigin = nil
         pluming = nil
@@ -439,6 +486,9 @@ final class GameSession {
 
     /// Animates a single event, mutates the engine, and holds for its beat.
     private func present(_ event: GameEvent) async {
+        // Every event ends with the panel told what the engine now says.
+        defer { publish() }
+
         switch event {
 
         case let .moveBlocked(direction):

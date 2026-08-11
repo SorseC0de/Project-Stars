@@ -31,8 +31,15 @@ struct ControlPanelView: View {
     /// Edge length of the square, in points.
     let side: CGFloat
 
-    /// Which way round the panel is.
-    @State private var showingInfo = false
+    /// How many times the panel has been turned over.
+    ///
+    /// A count rather than a flag, so the board keeps rotating the *same way*
+    /// each time instead of winding back the way it came. Turning something over
+    /// and then un-turning it reads as a mistake being undone; turning it again
+    /// reads as a board with two sides.
+    @State private var turns = 0
+
+    private var showingInfo: Bool { turns.isMultiple(of: 2) == false }
 
     /// Where the in-progress drag points. Owned here rather than by the input
     /// surface so the stick can react while the finger is still down.
@@ -85,9 +92,11 @@ struct ControlPanelView: View {
         content()
             .frame(width: side, height: side)
             .opacity(isVisible ? 1 : 0)
+            // Around X, so it tips away from the player like a chalkboard on
+            // a frame rather than swinging like a door.
             .rotation3DEffect(
-                .degrees(showingInfo ? flip - 180 : flip),
-                axis: (x: 0, y: 1, z: 0),
+                .degrees(Double(turns) * 180 + flip),
+                axis: (x: 1, y: 0, z: 0),
                 perspective: GameRules.panelTurnPerspective
             )
             .allowsHitTesting(isVisible)
@@ -97,7 +106,7 @@ struct ControlPanelView: View {
     /// facing away.
     private func turn() {
         withAnimation(.easeInOut(duration: GameRules.panelTurnDuration)) {
-            showingInfo.toggle()
+            turns += 1
         }
     }
 }
@@ -110,6 +119,20 @@ private struct MainFaceView: View {
     let session: GameSession
     @Binding var liveDirection: SwipeDirection?
     let onInfo: () -> Void
+
+    /// How much of the bottom of the screen belongs to the system.
+    ///
+    /// Read rather than guessed: it is 34pt on a phone with a home indicator and
+    /// 0 on one with a button, and hardcoding either is wrong on the other.
+    private var safeArea: CGFloat {
+        #if canImport(UIKit)
+        UIApplication.shared.connectedScenes
+            .compactMap { ($0 as? UIWindowScene)?.keyWindow?.safeAreaInsets.bottom }
+            .max() ?? 0
+        #else
+        0
+        #endif
+    }
 
     var body: some View {
         ZStack {
@@ -132,7 +155,12 @@ private struct MainFaceView: View {
                 Spacer(minLength: 0)
                 ZodiactionBarView(session: session)
             }
-            .padding(GameRules.panelPadding)
+            .padding(.horizontal, GameRules.panelPadding)
+            .padding(.top, GameRules.panelPadding)
+            // Clear of the home indicator: a button under it is a button the
+            // system takes the first touch of.
+            .padding(.bottom, GameRules.panelPadding)
+            .padding(.bottom, safeArea)
         }
     }
 
@@ -148,10 +176,7 @@ private struct MainFaceView: View {
 
             Spacer(minLength: 0)
 
-            Text(session.visiblePlane.displayName.uppercased())
-                .font(.system(size: 10, weight: .heavy, design: .monospaced))
-                .tracking(2)
-                .foregroundStyle(Palette.lightBlue)
+            planeBadge
 
             CelButton(tint: Palette.lightBlue, action: onInfo) {
                 Image(systemName: "info")
@@ -168,6 +193,25 @@ private struct MainFaceView: View {
         // Text opts out so a drag started on it still reaches the surface
         // behind; the buttons stay live.
         .allowsHitTesting(true)
+    }
+
+    /// Which plane the board is showing, in its own colour.
+    ///
+    /// Two tints in a pill, which is what it always was — the colour is the
+    /// information and the word only confirms it.
+    private var planeBadge: some View {
+        let plane = session.visiblePlane
+
+        return Text(plane.displayName.uppercased())
+            .font(.system(size: 12, weight: .heavy, design: .monospaced))
+            .tracking(2)
+            .foregroundStyle(Palette.textPrimary)
+            .padding(.horizontal, 10)
+            .padding(.vertical, 5)
+            .background(Capsule().fill(Palette.planeTint(plane)))
+            .overlay(Capsule().strokeBorder(Palette.outline, lineWidth: 1))
+            .animation(.easeInOut(duration: 0.25), value: plane)
+            .allowsHitTesting(false)
     }
 
     /// Whichever control scheme is in play.

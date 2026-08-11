@@ -514,12 +514,15 @@ enum GameRules {
 
     /// How the sign and element marks are presented. Three to look at — see
     /// `SignBadgeView`.
-    enum BadgeStyle { case flat, emblem, constellationPlate }
-    static let badgeStyle: BadgeStyle = .emblem
+    enum BadgeStyle: CaseIterable { case flat, emblem, constellationPlate }
+
+    /// A `var` for the same reason as `controlScheme`: these are being looked
+    /// at, not settled.
+    static var badgeStyle: BadgeStyle = .flat
 
     /// Height of the sign's mark, and the element's as a fraction of it.
-    static let badgeSize: CGFloat = 34
-    static let badgeElementScale: CGFloat = 0.78
+    static let badgeSize: CGFloat = 52
+    static let badgeElementScale: CGFloat = 0.82
 
     /// How much of a badge the glyph fills, leaving room for its surround.
     static let badgeGlyphInset: CGFloat = 0.62
@@ -530,8 +533,11 @@ enum GameRules {
     /// stick shows where the drag points, and a tap advances forward.
     /// **B** is buttons — a keyboard cross, with a sign's special moves
     /// appearing as smaller arrows beside the direction they apply to.
-    enum ControlScheme { case joystick, buttons }
-    static let controlScheme: ControlScheme = .joystick
+    enum ControlScheme: CaseIterable { case joystick, buttons }
+
+    /// A `var` so a debug key can flip it — see `GameSession.debugCycleControls`.
+    /// It becomes a stored preference once the selection screen exists.
+    static var controlScheme: ControlScheme = .joystick
 
     /// How far a button's face stands above its rim, and how it is cut.
     static let buttonDepth: CGFloat = 5
@@ -542,12 +548,16 @@ enum GameRules {
     /// The stick's diameter, and how far its knob leans — at rest, and while a
     /// finger is down.
     static let joystickSize: CGFloat = 108
-    static let joystickRest: CGFloat = 0.10
     static let joystickLean: CGFloat = 0.20
 
+    /// How visible the four direction hints are, at rest and on the one being
+    /// pushed.
+    static let joystickHintDim: Double = 0.28
+    static let joystickHintLit: Double = 1
+
     /// Height of the fire button, and of one pip of the meter.
-    static let zodiactionButtonHeight: CGFloat = 54
-    static let meterPipHeight: CGFloat = 10
+    static let zodiactionButtonHeight: CGFloat = 78
+    static let meterPipHeight: CGFloat = 9
 
     /// Breathing room inside the panel, and between its rows.
     static let panelPadding: CGFloat = 14
