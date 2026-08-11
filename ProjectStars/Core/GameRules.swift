@@ -487,6 +487,16 @@ enum GameRules {
     static let cloudDriftAmount: CGFloat = 0.6
     static let cloudDriftPeriod: TimeInterval = 5.5
 
+    /// How many times a second the cloud field redraws.
+    ///
+    /// Deliberately below the display's refresh. `TimelineView(.animation)` runs
+    /// at whatever the screen does — 120Hz on a ProMotion device — and Astra is
+    /// two thousand primitives a pass against Terra's handful of sprites, so it
+    /// was paying four times over for motion nothing can see. The clouds drift
+    /// on a five-second period and the puffs breathe over seconds; thirty is
+    /// more than they need, and pixel art has never wanted more.
+    static let cloudFrameRate: Double = 30
+
     /// How long the piece takes to pick up its cloud's sway after landing.
     ///
     /// The sway belongs to standing still — mid-hop the piece is off the cloud
@@ -1023,7 +1033,7 @@ enum GameRules {
     static let constellationScale: CGFloat = 2.3
 
     /// How far above the piece it hangs, in art pixels.
-    static let constellationRise: CGFloat = 12
+    static let constellationRise: CGFloat = 24
 
     /// Radians per second about the vertical axis, and the fixed tilt.
     ///

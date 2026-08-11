@@ -30,6 +30,16 @@ import SwiftUI
 /// excluded here and `CloudTileView` handles it. Structural squares — the island
 /// and its chasm — are not cloud at all and never came through here.
 ///
+/// ## Why it runs at its own frame rate
+///
+/// `TimelineView(.animation)` redraws at whatever the display does, which on a
+/// ProMotion device is 120Hz. Astra is roughly two thousand primitives a pass
+/// against Terra's handful of sprites, so it was paying four times over for
+/// motion nothing can perceive: the clouds drift on a five-second period and the
+/// puffs breathe over seconds. `GameRules.cloudFrameRate` holds it to thirty,
+/// which is more than the movement needs and more than pixel art has ever
+/// wanted.
+///
 /// ## Why wear easing is kept by hand
 ///
 /// A `Canvas` has no per-square view to hang an implicit animation on, and with
@@ -57,7 +67,7 @@ struct CloudFieldView: View {
     }
 
     var body: some View {
-        TimelineView(.animation) { timeline in
+        TimelineView(.periodic(from: .now, by: 1 / GameRules.cloudFrameRate)) { timeline in
             let now = timeline.date.timeIntervalSinceReferenceDate
 
             Canvas { context, _ in

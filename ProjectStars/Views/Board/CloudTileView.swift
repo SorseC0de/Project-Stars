@@ -171,6 +171,16 @@ struct CloudGlintSpiral: Shape {
     /// Windings, fractional. See `GameRules.cloudGlintTurns`.
     var turns: Double
 
+    /// The curl at unit size, centred on the origin, built once.
+    ///
+    /// The cloud field draws eight of these per square across forty-eight
+    /// squares — 384 curls a frame, each of which was re-running its own sine
+    /// and cosine per segment. The shape never changes, only its size, angle and
+    /// place, so it is generated once and moved with a transform. This was the
+    /// single largest cost in drawing Astra.
+    static let unit: Path = CloudGlintSpiral(turns: GameRules.cloudGlintTurns)
+        .path(in: CGRect(x: -0.5, y: -0.5, width: 1, height: 1))
+
     /// Segments per turn. Enough that the curve is smooth at this size without
     /// building a path nobody can see the detail of.
     private let resolution = 24
@@ -524,15 +534,13 @@ extension CloudCluster {
                 let glint = glint(index + salt, at: point, time: now)
                 let span = GameRules.cloudGlintLength * scale * glint.length
 
-                // Built around the origin so it turns about its own middle,
+                // The prebuilt unit curl, scaled, turned about its own middle,
                 // then carried out to where it sits.
-                let box = CGRect(x: -span / 2, y: -span / 2, width: span, height: span)
-                let path = CloudGlintSpiral(turns: GameRules.cloudGlintTurns)
-                    .path(in: box)
-                    .applying(
-                        CGAffineTransform(translationX: glint.x * scale, y: glint.y * scale)
-                            .rotated(by: glint.angle * .pi / 180)
-                    )
+                let path = CloudGlintSpiral.unit.applying(
+                    CGAffineTransform(translationX: glint.x * scale, y: glint.y * scale)
+                        .rotated(by: glint.angle * .pi / 180)
+                        .scaledBy(x: span, y: span)
+                )
 
                 context.stroke(
                     path,

@@ -59,6 +59,17 @@ protocol Zodiaction {
     /// have one. Ask what that sign's strength already is.
     func meterGain(from move: MoveSummary, context: PassiveContext) -> Int
 
+    /// Whether this can fire *right now*.
+    ///
+    /// Defaults to true. Override for a Zodiaction with a condition beyond the
+    /// meter — Pisces' Upstream refuses on the turn the fall brought it down.
+    ///
+    /// The engine checks this before spending anything. Without it, `activate`
+    /// returning no events still cost the player a full meter and played the
+    /// whole summon: the ability appeared to fire and did nothing, which is
+    /// worse than being told it is unavailable.
+    func canActivate(context: PassiveContext) -> Bool
+
     /// The events popping the Zodiaction produces.
     ///
     /// Return an empty array for one that only exists as a marker for now. The
@@ -74,6 +85,8 @@ protocol Zodiaction {
 
 extension Zodiaction {
     var meterMax: Int { GameRules.defaultZodiactionMeterMax }
+
+    func canActivate(context: PassiveContext) -> Bool { true }
 
     func activate(context: PassiveContext, generator: inout SeededRandom) -> [GameEvent] {
         []

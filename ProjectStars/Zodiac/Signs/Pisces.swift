@@ -53,13 +53,27 @@ extension ZodiacCatalog {
 /// It makes Pisces the only sign with a reason to *stay* on Astra rather than
 /// treat it as a floor to fall through — and the only one whose meter is a
 /// countdown once it goes down.
+///
+/// ## Astra pays on arrival, Terra charges on departure
+///
+/// Not symmetry for its own sake. Charging Terra's drain on *arrival* meant the
+/// move that reached a Pentacle paid the toll and collected in the same breath:
+/// land on a Z-Charge at zero and you finished on two, not three, which reads as
+/// the coin having shortchanged you. Billing the drain to the square you *leave*
+/// puts the toll on the move that spends the ground, and lets a coin be worth
+/// exactly what it says.
+///
+/// It also means the descent itself is free — a move that starts on Astra never
+/// drains — which is right, since Gaia Geyser is filling the meter on that very
+/// move.
 struct PiscesAstralAttunement: ZodiacPassive {
 
     let displayName = "Astral Attunement"
-    let summary = "Astra: +1 charge per move. Terra: −1 charge per move."
+    let summary = "Astra: +1 charge on arrival. Terra: −1 charge for every square you leave."
 
     func meterBonus(from move: MoveSummary, context: PassiveContext) -> Int {
-        move.endingPlane == .astra ? 1 : -1
+        if move.endingPlane == .astra { return 1 }
+        return move.startingPlane == .terra ? -1 : 0
     }
 }
 
@@ -95,8 +109,9 @@ struct PiscesGaiaGeyser: ZodiacPassive {
 ///   in the game; every other route needs the Nexys. It cannot be used on the
 ///   same turn as the fall that brought you down, so a descent always costs at
 ///   least one turn on Terra.
-/// - **Astra — Downstream:** ride your current tile three squares forward,
-///   carrying it — and whatever state it is in — along with you.
+/// - **Astra — Downstream:** the Astral Brook, run from the meter instead of
+///   from a coin. Sweeps to the far edge along the facing, wearing every tile
+///   crossed and passing over holes.
 struct PiscesSurgingStream: Zodiaction {
 
     let displayName = "Surging Stream"
@@ -107,10 +122,17 @@ struct PiscesSurgingStream: Zodiaction {
     /// the ability *is* on each plane, and the panel will want them set smaller
     /// under the name once the bottom display is revamped for larger text.
     let subtitle = "Upstream / Downstream"
-    let summary = "Terra: swim back up to Astra. Astra: ride your tile 3 squares forward. (Downstream not yet implemented.)"
+    let summary = "Terra: swim back up to Astra. Astra: sweep to the far edge, damaging every tile you cross."
 
     /// Pisces' charge comes entirely from Astral Attunement and Gaia Geyser.
     func meterGain(from move: MoveSummary, context: PassiveContext) -> Int { 0 }
+
+    /// Upstream refuses on the turn the fall brought Pisces down: a descent has
+    /// to cost at least one turn on Terra. Downstream has no such condition.
+    func canActivate(context: PassiveContext) -> Bool {
+        guard context.plane == .terra else { return true }
+        return context.moveCount > context.signState.planeArrivalMove
+    }
 
     func activate(context: PassiveContext, generator: inout SeededRandom) -> [GameEvent] {
         switch context.plane {
@@ -122,10 +144,7 @@ struct PiscesSurgingStream: Zodiaction {
     // MARK: Terra — Upstream
 
     private func upstream(_ context: PassiveContext) -> [GameEvent] {
-        // Not on the turn you arrived: the fall has to cost something.
-        guard context.moveCount > context.signState.planeArrivalMove else { return [] }
-
-        return [
+        [
             .pieceTeleported(
                 from: context.piecePoint,
                 to: context.piecePoint,
@@ -137,13 +156,17 @@ struct PiscesSurgingStream: Zodiaction {
 
     // MARK: Astra — Downstream
 
+    /// The Astral Brook, run as a Zodiaction rather than out of a coin.
+    ///
+    /// Literally that effect — the same function, not a copy of it — so the two
+    /// cannot drift apart. Pisces is the water sign; the Brook is the water
+    /// Essence; there is no reason for them to be different things.
     private func downstream(_ context: PassiveContext) -> [GameEvent] {
-        // TODO: **Not implemented.** Riding the tile means the square travels
-        // with the piece, carrying its damage state — the board itself changes
-        // shape, which nothing in the game does yet. It needs a
-        // `.tilesShifted(from:to:plane:)` event and a decision about what is left
-        // behind: a hole, or whatever the destination used to be. The latter is
-        // really a swap, and is probably the right reading.
-        []
+        AstralBrookEffect.slide(
+            on: context.currentBoard,
+            plane: context.plane,
+            from: context.piecePoint,
+            facing: context.facing
+        )
     }
 }

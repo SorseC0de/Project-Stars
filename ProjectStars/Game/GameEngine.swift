@@ -130,7 +130,13 @@ struct GameEngine {
     var zodiactionMeterMax: Int { piece.zodiac.zodiaction.meterMax }
 
     /// True when the Zodiaction can be popped right now.
-    var isZodiactionReady: Bool { !isGameOver && zodiactionMeter >= zodiactionMeterMax }
+    var isZodiactionReady: Bool {
+        guard !isGameOver, zodiactionMeter >= zodiactionMeterMax else { return false }
+        // Asked here rather than only at the moment of firing, so the panel can
+        // show it as unavailable instead of letting the player spend a full
+        // meter on nothing.
+        return piece.zodiac.zodiaction.canActivate(context: passiveContext)
+    }
 
     /// True when the piece is standing on the Nexys island.
     var isOnNexys: Bool {

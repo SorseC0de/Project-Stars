@@ -192,12 +192,30 @@ struct AstralBrookEffect: PickupEffect {
         choice: PickupChoiceResult?,
         generator: inout SeededRandom
     ) -> [GameEvent] {
+        Self.slide(
+            on: context.currentBoard,
+            plane: context.plane,
+            from: context.piecePoint,
+            facing: context.facing
+        )
+    }
+
+    /// The slide itself, as its own function.
+    ///
+    /// Shared with Pisces' Downstream, which *is* this effect — one body rather
+    /// than two that would drift apart the first time either was retuned.
+    static func slide(
+        on board: Board,
+        plane: Plane,
+        from origin: GridPoint,
+        facing: SwipeDirection
+    ) -> [GameEvent] {
         // Facing a wall, the water simply flows the other way. Without this the
-        // Pentacle is a dud whenever it is opened on a border tile facing out —
+        // effect is a dud whenever it is used on a border tile facing out —
         // which is common, since the border is where sliding tends to strand you.
-        var heading = context.facing
-        if !context.currentBoard.contains(context.piecePoint.offset(by: heading.unitOffset)) {
-            heading = context.facing.opposite
+        var heading = facing
+        if !board.contains(origin.offset(by: heading.unitOffset)) {
+            heading = facing.opposite
         }
         let step = heading.unitOffset
 
@@ -207,24 +225,22 @@ struct AstralBrookEffect: PickupEffect {
         // piece arrives at the far wall still looking back the way it came, and
         // every facing-dependent thing that follows — the cursor, Libra's flanks,
         // Sagittarius' forward stride — reads the wrong direction.
-        if heading != context.facing {
+        if heading != facing {
             events.append(.pieceTurned(to: heading))
         }
 
-        var from = context.piecePoint
+        var from = origin
         var point = from.offset(by: step)
 
         // Walk to the border. Damage is computed against the board as the effect
         // finds it, tile by tile, because the same square is never crossed twice
         // in a straight line.
-        while context.currentBoard.contains(point) {
-            events.append(.pieceStepped(from: from, to: point, plane: context.plane))
+        while board.contains(point) {
+            events.append(.pieceStepped(from: from, to: point, plane: plane))
 
-            let tile = context.currentBoard[point]
+            let tile = board[point]
             if tile.canBeWorn {
-                events.append(
-                    .tileDamaged(plane: context.plane, point: point, to: tile.health.damaged)
-                )
+                events.append(.tileDamaged(plane: plane, point: point, to: tile.health.damaged))
             }
 
             from = point
