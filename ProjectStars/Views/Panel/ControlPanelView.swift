@@ -150,12 +150,12 @@ private struct MainFaceView: View {
 
             VStack(spacing: GameRules.panelSpacing) {
                 topRow
-                #if DEBUG
-                debugRow
-                #endif
                 Spacer(minLength: 0)
                 movement
                 Spacer(minLength: 0)
+                #if DEBUG
+                debugRow
+                #endif
                 ZodiactionBarView(session: session)
             }
             .padding(.horizontal, GameRules.panelPadding)
@@ -199,39 +199,47 @@ private struct MainFaceView: View {
     }
 
     #if DEBUG
-    /// Sign swapping, on screen rather than only on a keyboard.
+    /// Every sign at once, plus the two look toggles.
+    ///
+    /// All twelve rather than a stepper: picking the one you want to try is a
+    /// glance and a tap, where cycling is a count. Uses the real sign marks, so
+    /// it doubles as a look at all twelve of them together.
     ///
     /// Kept out of release builds entirely rather than hidden behind a flag —
     /// the panel is being designed around what the player sees, and a row that
-    /// ships would change that layout.
+    /// shipped would change that layout.
     private var debugRow: some View {
-        HStack(spacing: 8) {
-            CelButton(tint: Palette.stone) { session.debugCycleSign(by: -1) } label: {
-                Image(systemName: "chevron.left").font(.system(size: 13, weight: .black))
+        VStack(spacing: 6) {
+            HStack(spacing: 3) {
+                ForEach(Zodiac.allCases) { sign in
+                    let isCurrent = sign == session.zodiac
+
+                    Image("Signs/\(sign.rawValue)")
+                        .renderingMode(.template)
+                        .resizable()
+                        .scaledToFit()
+                        .padding(4)
+                        .foregroundStyle(isCurrent ? Palette.warmBlack : Palette.lightGray)
+                        .frame(width: 26, height: 26)
+                        .background {
+                            RoundedRectangle(cornerRadius: 5)
+                                .fill(isCurrent ? Palette.gold : Palette.midnight)
+                        }
+                        .onTapGesture { session.debugSwapSign(to: sign) }
+                }
             }
-            .frame(width: 52, height: 34)
 
-            Text("SIGN")
-                .font(.system(size: 9, weight: .heavy, design: .monospaced))
-                .tracking(2)
-                .foregroundStyle(Palette.textSecondary)
+            HStack(spacing: 8) {
+                CelButton(tint: Palette.stone) { session.debugCycleControls() } label: {
+                    Text("CTRL").font(.system(size: 10, weight: .heavy, design: .monospaced))
+                }
+                .frame(width: 64, height: 30)
 
-            CelButton(tint: Palette.stone) { session.debugCycleSign(by: 1) } label: {
-                Image(systemName: "chevron.right").font(.system(size: 13, weight: .black))
+                CelButton(tint: Palette.stone) { session.debugCycleBadge() } label: {
+                    Text("BADGE").font(.system(size: 10, weight: .heavy, design: .monospaced))
+                }
+                .frame(width: 74, height: 30)
             }
-            .frame(width: 52, height: 34)
-
-            Spacer(minLength: 0)
-
-            CelButton(tint: Palette.stone) { session.debugCycleControls() } label: {
-                Text("CTRL").font(.system(size: 10, weight: .heavy, design: .monospaced))
-            }
-            .frame(width: 58, height: 34)
-
-            CelButton(tint: Palette.stone) { session.debugCycleBadge() } label: {
-                Text("BADGE").font(.system(size: 10, weight: .heavy, design: .monospaced))
-            }
-            .frame(width: 68, height: 34)
         }
     }
     #endif
