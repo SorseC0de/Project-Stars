@@ -150,6 +150,9 @@ private struct MainFaceView: View {
 
             VStack(spacing: GameRules.panelSpacing) {
                 topRow
+                #if DEBUG
+                debugRow
+                #endif
                 Spacer(minLength: 0)
                 movement
                 Spacer(minLength: 0)
@@ -194,6 +197,44 @@ private struct MainFaceView: View {
         // behind; the buttons stay live.
         .allowsHitTesting(true)
     }
+
+    #if DEBUG
+    /// Sign swapping, on screen rather than only on a keyboard.
+    ///
+    /// Kept out of release builds entirely rather than hidden behind a flag —
+    /// the panel is being designed around what the player sees, and a row that
+    /// ships would change that layout.
+    private var debugRow: some View {
+        HStack(spacing: 8) {
+            CelButton(tint: Palette.stone) { session.debugCycleSign(by: -1) } label: {
+                Image(systemName: "chevron.left").font(.system(size: 13, weight: .black))
+            }
+            .frame(width: 52, height: 34)
+
+            Text("SIGN")
+                .font(.system(size: 9, weight: .heavy, design: .monospaced))
+                .tracking(2)
+                .foregroundStyle(Palette.textSecondary)
+
+            CelButton(tint: Palette.stone) { session.debugCycleSign(by: 1) } label: {
+                Image(systemName: "chevron.right").font(.system(size: 13, weight: .black))
+            }
+            .frame(width: 52, height: 34)
+
+            Spacer(minLength: 0)
+
+            CelButton(tint: Palette.stone) { session.debugCycleControls() } label: {
+                Text("CTRL").font(.system(size: 10, weight: .heavy, design: .monospaced))
+            }
+            .frame(width: 58, height: 34)
+
+            CelButton(tint: Palette.stone) { session.debugCycleBadge() } label: {
+                Text("BADGE").font(.system(size: 10, weight: .heavy, design: .monospaced))
+            }
+            .frame(width: 68, height: 34)
+        }
+    }
+    #endif
 
     /// Which plane the board is showing, in its own colour.
     ///

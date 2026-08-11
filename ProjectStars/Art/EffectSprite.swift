@@ -201,17 +201,17 @@ enum EffectSprite: String, CaseIterable, Hashable {
     /// next turn. At 24 it lands just under a second.
     var rate: SpriteRate {
         switch self {
-        // The Bastion is two layers of the same bubble, and the lower one runs
-        // slower on purpose: two identical strips in lockstep read as one
-        // doubled-up drawing, while a beat between them reads as depth.
-        case .cancerZodiaction: .fps15
         // The Essence plumes are the whole story of what a coin just did to the
         // board, and at 15fps they were over before the eye found them.
         case .astralBlaze, .astralBloom: .fps12
+        // The Bastion is two layers of the same bubble, and the lower one runs
+        // slower on purpose: two identical strips in lockstep read as one
+        // doubled-up drawing, while a beat between them reads as depth.
+        case .cancerZodiaction, .crabWalk, .waterSplash: .fps15
         // Long strips of dissipating smoke: at 15 the tail crawls.
         case .explosion: .fps20
-        case .crabWalk, .waterSplash, .ariesActivation: .fps15
-        // Tuned from `GameRules` — see the note there.
+        // Aries Activation 15 -> 24. The early and late frames are very similar
+        case .ariesActivation: .fps24
         case .lightning1, .lightning2, .lightning3, .lightning4: GameRules.lightningRate
         default: frames >= 20 ? .fps24 : .fps15
         }

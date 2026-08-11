@@ -94,12 +94,14 @@ struct AriesSearingStride: ZodiacPassive {
 /// punishes. It is the same idea taken to its end: the ram commits, and the
 /// reward for committing completely is everything.
 ///
-/// ## Why the bonus is computed rather than written down
+/// ## Why the bonus is a fixed number
 ///
-/// It is defined as *whatever tops up the meter*, so it has to know what Searing
-/// Stride already paid over those six moves — which is one pip per move from the
-/// third onward. Writing the answer as a literal would quietly become wrong the
-/// first time either the meter size or the streak threshold moved.
+/// It pays six, which alongside Searing Stride's four fills the meter under
+/// ordinary conditions. It is deliberately *not* "however much is missing":
+/// computed that way it would erase anything that had just drained the meter —
+/// open a Pentacle that zeroes your charge, then walk a straight line, and the
+/// loss never happened. The promise is a full meter for crossing the board, not
+/// a full meter whatever else occurred.
 struct AriesSixSinge: ZodiacPassive {
 
     let displayName = "Six Singe"
@@ -107,14 +109,7 @@ struct AriesSixSinge: ZodiacPassive {
 
     func meterBonus(from move: MoveSummary, context: PassiveContext) -> Int {
         guard context.signState.streakLength == GameRules.sixSingeLength else { return 0 }
-
-        // What Searing Stride paid on the way: one per move once the streak
-        // reached its threshold. Silent under Brazen Blaze, which pays nothing.
-        let strideMoves = context.signState.isActive(AriesBrazenBlazeCarrier.buffKey)
-            ? 0
-            : max(GameRules.sixSingeLength - (AriesSearingStride.requiredStreak - 1), 0)
-
-        return max(context.zodiac.zodiaction.meterMax - strideMoves, 0)
+        return GameRules.sixSingeBonus
     }
 }
 
@@ -132,7 +127,7 @@ struct AriesBrazenBlazeCarrier: ZodiacPassive {
     static let buffKey = "aries.brazenBlaze"
 
     let displayName = "Brazen Blaze (active)"
-    let summary = "While Brazen Blaze burns: damage lands on the tile you leave — doubled on Terra."
+    let summary = "While Brazen Blaze burns: damage lands on the tile you leave — doubled on Astra."
 
     func wearTiming(context: PassiveContext) -> WearTiming {
         context.signState.isActive(Self.buffKey) ? .onExit : .onEntry
@@ -141,15 +136,14 @@ struct AriesBrazenBlazeCarrier: ZodiacPassive {
     func modifyWear(_ proposal: WearProposal, context: PassiveContext) -> WearProposal {
         guard context.signState.isActive(Self.buffKey) else { return proposal }
 
-        // Doubled on Terra only.
+        // Doubled on Astra only.
         //
-        // Aries is a fire sign, so Terra is where it is meant to be strong — and
-        // where doubled damage is survivable, since Terra is not the plane you
-        // fall *out of*. On Astra the same doubling opens holes under a piece
-        // with a whole other plane beneath it, which turns the ability into a
-        // way to lose rather than a way to travel. Up there Blaze still moves
-        // the damage behind you, which is the half of it worth having.
-        guard context.plane == .terra else { return proposal }
+        // Damage is the cost, not the payoff — the run ends when the board runs
+        // out, so tearing through it twice as fast is what Blaze charges for
+        // moving the damage behind you. That cost belongs on the plane where
+        // Aries is weak, which for a fire sign is Astra. On Terra, where it is
+        // strong, it gets the deferral at ordinary rates.
+        guard context.plane == .astra else { return proposal }
 
         var burned = proposal
         burned.stages = proposal.stages * 2
@@ -178,7 +172,7 @@ struct AriesBrazenBlazeCarrier: ZodiacPassive {
 struct AriesBrazenBlaze: Zodiaction {
 
     let displayName = "Brazen Blaze"
-    let summary = "\(GameRules.brazenBlazeMoves) moves: damage the tile you leave instead of the one you land on. Doubled on Terra."
+    let summary = "\(GameRules.brazenBlazeMoves) moves: damage the tile you leave instead of the one you land on. Doubled on Astra."
 
     /// All of Aries' charge comes from Searing Stride, so the Zodiaction itself
     /// adds nothing. There is deliberately no universal charge rule.

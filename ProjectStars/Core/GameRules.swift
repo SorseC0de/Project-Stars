@@ -347,6 +347,16 @@ enum GameRules {
     /// twice in a row without turning — which is the point.
     static let sixSingeLength = 6
 
+    /// What completing one pays.
+    ///
+    /// Fixed, not "however much tops the meter up". Computed, it would undo any
+    /// event that had just *drained* the meter — open a Pentacle that zeroes
+    /// your charge, then walk a straight line and the loss never happened. Six
+    /// is what fills the meter alongside Searing Stride's four under ordinary
+    /// conditions, and that is the promise: a full meter for crossing the board,
+    /// not a full meter regardless of what else went on.
+    static let sixSingeBonus = 6
+
     /// How often Leo's Magnetic Mane drags the Pentacle a square closer, by
     /// plane. Rolled once per ordinary step.
     static let magneticManeChanceAstra = 0.01

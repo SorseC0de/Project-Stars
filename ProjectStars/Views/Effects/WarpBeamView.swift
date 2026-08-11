@@ -59,9 +59,17 @@ struct WarpBeamView: View {
     /// arrives at once and thins away reads as something that *struck*.
     private func column(progress: CGFloat) -> some View {
         let height = tileSize * GameRules.warpBeamHeight
-        let openness = progress < 0.18
-            ? progress / 0.18
-            : 1 - (progress - 0.18) / 0.82
+        // Clamped at zero. At `progress == 1` the arithmetic lands on
+        // -2.22e-16 rather than exactly zero — 0.82 has no exact binary form —
+        // and a frame of negative width is a runtime complaint every frame the
+        // beam is held at the end of its life. Which the arrow does: its flight
+        // is longer than a beam's own duration.
+        let openness = max(
+            0,
+            progress < 0.18
+                ? progress / 0.18
+                : 1 - (progress - 0.18) / 0.82
+        )
 
         return ZStack {
             // A wide, soft body with a hard bright core, rather than one shape

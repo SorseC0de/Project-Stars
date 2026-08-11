@@ -386,6 +386,20 @@ final class GameSession {
         fireZodiaction()
     }
 
+    /// Steps to the next or previous sign, keeping the board as it is.
+    ///
+    /// Goes through the same `pieceChanged` event a Pentacle uses, so everything
+    /// that follows from a swap — memory cleared, rifts left standing, the meter
+    /// clamped to a new cap — happens exactly as it would in play.
+    func debugCycleSign(by offset: Int) {
+        let all = Zodiac.allCases
+        guard let index = all.firstIndex(of: engine.piece.zodiac) else { return }
+        let next = all[(index + offset + all.count) % all.count]
+
+        engine.apply(.pieceChanged(to: next))
+        publish()
+    }
+
     /// Cycles the control scheme. Debug builds only.
     ///
     /// Stands in for the selection screen, so both schemes can be felt on a
