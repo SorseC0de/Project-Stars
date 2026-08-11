@@ -113,6 +113,11 @@ struct PickupContext {
     let zodiactionMeter: Int
     let zodiactionMeterMax: Int
 
+    /// What the sign remembers between moves. An effect that grants a lasting
+    /// state — the Astral Bolt's star — amends this and returns it in a
+    /// `signStateChanged`, exactly as a Zodiaction would.
+    let signState: SignState
+
     /// True when the piece is standing on the Nexys island.
     var isOnNexys: Bool {
         plane == nexysPlane && piecePoint == GameRules.nexysPoint

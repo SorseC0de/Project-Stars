@@ -64,6 +64,13 @@ struct PieceView: View {
     /// Driven by charge gain — see `GameSession.chargeFlashStartedAt`.
     var chargeFlash: Double = 0
 
+    /// The colour the Astral Bolt's star is washing the piece with right now,
+    /// or `nil` when the star is not running.
+    ///
+    /// Cycling through all four elements rather than settling on one: nothing is
+    /// attuned to lightning, so the star belongs to every element and none.
+    var starTint: Color?
+
     var body: some View {
         ZStack {
             // The shadow stays on the tile while the figure rises off it, which
@@ -108,7 +115,9 @@ struct PieceView: View {
     /// drawn in stone; every other sign gets its stone form from here, which is
     /// eleven sprites nobody has to draw twice.
     private var figure: some View {
-        lit.colorFlash(ElementFX.ramp(for: zodiac.element).mid, amount: chargeFlash)
+        lit
+            .colorFlash(ElementFX.ramp(for: zodiac.element).mid, amount: chargeFlash)
+            .colorFlash(starTint ?? .clear, amount: starTint == nil ? 0 : GameRules.starFlashStrength)
     }
 
     /// The sprite with its gem lit, before any flash is laid over it.
@@ -130,7 +139,9 @@ struct PieceView: View {
     /// Gold in the sky, mossy stone on the ground.
     @ViewBuilder
     private var material: some View {
-        switch plane {
+        // The star burns the stone off: gold on both planes for as long as it
+        // lasts, which is most of how you can tell at a glance that it is up.
+        switch starTint == nil ? plane : .astra {
         case .astra:
             sprite
 

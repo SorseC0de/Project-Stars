@@ -224,12 +224,25 @@ enum GameRules {
     ///
     /// Rolled *inside* the Essence result rather than beside it, so the Bolt
     /// cannot dilute anything else: the odds of getting "an Essence" are
-    /// unchanged, and this decides which one you got. At the Essences' combined
-    /// 17% it works out near 1.3% of all coins.
-    static let astralBoltChance = 0.08
+    /// unchanged, and this decides which one you got.
+    ///
+    /// Deliberately tiny. At the Essences' combined 17% this is about one coin
+    /// in four hundred — many complete games between sightings. That is the
+    /// design: it is supposed to be a thing players tell each other about, and
+    /// something seen every few games is not that.
+    static let astralBoltChance = 0.015
 
-    /// How many stages of wear each square in the Bolt's cross takes.
-    static let astralBoltWear = 1
+    /// How many committed moves the Bolt's charge lasts.
+    static let starMoves = 10
+
+    /// Charge gained per move while it runs, whatever the sign.
+    static let starChargePerMove = 1
+
+    /// Seconds for the piece to cycle once through all four elemental colours.
+    static let starCyclePeriod: TimeInterval = 0.9
+
+    /// How hard the cycling recolour is applied.
+    static let starFlashStrength: Double = 0.9
 
     /// Extra charge for opening an Astral Essence that matches your element.
     ///

@@ -263,30 +263,40 @@ struct AstralBrookEffect: PickupEffect {
 
 /// Astral Bolt — the fifth Essence, and the one nothing is attuned to.
 ///
-/// A storm strikes the whole row and column through the piece: every ordinary
-/// square on both lines takes a stage of wear, and the meter fills outright.
+/// Lightning strikes the piece and it comes up invulnerable. For
+/// `GameRules.starMoves` moves it wears no tile it lands on, falls through
+/// nothing, and gains a pip of charge for every square it moves — and it walks
+/// the whole time in gold, flickering between all four elemental colours with
+/// Polaris' sparks around it.
 ///
-/// ## Why it is worth being rare
+/// ## Why it is purely positive
 ///
-/// It is the only effect in the game that is unambiguously *both*. A full meter
-/// is the strongest thing a coin can hand you; thirteen squares of damage is the
-/// most any coin has ever done to the board, and it lands on the two lines you
-/// are standing at the intersection of — the ground you are most likely to be
-/// using next. Taking it is a decision, not a windfall.
+/// Because of how rare it is. An effect a player meets twice a year cannot ask
+/// them to make a judgement call: they will not have the experience to make it,
+/// and a rare thing that turns out to be a trap is a rare thing nobody wants to
+/// find. This one is unambiguously the best moment in a run, which is the point
+/// — it is meant to be the thing people tell each other about.
 ///
-/// ## Why no element
+/// ## Why it lasts in moves rather than seconds
 ///
-/// The four Essences each belong to three signs, which is what makes the
-/// affinity bonus mean something. Lightning belongs to none of them: `element`
-/// is `nil`, so no piece is ever attuned to it and nobody gets the bonus. That
-/// is deliberate — it is the one that is not part of the wheel.
+/// Everything in this game is move-based, but it matters more here: ten moves is
+/// ten *decisions*, and the player spends them deliberately — crossing ground
+/// they could not otherwise cross, standing where they could not otherwise
+/// stand. On a clock it would be ten seconds of hurrying.
+///
+/// ## Why the star survives a piece change
+///
+/// It is a state of the player, not of the sign — see `SignState.starMoves`.
+/// Take a Forced Fate mid-star and the star comes with you.
 ///
 /// ## How it is rolled
 ///
 /// Not by weight. `weight` is `0`, so it never appears in the ordinary draw;
-/// instead the catalogue rolls it *inside* an Essence result — see
+/// the catalogue rolls it *inside* an Essence result — see
 /// `PickupCatalog.rollPickup`. So the odds of drawing "an Essence" are exactly
-/// what they were, and this only decides which one turned up.
+/// what they were, and this only decides which one turned up. At
+/// `GameRules.astralBoltChance` that is roughly one coin in four hundred: many
+/// full games between sightings, which is the intent.
 struct AstralBoltEffect: PickupEffect {
 
     let id: PickupID = .astralBolt
@@ -296,11 +306,11 @@ struct AstralBoltEffect: PickupEffect {
     let weight = 0
 
     let displayName = "Astral Bolt"
-    let summary = "Lightning strikes your row and column, damaging every tile on both — and fills your meter."
+    let summary = "Struck by lightning: for \(GameRules.starMoves) moves you damage nothing, fall through nothing, and charge as you walk."
     let glyph = "⚡︎"
 
-    /// The strike does its own damage square by square, so the engine must not
-    /// charge the destination a second time on arrival.
+    /// Nothing is worn while the star runs anyway, but the coin's own square is
+    /// the first thing that would have been.
     let arrivalWearsTile = false
 
     func plan(
@@ -308,33 +318,9 @@ struct AstralBoltEffect: PickupEffect {
         choice: PickupChoiceResult?,
         generator: inout SeededRandom
     ) -> [GameEvent] {
-        let board = context.currentBoard
-        let origin = context.piecePoint
-
-        // The cross, with the piece's own square included: it is standing at the
-        // centre of the strike, and being spared would make it the one safe
-        // place in an effect that is supposed to cost something.
-        var changes: [GridPoint: TileHealth] = [:]
-        for point in board.allPoints where point.x == origin.x || point.y == origin.y {
-            let tile = board[point]
-            guard tile.kind == .normal, tile.canBeWorn else { continue }
-
-            var health = tile.health
-            for _ in 0..<GameRules.astralBoltWear where health != .hole {
-                health = health.damaged
-            }
-            if health != tile.health { changes[point] = health }
-        }
-
-        var events: [GameEvent] = []
-        if !changes.isEmpty {
-            // One strike, so one event — see `GameEvent.tilesChanged`.
-            events.append(.tilesChanged(plane: context.plane, changes: changes))
-        }
-        if context.zodiactionMeter < context.zodiactionMeterMax {
-            events.append(.zodiactionMeterChanged(to: context.zodiactionMeterMax))
-        }
-        return events
+        var state = context.signState
+        state.starMoves = GameRules.starMoves
+        return [.signStateChanged(state)]
     }
 }
 

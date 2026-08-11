@@ -909,7 +909,10 @@ struct GameEngine {
                 commit(.signStateChanged(spent))
             }
 
-            if remaining.isSolid || hovers {
+            // The star walks on air: holes hold it up, and so does the chasm.
+            let starred = signState.isStarred
+
+            if remaining.isSolid || hovers || starred {
                 // Coming to rest on somebody else's work claims it.
                 result.events += claimAbandonedWorks()
 
@@ -1204,6 +1207,11 @@ struct GameEngine {
             }
         }
 
+        // The star wears nothing. Checked here rather than at each caller
+        // because this is the one funnel every landing's damage goes through —
+        // arrival, departure, and the extra squares passives add.
+        guard !signState.isStarred else { return result }
+
         guard !changes.isEmpty else { return result }
         // Same rule as everywhere else: a sanctuary refuses the damage, and the
         // event never claims it happened.
@@ -1303,7 +1311,8 @@ struct GameEngine {
             facing: piece.facing,
             zodiac: piece.zodiac,
             zodiactionMeter: zodiactionMeter,
-            zodiactionMeterMax: zodiactionMeterMax
+            zodiactionMeterMax: zodiactionMeterMax,
+            signState: signState
         )
 
         for event in effect.plan(context: context, choice: choice, generator: &rng) {
@@ -1379,8 +1388,11 @@ struct GameEngine {
     private mutating func chargeSuper(for move: MoveSummary) -> [GameEvent] {
         // Most signs' charge comes from their passives rather than from the
         // Zodiaction's own rule; both contribute and the two simply sum.
+        // The star charges for nothing but moving, whoever is carrying it.
+        let starCharge = signState.isStarred ? GameRules.starChargePerMove : 0
         let gain = piece.zodiac.zodiaction.meterGain(from: move, context: passiveContext)
             + piece.zodiac.passives.meterBonus(from: move, context: passiveContext)
+            + starCharge
         guard gain != 0 else { return [] }
 
         let capped = min(max(zodiactionMeter + gain, 0), zodiactionMeterMax)

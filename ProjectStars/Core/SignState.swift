@@ -108,6 +108,18 @@ struct SignState: Equatable {
 
     // MARK: Sanctuary
 
+    /// Committed moves left of the Astral Bolt's invulnerability. `0` when it
+    /// is not running.
+    ///
+    /// A named field rather than a `buffs` entry for the same reason as the
+    /// sanctuary: `buffs` are cleared when the piece changes, and the star is a
+    /// state of the *player*, not of whichever sign is carrying it. Change piece
+    /// mid-star and the star goes with you.
+    var starMoves = 0
+
+    /// True while the Astral Bolt's charge is running.
+    var isStarred: Bool { starMoves > 0 }
+
     /// Leo's sun, if one is burning.
     ///
     /// Named like `sanctuary` and for the same reason: it is a *place* with a
@@ -253,6 +265,8 @@ struct SignState: Equatable {
             sanctuary = standing.movesRemaining > 0 ? standing : nil
         }
 
+        starMoves = max(starMoves - 1, 0)
+
         if var burning = sun {
             burning.movesRemaining -= 1
             sun = burning.movesRemaining > 0 ? burning : nil
@@ -292,6 +306,7 @@ struct SignState: Equatable {
         copy.sanctuary = sanctuary
         copy.sun = sun
         copy.riftsLinger = riftsLinger
+        copy.starMoves = starMoves
         return copy
     }
 }
