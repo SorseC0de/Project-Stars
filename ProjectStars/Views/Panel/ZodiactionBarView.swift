@@ -55,10 +55,15 @@ struct ZodiactionBarView: View {
         let filled = session.zodiactionMeter
         let capacity = session.zodiactionMeterMax
 
+        // Charged pips in the sign's own element, so the meter says *whose*
+        // charge it is as well as how much — the same colour the piece wears
+        // when it is full and the same one its afterimages trail.
+        let charged = ElementFX.ramp(for: session.zodiac.element).mid
+
         return HStack(spacing: 3) {
             ForEach(0..<capacity, id: \.self) { index in
                 RoundedRectangle(cornerRadius: 2)
-                    .fill(index < filled ? Palette.warmBlack : Palette.warmBlack.opacity(0.22))
+                    .fill(index < filled ? charged : Palette.warmBlack.opacity(0.22))
                     .frame(height: GameRules.meterPipHeight)
             }
         }

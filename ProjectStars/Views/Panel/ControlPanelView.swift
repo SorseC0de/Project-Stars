@@ -173,13 +173,17 @@ private struct MainFaceView: View {
             SignBadgeView(zodiac: session.zodiac)
 
             Text(session.zodiac.definition.displayName.uppercased())
-                .font(.system(size: 15, weight: .heavy, design: .rounded))
+                .font(.system(size: 19, weight: .heavy, design: .rounded))
                 .tracking(2)
                 .foregroundStyle(Palette.gold)
+                // One line, never truncated. It shrinks to fit rather than
+                // taking the width it wants — `fixedSize` made SAGITTARIUS push
+                // the badge off one edge and the buttons off the other.
+                .lineLimit(1)
+                .minimumScaleFactor(0.5)
+                .layoutPriority(1)
 
             Spacer(minLength: 0)
-
-            planeBadge
 
             CelButton(tint: Palette.lightBlue, action: onInfo) {
                 Image(systemName: "info")
@@ -239,29 +243,16 @@ private struct MainFaceView: View {
                     Text("BADGE").font(.system(size: 10, weight: .heavy, design: .monospaced))
                 }
                 .frame(width: 74, height: 30)
+
+                // The keyboard has Z for this; a phone does not.
+                CelButton(tint: Palette.stone) { session.debugFillZodiaction() } label: {
+                    Text("FILL").font(.system(size: 10, weight: .heavy, design: .monospaced))
+                }
+                .frame(width: 60, height: 30)
             }
         }
     }
     #endif
-
-    /// Which plane the board is showing, in its own colour.
-    ///
-    /// Two tints in a pill, which is what it always was — the colour is the
-    /// information and the word only confirms it.
-    private var planeBadge: some View {
-        let plane = session.visiblePlane
-
-        return Text(plane.displayName.uppercased())
-            .font(.system(size: 12, weight: .heavy, design: .monospaced))
-            .tracking(2)
-            .foregroundStyle(Palette.textPrimary)
-            .padding(.horizontal, 10)
-            .padding(.vertical, 5)
-            .background(Capsule().fill(Palette.planeTint(plane)))
-            .overlay(Capsule().strokeBorder(Palette.outline, lineWidth: 1))
-            .animation(.easeInOut(duration: 0.25), value: plane)
-            .allowsHitTesting(false)
-    }
 
     /// Whichever control scheme is in play.
     @ViewBuilder

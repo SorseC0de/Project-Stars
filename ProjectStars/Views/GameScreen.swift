@@ -43,6 +43,12 @@ struct GameScreen: View {
                     SkyView(plane: session.visiblePlane, side: side)
                     BoardView(session: session, availableSide: side)
 
+                    // Names what is being looked at, so it belongs with the
+                    // thing being looked at rather than among the controls.
+                    PlaneBadgeView(plane: session.visiblePlane)
+                        .padding(10)
+                        .frame(width: side, height: side, alignment: .topTrailing)
+
                     // What you just opened, on every pickup rather than only the
                     // first. Pinned low so it never covers the piece.
                     if let banner = session.pentacleBanner {
