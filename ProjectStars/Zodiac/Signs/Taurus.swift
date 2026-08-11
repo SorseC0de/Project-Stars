@@ -24,6 +24,7 @@ extension ZodiacCatalog {
         movement: .cardinalStep,
         passives: [
             TaurusHooves(),
+            TaureanTear(),
         ],
         zodiaction: TaurusFloweringFlop(),
         constellation: ZodiacCatalog.taurusConstellation
@@ -84,6 +85,58 @@ struct TaurusHooves: ZodiacPassive {
         }
 
         return hooves
+    }
+}
+
+// MARK: - Passive 2: Taurean Tear
+
+/// An Astral Tear mends a second tile as well.
+///
+/// Named for the coin it doubles, and for the animal: the bull is the earth
+/// sign that *keeps* ground rather than crossing it, and the commonest coin in
+/// the game being worth twice as much is a quiet, permanent advantage rather
+/// than a burst of one.
+///
+/// ## Why only the Tear
+///
+/// Not every heal. Astral Blossom already repairs a 3x3 and Polaris mends a
+/// whole plane; doubling those would be doubling an area effect, which is a
+/// different and much larger thing. The Tear repairs exactly one tile, and this
+/// makes it two — the smallest heal in the game, made the second smallest.
+///
+/// ## Why it is `amend` rather than part of the coin
+///
+/// The coin knows nothing about who opened it, and should not. This watches the
+/// move for a Tear being collected and adds its own repair afterwards, which is
+/// the same hook Gemini mirrors with. Its output is not itself amended, so it
+/// cannot chain.
+struct TaureanTear: ZodiacPassive {
+
+    let displayName = "Taurean Tear"
+    let summary = "Astra & Terra: an Astral Tear repairs a second tile too, chosen at random."
+
+    func amend(_ events: [GameEvent], context: PassiveContext) -> [GameEvent] {
+        let openedTear = events.contains { event in
+            if case let .pickupCollected(id, _, _) = event { return id == .restoreTile }
+            return false
+        }
+        guard openedTear else { return [] }
+
+        // The board as it stands *after* the coin's own repair, so the tile it
+        // just mended cannot be picked again.
+        let board = context.currentBoard
+        let damaged = board.allPoints.filter {
+            board[$0].kind == .normal && board[$0].canBeRepaired
+        }
+        guard !damaged.isEmpty else { return [] }
+
+        // Drawn from the move's own roll rather than a fresh one, so a seeded
+        // run stays reproducible — the same reason chance-based passives are
+        // handed `luck` instead of a generator.
+        let index = min(Int(context.luck * Double(damaged.count)), damaged.count - 1)
+
+        // Fully, like the coin it follows: a hole goes straight back to healthy.
+        return [.tileHealed(plane: context.plane, point: damaged[index], to: .healthy)]
     }
 }
 
