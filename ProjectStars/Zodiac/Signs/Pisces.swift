@@ -25,6 +25,7 @@ extension ZodiacCatalog {
         passives: [
             PiscesAstralAttunement(),
             PiscesGaiaGeyser(),
+            PiscesAridAquanaut(),
         ],
         zodiaction: PiscesSurgingStream(),
         constellation: ZodiacCatalog.piscesConstellation
@@ -97,6 +98,44 @@ struct PiscesGaiaGeyser: ZodiacPassive {
         // Returned as a top-up rather than an absolute, since the engine sums
         // every contribution and then clamps to the meter's maximum.
         return context.zodiac.zodiaction.meterMax
+    }
+}
+
+// MARK: - Passive 3: Arid Aquanaut
+
+/// On Terra, charge is what the board offers up.
+///
+/// Z-Charge and the Astral Tear trade places in the roll, so the commonest find
+/// below is the one that fills the meter rather than the one that mends a tile.
+///
+/// ## Why this completes the sign
+///
+/// Everything else about Pisces on Terra is a countdown: Gaia Geyser hands it a
+/// full meter on arrival and Astral Attunement drains a pip for every square it
+/// leaves. Upstream costs the whole meter, so the way home is only ever reached
+/// by finding charge — and a fish that has to go looking for it in a dry place is
+/// the whole picture of the sign down there.
+///
+/// It mends nothing extra. Pisces on Terra is not supposed to be comfortable; it
+/// is supposed to be leaving.
+///
+/// ## How the swap is written
+///
+/// By reading each other's weights rather than naming numbers, so retuning
+/// either one keeps the swap honest.
+struct PiscesAridAquanaut: ZodiacPassive {
+
+    let displayName = "Arid Aquanaut"
+    let summary = "Terra: Z-Charge and Astral Tear trade drop rates — charge becomes the common find."
+
+    func pickupWeight(_ base: Int, for id: PickupID, context: PassiveContext) -> Int {
+        guard context.plane == .terra else { return base }
+
+        switch id {
+        case .zCharge: return PickupCatalog.effect(for: .restoreTile).weight
+        case .restoreTile: return PickupCatalog.effect(for: .zCharge).weight
+        default: return base
+        }
     }
 }
 

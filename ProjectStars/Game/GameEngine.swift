@@ -200,10 +200,12 @@ struct GameEngine {
         let openingPlane = piece.plane
         let openingBoard = self[openingPlane]
         let openingPoint = piece.point
+        let openingWeighting = pickupWeighting()
         if let opening = Self.rollSparkles(
             on: openingPlane,
             board: openingBoard,
             piecePoint: openingPoint,
+            weighting: openingWeighting,
             using: &rng
         ) {
             apply(opening)
@@ -277,7 +279,14 @@ struct GameEngine {
 
         // 2. Commit: the move counts, and the piece turns to face the way it is
         //    going, before it has gone anywhere.
-        commit(.moveCommitted(direction: direction))
+        // …unless a passive says the piece keeps watching where it was.
+        // Cancer's Seafoam Scuttle does exactly that.
+        let keepsFacing = sim.piece.zodiac.passives.retainsFacing(
+            direction: direction,
+            option: move.option,
+            context: sim.passiveContext
+        )
+        commit(.moveCommitted(direction: keepsFacing ? facingBefore : direction))
 
         // 2b. Airborne signs pay their wear to the tile they are pushing off
         //     from, not the one they are about to reach. Charged here, while the
@@ -1366,10 +1375,12 @@ struct GameEngine {
         let plane = piece.plane
         let board = self[plane]
         let point = piece.point
+        let weighting = pickupWeighting()
         guard let spawn = Self.rollSparkles(
             on: plane,
             board: board,
             piecePoint: point,
+            weighting: weighting,
             using: &rng
         ) else { return events }
 
@@ -1383,6 +1394,7 @@ struct GameEngine {
         on plane: Plane,
         board: Board,
         piecePoint: GridPoint,
+        weighting: (PickupID, Int) -> Int,
         using generator: inout SeededRandom
     ) -> GameEvent? {
         guard let set = SparkleSet.spawn(
@@ -1394,9 +1406,21 @@ struct GameEngine {
 
         guard let pickup = PickupCatalog.rollPickup(
             sparklePoints: set.points,
+            weighting: weighting,
             using: &generator
         ) else { return nil }
         return .sparklesSpawned(set: set, pickup: pickup)
+    }
+
+    /// The piece's opinion on what should turn up in a sparkle set.
+    ///
+    /// Built as a closure over a *snapshot* of the context rather than reading
+    /// the engine as it runs: the roll happens with `&rng` already borrowed, and
+    /// touching `self` inside it would be overlapping access to the same value.
+    private func pickupWeighting() -> (PickupID, Int) -> Int {
+        let context = passiveContext
+        let passives = piece.zodiac.passives
+        return { id, base in passives.pickupWeight(base, for: id, context: context) }
     }
 
     /// The read-only snapshot handed to passive and Zodiaction hooks.

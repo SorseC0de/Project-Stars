@@ -755,8 +755,11 @@ enum PickupCatalog {
     /// - Parameter sparklePoints: Squares the set covers. Effects with a
     ///   `requiredSpawnPoint` are only eligible when the set includes it, which
     ///   is how Polaris stays pinned to the north-middle tile.
+    /// - Parameter weighting: Lets the piece reweight the roll — see
+    ///   `ZodiacPassive.pickupWeight`. Defaults to leaving every weight alone.
     static func rollPickup(
         sparklePoints: [GridPoint],
+        weighting: (PickupID, Int) -> Int = { _, weight in weight },
         using generator: inout SeededRandom
     ) -> PickupID? {
         let covered = Set(sparklePoints)
@@ -770,7 +773,9 @@ enum PickupCatalog {
                     guard let required = effect.requiredSpawnPoint else { return true }
                     return covered.contains(required)
                 }
-                .map { (value: $0.id, weight: $0.weight) }
+                .map { (value: $0.id, weight: weighting($0.id, $0.weight)) }
+                // A passive may weight something out of the running entirely.
+                .filter { $0.weight > 0 }
         }
 
         // Only offer tiers that actually have something to give, so an empty

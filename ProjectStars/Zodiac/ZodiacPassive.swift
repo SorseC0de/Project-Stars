@@ -155,6 +155,32 @@ protocol ZodiacPassive {
     /// Scorpio's Samsaric Shed buys one death at the cost of the way back up.
     func blocksAscent(context: PassiveContext) -> Bool
 
+    /// Whether the piece keeps the way it is looking through this move.
+    ///
+    /// Ordinarily a piece turns to face where it is going. A crab does not: it
+    /// scuttles sideways while still watching what it was watching, which is the
+    /// whole read of the animal and the reason Cancer's movement is a sidestep
+    /// rather than a step.
+    ///
+    /// Facing is not cosmetic — it decides where Leo's sun hangs, which way
+    /// Libra's arms reach, and what counts as sideways next move — so this
+    /// changes what a sign can do, not only how it looks.
+    func retainsFacing(
+        direction: SwipeDirection,
+        option: MovementPattern.MoveOption,
+        context: PassiveContext
+    ) -> Bool
+
+    /// Reweights one effect in the roll that hides a Pentacle.
+    ///
+    /// Called per effect while a sparkle set is being seeded, before anything is
+    /// on the board — so a sign can change *what tends to turn up* without
+    /// touching what a coin does when opened. Return `base` to leave it alone.
+    ///
+    /// Weights are relative within a tier, so a passive wanting a straight swap
+    /// should read the other effect's weight rather than hardcode a number.
+    func pickupWeight(_ base: Int, for id: PickupID, context: PassiveContext) -> Int
+
     /// Replaces a move that would otherwise run off the board.
     ///
     /// Consulted only when the ordinary path is illegal, so it can never
@@ -320,6 +346,18 @@ extension ZodiacPassive {
 
     func blocksAscent(context: PassiveContext) -> Bool {
         false
+    }
+
+    func retainsFacing(
+        direction: SwipeDirection,
+        option: MovementPattern.MoveOption,
+        context: PassiveContext
+    ) -> Bool {
+        false
+    }
+
+    func pickupWeight(_ base: Int, for id: PickupID, context: PassiveContext) -> Int {
+        base
     }
 
     func wrappedMove(
@@ -548,6 +586,21 @@ extension Array where Element == any ZodiacPassive {
 
     func blocksAscent(context: PassiveContext) -> Bool {
         contains { $0.blocksAscent(context: context) }
+    }
+
+    /// Any passive that wants the facing held, holds it.
+    func retainsFacing(
+        direction: SwipeDirection,
+        option: MovementPattern.MoveOption,
+        context: PassiveContext
+    ) -> Bool {
+        contains { $0.retainsFacing(direction: direction, option: option, context: context) }
+    }
+
+    /// Each passive sees what the one before it decided, so two reweights
+    /// compose rather than one silently winning.
+    func pickupWeight(_ base: Int, for id: PickupID, context: PassiveContext) -> Int {
+        reduce(base) { $1.pickupWeight($0, for: id, context: context) }
     }
 
     /// First passive that owns this edge wins.
