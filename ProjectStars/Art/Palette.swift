@@ -361,6 +361,16 @@ enum Palette {
         return [ramp.bright, ramp.mid, ramp.deep]
     }
 
+    /// The same idea for an afterimage, skewed light.
+    ///
+    /// A ghost drawn in the full range comes out muddy: it is already faded, and
+    /// an element's `deep` under that reads as a dark smudge rather than as a
+    /// colour. Two brights and a mid keeps it legible at low opacity.
+    static func trailTones(for element: ZodiacElement) -> [Color] {
+        let ramp = ElementFX.ramp(for: element)
+        return [ramp.bright, ramp.bright, ramp.mid]
+    }
+
     /// The greens moss is drawn from.
     ///
     /// Three of them, because one flat green reads as paint. `forest` is

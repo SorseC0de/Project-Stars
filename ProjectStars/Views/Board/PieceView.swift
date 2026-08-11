@@ -137,13 +137,12 @@ struct PieceView: View {
     /// Gold in the sky, mossy stone on the ground.
     @ViewBuilder
     private var material: some View {
-        // The star burns the stone off: gold on both planes for as long as it
-        // lasts, which is most of how you can tell at a glance that it is up —
-        // and the gold is then swapped out for whichever element it is wearing
-        // this instant.
-        switch starElement == nil ? plane : .astra {
+        // Colour burns the stone off: gold on both planes for as long as it
+        // lasts, which is most of how you can tell at a glance that something is
+        // up — and the gold is then swapped for whichever element is being worn.
+        switch wornElement == nil ? plane : .astra {
         case .astra:
-            starred(sprite)
+            recoloured(sprite)
 
         case .terra:
             sprite
@@ -165,12 +164,21 @@ struct PieceView: View {
         }
     }
 
-    /// The sprite redrawn in the star's current element, if one is running.
+    /// The sprite redrawn in whichever element it is currently wearing.
     ///
-    /// Three entries swapped, not four: `midnight` is the outline and stays put.
+    /// Two states put a piece in colour, and they never overlap in practice:
+    ///
+    /// - **The star**, cycling all four — see `starElement`.
+    /// - **A full meter**, in the sign's own element. This is the readable
+    ///   version of what the lit gems were meant to say and never did: three or
+    ///   four pixels of eye cannot carry a state this important, and the whole
+    ///   figure changing colour can.
+    ///
+    /// Three entries swapped, not four: `midnight` is the outline, and an
+    /// outline that changes colour stops reading as an outline.
     @ViewBuilder
-    private func starred(_ art: some View) -> some View {
-        if let element = starElement {
+    private func recoloured(_ art: some View) -> some View {
+        if let element = wornElement {
             art.paletteSwap(
                 zip(Palette.pieceGoldTones, Palette.pieceTones(for: element))
                     .map(PaletteSwap.init)
@@ -178,6 +186,12 @@ struct PieceView: View {
         } else {
             art
         }
+    }
+
+    /// The element the piece is currently dressed in, if any. The star wins,
+    /// since it is the rarer state and the one that should be unmistakable.
+    private var wornElement: ZodiacElement? {
+        starElement ?? (isCharged ? zodiac.element : nil)
     }
 
     private var sprite: some View {

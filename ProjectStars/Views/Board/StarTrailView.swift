@@ -44,7 +44,7 @@ struct StarTrailView: View {
         PixelSprite(id: .piece(zodiac)) { Color.clear }
             .frame(width: tileSize, height: tileSize * 2)
             .paletteSwap(
-                zip(Palette.pieceGoldTones, Palette.pieceTones(for: element))
+                zip(Palette.pieceGoldTones, Palette.trailTones(for: element))
                     .map(PaletteSwap.init)
             )
             .opacity(pow(GameRules.starTrailFalloff, Double(step + 1)))

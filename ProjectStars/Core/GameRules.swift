@@ -306,8 +306,16 @@ enum GameRules {
     /// cycle, so the trail is literally an after-image — the recent past of the
     /// piece, strung out behind it.
     static let starTrailCount = 4
-    static let starTrailLag: TimeInterval = 0.11
-    static let starTrailFalloff: Double = 0.62
+
+    /// Seconds of spring response per step of lag.
+    ///
+    /// This is the dial for how far the trail stretches: each ghost's spring is
+    /// this times its distance back, so raising it makes every one of them
+    /// arrive later and the tail longer.
+    static let starTrailLag: TimeInterval = 0.26
+
+    /// What fraction of the previous ghost's opacity each one keeps.
+    static let starTrailFalloff: Double = 0.82
 
     // ── Hovering ──────────────────────────────────────────────────────────
 
