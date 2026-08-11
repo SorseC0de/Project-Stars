@@ -552,6 +552,14 @@ struct BoardView: View {
             starElement: starElement
         )
         .overlay {
+            // A burning piece sheds embers. Read straight off the buff rather
+            // than from a timestamp: it lasts as many moves as it lasts, and the
+            // fire should simply be there for all of them.
+            if session.engine.signState.isActive(AriesBrazenBlazeCarrier.buffKey) {
+                EmberView(tileSize: metrics.tileSize, scale: metrics.scale)
+            }
+        }
+        .overlay {
             // Polaris' own sparks, borrowed. The star is the same idea — a thing
             // lit from inside — and one orbit of twinkles is enough to say so
             // without a second effect being written.

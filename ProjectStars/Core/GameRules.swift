@@ -300,6 +300,25 @@ enum GameRules {
     /// pixels. They ring the figure, not the tile it is standing on.
     static let starSparkLift: CGFloat = 8
 
+    // ── Embers ────────────────────────────────────────────────────────────
+    //
+    // The fire coming off a piece under Aries' Brazen Blaze. See `EmberView`.
+
+    /// How many are in the air at once.
+    static let emberCount = 7
+
+    /// Seconds for one ember to rise and go out. Each varies around this.
+    static let emberPeriod: TimeInterval = 1.1
+
+    /// Where they start relative to the piece's centre, and how far they climb,
+    /// in art pixels. The foot is positive because they begin at the feet.
+    static let emberFoot: Double = 6
+    static let emberRise: CGFloat = 22
+
+    /// How far one wanders sideways as it rises, and how big it starts.
+    static let emberSway: CGFloat = 3
+    static let emberSize: CGFloat = 1.6
+
     /// How long one afterimage lasts before it is gone.
     ///
     /// Short. It is a record of where the piece just was, not a decoration that
