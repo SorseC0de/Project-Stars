@@ -47,6 +47,13 @@ struct SwipeInputSurface: View {
     ///   drag, so it is safe to keep.
     let onZodiaction: () -> Void
 
+    /// Called on a single tap. Steps forward, the shortest move available.
+    ///
+    /// The common case by a distance: most turns are one square the way you are
+    /// already looking, and making the player drag for every one of them is a
+    /// lot of thumb for no decision. Aiming still needs the drag.
+    let onStepForward: () -> Void
+
     var body: some View {
         Color.clear
             // Makes the whole area draggable despite being fully transparent.
@@ -60,6 +67,11 @@ struct SwipeInputSurface: View {
             // `ZodiactionMeterView`.
             .simultaneousGesture(
                 TapGesture(count: 2).onEnded { onZodiaction() }
+            )
+            // After the double-tap, so a second tap is never eaten by this one.
+            // SwiftUI waits out the double-tap window before delivering it.
+            .simultaneousGesture(
+                TapGesture(count: 1).onEnded { if isEnabled { onStepForward() } }
             )
     }
 

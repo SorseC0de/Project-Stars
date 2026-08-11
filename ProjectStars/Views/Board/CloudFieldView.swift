@@ -58,6 +58,9 @@ struct CloudFieldView: View {
     /// The raised squares, which draw themselves. See the note above.
     var excluding: Set<GridPoint> = []
 
+    /// Stops the field's clock. See `GameRules.cloudFrameRate`.
+    var isPaused = false
+
     /// What each square was before its current state, and when it changed.
     @State private var wearing: [GridPoint: Ease] = [:]
 
@@ -67,7 +70,9 @@ struct CloudFieldView: View {
     }
 
     var body: some View {
-        TimelineView(.periodic(from: .now, by: 1 / GameRules.cloudFrameRate)) { timeline in
+        TimelineView(
+            .animation(minimumInterval: 1 / GameRules.cloudFrameRate, paused: isPaused)
+        ) { timeline in
             let now = timeline.date.timeIntervalSinceReferenceDate
 
             Canvas { context, _ in

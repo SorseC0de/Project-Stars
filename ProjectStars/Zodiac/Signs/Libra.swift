@@ -72,7 +72,13 @@ struct LibraEquitableImpact: ZodiacPassive {
 
     /// …and put the force into the flanks instead.
     func additionalWear(from proposal: WearProposal, context: PassiveContext) -> [GridPoint] {
-        context.facing.perpendicular.map { proposal.point.offset(by: $0.unitOffset) }
+        // Not on a fall. The trenches are what the scales do to ground they are
+        // *carried across*; dropping out of the sky is not a stride, and putting
+        // three holes in Terra on arrival made every descent a disaster the sign
+        // could not answer for.
+        guard !proposal.arrivedByFalling else { return [] }
+
+        return context.facing.perpendicular.map { proposal.point.offset(by: $0.unitOffset) }
     }
 }
 

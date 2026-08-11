@@ -688,9 +688,13 @@ struct PolarisEffect: PickupEffect {
     /// was never seen.
     let rollsAsRarity: PickupRarity = .common
 
-    /// The Astral Tear's weight, so that when it is a candidate at all it is as
-    /// likely as the commonest thing in the game.
-    let weight = 3
+    /// Well under the Astral Tear's three.
+    ///
+    /// Being pinned to one square is a weaker gate than it looks: a sparkle set
+    /// covers five of forty-nine squares, so the top-centre tile is in play
+    /// roughly one phase in ten — and at parity with the Tear that made Polaris
+    /// something like one coin in forty. Several a run, which is not a legendary.
+    let weight = 1
 
     /// The north-middle tile. Polaris appears here or not at all.
     let requiredSpawnPoint: GridPoint? = GridPoint(GameRules.gridSize / 2, 0)

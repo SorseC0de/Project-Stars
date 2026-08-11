@@ -47,7 +47,9 @@ struct BoardView: View {
 
             // The island and the piece share a clock, so the piece can ride the
             // island's drift while standing on it.
-            TimelineView(.animation) { timeline in
+            // Paused means paused: the board's whole clock stops, so nothing
+            // is quietly still moving behind the menu.
+            TimelineView(.animation(paused: session.isPaused)) { timeline in
                 let bob = nexysBob(at: timeline.date, metrics: metrics)
                 let pose = hopPose(at: timeline.date)
                 let arrival = arrivalProgress(at: timeline.date)
@@ -148,7 +150,8 @@ struct BoardView: View {
                     board: board,
                     metrics: metrics,
                     flashing: session.flashingTiles,
-                    excluding: popped
+                    excluding: popped,
+                    isPaused: session.isPaused
                 )
             }
 

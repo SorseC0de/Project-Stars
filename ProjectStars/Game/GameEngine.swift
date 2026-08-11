@@ -319,12 +319,12 @@ struct GameEngine {
         let departure = sim.departCurrentTile()
         events += departure.events
 
-        // A jump covers the ground it flies over as well as where it lands, so a
-        // Pentacle in the flight path is picked up in passing rather than sailed
-        // straight past.
-        let flownOver = move.style == .jump
-            ? Self.squaresBetween(origin, move.destination)
-            : []
+        // A jump touches nothing it flies over — not the ground, and not what is
+        // standing on it. Sailing past a Pentacle is the same rule as sailing
+        // past a cracked tile: a leap is *not being there*, and a coin scooped
+        // out of the air while the tile beneath it went unmarked never read as
+        // consistent.
+        let flownOver: [GridPoint] = []
 
         // 3. Travel. A slide walks each square in turn and wears every one; a
         //    jump touches only the destination. Either way, a tile that breaks
@@ -353,7 +353,18 @@ struct GameEngine {
             // 4b. Leo's sun drags the coin a square closer to itself. Before
             //     the reachability check below, so a coin dragged onto a hole is
             //     destroyed by the same rule that governs any coin over a hole.
-            events += sim.planPickupPull()
+            let pulled = sim.planPickupPull()
+            events += pulled
+
+            // A coin dragged onto the square the piece is standing on has
+            // arrived, and arriving is collecting. Checked after the pull rather
+            // than only on landing, because on this turn the *coin* did the
+            // moving — Leo's Magnetic Mane and its sun both do exactly that.
+            if !pulled.isEmpty {
+                let gathered = sim.resolvePickupCollection()
+                events += gathered.events
+                landing.collectedPickup = landing.collectedPickup ?? gathered.pickup
+            }
 
             // 5. Keep a Pentacle reachable. See `ensurePentacleAvailable`.
             events += sim.ensurePentacleAvailable(previousPlane: startingPlane)
@@ -498,6 +509,7 @@ struct GameEngine {
         }
 
         let planeBefore = sim.piece.plane
+        let pointBefore = sim.piece.point
         commit(.zodiactionFired(zodiac: sim.piece.zodiac, plane: sim.piece.plane))
 
         // Context read into a local first: it reads `sim`, and passing `&sim.rng`
@@ -510,13 +522,17 @@ struct GameEngine {
             if let allowed = sim.sheltered(event) { commit(allowed) }
         }
 
-        // The ground it stood on may not have survived what it just did. Libra's
-        // Balancing Breeze turns every healthy Astra tile into a hole, its own square
-        // included, and without this the piece simply stood on the air.
+        // Arriving somewhere new is a landing, and so is the floor leaving.
         //
-        // Same guarantee `applyEffect` gives a Pentacle: arriving somewhere new
-        // is a landing, and so is the floor leaving.
-        if !sim.isGameOver, !sim[sim.piece.plane][sim.piece.point].isSolid {
+        // Both halves matter. Pisces' Downstream sweeps the piece across the
+        // board and has to pick up whatever it comes to rest on; Libra's
+        // Balancing Breeze turns every healthy Astra tile into a hole, its own
+        // square included, and without the second half the piece stood on air.
+        // The same guarantee `applyEffect` already gives a Pentacle.
+        let moved = sim.piece.plane != planeBefore || sim.piece.point != pointBefore
+        let groundGone = !sim[sim.piece.plane][sim.piece.point].isSolid
+
+        if !sim.isGameOver, moved || groundGone {
             events += sim.settle(arrivedByFalling: false, wearsOnArrival: false).events
         }
 
@@ -675,7 +691,7 @@ struct GameEngine {
         }
 
         let tile = currentBoard[point]
-        let status: CursorStatus = switch tile.kind {
+        var status: CursorStatus = switch tile.kind {
         case .chasm: .open
         case .nexys: .clear
         case .normal:
@@ -687,7 +703,25 @@ struct GameEngine {
             }
         }
 
+        // Red means *you will fall*. If this piece cannot fall — the Astral
+        // Bolt's star, or a passive holding it up — then open ground is simply
+        // ground, and saying otherwise is the cursor lying about the one thing
+        // it exists to report.
+        if status == .open, !tile.isSolid, wouldSurvive(point) {
+            status = .clear
+        }
+
         return Cursor(point: point, status: status)
+    }
+
+    /// Whether the piece could stand on this square despite it being open.
+    private func wouldSurvive(_ point: GridPoint) -> Bool {
+        if signState.isStarred { return true }
+        return piece.zodiac.passives.preventsFall(
+            from: piece.plane,
+            at: point,
+            context: passiveContext
+        )
     }
 
     /// Every direction that currently has a legal destination, and where it
@@ -1789,6 +1823,11 @@ struct GameEngine {
             for point in self[plane].allPoints where self[plane][point].kind == .normal {
                 self[plane][point].health = .healthy
             }
+            // The plane has re-formed, so nothing is standing proud of it any
+            // more. Without this a pop-up left behind on Astra was still there
+            // on the next visit, alongside the new one — and the same going
+            // back down.
+            raisedTiles.removeAll { $0.plane == plane }
 
         case let .pickupDestroyed(_, plane, point):
             // Only the square the coin actually went down on. If the sun had
@@ -1836,6 +1875,9 @@ struct GameEngine {
             sparkles = set
             pendingPickup = pickup
             revealedPickups = []
+            // A fresh hunt clears the last one's leftovers: a raised square with
+            // no coin on it is stampable, not permanent.
+            raisedTiles = []
 
         case let .nexysMoved(destination, carryingPiece):
             nexysPlane = destination

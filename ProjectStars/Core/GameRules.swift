@@ -525,7 +525,7 @@ enum GameRules {
     ///
     /// Deliberately generous: mistaking a two-square vault for a one-square step
     /// is a much worse error than having to drag a little further.
-    static let swipeReachStep: CGFloat = 46
+    static let swipeReachStep: CGFloat = 78
 
     // ──────────────────────────────────────────────────────────────────────
     // MARK: - Sprite frame rates

@@ -380,6 +380,16 @@ final class GameSession {
     }
     #endif
 
+    /// One square the way the piece is already looking.
+    ///
+    /// The tap control. Reach zero, so a sign with a choice of distances takes
+    /// its shortest — a tap carries no magnitude, and guessing that the player
+    /// meant the long one is exactly the mistake the drag exists to avoid.
+    func stepForward() {
+        guard acceptsInput else { return }
+        submit(engine.piece.facing, reach: 0)
+    }
+
     /// Pops the current sign's Zodiaction, if it is charged.
     ///
     /// A Zodiaction is its own action rather than part of a move, so it has its

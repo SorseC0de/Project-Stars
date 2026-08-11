@@ -34,7 +34,8 @@ struct ControlPanelView: View {
                 liveDirection: $liveDirection,
                 onCommit: { session.submit($0, reach: $1) },
                 onPreview: { session.preview(direction: $0, reach: $1) },
-                onZodiaction: { session.fireZodiaction() }
+                onZodiaction: { session.fireZodiaction() },
+                onStepForward: { session.stepForward() }
             )
 
             VStack(spacing: 10) {
