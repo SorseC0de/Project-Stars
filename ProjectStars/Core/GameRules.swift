@@ -300,6 +300,31 @@ enum GameRules {
     /// pixels. They ring the figure, not the tile it is standing on.
     static let starSparkLift: CGFloat = 8
 
+    /// How many afterimages the star drags behind it, and how far each lags.
+    ///
+    /// Each copy wears the colour the piece was wearing a step *earlier* in the
+    /// cycle, so the trail is literally an after-image — the recent past of the
+    /// piece, strung out behind it.
+    static let starTrailCount = 4
+    static let starTrailLag: TimeInterval = 0.11
+    static let starTrailFalloff: Double = 0.62
+
+    // ── Hovering ──────────────────────────────────────────────────────────
+
+    /// How far a piece standing on nothing drifts up and down, in art pixels,
+    /// and how long one rise and fall takes.
+    ///
+    /// Small and slow. A piece over a hole should look *unsupported*, which is a
+    /// stillness with a drift in it rather than a bounce.
+    static let hoverBob: CGFloat = 1.6
+    static let hoverBobPeriod: TimeInterval = 1.6
+
+    /// How far the shadow shrinks while hovering.
+    ///
+    /// Not to nothing: something is still up there, and a piece with no shadow
+    /// at all reads as having been deleted rather than as floating.
+    static let hoverShadowScale: CGFloat = 0.45
+
     // ── The strike ────────────────────────────────────────────────────────
     //
     // Every other effect's rate, size and offset lives on `EffectSprite`, since

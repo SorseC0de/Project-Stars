@@ -228,6 +228,20 @@ struct BoardView: View {
         return elements[step]
     }
 
+    /// How far a piece standing over a hole has drifted, in art pixels.
+    ///
+    /// `0` whenever there is ground underfoot, which is the ordinary case — the
+    /// only way to be here is the Astral Bolt's star or Scorpio's hover.
+    private func hoverBob(at date: Date) -> CGFloat {
+        let piece = session.engine.piece
+        guard piece.plane == session.visiblePlane, !session.isFalling else { return 0 }
+        guard !session.visibleBoard[piece.point].isSolid else { return 0 }
+
+        let phase = date.timeIntervalSinceReferenceDate
+            / GameRules.hoverBobPeriod * 2 * .pi
+        return CGFloat(sin(phase)) * GameRules.hoverBob
+    }
+
     /// How hard the piece is flashing right now.
     ///
     /// Eases out rather than in: a charge is a hit, so the colour arrives all at
@@ -506,10 +520,16 @@ struct BoardView: View {
         let dropOffset = -remaining * metrics.boardSize * GameRules.fallArrivalHeight
 
         // The shadow swells to meet it.
-        let shadowScale = GameRules.fallArrivalShadowMin
+        var shadowScale = GameRules.fallArrivalShadowMin
             + (1 - GameRules.fallArrivalShadowMin) * arrival * arrival
 
+        // Standing on nothing: drift, and pull the shadow in. Only the star and
+        // Scorpio's hover can be here at all, and both should look like it.
+        let hover = hoverBob(at: Date())
+        if hover != 0 { shadowScale *= GameRules.hoverShadowScale }
+
         return ZStack {
+            starTrail(metrics: metrics, element: starElement)
             gemTrail(metrics: metrics)
 
             PieceView(
@@ -550,6 +570,8 @@ struct BoardView: View {
         .offset(y: ascent.lift)
         // Standing on a cloud means drifting with it.
         .offset(sway)
+        // Standing on nothing means drifting on your own.
+        .offset(y: hover * metrics.scale)
         .position(metrics.center(of: session.engine.piece.point))
         }
         .frame(width: metrics.boardSize, height: metrics.boardSize)
@@ -594,6 +616,42 @@ struct BoardView: View {
         let linear = min(max(settled / GameRules.cloudSwayEaseIn, 0), 1)
 
         return CGFloat(linear * linear * (3 - 2 * linear))
+    }
+
+    /// The colours a starred piece drags behind it.
+    ///
+    /// Drawn under the piece, and under the gem trail, so neither is dimmed by
+    /// a ghost passing over it.
+    @ViewBuilder
+    private func starTrail(metrics: PixelArtMetrics, element: ZodiacElement?) -> some View {
+        if element != nil, !session.isFalling {
+            let elements = ZodiacElement.allCases
+            let now = Date().timeIntervalSinceReferenceDate / GameRules.starCyclePeriod
+            let current = Int(now * Double(elements.count))
+
+            ForEach(0..<GameRules.starTrailCount, id: \.self) { step in
+                // The colour from `step` places back in the cycle: what the
+                // piece was wearing when it was where this ghost is.
+                let index = ((current - step - 1) % elements.count + elements.count)
+                    % elements.count
+
+                StarTrailView(
+                    zodiac: session.zodiac,
+                    element: elements[index],
+                    tileSize: metrics.tileSize,
+                    scale: metrics.scale,
+                    step: step
+                )
+                .position(metrics.center(of: session.engine.piece.point))
+                .animation(
+                    .spring(
+                        response: GameRules.starTrailLag * Double(step + 2),
+                        dampingFraction: 0.9
+                    ),
+                    value: session.engine.piece.point
+                )
+            }
+        }
     }
 
     /// Lines of light off the gems of a charged piece.
