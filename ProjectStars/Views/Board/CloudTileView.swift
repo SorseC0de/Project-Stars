@@ -494,7 +494,23 @@ extension CloudCluster {
     /// Takes the context by value and restores nothing — callers that draw more
     /// than one cluster hand it a fresh copy each time, which is cheaper than
     /// unwinding transforms and cannot leak state between squares.
-    static func paint(_ brush: Brush, into context: inout GraphicsContext, at now: TimeInterval) {
+    /// Which half of a cluster to lay down.
+    ///
+    /// Split so something can be drawn *inside* the cloud: the body goes down,
+    /// then whatever is being carried, then the crown over the top of it. That
+    /// is the whole trick behind an arrow arriving wrapped in cloud.
+    enum Layer {
+        case body
+        case crown
+        case whole
+    }
+
+    static func paint(
+        _ brush: Brush,
+        into context: inout GraphicsContext,
+        at now: TimeInterval,
+        layer: Layer = .whole
+    ) {
         guard brush.wear > 0 else { return }
 
         let scale = brush.scale
@@ -550,9 +566,13 @@ extension CloudCluster {
             }
         }
 
-        for index in bodyOrder { fill(puff: index) }
-        stroke(curls: GameRules.cloudGlintBuriedCount, salt: 0,
-               tones: [brush.tones[0], brush.tones[1]])
+        if layer != .crown {
+            for index in bodyOrder { fill(puff: index) }
+            stroke(curls: GameRules.cloudGlintBuriedCount, salt: 0,
+                   tones: [brush.tones[0], brush.tones[1]])
+        }
+
+        guard layer != .body else { return }
 
         for index in crownOrder { fill(puff: index) }
         stroke(curls: GameRules.cloudGlintMaskCount, salt: 2_048, tones: [brush.tones[0]])

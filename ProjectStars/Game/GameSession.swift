@@ -144,6 +144,17 @@ final class GameSession {
 
     /// The square a seafoam scuttle started from, so its first bubble is only played
     /// once however many squares the walk covers. Cleared when the move commits.
+    /// The cloud coming down with an arrow inside it, if one is falling.
+    private(set) var fallingCloud: FallingCloud?
+
+    /// One cloud on its way down out of Astra.
+    struct FallingCloud: Identifiable, Equatable {
+        let id = UUID()
+        let point: GridPoint
+        let plane: Plane
+        let start: Date
+    }
+
     /// Squares the piece has recently left, newest first.
     ///
     /// Real positions, not interpolated ones — see `AfterimageView` for why that
@@ -262,6 +273,7 @@ final class GameSession {
         pluming = nil
         crabWalkOrigin = nil
         afterimages = []
+        fallingCloud = nil
         chargeFlashStartedAt = nil
         collectBurst = nil
         smoke = nil
@@ -689,10 +701,27 @@ final class GameSession {
             await sleep(event.displayDuration)
 
         case let .arrowPlanted(plane, point):
-            // Fired on Terra, a cloud comes down with it and dissipates into the
-            // square — Astra is whole again by the time anyone looks, so the
-            // cloud is only ever a thing that is seen.
+            // Up first, out of the square the archer is standing on.
+            warpBeam = WarpBeam(
+                point: engine.piece.point,
+                plane: engine.piece.plane,
+                isDeparture: true,
+                start: .now
+            )
+
+            // Then down. Fired from Terra it brings a cloud with it, wrapped
+            // around the shaft — Astra is whole again by the time anyone looks
+            // up, so the cloud is only ever a thing that is seen.
             if plane == .terra {
+                fallingCloud = FallingCloud(point: point, plane: plane, start: .now)
+            }
+            await sleep(event.displayDuration)
+            warpBeam = nil
+
+            // It lands, the cloud comes apart over the square, and the arrow is
+            // in the ground.
+            if plane == .terra {
+                fallingCloud = nil
                 let poof = CloudPoof(point: point, start: .now)
                 cloudPoofs.append(poof)
                 Task { [weak self] in
@@ -702,10 +731,9 @@ final class GameSession {
                     self?.cloudPoofs.removeAll { $0.id == poof.id }
                 }
             }
-            withAnimation(.easeOut(duration: event.displayDuration)) {
+            withAnimation(.easeOut(duration: GameRules.tilePopResponse)) {
                 engine.apply(event)
             }
-            await sleep(event.displayDuration)
 
         case let .pieceTeleported(from, _, fromPlane, toPlane):
             await animateWarp(event, from: from, fromPlane: fromPlane, toPlane: toPlane)

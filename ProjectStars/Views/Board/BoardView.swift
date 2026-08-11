@@ -72,6 +72,7 @@ struct BoardView: View {
 
             constellation(metrics: metrics)
             warpBeam(metrics: metrics)
+            fallingCloud(metrics: metrics)
             cloudPoofs(metrics: metrics)
             dust(metrics: metrics)
             collectBurst(metrics: metrics)
@@ -253,6 +254,15 @@ struct BoardView: View {
         guard elapsed >= 0, elapsed <= 1 else { return 0 }
 
         return GameRules.chargeFlashStrength * (1 - elapsed) * (1 - elapsed)
+    }
+
+    /// The cloud an arrow is riding down out of Astra.
+    @ViewBuilder
+    private func fallingCloud(metrics: PixelArtMetrics) -> some View {
+        if let falling = session.fallingCloud, falling.plane == session.visiblePlane {
+            FallingCloudView(point: falling.point, metrics: metrics, start: falling.start)
+                .id(falling.id)
+        }
     }
 
     /// Sagittarius' arrow, standing in the square it chose.
