@@ -24,7 +24,7 @@ extension ZodiacCatalog {
         movement: .cardinalStep,
         passives: [
             AquariusQuirkyCaper(),
-            AquariusLitheLeaper(),
+            AquariusWindWalker(),
             AquariusCornerCurrent(),
         ],
         zodiaction: AquariusGoneWithTheGale(),
@@ -63,11 +63,24 @@ struct AquariusQuirkyCaper: ZodiacPassive {
     func wearTiming(context: PassiveContext) -> WearTiming {
         .onExit
     }
+
+    /// And a fall costs the ground nothing either.
+    ///
+    /// Quirky Caper charges every landing to the square being *left*, but a
+    /// fall has no square being left — the piece arrives from the plane above,
+    /// having paid up there. Without this Aquarius was the one sign that damaged
+    /// on arrival, which is precisely what the passive says it never does.
+    func modifyWear(_ proposal: WearProposal, context: PassiveContext) -> WearProposal {
+        guard proposal.arrivedByFalling else { return proposal }
+        var weightless = proposal
+        weightless.stages = 0
+        return weightless
+    }
 }
 
-// MARK: - Passive 2: Lithe Leaper
+// MARK: - Passive 2: Wind Walker
 
-/// Every multi-tile move is a jump, never a slide.
+/// A long move is made on the wind.
 ///
 /// A slide settles on each square it crosses and can break through halfway; a
 /// jump touches only the destination. So Weightless is what makes Aquarius'
@@ -76,22 +89,13 @@ struct AquariusQuirkyCaper: ZodiacPassive {
 ///
 /// Inert while Aquarius' movement is the shared single step, since a one-tile
 /// move has nothing to cross.
-struct AquariusLitheLeaper: ZodiacPassive {
+struct AquariusWindWalker: ZodiacPassive {
 
-    let displayName = "Lithe Leaper"
-    let summary = "Astra & Terra: multi-tile moves are jumps, crossing holes instead of settling on them."
+    let displayName = "Wind Walker"
+    let summary = "Astra & Terra: a move of more than one square is made on the wind — holes are crossed rather than fallen into."
 
-    func adjustedMovement(base: MovementPattern, context: PassiveContext) -> MovementPattern {
-        // Every option becomes a jump. A single-square option is unaffected in
-        // practice — there is nothing between adjacent squares — so this only
-        // bites once Aquarius has a longer move to make.
-        var airborne = base
-        airborne.options = base.options.map { option in
-            var lifted = option
-            lifted.style = .jump
-            return lifted
-        }
-        return airborne
+    func walksOnAir(during option: MovementPattern.MoveOption, context: PassiveContext) -> Bool {
+        option.distance > 1
     }
 }
 
@@ -126,23 +130,39 @@ struct AquariusCornerCurrent: ZodiacPassive {
 struct AquariusGoneWithTheGale: Zodiaction {
 
     let displayName = "Gone With the Gale"
-    let summary = "Astra & Terra: teleport to a random tile you can stand on, the Nexys included."
+    let summary = "Astra & Terra: go to any square you choose — open ground included — and walk on air for \(GameRules.galeMoves) moves after."
 
     /// - TODO: Aquarius has no charge rule specified. It currently fills only
     ///   from Pentacles.
     func meterGain(from move: MoveSummary, context: PassiveContext) -> Int { 0 }
 
+    /// Suspends on a tile the player picks — the same question Astral Breeze
+    /// asks, now asked by a sign.
     func activate(context: PassiveContext, generator: inout SeededRandom) -> [GameEvent] {
-        let candidates = context.currentBoard.solidPoints.filter { $0 != context.piecePoint }
-        guard let target = candidates.randomElement(using: &generator) else { return [] }
+        [.choiceRequested(source: .zodiaction(.aquarius), kind: .tile)]
+    }
+
+    func resolve(
+        choice: PickupChoiceResult,
+        context: PassiveContext,
+        generator: inout SeededRandom
+    ) -> [GameEvent] {
+        guard case let .tile(destination) = choice else { return [] }
+
+        // The gale is granted *before* the piece arrives, which is the whole
+        // reason a hole is a legal destination: by the time the landing is
+        // resolved, there is already nothing that can drop it.
+        var state = context.signState
+        state.galeMoves = GameRules.galeMoves
 
         return [
+            .signStateChanged(state),
             .pieceTeleported(
                 from: context.piecePoint,
-                to: target,
+                to: destination,
                 fromPlane: context.plane,
                 toPlane: context.plane
-            )
+            ),
         ]
     }
 }

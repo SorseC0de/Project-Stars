@@ -300,6 +300,12 @@ enum GameRules {
     /// pixels. They ring the figure, not the tile it is standing on.
     static let starSparkLift: CGFloat = 8
 
+    /// How many committed moves Aquarius walks on air after a gale.
+    static let galeMoves = 3
+
+    /// How far the gale's particles blow sideways as they rise, in art pixels.
+    static let galeDrift: CGFloat = 14
+
     // ── Sagittarius' arrow ────────────────────────────────────────────────
 
     /// How many committed moves an arrow stands before it rots.

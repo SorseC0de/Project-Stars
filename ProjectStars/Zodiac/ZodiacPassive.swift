@@ -196,6 +196,15 @@ protocol ZodiacPassive {
     /// would act the piece wins — see `GameEngine.planPickupPull`.
     func magneticPullChance(context: PassiveContext) -> Double
 
+    /// Whether this move is made on air: holes crossed rather than fallen into,
+    /// without the move itself changing shape.
+    ///
+    /// Distinct from turning the option into a jump. A jump *skips* the ground
+    /// between, so it wears nothing and collects nothing; this keeps the move
+    /// exactly as it was — a slide still settles on every square and wears every
+    /// square — and only removes the falling.
+    func walksOnAir(during option: MovementPattern.MoveOption, context: PassiveContext) -> Bool
+
     /// How often a sparkle phase comes up mirrored, doubling its shape across
     /// the board's middle.
     func mirroredSparkleChance(context: PassiveContext) -> Double
@@ -388,6 +397,10 @@ extension ZodiacPassive {
 
     func secondPickupChance(context: PassiveContext) -> Double { 0 }
     func magneticPullChance(context: PassiveContext) -> Double { 0 }
+
+    func walksOnAir(during option: MovementPattern.MoveOption, context: PassiveContext) -> Bool {
+        false
+    }
     func mirroredSparkleChance(context: PassiveContext) -> Double { 0 }
 
     func chargeFromPickup(_ base: Int, id: PickupID, plane: Plane) -> Int {
@@ -645,6 +658,10 @@ extension Array where Element == any ZodiacPassive {
 
     func magneticPullChance(context: PassiveContext) -> Double {
         map { $0.magneticPullChance(context: context) }.max() ?? 0
+    }
+
+    func walksOnAir(during option: MovementPattern.MoveOption, context: PassiveContext) -> Bool {
+        contains { $0.walksOnAir(during: option, context: context) }
     }
 
     func mirroredSparkleChance(context: PassiveContext) -> Double {

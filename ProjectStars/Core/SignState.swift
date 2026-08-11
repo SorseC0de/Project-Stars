@@ -120,6 +120,17 @@ struct SignState: Equatable {
     /// True while the Astral Bolt's charge is running.
     var isStarred: Bool { starMoves > 0 }
 
+    /// Committed moves left of Aquarius' Gone With the Gale. `0` when it is not
+    /// running.
+    var galeMoves = 0
+
+    /// True when nothing on the board can drop this piece.
+    ///
+    /// Two states grant it and they are unrelated — the Astral Bolt's star and
+    /// Aquarius' gale — so everywhere that asks should ask this rather than
+    /// either one.
+    var walksOnAir: Bool { isStarred || galeMoves > 0 }
+
     /// Sagittarius' arrow, if one is stuck in the board.
     ///
     /// A place to warp to, and a promise not to charge until it is spent — see
@@ -286,6 +297,7 @@ struct SignState: Equatable {
         }
 
         starMoves = max(starMoves - 1, 0)
+        galeMoves = max(galeMoves - 1, 0)
 
         if var planted = arrow {
             planted.movesRemaining -= 1
@@ -332,6 +344,7 @@ struct SignState: Equatable {
         copy.sun = sun
         copy.riftsLinger = riftsLinger
         copy.starMoves = starMoves
+        copy.galeMoves = galeMoves
         copy.arrow = arrow
         return copy
     }

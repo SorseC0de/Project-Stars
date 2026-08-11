@@ -109,7 +109,14 @@ struct GameEngine {
 
     /// A Pentacle that has been opened but is waiting on the player to answer a
     /// question before it can resolve. See `planChoice(_:)`.
-    private(set) var pendingChoice: (id: PickupID, kind: PickupChoice)?
+    private(set) var pendingChoice: (source: ChoiceSource, kind: PickupChoice)?
+
+    /// True for the duration of a move a passive is carrying on the wind.
+    ///
+    /// Not on `SignState`: it belongs to *this move*, not to the run, and it is
+    /// set and cleared inside a single `plan` — so putting it in the sign's
+    /// memory would be a lie about its lifetime.
+    private var airborneThisMove = false
 
     private(set) var score: Int
     private(set) var moveCount: Int
@@ -278,6 +285,15 @@ struct GameEngine {
         guard let move = sim.resolvedMove(for: direction, reach: reach) else {
             return [.moveBlocked(direction: direction)]
         }
+
+        // Some signs cross a long move on the wind — see
+        // `ZodiacPassive.walksOnAir(during:context:)`. Scoped to this move, and
+        // cleared however it ends.
+        sim.airborneThisMove = sim.piece.zodiac.passives.walksOnAir(
+            during: move.option,
+            context: sim.passiveContext
+        )
+        defer { sim.airborneThisMove = false }
 
         let origin = sim.piece.point
         let startingPlane = sim.piece.plane
@@ -522,6 +538,16 @@ struct GameEngine {
             if let allowed = sim.sheltered(event) { commit(allowed) }
         }
 
+        // Asked the player something? Then nothing below can be decided yet —
+        // the meter is still spent, because the ability was used, but where the
+        // piece ends up is the player's to say. `planChoice` resumes it.
+        if sim.pendingChoice != nil {
+            if !sim.piece.zodiac.zodiaction.ignoresMeter(context: sim.passiveContext) {
+                commit(.zodiactionMeterChanged(to: 0))
+            }
+            return events
+        }
+
         // Arriving somewhere new is a landing, and so is the floor leaving.
         //
         // Both halves matter. Pisces' Downstream sweeps the piece across the
@@ -716,7 +742,7 @@ struct GameEngine {
 
     /// Whether the piece could stand on this square despite it being open.
     private func wouldSurvive(_ point: GridPoint) -> Bool {
-        if signState.isStarred { return true }
+        if signState.walksOnAir { return true }
         return piece.zodiac.passives.preventsFall(
             from: piece.plane,
             at: point,
@@ -1015,10 +1041,10 @@ struct GameEngine {
                 commit(.signStateChanged(spent))
             }
 
-            // The star walks on air: holes hold it up, and so does the chasm.
-            let starred = signState.isStarred
+            // Walking on air: holes hold the piece up, and so does the chasm.
+            let airborne = signState.walksOnAir || airborneThisMove
 
-            if remaining.isSolid || hovers || starred {
+            if remaining.isSolid || hovers || airborne {
                 // Coming to rest on somebody else's work claims it.
                 result.events += claimAbandonedWorks()
 
@@ -1438,7 +1464,7 @@ struct GameEngine {
         // Effects that need an answer park here. The session collects it and
         // calls `planChoice(_:)`, which resumes from exactly this point.
         guard effect.choice == .none else {
-            commit(.choiceRequested(id: pickup.id, kind: effect.choice))
+            commit(.choiceRequested(source: .pickup(pickup.id), kind: effect.choice))
             return (true, pickup.id, events)
         }
 
@@ -1541,8 +1567,26 @@ struct GameEngine {
         let planeBefore = sim.piece.plane
         commit(.choiceResolved)
 
-        let effect = PickupCatalog.effect(for: pending.id)
-        events += sim.applyEffect(effect, choice: result)
+        switch pending.source {
+        case let .pickup(id):
+            events += sim.applyEffect(PickupCatalog.effect(for: id), choice: result)
+
+        case let .zodiaction(zodiac):
+            // The Zodiaction picks up where it left off, and owes the same
+            // settle a coin's effect does: it has almost certainly moved the
+            // piece, which is the only reason it asked.
+            let context = sim.passiveContext
+            for event in zodiac.zodiaction.resolve(
+                choice: result,
+                context: context,
+                generator: &sim.rng
+            ) {
+                if let allowed = sim.sheltered(event) { commit(allowed) }
+            }
+            if !sim.isGameOver {
+                events += sim.settle(arrivedByFalling: false, wearsOnArrival: false).events
+            }
+        }
 
         events += sim.ensurePentacleAvailable(previousPlane: planeBefore)
         return events
@@ -1805,8 +1849,8 @@ struct GameEngine {
             piece.zodiac = zodiac
             zodiactionMeter = min(zodiactionMeter, zodiactionMeterMax)
 
-        case let .choiceRequested(id, kind):
-            pendingChoice = (id, kind)
+        case let .choiceRequested(source, kind):
+            pendingChoice = (source, kind)
 
         case .choiceResolved:
             pendingChoice = nil

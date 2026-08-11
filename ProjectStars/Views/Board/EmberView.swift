@@ -30,6 +30,18 @@ struct EmberView: View {
     /// Whole-pixel scale, for art-pixel distances.
     let scale: CGFloat
 
+    /// Which element these are made of.
+    ///
+    /// Fire rises off a burning ram; Aquarius' gale streams off a piece being
+    /// carried by it. Same particles, different direction and ramp — a second
+    /// view would have been the same forty lines with two numbers changed.
+    var element: ZodiacElement = .fire
+
+    /// How far they blow sideways relative to how far they climb.
+    ///
+    /// Fire goes almost straight up. Wind goes almost straight across.
+    var drift: CGFloat = 0
+
     var body: some View {
         TimelineView(.animation) { timeline in
             let now = timeline.date.timeIntervalSinceReferenceDate
@@ -67,11 +79,11 @@ struct EmberView: View {
         let spread = (seed.truncatingRemainder(dividingBy: 0.4) - 0.2) * 12
 
         // Hottest at the bottom, cooling as it rises: the fire ramp, in order.
-        let ramp = ElementFX.ramp(for: .fire)
+        let ramp = ElementFX.ramp(for: element)
         let colour = life < 0.35 ? ramp.bright : (life < 0.7 ? ramp.mid : ramp.deep)
 
         return (
-            x: CGFloat(spread + sway) * scale,
+            x: CGFloat(spread + sway) * scale + CGFloat(life) * drift * scale,
             y: CGFloat(GameRules.emberFoot - life * Double(GameRules.emberRise)) * scale,
             size: GameRules.emberSize * scale * CGFloat(1 - life * 0.5),
             // Fades in fast, out slowly, so nothing pops into existence.

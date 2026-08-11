@@ -6,6 +6,17 @@
 //
 
 import Foundation
+/// What is waiting on the player's answer.
+///
+/// Pentacles were the only thing that could ask a question, which is why the
+/// machinery was named for them. Aquarius' Gone With the Gale picks its own
+/// landing square, and Leo's Rallying Roar will offer a change of sign — so the
+/// asker is now part of the question.
+enum ChoiceSource: Equatable, Hashable {
+    case pickup(PickupID)
+    case zodiaction(Zodiac)
+}
+
 
 /// One indivisible change to the game state.
 ///
@@ -110,7 +121,7 @@ enum GameEvent: Equatable {
     ///
     /// Applying this parks the effect; the session collects the answer and asks
     /// the engine to plan the rest.
-    case choiceRequested(id: PickupID, kind: PickupChoice)
+    case choiceRequested(source: ChoiceSource, kind: PickupChoice)
 
     /// The sign's memory changed — a streak advanced, a cooldown started or
     /// ticked, a per-visit charge was spent.

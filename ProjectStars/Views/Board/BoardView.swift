@@ -581,6 +581,16 @@ struct BoardView: View {
             if session.engine.signState.isActive(AriesBrazenBlazeCarrier.buffKey) {
                 EmberView(tileSize: metrics.tileSize, scale: metrics.scale)
             }
+            // And a piece the wind is carrying streams the same particles
+            // sideways — see `EmberView`.
+            if session.engine.signState.galeMoves > 0 {
+                EmberView(
+                    tileSize: metrics.tileSize,
+                    scale: metrics.scale,
+                    element: .air,
+                    drift: GameRules.galeDrift
+                )
+            }
         }
         .overlay {
             // Polaris' own sparks, borrowed. The star is the same idea — a thing

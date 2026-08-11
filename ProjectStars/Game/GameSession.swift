@@ -216,7 +216,7 @@ final class GameSession {
     /// While this is non-nil the move is **suspended mid-resolve**, exactly like
     /// a first-encounter strip — but here the answer changes the outcome rather
     /// than just the pacing.
-    private(set) var pendingPickupChoice: (id: PickupID, kind: PickupChoice)?
+    private(set) var pendingPickupChoice: (source: ChoiceSource, kind: PickupChoice)?
 
     // MARK: - Lifecycle
 
@@ -524,12 +524,12 @@ final class GameSession {
             await sleep(event.displayDuration)
             flashingTiles.remove(point)
 
-        case let .choiceRequested(id, kind):
+        case let .choiceRequested(source, kind):
             engine.apply(event)
             // Suspend until the player answers, then play out whatever the
             // answer produced — including the sparkle phase that could not be
             // rolled without it.
-            let answer = await askForChoice(id: id, kind: kind)
+            let answer = await askForChoice(source: source, kind: kind)
             for follow in engine.planChoice(answer) {
                 guard !Task.isCancelled else { return }
                 await present(follow)
@@ -997,8 +997,11 @@ final class GameSession {
     private var choiceContinuation: CheckedContinuation<PickupChoiceResult, Never>?
 
     /// Puts the question up and does not return until it is answered.
-    private func askForChoice(id: PickupID, kind: PickupChoice) async -> PickupChoiceResult {
-        pendingPickupChoice = (id, kind)
+    private func askForChoice(
+        source: ChoiceSource,
+        kind: PickupChoice
+    ) async -> PickupChoiceResult {
+        pendingPickupChoice = (source, kind)
         return await withCheckedContinuation { continuation in
             choiceContinuation = continuation
         }

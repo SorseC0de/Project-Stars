@@ -77,6 +77,16 @@ protocol Zodiaction {
     /// engine neither requires the meter nor spends it when this is true.
     func ignoresMeter(context: PassiveContext) -> Bool
 
+    /// Continues a Zodiaction that asked the player something.
+    ///
+    /// Emit `.choiceRequested(source: .zodiaction(...))` from `activate` to
+    /// suspend, and the engine resumes here with the answer.
+    func resolve(
+        choice: PickupChoiceResult,
+        context: PassiveContext,
+        generator: inout SeededRandom
+    ) -> [GameEvent]
+
     /// The events popping the Zodiaction produces.
     ///
     /// Return an empty array for one that only exists as a marker for now. The
@@ -96,6 +106,14 @@ extension Zodiaction {
     func canActivate(context: PassiveContext) -> Bool { true }
 
     func ignoresMeter(context: PassiveContext) -> Bool { false }
+
+    func resolve(
+        choice: PickupChoiceResult,
+        context: PassiveContext,
+        generator: inout SeededRandom
+    ) -> [GameEvent] {
+        []
+    }
 
     func activate(context: PassiveContext, generator: inout SeededRandom) -> [GameEvent] {
         []
