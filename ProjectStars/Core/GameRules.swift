@@ -296,6 +296,10 @@ enum GameRules {
     /// Charge gained per move while it runs, whatever the sign.
     static let starChargePerMove = 1
 
+    /// How far the star's orbiting sparks sit above the piece's square, in art
+    /// pixels. They ring the figure, not the tile it is standing on.
+    static let starSparkLift: CGFloat = 8
+
     /// Seconds for the piece to cycle once through all four elemental colours.
     static let starCyclePeriod: TimeInterval = 0.9
 

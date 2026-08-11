@@ -339,6 +339,28 @@ enum Palette {
     /// the one piece that was drawn both ways.
     static let pieceStoneTones: [Color] = [slate, stone, iron, warmBlack]
 
+    /// The piece redrawn in an element's own colours.
+    ///
+    /// ## Why a swap and not a blend
+    ///
+    /// `.blendMode(.color)` takes hue and saturation from the wash but
+    /// *luminosity from the sprite underneath* — so a gold piece washed cyan
+    /// comes out a mid-tone cyan, every tone landing near the lightness the gold
+    /// already had. That is precisely the "not enough contrast" of it: the wash
+    /// cannot make anything brighter or darker than what it covers.
+    ///
+    /// Swapping the entries instead gives the element's full range — its bright
+    /// on the gold, its mid on the brown, its deep on the plum — which is how
+    /// the stone form is already built, and how pixel art is recoloured
+    /// generally.
+    ///
+    /// `midnight` is deliberately absent: the darkest entry is the outline, and
+    /// an outline that changes colour stops reading as an outline.
+    static func pieceTones(for element: ZodiacElement) -> [Color] {
+        let ramp = ElementFX.ramp(for: element)
+        return [ramp.bright, ramp.mid, ramp.deep]
+    }
+
     /// The greens moss is drawn from.
     ///
     /// Three of them, because one flat green reads as paint. `forest` is

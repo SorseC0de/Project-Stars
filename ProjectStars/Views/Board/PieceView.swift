@@ -64,12 +64,12 @@ struct PieceView: View {
     /// Driven by charge gain — see `GameSession.chargeFlashStartedAt`.
     var chargeFlash: Double = 0
 
-    /// The colour the Astral Bolt's star is washing the piece with right now,
-    /// or `nil` when the star is not running.
+    /// The element the Astral Bolt's star is currently wearing, or `nil` when
+    /// the star is not running.
     ///
-    /// Cycling through all four elements rather than settling on one: nothing is
-    /// attuned to lightning, so the star belongs to every element and none.
-    var starTint: Color?
+    /// Cycling through all four rather than settling on one: nothing is attuned
+    /// to lightning, so the star belongs to every element and none.
+    var starElement: ZodiacElement?
 
     var body: some View {
         ZStack {
@@ -115,9 +115,7 @@ struct PieceView: View {
     /// drawn in stone; every other sign gets its stone form from here, which is
     /// eleven sprites nobody has to draw twice.
     private var figure: some View {
-        lit
-            .colorFlash(ElementFX.ramp(for: zodiac.element).mid, amount: chargeFlash)
-            .colorFlash(starTint ?? .clear, amount: starTint == nil ? 0 : GameRules.starFlashStrength)
+        lit.colorFlash(ElementFX.ramp(for: zodiac.element).mid, amount: chargeFlash)
     }
 
     /// The sprite with its gem lit, before any flash is laid over it.
@@ -140,10 +138,12 @@ struct PieceView: View {
     @ViewBuilder
     private var material: some View {
         // The star burns the stone off: gold on both planes for as long as it
-        // lasts, which is most of how you can tell at a glance that it is up.
-        switch starTint == nil ? plane : .astra {
+        // lasts, which is most of how you can tell at a glance that it is up —
+        // and the gold is then swapped out for whichever element it is wearing
+        // this instant.
+        switch starElement == nil ? plane : .astra {
         case .astra:
-            sprite
+            starred(sprite)
 
         case .terra:
             sprite
@@ -162,6 +162,21 @@ struct PieceView: View {
                     seed: Float(abs(zodiac.rawValue.hashValue % 10_000)),
                     coverage: GameRules.pieceMossCoverage
                 )
+        }
+    }
+
+    /// The sprite redrawn in the star's current element, if one is running.
+    ///
+    /// Three entries swapped, not four: `midnight` is the outline and stays put.
+    @ViewBuilder
+    private func starred(_ art: some View) -> some View {
+        if let element = starElement {
+            art.paletteSwap(
+                zip(Palette.pieceGoldTones, Palette.pieceTones(for: element))
+                    .map(PaletteSwap.init)
+            )
+        } else {
+            art
         }
     }
 

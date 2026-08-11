@@ -52,7 +52,7 @@ struct BoardView: View {
                 let arrival = arrivalProgress(at: timeline.date)
                 let sway = cloudSway(at: timeline.date, metrics: metrics)
                 let flash = chargeFlash(at: timeline.date)
-                let starTint = starTint(at: timeline.date)
+                let starElement = starElement(at: timeline.date)
                 let ascent = ascentPose(at: timeline.date, metrics: metrics)
                 let travel = nexysTravelPose(at: timeline.date, metrics: metrics)
                 objects(
@@ -65,7 +65,7 @@ struct BoardView: View {
                     travel: travel,
                     sway: sway,
                     flash: flash,
-                    starTint: starTint
+                    starElement: starElement
                 )
             }
 
@@ -218,14 +218,14 @@ struct BoardView: View {
     /// Steps rather than blends: four flat colours in turn reads as a flicker
     /// between elements, which is what this is, where a smooth interpolation
     /// would spend most of its time on colours that belong to no element at all.
-    private func starTint(at date: Date) -> Color? {
+    private func starElement(at date: Date) -> ZodiacElement? {
         guard session.engine.signState.isStarred else { return nil }
 
         let elements = ZodiacElement.allCases
         let elapsed = date.timeIntervalSinceReferenceDate / GameRules.starCyclePeriod
         let step = Int(elapsed * Double(elements.count)) % elements.count
 
-        return ElementFX.ramp(for: elements[step]).bright
+        return elements[step]
     }
 
     /// How hard the piece is flashing right now.
@@ -360,7 +360,7 @@ struct BoardView: View {
         travel: AscentPose,
         sway: CGSize,
         flash: Double,
-        starTint: Color?
+        starElement: ZodiacElement?
     ) -> some View {
         ZStack {
             ForEach(BoardObject.draw(objectsOnBoard(plane: plane)), id: \.kind) { object in
@@ -390,7 +390,7 @@ struct BoardView: View {
                         ascent: ascent,
                         sway: sway,
                         flash: flash,
-                        starTint: starTint
+                        starElement: starElement
                     )
                 }
             }
@@ -498,7 +498,7 @@ struct BoardView: View {
         ascent: AscentPose,
         sway: CGSize,
         flash: Double,
-        starTint: Color?
+        starElement: ZodiacElement?
     ) -> some View {
         // Falls under gravity rather than at a constant rate: squaring the
         // progress makes it accelerate into the ground.
@@ -529,19 +529,20 @@ struct BoardView: View {
             dropOffset: dropOffset,
             shadowScale: shadowScale,
             chargeFlash: flash,
-            starTint: starTint
+            starElement: starElement
         )
         .overlay {
             // Polaris' own sparks, borrowed. The star is the same idea — a thing
             // lit from inside — and one orbit of twinkles is enough to say so
             // without a second effect being written.
-            if starTint != nil {
+            if starElement != nil {
                 PolarisSparksView(
                     size: metrics.tileSize,
                     scale: metrics.scale,
                     phase: Date().timeIntervalSinceReferenceDate,
                     layer: .inFront
                 )
+                .offset(y: -GameRules.starSparkLift * metrics.scale)
             }
         }
         // Island and passenger travel as one object during an ascent.
