@@ -23,6 +23,55 @@ import Foundation
 enum GameRules {
 
     // ──────────────────────────────────────────────────────────────────────
+    // MARK: - Game mode
+    //
+    // Some rules cannot be the same in a one-player run and a two-player match.
+    // The obvious one is Astra healing itself on every descent: in solo that is
+    // what makes long runs possible, and in versus it is a reset button on the
+    // work your opponent did up there.
+
+    /// Which game this is.
+    enum Mode {
+        /// One player against the board. Everything shipped so far.
+        case solo
+
+        /// Two players on one board, alternating turns.
+        ///
+        /// - Note: Nothing selects this yet. It exists so that values which will
+        ///   differ can be *written down as they are discovered* during solo
+        ///   testing, rather than being reconstructed from memory later.
+        case versus
+    }
+
+    /// The mode the current run is being played under.
+    ///
+    /// ## Why this is a `var` when nothing else here is
+    ///
+    /// Every other value in this file is a constant, deliberately. This one is
+    /// not a tuning knob but a statement about which game is being played, set
+    /// once before a run begins and never touched during it.
+    ///
+    /// - Important: It is process-wide. That is fine while one device plays one
+    ///   game at a time, and is the thing to revisit if a versus match is ever
+    ///   verified server-side by simulating both players in one process.
+    static var mode: Mode = .solo
+
+    /// Picks the value for the mode in play.
+    ///
+    /// Written this way so that converting a constant costs nothing at its call
+    /// sites — `static let x = 3` becomes `static var x: Int { tuned(solo: 3,
+    /// versus: 5) }` and every `GameRules.x` in the codebase is unchanged.
+    ///
+    /// Only convert a value once versus genuinely needs it to differ. A value
+    /// that reads the same in both modes is clearer as a plain constant.
+    static func tuned<Value>(solo: Value, versus: Value) -> Value {
+        switch mode {
+        case .solo: solo
+        case .versus: versus
+        }
+    }
+
+    // ──────────────────────────────────────────────────────────────────────
     // MARK: - Board
     //
     // The shape of the world. These change what the game *is*, not how it
@@ -89,7 +138,11 @@ enum GameRules {
     ///
     /// Only ordinary tiles are restored — the Nexys and its chasm are structural
     /// and unaffected.
-    static let astraRestoresOnDescent = true
+    /// **Versus: off.** With two players the heal stops being a mercy and
+    /// becomes a weapon — descend, undo everything your opponent built up there,
+    /// climb back. Both planes decaying permanently is what makes a match a race
+    /// to ruin the *other* player's ground rather than to outlast your own.
+    static var astraRestoresOnDescent: Bool { tuned(solo: true, versus: false) }
 
     /// When `true`, coming to rest on the Nexys **while it is on Terra** rides it
     /// straight back up to Astra.
@@ -233,7 +286,12 @@ enum GameRules {
     static let astralBoltChance = 0.015
 
     /// How many committed moves the Bolt's charge lasts.
-    static let starMoves = 10
+    ///
+    /// **Versus: shorter, provisionally.** Ten moves of walking on holes and
+    /// taking no wear is strong against the board; against a person it is ten
+    /// moves they cannot touch you while you wreck the ground they need. Written
+    /// down as a starting guess, not a tested number.
+    static var starMoves: Int { tuned(solo: 10, versus: 6) }
 
     /// Charge gained per move while it runs, whatever the sign.
     static let starChargePerMove = 1
