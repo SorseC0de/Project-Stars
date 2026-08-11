@@ -37,16 +37,6 @@ struct SwipeInputSurface: View {
     /// Reports the drag in progress so the cursor can preview it.
     let onPreview: (SwipeDirection?, Int) -> Void
 
-    /// Called on a double-tap anywhere in the zone. Fires the Zodiaction.
-    ///
-    /// - Note: There *was* a long-press trigger here too, while the real input
-    ///   was undesigned. It had to go: holding still part-way through a drag let
-    ///   the long press succeed, which cancelled the drag — and a cancelled drag
-    ///   still delivers `onEnded`, so the move committed under the player's
-    ///   finger before they released. A double-tap cannot be mistaken for a
-    ///   drag, so it is safe to keep.
-    let onZodiaction: () -> Void
-
     /// Called on a single tap. Steps forward, the shortest move available.
     ///
     /// The common case by a distance: most turns are one square the way you are
@@ -59,17 +49,14 @@ struct SwipeInputSurface: View {
             // Makes the whole area draggable despite being fully transparent.
             .contentShape(Rectangle())
             .gesture(dragGesture)
-            // Both gestures live on the *same* view, which is the only
-            // arrangement SwiftUI arbitrates cleanly here: a drag needs
-            // `minimumDistance` of travel and a double-tap needs two taps, so
-            // neither can be mistaken for the other. Putting the Zodiaction on a
-            // separate tappable control instead does not work — see the note in
-            // `ZodiactionMeterView`.
-            .simultaneousGesture(
-                TapGesture(count: 2).onEnded { onZodiaction() }
-            )
-            // After the double-tap, so a second tap is never eaten by this one.
-            // SwiftUI waits out the double-tap window before delivering it.
+            // A single tap and a drag, and nothing else.
+            //
+            // The Zodiaction used to be a double-tap here, which made the two
+            // taps fight: SwiftUI has to wait out the double-tap window before
+            // it can deliver a single one, so stepping forward was always late
+            // *and* the double-tap was unreliable because a drag could start
+            // between the two. Now that the Zodiaction has a button of its own
+            // there is nothing to arbitrate, and the step is instant.
             .simultaneousGesture(
                 TapGesture(count: 1).onEnded { if isEnabled { onStepForward() } }
             )

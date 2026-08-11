@@ -499,15 +499,6 @@ final class GameSession {
             await sleep(event.displayDuration)
             flashingTiles.subtract(changes.keys)
 
-        case let .tilesChanged(plane, changes):
-            disperseClouds(in: changes, on: plane)
-            flashingTiles.formUnion(changes.keys)
-            withAnimation(.easeOut(duration: event.displayDuration * 0.6)) {
-                engine.apply(event)
-            }
-            await sleep(event.displayDuration)
-            flashingTiles.subtract(changes.keys)
-
         case let .tileDamaged(plane, point, _):
             // A trailing effect marks each square as the water reaches it.
             if let plume = pluming { playEffect(plume, at: point, on: plane) }
@@ -1358,6 +1349,27 @@ extension GameSession {
     /// A first-encounter strip and an unanswered Pentacle both block input as
     /// hard as a resolving move does — the game is turn-based, and a turn that
     /// has not finished resolving accepts nothing.
+    /// The reach that selects this sign's *longer* move in a direction, or
+    /// `nil` when it has none that way.
+    ///
+    /// Scheme A gets distance from how far the drag ran; scheme B has no drag,
+    /// so the longer move needs its own button and this is what decides whether
+    /// to offer one. Asked of the pattern rather than hardcoded per sign, so a
+    /// retuned movement changes the buttons with it.
+    func specialReach(for direction: SwipeDirection) -> Int? {
+        let movement = engine.piece.zodiac.passives.adjustedMovement(
+            base: engine.piece.zodiac.movement,
+            context: engine.passiveSnapshot
+        )
+        let options = movement.options(for: direction, facing: engine.piece.facing)
+
+        guard let longest = options.map(\.distance).max(), longest > 1 else { return nil }
+
+        // Reach counts steps past the first, so the longest option is one less
+        // than its distance.
+        return longest - 1
+    }
+
     var acceptsInput: Bool {
         phase == .awaitingInput && pentacleIntro == nil && pendingPickupChoice == nil && !isPaused
     }

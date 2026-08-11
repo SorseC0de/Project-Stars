@@ -167,28 +167,19 @@ struct BoardView: View {
         popped: Set<GridPoint>
     ) -> some View {
         ForEach(board.allPoints.filter { !popped.contains($0) }, id: \.self) { point in
-            // The raised squares draw themselves, depth-sorted with the pieces.
-            let isPopped = false
-
             TileView(
                 tile: board[point],
                 plane: plane,
                 shade: .at(point),
                 size: metrics.tileSize,
-                isPopped: isPopped,
+                // Never raised: a popped square is excluded from this pass and
+                // drawn by `raisedTile`, so it can depth-sort with the pieces.
+                isPopped: false,
                 isFlashing: session.flashingTiles.contains(point),
                 point: point,
                 drawnByField: plane == .astra
             )
             .position(metrics.center(of: point))
-            .offset(y: isPopped ? -GameRules.tilePopLift * metrics.scale : 0)
-            .animation(
-                .spring(
-                    response: GameRules.tilePopResponse,
-                    dampingFraction: GameRules.tilePopDamping
-                ),
-                value: isPopped
-            )
         }
     }
 

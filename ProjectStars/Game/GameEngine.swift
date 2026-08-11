@@ -118,7 +118,6 @@ struct GameEngine {
     /// memory would be a lie about its lifetime.
     private var airborneThisMove = false
 
-    private(set) var score: Int
     private(set) var moveCount: Int
     private(set) var pickupsCollected: Int
 
@@ -213,7 +212,6 @@ struct GameEngine {
         self.revealedPickups = []
         self.raisedTiles = []
         self.pendingChoice = nil
-        self.score = 0
         self.moveCount = 0
         self.pickupsCollected = 0
         self.zodiactionMeter = 0
@@ -363,7 +361,6 @@ struct GameEngine {
         var collectedPickup: PickupID?
 
         if !sim.isGameOver {
-            commit(.scoreAwarded(GameRules.scorePerMove))
 
             // 4. Collecting the pickup, and whatever it does.
             // Landing on the coin is already handled inside `settle`, which
@@ -1555,7 +1552,6 @@ struct GameEngine {
             }
         }
 
-        commit(.scoreAwarded(GameRules.scorePerPickup))
         return events
     }
 
@@ -1775,6 +1771,10 @@ struct GameEngine {
     }
 
     /// The read-only snapshot handed to passive and Zodiaction hooks.
+    /// The same snapshot, for anything outside the engine that has to ask a
+    /// passive a question — the panel, deciding which buttons to offer.
+    var passiveSnapshot: PassiveContext { passiveContext }
+
     private var passiveContext: PassiveContext {
         PassiveContext(
             zodiac: piece.zodiac,
@@ -1785,7 +1785,6 @@ struct GameEngine {
             piecePoint: piece.point,
             facing: piece.facing,
             moveCount: moveCount,
-            score: score,
             zodiactionMeter: zodiactionMeter,
             pickupPoints: revealedPickups.filter { $0.plane == piece.plane }.map(\.point),
             signState: signState,
@@ -1954,9 +1953,6 @@ struct GameEngine {
 
         case .zodiactionFired:
             break // Marker; the super's own events follow.
-
-        case let .scoreAwarded(points):
-            score += points
 
         case let .gameOver(reason):
             gameOverReason = reason

@@ -76,7 +76,6 @@ struct PauseMenuView: View {
     /// Where the run stands, so the decision to restart is an informed one.
     private var runSummary: some View {
         HStack(spacing: 14) {
-            stat("SCORE", "\(session.engine.score)")
             stat("MOVES", "\(session.engine.moveCount)")
             stat("PENTACLES", "\(session.engine.pickupsCollected)")
             stat("PLANE", session.visiblePlane.displayName.uppercased())

@@ -35,7 +35,6 @@ struct GameOverOverlay: View {
                 }
 
                 VStack(spacing: 4) {
-                    resultRow("SCORE", "\(session.engine.score)")
                     resultRow("MOVES", "\(session.engine.moveCount)")
                     resultRow("PICKUPS", "\(session.engine.pickupsCollected)")
                 }
@@ -43,7 +42,7 @@ struct GameOverOverlay: View {
 
                 // Plain tap gestures rather than `Button`s: this overlay sits
                 // above the panel's swipe surface, and a `Button` there loses
-                // gesture arbitration. See the note in `ZodiactionMeterView`.
+                // gesture arbitration to it — see `SwipeInputSurface`.
                 VStack(spacing: 8) {
                     Text("PLAY AGAIN")
                         .font(.system(size: 13, weight: .heavy, design: .monospaced))

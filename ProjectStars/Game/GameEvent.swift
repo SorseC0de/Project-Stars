@@ -207,8 +207,6 @@ enum GameEvent: Equatable {
     /// A Zodiaction was popped. Any events it produces follow immediately after.
     case zodiactionFired(zodiac: Zodiac, plane: Plane)
 
-    /// Points were added to the score.
-    case scoreAwarded(Int)
 
     /// The run ended.
     case gameOver(reason: GameOverReason)
@@ -249,7 +247,6 @@ enum GameEvent: Equatable {
         case .nexysMoved: GameRules.nexysShiftDuration
         case .zodiactionMeterChanged: 0
         case .zodiactionFired: GameRules.zodiactionDuration
-        case .scoreAwarded: 0
         case .gameOver: GameRules.gameOverDelay
         }
     }

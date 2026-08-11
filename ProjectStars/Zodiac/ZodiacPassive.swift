@@ -467,9 +467,6 @@ struct PassiveContext {
     /// Moves committed so far this run.
     let moveCount: Int
 
-    /// Current score.
-    let score: Int
-
     /// Current Zodiaction meter, in pips.
     let zodiactionMeter: Int
 
