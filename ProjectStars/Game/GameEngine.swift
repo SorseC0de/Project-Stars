@@ -318,15 +318,8 @@ struct GameEngine {
             revealedThisMove = true
         }
 
-        // Stepping through a torn rift closes the whole set. Charged here, on
-        // the move that actually used one, rather than in `resolvedMove` — that
-        // is a *query*, asked speculatively by the cursor every time the player
-        // drags, and spending a rift to answer a question would close them
-        // without anybody going anywhere.
-        if sim.piece.plane == .terra,
-           sim.signState.terraRifts,
-           move.style == .jump,
-           move.destination.manhattanDistance(to: origin) > 1 {
+        // Arriving through a rift closes the torn set.
+        if move.usedRift, sim.signState.terraRifts {
             var closed = sim.signState
             closed.terraRifts = false
             commit(.signStateChanged(closed))
@@ -604,6 +597,9 @@ struct GameEngine {
         /// Where it ends up if nothing interrupts it.
         var destination: GridPoint
 
+        /// True when this move goes through one of Gemini's rifts.
+        var usedRift = false
+
         init(path: [GridPoint], style: MovementStyle, option: MovementPattern.MoveOption, origin: GridPoint) {
             self.path = path
             self.style = style
@@ -645,12 +641,14 @@ struct GameEngine {
 
             if let wrapped = wrap,
                wrapped.allSatisfy({ currentBoard.contains($0) }) {
-                return ResolvedMove(
-                path: wrapped,
-                style: .jump,
-                option: MovementPattern.MoveOption(.any, distance: 1, style: .jump),
-                origin: piece.point
-            )
+                var through = ResolvedMove(
+                    path: wrapped,
+                    style: .jump,
+                    option: MovementPattern.MoveOption(.any, distance: 1, style: .jump),
+                    origin: piece.point
+                )
+                through.usedRift = true
+                return through
             }
             return nil
         }
@@ -1846,7 +1844,9 @@ struct GameEngine {
             self[plane][point].health = health
 
         case let .pieceTeleported(_, to, fromPlane, toPlane):
-            // A rift does not follow anyone between planes.
+            // Arriving anywhere by warp closes the torn set, and leaving the
+            // plane closes everything.
+            signState.terraRifts = false
             if toPlane != fromPlane { signState.closeRifts() }
             piece.plane = toPlane
             piece.point = to
