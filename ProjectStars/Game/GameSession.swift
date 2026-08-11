@@ -517,6 +517,17 @@ final class GameSession {
             // on the ground it changed, which is not known until the effect's
             // own events arrive — see `.tilesChanged` below.
             pluming = EffectSprite.pickup(for: id)
+
+            // The Bolt is the exception: it changes no ground, it strikes *you*.
+            // One of four drawings, so the rarest thing in the game is not the
+            // same picture every time somebody finally finds it.
+            if id == .astralBolt {
+                playEffect(
+                    EffectSprite.strike(at: engine.moveCount),
+                    at: point,
+                    on: plane
+                )
+            }
             withAnimation(.spring(response: 0.28, dampingFraction: 0.6)) {
                 engine.apply(event)
             }

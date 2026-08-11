@@ -361,6 +361,24 @@ enum Palette {
     /// Entries that bloom on the gold coin.
     static let pentacleGlowTones: [Color] = [white, yellowGreen, yellow]
 
+    /// The colours a lightning strike cycles through, one per frame.
+    ///
+    /// Bright is what replaces the white in the art; dark replaces the blue, and
+    /// is the next entry down the palette in every case — which is what keeps a
+    /// recoloured frame reading as the same drawing rather than as four
+    /// different ones.
+    ///
+    /// Indices 24, 25, 32 and 41: sakura, blush, lime, cyan. Nothing is attuned
+    /// to lightning, so it wears no element's ramp — it borrows a colour from
+    /// across the palette instead, which is why the set looks arbitrary and is
+    /// not.
+    static let strikeCycle: [(bright: Color, dark: Color)] = [
+        (sakura, blush),    // 24 → 25
+        (blush, red),       // 25 → 26
+        (lime, green),      // 32 → 33
+        (cyan, lightBlue),  // 41 → 42
+    ]
+
     /// Polaris' sparks.
     static let polarisSparkTones: [Color] = [yellow, pink, lightBlue]
 

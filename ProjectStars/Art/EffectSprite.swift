@@ -5,7 +5,7 @@
 //  The imported effect animations, and what each one is for.
 //
 
-import Foundation
+import SwiftUI
 
 /// A drawn effect animation: one horizontal strip, one frame per cell.
 ///
@@ -56,6 +56,17 @@ enum EffectSprite: String, CaseIterable, Hashable {
     /// Unassigned. 28 frames, 96px — a dark plume with fire at its heart.
     case explosion
 
+    // MARK: Astral
+
+    /// The Astral Bolt's strike, in four variants. 10 frames each, 64x160.
+    ///
+    /// Four rather than one because it is the rarest thing in the game: a player
+    /// who sees it twice in a year should not see the same drawing twice.
+    case lightning1
+    case lightning2
+    case lightning3
+    case lightning4
+
     // MARK: Earth
 
     /// The Pentacle, not a sign. 16 frames.
@@ -78,8 +89,21 @@ enum EffectSprite: String, CaseIterable, Hashable {
 
     // MARK: - Where the art is
 
-    /// Which element folder in the asset catalog it lives in.
-    var element: ZodiacElement {
+    /// Which element this belongs to, or `nil` for the ones outside the wheel.
+    ///
+    /// Lightning is the fifth Essence and no sign is attuned to it, so it has no
+    /// element and lives in its own folder — see `folder`.
+    var element: ZodiacElement? {
+        if Self.lightning.contains(self) { return nil }
+        return elementalFamily
+    }
+
+    /// The asset-catalog folder this strip lives in.
+    var folder: String {
+        element?.folderName ?? "Astral"
+    }
+
+    private var elementalFamily: ZodiacElement {
         switch self {
         case .ariesZodiaction, .astralBlaze, .leoPridefulLanding,
              .leoZodiactionOne, .leoZodiactionTwo, .leoZodiactionSummon,
@@ -90,6 +114,8 @@ enum EffectSprite: String, CaseIterable, Hashable {
             .water
         case .astralBloom:
             .earth
+        case .lightning1, .lightning2, .lightning3, .lightning4:
+            .air  // Unreachable: `element` short-circuits lightning to nil.
         }
     }
 
@@ -98,6 +124,10 @@ enum EffectSprite: String, CaseIterable, Hashable {
         switch self {
         case .ariesZodiaction: "aries_zaction"
         case .astralBlaze: "astralblaze"
+        case .lightning1: "lightning1"
+        case .lightning2: "lightning2"
+        case .lightning3: "lightning3"
+        case .lightning4: "lightning4"
         case .explosion: "explosion"
         case .crabWalk: "crabwalk"
         case .waterSplash: "splash"
@@ -117,7 +147,7 @@ enum EffectSprite: String, CaseIterable, Hashable {
     /// The namespaced asset path. The element folders provide a namespace, so
     /// `Fire/misc` and a future `Water/misc` cannot collide.
     var assetName: String {
-        "\(element.folderName)/\(file)"
+        "\(folder)/\(file)"
     }
 
     // MARK: - How it plays
@@ -128,11 +158,18 @@ enum EffectSprite: String, CaseIterable, Hashable {
     /// authored at whatever size suited them. Keeping the real number means the
     /// atlas slices correctly and the bloom is measured in the art's own units,
     /// rather than everything being forced onto one grid it was never drawn on.
-    var pixelSize: Int {
+    var frameSize: CGSize {
         switch self {
-        case .explosion: 96
-        case .waterSplash: 48
-        default: GameRules.effectPixelSize
+        case .explosion: CGSize(width: 96, height: 96)
+        case .waterSplash: CGSize(width: 48, height: 48)
+        // Tall and narrow: a bolt reaches from the sky to the ground, and its
+        // frame is the only one here that is not square.
+        case .lightning1, .lightning2, .lightning3, .lightning4:
+            CGSize(width: 64, height: 160)
+        default: CGSize(
+            width: GameRules.effectPixelSize,
+            height: GameRules.effectPixelSize
+        )
         }
     }
 
@@ -141,7 +178,8 @@ enum EffectSprite: String, CaseIterable, Hashable {
         switch self {
         case .ariesZodiaction, .sagittariusJump: 8
         case .fireMisc, .leoZodiactionSummon: 9
-        case .astralBlaze, .waterSplash: 10
+        case .astralBlaze, .waterSplash,
+             .lightning1, .lightning2, .lightning3, .lightning4: 10
         case .crabWalk: 16
         case .explosion: 28
         case .astralBloom: 16
@@ -169,6 +207,8 @@ enum EffectSprite: String, CaseIterable, Hashable {
         // Long strips of dissipating smoke: at 15 the tail crawls.
         case .explosion: .fps20
         case .crabWalk, .waterSplash: .fps15
+        // A strike is over before you can look at it.
+        case .lightning1, .lightning2, .lightning3, .lightning4: .fps20
         default: frames >= 20 ? .fps24 : .fps15
         }
     }
@@ -190,6 +230,10 @@ enum EffectSprite: String, CaseIterable, Hashable {
         case .fireMisc: 6
         case .cancerZodiaction, .cancerZodiactionAlternate: 2
         case .explosion, .crabWalk, .waterSplash: 4
+        // The bolt comes down *onto* the square, so its foot sits on the tile
+        // and the rest of it towers overhead. Half the frame's height less half
+        // a tile, which is what puts the strike point on the ground.
+        case .lightning1, .lightning2, .lightning3, .lightning4: 72
         case .leoPridefulLanding: 0
         // Authored centred, so it needs no lift at all.
         case .astralBloom: 0
@@ -211,12 +255,45 @@ enum EffectSprite: String, CaseIterable, Hashable {
     var glowIntensity: Double {
         switch element {
         case .fire: GameRules.effectGlowFireIntensity
+        // Lightning is the brightest thing in the game by a distance.
+        case .none: GameRules.effectGlowFireIntensity
         default: GameRules.effectGlowIntensity
         }
     }
 
     /// How long one play-through takes.
     var duration: TimeInterval { rate.duration(frames: frames) }
+
+    /// The two colours in the source art this strip is recoloured *from*, if it
+    /// is recoloured at all.
+    ///
+    /// Some art arrives in one palette and has to be played in another. Rather
+    /// than baking four copies of a sheet, the frame is swapped at draw time —
+    /// see `EffectSpriteView` — which also allows the colour to change *per
+    /// frame*, which no amount of pre-baking would.
+    ///
+    /// - Note: These are the colours as they appear in the file, and have to be
+    ///   sampled from it rather than guessed. Left `nil`, the strip draws
+    ///   exactly as drawn.
+    var sourceTones: (light: Color, dark: Color)? {
+        switch self {
+        // Sampled from the files: these strips are drawn in exactly two
+        // colours, neither of them on the palette.
+        case .lightning1, .lightning2, .lightning3, .lightning4:
+            (Color(hex: 0xF1F6F0), Color(hex: 0x92C7F0))
+        default: nil
+        }
+    }
+
+    /// The palette pairs this strip cycles through, a frame at a time.
+    ///
+    /// Only meaningful alongside `sourceTones`.
+    var recolourCycle: [(bright: Color, dark: Color)] {
+        switch self {
+        case .lightning1, .lightning2, .lightning3, .lightning4: Palette.strikeCycle
+        default: []
+        }
+    }
 
     /// How wide it is drawn, in tiles.
     ///
@@ -229,6 +306,9 @@ enum EffectSprite: String, CaseIterable, Hashable {
         // Drawn at 96px against everything else's 64, and an explosion should
         // look like one.
         case .explosion: 2.4
+        // Drawn at native size — four tiles across, ten tall. Shrinking a
+        // lightning bolt makes it a spark.
+        case .lightning1, .lightning2, .lightning3, .lightning4: 4
         // Under the piece's feet, not around it.
         case .crabWalk: 1.2
         case .waterSplash: 1.0
@@ -251,6 +331,11 @@ enum EffectSprite: String, CaseIterable, Hashable {
         default: nil
         }
     }
+
+    /// The four strike variants.
+    static let lightning: [EffectSprite] = [
+        .lightning1, .lightning2, .lightning3, .lightning4,
+    ]
 
     /// The two strips that make up Leo's sun, drawn stacked.
     static let leoSun: [EffectSprite] = [.leoZodiactionOne, .leoZodiactionTwo]
@@ -310,6 +395,17 @@ enum EffectSprite: String, CaseIterable, Hashable {
         case .astralBlossom: .astralBloom
         default: nil
         }
+    }
+
+    /// One of the four strikes, chosen by something that varies between them.
+    ///
+    /// Deliberately not `randomElement()`: the run is a pure function of its
+    /// seed and inputs, and while a strike variant changes nothing about the
+    /// game state, a replay that looked different would still be a replay that
+    /// looked different. Keyed on the move instead, which varies between strikes
+    /// and reproduces exactly.
+    static func strike(at moveCount: Int) -> EffectSprite {
+        lightning[abs(moveCount) % lightning.count]
     }
 
     /// The effect that belongs to a sign's Zodiaction, if one has been drawn.

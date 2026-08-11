@@ -47,8 +47,11 @@ struct EffectSpriteView: View {
             let frame = Int(elapsed / effect.rate.frameDuration)
 
             if elapsed >= 0, frame < effect.frames {
-                let art = PixelSprite(id: .effect(effect), frame: frame) { EmptyView() }
-                    .frame(width: side, height: side)
+                let art = recoloured(
+                    PixelSprite(id: .effect(effect), frame: frame) { EmptyView() }
+                        .frame(width: side, height: height),
+                    frame: frame
+                )
 
                 let lift = -effect.groundLift
                     * (tileSize / CGFloat(GameRules.tilePixelSize))
@@ -69,13 +72,42 @@ struct EffectSpriteView: View {
         .allowsHitTesting(false)
     }
 
+    /// This frame in the palette it should be played in.
+    ///
+    /// A frame at a time, so a strip can strobe through several colours over its
+    /// run — which is the whole reason this is done at draw time rather than
+    /// baked into the art.
+    @ViewBuilder
+    private func recoloured(_ art: some View, frame: Int) -> some View {
+        let cycle = effect.recolourCycle
+
+        if let source = effect.sourceTones, !cycle.isEmpty {
+            let tone = cycle[frame % cycle.count]
+            art.paletteSwap([
+                PaletteSwap(source.light, tone.bright),
+                PaletteSwap(source.dark, tone.dark),
+            ])
+        } else {
+            art
+        }
+    }
+
+    /// Width in points. `span` is measured in tiles.
     private var side: CGFloat {
         tileSize * effect.span * magnitude
+    }
+
+    /// Height, from the frame's own proportions.
+    ///
+    /// Not every strip is square — a lightning bolt is 64x160 — so the height
+    /// follows the art rather than being assumed equal to the width.
+    private var height: CGFloat {
+        side * effect.frameSize.height / effect.frameSize.width
     }
 
     /// Points per art pixel at the size this is being drawn, so the bloom is
     /// measured in the art's own units rather than in screen points.
     private var artScale: CGFloat {
-        side / CGFloat(effect.pixelSize)
+        side / effect.frameSize.width
     }
 }
