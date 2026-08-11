@@ -84,6 +84,15 @@ struct GameEngine {
     /// The pickup once it has appeared on the board, during a **pickup phase**.
     private(set) var revealedPickup: RevealedPickup?
 
+    #if DEBUG
+    /// Forces the next Pentacle to be this one, whatever the roll says.
+    ///
+    /// Cleared as soon as it is used, so it stages exactly one coin. Debug
+    /// builds only — the Astral Bolt is one draw in four hundred, which is the
+    /// whole design and completely impractical to test against.
+    var debugNextPickup: PickupID?
+    #endif
+
     /// The square currently popped up, if any.
     ///
     /// Deliberately *not* derived from `revealedPickup`. A tile pops up to
@@ -207,7 +216,7 @@ struct GameEngine {
             piecePoint: openingPoint,
             weighting: openingWeighting,
             using: &rng
-        ) {
+        ).map({ staged($0) }) {
             apply(opening)
         }
     }
@@ -1481,7 +1490,7 @@ struct GameEngine {
             piecePoint: point,
             weighting: weighting,
             using: &rng
-        ) else { return events }
+        ).map({ staged($0) }) else { return events }
 
         apply(spawn)
         events.append(spawn)
@@ -1509,6 +1518,22 @@ struct GameEngine {
             using: &generator
         ) else { return nil }
         return .sparklesSpawned(set: set, pickup: pickup)
+    }
+
+    /// A spawn with any debug override applied.
+    ///
+    /// Release builds compile this to the identity, so the roll is untouched.
+    private mutating func staged(_ event: GameEvent) -> GameEvent {
+        #if DEBUG
+        guard let forced = debugNextPickup,
+              case let .sparklesSpawned(set, _) = event
+        else { return event }
+
+        debugNextPickup = nil
+        return .sparklesSpawned(set: set, pickup: forced)
+        #else
+        return event
+        #endif
     }
 
     /// The piece's opinion on what should turn up in a sparkle set.

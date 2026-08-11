@@ -331,6 +331,14 @@ final class GameSession {
         fireZodiaction()
     }
 
+    /// Stages the Astral Bolt as the next Pentacle. Debug builds only.
+    ///
+    /// Only the *next* one, and it does not disturb the coin already on the
+    /// board — take that one, and the set that replaces it is the Bolt.
+    func debugStageLightning() {
+        engine.debugNextPickup = .astralBolt
+    }
+
     /// Sends the Nexys to the other plane. Debug builds only.
     ///
     /// Goes through `GameEngine.planNexysShift()` rather than firing the event
