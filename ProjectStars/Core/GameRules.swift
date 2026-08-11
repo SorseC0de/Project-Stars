@@ -523,6 +523,14 @@ enum GameRules {
     //
     // How a drag becomes a move.
 
+    /// How far the piece lunges at a move it cannot make, in art pixels, and
+    /// how long the whole attempt takes.
+    ///
+    /// Small and quick. It is a flinch toward the wall, not a hop — the piece
+    /// should look like it started and thought better of it.
+    static let balkDistance: CGFloat = 3
+    static let balkDuration: TimeInterval = 0.22
+
     /// Minimum drag length, in points, before a swipe counts as a move.
     static let minimumSwipeDistance: CGFloat = 24
 
@@ -1355,6 +1363,15 @@ enum GameRules {
     /// rather than reading as separate steps, which is the whole difference
     /// between sliding and hopping.
     static let slideStepDuration: TimeInterval = 0.055
+
+    /// How far each square's movement runs past the beat it is given.
+    ///
+    /// Above 1 the squares *overlap*: the piece is still travelling toward one
+    /// when the next begins, so a seven-square sweep is one continuous movement
+    /// rather than seven short ones with a stop between each. Linear animation
+    /// makes the overlap seamless — two linear runs at the same speed meeting
+    /// mid-square are indistinguishable from one.
+    static let slideOverlap: Double = 2.2
 
     /// How many squares a hop must cover to count as a leap worth drawing —
     /// Sagittarius' full bound rather than any long step.

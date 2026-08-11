@@ -318,6 +318,20 @@ struct GameEngine {
             revealedThisMove = true
         }
 
+        // Stepping through a torn rift closes the whole set. Charged here, on
+        // the move that actually used one, rather than in `resolvedMove` — that
+        // is a *query*, asked speculatively by the cursor every time the player
+        // drags, and spending a rift to answer a question would close them
+        // without anybody going anywhere.
+        if sim.piece.plane == .terra,
+           sim.signState.terraRifts,
+           move.style == .jump,
+           move.destination.manhattanDistance(to: origin) > 1 {
+            var closed = sim.signState
+            closed.terraRifts = false
+            commit(.signStateChanged(closed))
+        }
+
         // 2. Commit: the move counts, and the piece turns to face the way it is
         //    going, before it has gone anywhere.
         // …unless a passive says the piece keeps watching where it was.
@@ -1831,7 +1845,9 @@ struct GameEngine {
         case let .tileHealed(plane, point, health):
             self[plane][point].health = health
 
-        case let .pieceTeleported(_, to, _, toPlane):
+        case let .pieceTeleported(_, to, fromPlane, toPlane):
+            // A rift does not follow anyone between planes.
+            if toPlane != fromPlane { signState.closeRifts() }
             piece.plane = toPlane
             piece.point = to
 
@@ -1860,6 +1876,7 @@ struct GameEngine {
 
         case let .pieceFell(_, to, at):
             signState = signState.clearedForPlaneChange(atMove: moveCount)
+            signState.closeRifts()
             piece.plane = to
             piece.point = at
 
@@ -1927,6 +1944,7 @@ struct GameEngine {
             nexysPlane = destination
             applyNexysLayout()
             if carryingPiece {
+                if piece.plane != destination { signState.closeRifts() }
                 piece.plane = destination
                 piece.point = GameRules.nexysPoint
             }

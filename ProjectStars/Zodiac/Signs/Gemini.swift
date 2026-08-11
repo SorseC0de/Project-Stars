@@ -123,7 +123,7 @@ struct GeminiMirroredMending: ZodiacPassive {
 struct GeminiReflectiveRifts: ZodiacPassive {
 
     let displayName = "Reflective Rifts"
-    let summary = "Astra: step out through the middle of any edge to reappear at the opposite edge."
+    let summary = "Astra: step out through the middle of any edge to reappear at the opposite edge. Terra: only after Mirrored Mandate, and only once."
 
     /// The four squares a mirror hangs beyond, and where each one leads.
     ///
@@ -145,7 +145,9 @@ struct GeminiReflectiveRifts: ZodiacPassive {
         direction: SwipeDirection,
         context: PassiveContext
     ) -> [GridPoint]? {
-        guard context.plane == .astra else { return nil }
+        // Endless above, torn and single-use below — see
+        // `SignState.terraRifts`.
+        guard context.plane == .astra || context.signState.terraRifts else { return nil }
 
         return Self.portals(size: context.currentBoard.size)
             .first { $0.edge == direction && $0.from == origin }
@@ -190,7 +192,7 @@ struct GeminiSplitSoul: ZodiacPassive {
 struct GeminiMirroredMandate: Zodiaction {
 
     let displayName = "Mirrored Mandate"
-    let summary = "Astra & Terra: the right half of the board becomes a mirror of the left."
+    let summary = "Astra & Terra: the right half of the board becomes a mirror of the left. On Terra it also tears a single-use set of rifts."
 
     /// - TODO: Gemini's charge is specified to come from rejoining the two
     ///   halves of Split Soul, which does not exist yet. Until it does, Gemini
@@ -218,8 +220,23 @@ struct GeminiMirroredMandate: Zodiaction {
             }
         }
 
+        var events: [GameEvent] = []
+
         // The reflection appears all at once, not column by column.
-        return changes.isEmpty ? [] : [.tilesChanged(plane: context.plane, changes: changes)]
+        if !changes.isEmpty {
+            events.append(.tilesChanged(plane: context.plane, changes: changes))
+        }
+
+        // Below, the mirror does not only rearrange the ground — it tears a way
+        // through the edges that Gemini has for nothing up above. Shared and
+        // single-use: step through any of the four and all four close.
+        if context.plane == .terra {
+            var state = context.signState
+            state.terraRifts = true
+            events.append(.signStateChanged(state))
+        }
+
+        return events
     }
 }
 

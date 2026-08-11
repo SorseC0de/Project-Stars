@@ -175,6 +175,24 @@ struct SignState: Equatable {
     /// un-tear a hole in space.
     var riftsLinger = false
 
+    /// True while a torn set of rifts is open on Terra.
+    ///
+    /// Gemini's rifts are innate on Astra and endless there. Below, they have to
+    /// be *made* — Mirrored Mandate tears them — and they are shared and
+    /// single-use: step through any one of the four and all four close until the
+    /// next Zodiaction.
+    var terraRifts = false
+
+    /// Closes whatever is open, on either plane.
+    ///
+    /// Changing plane closes them; changing piece does not. A rift is a hole in
+    /// the world rather than a property of the twins, so it outlives them — but
+    /// it does not follow anyone up or down.
+    mutating func closeRifts() {
+        riftsLinger = false
+        terraRifts = false
+    }
+
     /// The protected patch of board a Zodiaction has thrown up, if any.
     ///
     /// A named field rather than a `buffs` entry because a buff is only a
@@ -343,6 +361,7 @@ struct SignState: Equatable {
         copy.sanctuary = sanctuary
         copy.sun = sun
         copy.riftsLinger = riftsLinger
+        copy.terraRifts = terraRifts
         copy.starMoves = starMoves
         copy.galeMoves = galeMoves
         copy.arrow = arrow

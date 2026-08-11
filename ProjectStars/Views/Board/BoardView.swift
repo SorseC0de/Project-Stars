@@ -232,6 +232,25 @@ struct BoardView: View {
         return elements[step]
     }
 
+    /// The lunge at a move that was refused.
+    ///
+    /// Out and back on one curve, so there is no state to unwind: a single sine
+    /// over the attempt's duration leaves the piece exactly where it started,
+    /// whatever happens next.
+    private func balk(at date: Date, metrics: PixelArtMetrics) -> CGSize {
+        guard let started = session.balkStartedAt,
+              let direction = session.balkDirection
+        else { return .zero }
+
+        let elapsed = date.timeIntervalSince(started) / GameRules.balkDuration
+        guard elapsed >= 0, elapsed <= 1 else { return .zero }
+
+        let push = sin(elapsed * .pi) * GameRules.balkDistance * metrics.scale
+        let step = direction.unitOffset
+
+        return CGSize(width: CGFloat(step.dx) * push, height: CGFloat(step.dy) * push)
+    }
+
     /// How far a piece standing over a hole has drifted, in art pixels.
     ///
     /// `0` whenever there is ground underfoot, which is the ordinary case — the
@@ -613,6 +632,8 @@ struct BoardView: View {
         .offset(sway)
         // Standing on nothing means drifting on your own.
         .offset(y: hover * metrics.scale)
+        // And a move it could not make is still attempted.
+        .offset(balk(at: Date(), metrics: metrics))
         .position(metrics.center(of: session.engine.piece.point))
         }
         .frame(width: metrics.boardSize, height: metrics.boardSize)

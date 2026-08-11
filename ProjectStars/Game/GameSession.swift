@@ -254,6 +254,8 @@ final class GameSession {
         isFalling = false
         isNexysShifting = false
         blockedDirection = nil
+        balkStartedAt = nil
+        balkDirection = nil
         hopCount = 0
         hopStartedAt = nil
         hopDistance = 1
@@ -607,10 +609,11 @@ final class GameSession {
 
         case let .pieceSlid(from, _, plane):
             leaveAfterimage(at: from, on: plane)
-            // No hop pose, no dust, no beat to speak of: the squares run
-            // together so the whole sweep reads as one movement. Linear on
-            // purpose — a spring per square would make the current stutter.
-            withAnimation(.linear(duration: event.displayDuration)) {
+            // No hop pose, no dust, no beat to speak of. The animation runs
+            // *longer* than the beat it waits — see `GameRules.slideOverlap` —
+            // so each square is still moving when the next starts and the whole
+            // sweep is one continuous slide rather than a row of short ones.
+            withAnimation(.linear(duration: event.displayDuration * GameRules.slideOverlap)) {
                 engine.apply(event)
             }
             await sleep(event.displayDuration)
@@ -1019,7 +1022,18 @@ final class GameSession {
     private func reportBlocked(_ direction: SwipeDirection) {
         blockedDirection = direction
         blockedNudge += 1
+
+        // The piece tries anyway. A board that shakes while the piece stands
+        // perfectly still reads as the *game* refusing; a piece that hops and
+        // gets nowhere reads as the piece refusing, which is what actually
+        // happened.
+        balkStartedAt = .now
+        balkDirection = direction
     }
+
+    /// When the piece last tried a move it could not make, and which way.
+    private(set) var balkStartedAt: Date?
+    private(set) var balkDirection: SwipeDirection?
 
     private func sleep(_ seconds: TimeInterval) async {
         guard seconds > 0 else { return }
