@@ -155,8 +155,100 @@ struct SagittariusLuckyLanding: ZodiacPassive {
 struct SagittariusAstralArrow: Zodiaction {
 
     let displayName = "Astral Arrow"
-    let summary = "Fire an arrow to a random tile; pop again to warp to it. (Not yet implemented.)"
+    let summary = "Fire an arrow to a random square, then pop again — free — to warp to it. No charge accrues while it is out."
 
-    /// Sagittarius' charge comes from Fortunate Find.
+    /// The archer's charge comes from the passives.
     func meterGain(from move: MoveSummary, context: PassiveContext) -> Int { 0 }
+
+    /// Recalling costs nothing: the shot was paid for when it was fired.
+    func ignoresMeter(context: PassiveContext) -> Bool {
+        context.signState.arrow != nil
+    }
+
+    func activate(context: PassiveContext, generator: inout SeededRandom) -> [GameEvent] {
+        if let arrow = context.signState.arrow { return recall(arrow, context: context) }
+        return fire(context: context, generator: &generator)
+    }
+
+    // MARK: Firing
+
+    /// Picks a square, sends the arrow up and over, and sees what it finds.
+    private func fire(
+        context: PassiveContext,
+        generator: inout SeededRandom
+    ) -> [GameEvent] {
+        // Anywhere but where the archer is standing. The island is fair game —
+        // an arrow in the Nexys is a promise to come home.
+        let candidates = context.currentBoard.allPoints.filter { $0 != context.piecePoint }
+        guard let target = candidates.randomElement(using: &generator) else { return [] }
+
+        let plane = context.plane
+        let tile = context.currentBoard[target]
+
+        // The centre of Terra with the island overhead: the arrow catches it on
+        // the way down and brings it with it, which is the same journey the
+        // Nexys Pentacle sends it on.
+        if plane == .terra,
+           target == GameRules.nexysPoint,
+           context.nexysPlane == .astra {
+            return [
+                .nexysMoved(to: .terra, carryingPiece: false),
+                .arrowPlanted(plane: plane, point: target),
+            ]
+        }
+
+        // Fired from Terra the arrow has gone up over Astra to get here, and it
+        // brings a cloud down with it. That the cloud is *torn out* of Astra is
+        // presentation only — Astra mends itself on every descent, so holing it
+        // here would be undone before the player could ever act on it.
+        let broughtCloud = plane == .terra
+
+        // Open ground is not ground: the shot is lost. On Terra it is lost
+        // *through* the floor, and the cloud that came with it gives up its
+        // energy on the way down — which is worth more than the shaft alone.
+        guard tile.isSolid else {
+            let amount = broughtCloud
+                ? GameRules.arrowCloudRefund
+                : GameRules.arrowHoleRefund
+            return [refund(amount, context: context)].compactMap { $0 }
+        }
+
+        var events: [GameEvent] = []
+
+        // Landing on ground, the cloud spends itself mending what it lands on.
+        if broughtCloud, tile.health != .healthy {
+            events.append(.tileHealed(plane: .terra, point: target, to: .healthy))
+        }
+
+        // Planted last, so the square it pins is the square as the cloud left
+        // it — an arrow freezes what is under it, and that should be the mended
+        // tile rather than the broken one.
+        events.append(.arrowPlanted(plane: plane, point: target))
+        return events
+    }
+
+    /// A little of the shot back when it finds nothing to stick in.
+    private func refund(_ amount: Int, context: PassiveContext) -> GameEvent? {
+        let target = min(context.zodiactionMeter + amount, context.zodiac.zodiaction.meterMax)
+        guard target != context.zodiactionMeter else { return nil }
+        return .zodiactionMeterChanged(to: target)
+    }
+
+    // MARK: Recalling
+
+    /// The second pop: step out of the world and back in where the arrow is.
+    private func recall(
+        _ arrow: SignState.Arrow,
+        context: PassiveContext
+    ) -> [GameEvent] {
+        [
+            .arrowCleared,
+            .pieceTeleported(
+                from: context.piecePoint,
+                to: arrow.point,
+                fromPlane: context.plane,
+                toPlane: arrow.plane
+            ),
+        ]
+    }
 }

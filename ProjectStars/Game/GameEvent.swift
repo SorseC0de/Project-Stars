@@ -145,6 +145,16 @@ enum GameEvent: Equatable {
     /// the hunt restarts, which is why a fresh sparkle set always follows.
     case pickupDestroyed(id: PickupID, plane: Plane, point: GridPoint)
 
+    /// An arrow was planted in a square, and stays there until spent.
+    ///
+    /// Its own event rather than a `signStateChanged` because the flight is
+    /// worth animating — up off the top of the screen, then down onto the square
+    /// it chose — and the replay needs something to hang that on.
+    case arrowPlanted(plane: Plane, point: GridPoint)
+
+    /// The arrow is gone: warped to, walked into, or rotted away.
+    case arrowCleared
+
     /// The piece slid one square, without leaving the ground.
     ///
     /// Distinct from `pieceStepped`, which is a *hop*: it squashes, arcs, kicks
@@ -202,6 +212,8 @@ enum GameEvent: Equatable {
         switch self {
         case .moveBlocked: 0.18
         case .pickupRevealed: GameRules.pickupRevealDuration
+        case .arrowPlanted: GameRules.arrowFlightDuration
+        case .arrowCleared: 0.12
         case .pieceSlid: GameRules.slideStepDuration
         case .pickupMoved: GameRules.hopDuration
         case .tileStamped: GameRules.tilePopResponse

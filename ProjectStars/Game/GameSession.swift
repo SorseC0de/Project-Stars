@@ -688,6 +688,25 @@ final class GameSession {
             }
             await sleep(event.displayDuration)
 
+        case let .arrowPlanted(plane, point):
+            // Fired on Terra, a cloud comes down with it and dissipates into the
+            // square — Astra is whole again by the time anyone looks, so the
+            // cloud is only ever a thing that is seen.
+            if plane == .terra {
+                let poof = CloudPoof(point: point, start: .now)
+                cloudPoofs.append(poof)
+                Task { [weak self] in
+                    try? await Task.sleep(
+                        nanoseconds: UInt64(GameRules.cloudPoofDuration * 1_000_000_000)
+                    )
+                    self?.cloudPoofs.removeAll { $0.id == poof.id }
+                }
+            }
+            withAnimation(.easeOut(duration: event.displayDuration)) {
+                engine.apply(event)
+            }
+            await sleep(event.displayDuration)
+
         case let .pieceTeleported(from, _, fromPlane, toPlane):
             await animateWarp(event, from: from, fromPlane: fromPlane, toPlane: toPlane)
 
@@ -1254,6 +1273,12 @@ extension GameSession {
     /// `GameEngine.raisedTiles`.
     var visibleRaisedTiles: [RevealedPickup] {
         engine.raisedTiles.filter { $0.plane == visiblePlane }
+    }
+
+    /// Sagittarius' arrow, if it is standing on the plane being looked at.
+    var visibleArrow: SignState.Arrow? {
+        guard let arrow = engine.signState.arrow, arrow.plane == visiblePlane else { return nil }
+        return arrow
     }
 
     /// Leo's sun, if it is burning on the plane being looked at.

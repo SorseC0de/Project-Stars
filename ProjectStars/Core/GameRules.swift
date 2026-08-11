@@ -300,6 +300,41 @@ enum GameRules {
     /// pixels. They ring the figure, not the tile it is standing on.
     static let starSparkLift: CGFloat = 8
 
+    // ── Sagittarius' arrow ────────────────────────────────────────────────
+
+    /// How many committed moves an arrow stands before it rots.
+    ///
+    /// A backstop, not a timer. The player is meant to experience the arrow as
+    /// lasting until they use it; this only exists so that forgetting one on a
+    /// plane you cannot reach does not lock you out of charging for the rest of
+    /// the run.
+    static let arrowMoves = 50
+
+    /// Charge returned when the arrow finds a hole instead of ground.
+    static let arrowHoleRefund = 1
+
+    /// Charge returned when it falls through Terra's floor, bringing a cloud's
+    /// worth of astral energy down with it.
+    static let arrowCloudRefund = 3
+
+    /// How the planted arrow is drawn, in art pixels — see `ArrowView`.
+    static let arrowLength: CGFloat = 13
+    static let arrowThickness: CGFloat = 1.4
+    static let arrowHead: CGFloat = 4
+
+    /// How far above its square it stands, and how far it leans off vertical.
+    ///
+    /// Straight up reads as a post; a few degrees says thrown.
+    static let arrowRise: CGFloat = 5
+    static let arrowLean: Double = 12
+
+    /// Its glow, and how long one breath of it takes.
+    static let arrowGlowRadius: CGFloat = 1.6
+    static let arrowPulsePeriod: TimeInterval = 1.4
+
+    /// How long the flight takes: up out of sight, and down onto its square.
+    static let arrowFlightDuration: TimeInterval = 0.55
+
     /// How long a straight line has to be for Aries' Six Singe to pay.
     ///
     /// Six moves crosses a seven-wide board end to end, so it cannot be done

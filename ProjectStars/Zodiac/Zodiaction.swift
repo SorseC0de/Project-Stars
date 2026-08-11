@@ -70,6 +70,13 @@ protocol Zodiaction {
     /// worse than being told it is unavailable.
     func canActivate(context: PassiveContext) -> Bool
 
+    /// Whether this pop can be made without a full meter.
+    ///
+    /// For a Zodiaction with a *second* use that the first one paid for —
+    /// Sagittarius' arrow is fired at full cost and recalled for nothing. The
+    /// engine neither requires the meter nor spends it when this is true.
+    func ignoresMeter(context: PassiveContext) -> Bool
+
     /// The events popping the Zodiaction produces.
     ///
     /// Return an empty array for one that only exists as a marker for now. The
@@ -87,6 +94,8 @@ extension Zodiaction {
     var meterMax: Int { GameRules.defaultZodiactionMeterMax }
 
     func canActivate(context: PassiveContext) -> Bool { true }
+
+    func ignoresMeter(context: PassiveContext) -> Bool { false }
 
     func activate(context: PassiveContext, generator: inout SeededRandom) -> [GameEvent] {
         []

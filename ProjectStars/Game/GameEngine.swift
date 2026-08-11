@@ -145,11 +145,20 @@ struct GameEngine {
 
     /// True when the Zodiaction can be popped right now.
     var isZodiactionReady: Bool {
-        guard !isGameOver, zodiactionMeter >= zodiactionMeterMax else { return false }
+        guard !isGameOver else { return false }
+
+        let zodiaction = piece.zodiac.zodiaction
+        let context = passiveContext
+
+        // A free pop needs no meter — see `Zodiaction.ignoresMeter`.
+        guard zodiaction.ignoresMeter(context: context)
+            || zodiactionMeter >= zodiactionMeterMax
+        else { return false }
+
         // Asked here rather than only at the moment of firing, so the panel can
         // show it as unavailable instead of letting the player spend a full
         // meter on nothing.
-        return piece.zodiac.zodiaction.canActivate(context: passiveContext)
+        return zodiaction.canActivate(context: context)
     }
 
     /// True when the piece is standing on the Nexys island.
@@ -511,7 +520,9 @@ struct GameEngine {
             events += sim.settle(arrivedByFalling: false, wearsOnArrival: false).events
         }
 
-        commit(.zodiactionMeterChanged(to: 0))
+        if !sim.piece.zodiac.zodiaction.ignoresMeter(context: sim.passiveContext) {
+            commit(.zodiactionMeterChanged(to: 0))
+        }
 
         // A Zodiaction can change plane too — Taurus flops through Astra, Pisces
         // swims back up — so it owes the same guarantee a move does.
@@ -936,6 +947,16 @@ struct GameEngine {
                 }
             }
 
+            // 2a. Walking into your own arrow pulls it out of the ground.
+            //
+            //     It does not warp you — you are already here. The square was
+            //     frozen while the arrow stood in it, which is why arriving does
+            //     not damage it on the turn it is recovered: the freeze lifts
+            //     with the arrow, not before it.
+            if let arrow = signState.arrow, arrow.plane == plane, arrow.point == point {
+                commit(.arrowCleared)
+            }
+
             // 2b. A raised tile with nothing on it is just a step. Standing on
             //     one stamps it flat: no coin, no sparkles, no consequences —
             //     which is the whole of what it does.
@@ -1188,7 +1209,7 @@ struct GameEngine {
     /// those four handoffs means a Pentacle written next year is covered without
     /// knowing sanctuaries exist.
     func sheltered(_ event: GameEvent) -> GameEvent? {
-        guard signState.sanctuary != nil else { return event }
+        guard signState.sanctuary != nil || signState.arrow != nil else { return event }
 
         switch event {
         case let .tilesWorn(plane, changes):
@@ -1218,6 +1239,13 @@ struct GameEngine {
         on plane: Plane
     ) -> [GridPoint: TileHealth] {
         changes.filter { point, health in
+            // An arrow pins its square outright — not merely against damage, as
+            // a sanctuary does. Whatever state it was stuck in is the state it
+            // stays in until the arrow is pulled.
+            if let arrow = signState.arrow, arrow.plane == plane, arrow.point == point {
+                return false
+            }
+
             guard signState.isSheltered(point, on: plane) else { return true }
             return health < self[plane][point].health
         }
@@ -1490,6 +1518,12 @@ struct GameEngine {
     private mutating func chargeSuper(for move: MoveSummary) -> [GameEvent] {
         // Most signs' charge comes from their passives rather than from the
         // Zodiaction's own rule; both contribute and the two simply sum.
+        // An arrow in the ground is charge already spent and not yet cashed:
+        // nothing accrues until it is recalled. Checked before anything is
+        // summed rather than clamped afterwards, so a passive cannot sneak a pip
+        // past it.
+        guard signState.arrow == nil else { return [] }
+
         // The star charges for nothing but moving, whoever is carrying it.
         let starCharge = signState.isStarred ? GameRules.starChargePerMove : 0
         let gain = piece.zodiac.zodiaction.meterGain(from: move, context: passiveContext)
@@ -1784,6 +1818,16 @@ struct GameEngine {
             }) {
                 revealedPickups[index] = RevealedPickup(id: id, plane: plane, point: to)
             }
+
+        case let .arrowPlanted(plane, point):
+            signState.arrow = SignState.Arrow(
+                point: point,
+                plane: plane,
+                movesRemaining: GameRules.arrowMoves
+            )
+
+        case .arrowCleared:
+            signState.arrow = nil
 
         case let .tileStamped(plane, point):
             raisedTiles.removeAll { $0.plane == plane && $0.point == point }

@@ -41,6 +41,7 @@ struct BoardView: View {
 
             sanctuary(plane: plane, metrics: metrics)
             sun(metrics: metrics)
+            arrow(metrics: metrics)
             sparkles(metrics: metrics)
             tileChoice(metrics: metrics)
 
@@ -252,6 +253,16 @@ struct BoardView: View {
         guard elapsed >= 0, elapsed <= 1 else { return 0 }
 
         return GameRules.chargeFlashStrength * (1 - elapsed) * (1 - elapsed)
+    }
+
+    /// Sagittarius' arrow, standing in the square it chose.
+    @ViewBuilder
+    private func arrow(metrics: PixelArtMetrics) -> some View {
+        if let planted = session.visibleArrow {
+            ArrowView(tileSize: metrics.tileSize, scale: metrics.scale)
+                .position(metrics.center(of: planted.point))
+                .transition(.scale(scale: 0.3).combined(with: .opacity))
+        }
     }
 
     /// Leo's sun, burning over its square for as long as it lasts.

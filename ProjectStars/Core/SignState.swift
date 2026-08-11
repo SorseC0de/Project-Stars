@@ -120,6 +120,26 @@ struct SignState: Equatable {
     /// True while the Astral Bolt's charge is running.
     var isStarred: Bool { starMoves > 0 }
 
+    /// Sagittarius' arrow, if one is stuck in the board.
+    ///
+    /// A place to warp to, and a promise not to charge until it is spent — see
+    /// `SagittariusAstralArrow`.
+    var arrow: Arrow?
+
+    /// An arrow planted in a square, waiting to be used.
+    struct Arrow: Equatable {
+        var point: GridPoint
+        var plane: Plane
+
+        /// Committed moves before it rots away.
+        ///
+        /// Meant never to be reached. The player should experience the arrow as
+        /// lasting until they spend it; this exists so that a player who forgets
+        /// one on a plane they cannot return to is not locked out of charging
+        /// for the rest of the run.
+        var movesRemaining: Int
+    }
+
     /// Leo's sun, if one is burning.
     ///
     /// Named like `sanctuary` and for the same reason: it is a *place* with a
@@ -267,6 +287,11 @@ struct SignState: Equatable {
 
         starMoves = max(starMoves - 1, 0)
 
+        if var planted = arrow {
+            planted.movesRemaining -= 1
+            arrow = planted.movesRemaining > 0 ? planted : nil
+        }
+
         if var burning = sun {
             burning.movesRemaining -= 1
             sun = burning.movesRemaining > 0 ? burning : nil
@@ -307,6 +332,7 @@ struct SignState: Equatable {
         copy.sun = sun
         copy.riftsLinger = riftsLinger
         copy.starMoves = starMoves
+        copy.arrow = arrow
         return copy
     }
 }
