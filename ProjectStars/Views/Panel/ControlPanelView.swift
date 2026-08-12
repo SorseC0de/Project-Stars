@@ -412,7 +412,12 @@ private struct PanelFrontView: View {
                 SwipeInputSurface(
                     isEnabled: session.acceptsInput,
                     liveDirection: $liveDirection,
-                    onCommit: { session.submit($0, reach: $1) },
+                    onCommit: {
+                        // The stick gets the same knock the buttons do, so the
+                        // two schemes feel like one game.
+                        Haptics.step()
+                        session.submit($0, reach: $1)
+                    },
                     onPreview: {
                         liveReach = $1
                         session.preview(direction: $0, reach: $1)
@@ -1073,6 +1078,7 @@ struct ZodiactionButton: View {
                 tint: ready ? Palette.yellow : Palette.stone,
                 isEnabled: ready && session.acceptsInput
             ) {
+                Haptics.zodiaction()
                 session.fireZodiaction()
             } label: {
                 label(charged: element.mid)
