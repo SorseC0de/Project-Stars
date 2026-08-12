@@ -148,16 +148,46 @@ enum PanelStyle {
 
     // ── The direction pad ─────────────────────────────────────────────────
 
-    /// The bare arrow buttons: no plate behind them, just the sprite.
-    static let padArrowSize: CGFloat = 62
+    /// The box one direction chevron is drawn in.
+    static let padArrowSize: CGFloat = 96
 
-    /// The longer-move arrow, which sits *outside* its direction — above up,
-    /// left of left — so the pair reads as one control extending outward.
+    /// How thick the chevron's band is, as a fraction of that box, and how far
+    /// its point is held in from the edges so the round caps have room.
+    static let padChevronWeight: CGFloat = 0.30
+    static let padChevronInset: CGFloat = 0.12
+
+    /// How far the lit face sits above its darker side.
+    static let padChevronDepth: CGFloat = 4
+
+    /// How much the *pointing* axis is compressed.
+    ///
+    /// The board is drawn from three-quarters above, so a chevron pointing away
+    /// from the player is foreshortened while one pointing across is not. Four
+    /// copies of one rotated arrow read as flat; four proportioned like this
+    /// read as lying on the same ground the board is on.
+    static let padForeshorten: CGFloat = 0.62
+
+    /// The longer-move chevron, nested outside its direction.
     static let padSpecialScale: CGFloat = 0.62
 
-    /// Gaps between the cross's buttons, and between a button and its special.
-    static let padGap: CGFloat = 8
-    static let padSpecialGap: CGFloat = 2
+    /// Gaps within the cross.
+    ///
+    /// Two, not one. North and south are the foreshortened chevrons and need
+    /// noticeably less room than east and west — a single spacing value has to
+    /// suit the taller pair, which is what left the cross short of room.
+    static let padGapVertical: CGFloat = 0
+    static let padGapHorizontal: CGFloat = 10
+
+    /// Gap between a direction and its nested special.
+    static let padSpecialGap: CGFloat = 0
+
+    /// The cross's colours, matching the joystick's guide so the two schemes
+    /// read as one game: gold face over an orange side, magenta for the longer
+    /// move.
+    static let padFace = Palette.gold
+    static let padSide = Palette.orange
+    static let padSpecialFace = Palette.magenta
+    static let padSpecialSide = Palette.darkMagenta
 
     // ─────────────────────────────────────────────────────────────────────
     // MARK: Row 3 — the Zodiaction
@@ -686,101 +716,162 @@ struct Joystick: View {
 
 // MARK: - Row 2: the direction pad
 
-/// A keyboard cross of bare arrows, with a sign's longer moves outside them.
+/// A rounded chevron, pointing up, drawn as a filled band.
 ///
-/// ## Why the arrows have no plate
+/// Stroked and then *filled* rather than stroked at draw time: a filled shape
+/// scales with its box and can be given a solid darker copy beneath it, which is
+/// how everything else on this panel gets its depth.
+struct RoundedChevron: Shape {
+
+    /// Band thickness, as a fraction of the box's width.
+    var weight: CGFloat = PanelStyle.padChevronWeight
+
+    /// How far the shape is held in from the edges, so the round caps have room.
+    var inset: CGFloat = PanelStyle.padChevronInset
+
+    func path(in rect: CGRect) -> Path {
+        let pad = rect.width * inset
+        let line = rect.width * weight
+        let cap = line / 2
+
+        var path = Path()
+        path.move(to: CGPoint(x: rect.minX + pad + cap, y: rect.maxY - pad - cap))
+        path.addLine(to: CGPoint(x: rect.midX, y: rect.minY + pad + cap))
+        path.addLine(to: CGPoint(x: rect.maxX - pad - cap, y: rect.maxY - pad - cap))
+
+        return path.strokedPath(
+            StrokeStyle(lineWidth: line, lineCap: .round, lineJoin: .round)
+        )
+    }
+}
+
+/// One direction's chevron: a lit face over a darker side, foreshortened.
 ///
-/// They are pixel art, and a rounded button behind a sprite is two visual
-/// languages in one control. The arrow *is* the button: it is big, it is lit,
-/// and the whole cell takes the tap.
+/// The four are not one shape rotated four times. A chevron pointing up or down
+/// is squashed along the axis it points, because that is the axis running away
+/// from the viewer on a board drawn from three-quarters above. Left and right
+/// keep their full length. Same trick the board itself uses, applied to a
+/// control — which is what stops the pad reading as flat UI stuck under a 3/4
+/// scene.
+struct DirectionChevron: View {
+
+    let direction: SwipeDirection
+    var face: Color = PanelStyle.padFace
+    var side: Color = PanelStyle.padSide
+    var box: CGFloat = PanelStyle.padArrowSize
+
+    /// True for the two whose pointing axis runs away from the viewer.
+    private var isVertical: Bool { direction == .up || direction == .down }
+
+    var body: some View {
+        ZStack {
+            RoundedChevron().fill(side).offset(y: PanelStyle.padChevronDepth)
+            RoundedChevron().fill(face)
+        }
+        // Squashed while still pointing up, then turned. Doing it the other way
+        // round would carry the compression with the arrow instead of leaving it
+        // on the screen's vertical, and all four would look identical again.
+        .frame(width: box, height: box * (isVertical ? PanelStyle.padForeshorten : 1))
+        .rotationEffect(.degrees(direction.iconRotation))
+        .frame(width: footprint.width, height: footprint.height)
+    }
+
+    /// The space it takes once turned.
+    var footprint: CGSize {
+        let short = box * PanelStyle.padForeshorten
+        return isVertical
+            ? CGSize(width: box, height: short)
+            : CGSize(width: short, height: box)
+    }
+}
+
+/// A keyboard cross of chevrons, with a sign's longer moves nested outside.
 ///
 /// ## Why a keyboard cross rather than a diamond
 ///
 /// Up on its own row, then left/down/right together. It is the shape every
 /// keyboard already uses, and it costs one row less than a diamond — which on a
-/// phone is the difference between the buttons being big enough and not.
+/// phone is the difference between the chevrons being big enough and not.
 ///
-/// ## Why the longer moves sit outside
+/// ## Why the longer moves nest outward
 ///
-/// Above up, left of left, right of right, below down. A sign with a two-square
-/// sidestep cannot express that with a tap — the direction is the same, only the
-/// distance differs — so it needs its own button, and putting it *further out*
-/// in the same direction is the arrangement that says "same way, more of it".
+/// A sign with a two-square sidestep cannot express that with a tap — the
+/// direction is the same, only the distance differs — so it needs its own
+/// target. Putting it *further out along the same line* is the arrangement that
+/// says "same way, more of it", and it matches the joystick's guide exactly:
+/// gold for the ordinary step, magenta beyond it for the longer one.
 struct DirectionPad: View {
 
     let session: GameSession
 
     var body: some View {
-        VStack(spacing: PanelStyle.padSpecialGap) {
-            special(.up)
+        VStack(spacing: PanelStyle.padGapVertical) {
+            column(.up)
 
-            VStack(spacing: PanelStyle.padGap) {
-                arrow(.up)
-
-                HStack(spacing: PanelStyle.padSpecialGap) {
-                    special(.left)
-
-                    HStack(spacing: PanelStyle.padGap) {
-                        arrow(.left)
-                        arrow(.down)
-                        arrow(.right)
-                    }
-
-                    special(.right)
-                }
+            HStack(spacing: PanelStyle.padGapHorizontal) {
+                row(.left)
+                column(.down)
+                row(.right)
             }
-
-            special(.down)
         }
     }
 
-    /// The ordinary one-square move: the sprite, and nothing else.
-    private func arrow(_ direction: SwipeDirection) -> some View {
-        PixelSprite(id: .directionArrow(direction)) {
-            Image(systemName: "arrowtriangle.up.fill")
-                .resizable()
-                .scaledToFit()
-                .foregroundStyle(Palette.white)
-                .rotationEffect(.degrees(direction.iconRotation))
+    /// A vertical direction with its special nested beyond it.
+    private func column(_ direction: SwipeDirection) -> some View {
+        VStack(spacing: PanelStyle.padSpecialGap) {
+            if direction == .up { special(direction) }
+            chevron(direction)
+            if direction == .down { special(direction) }
         }
-        .frame(width: PanelStyle.padArrowSize, height: PanelStyle.padArrowSize)
-        .opacity(session.acceptsInput ? 1 : 0.4)
-        .contentShape(Rectangle())
-        .onTapGesture {
-            if session.acceptsInput { session.submit(direction, reach: 0) }
+    }
+
+    /// A horizontal direction with its special nested beyond it.
+    private func row(_ direction: SwipeDirection) -> some View {
+        HStack(spacing: PanelStyle.padSpecialGap) {
+            if direction == .left { special(direction) }
+            chevron(direction)
+            if direction == .right { special(direction) }
         }
+    }
+
+    /// The ordinary one-square move.
+    private func chevron(_ direction: SwipeDirection) -> some View {
+        DirectionChevron(direction: direction)
+            .opacity(session.acceptsInput ? 1 : 0.4)
+            .contentShape(Rectangle())
+            .onTapGesture {
+                if session.acceptsInput { session.submit(direction, reach: 0) }
+            }
     }
 
     /// The sign's longer move that way, when it has one.
     ///
-    /// Always laid out, even when absent, so the cross does not shift as the
-    /// piece changes sign — an empty space of the same size is invisible, and a
+    /// Its space is held even when absent, so the cross does not shift as the
+    /// piece changes sign — an empty gap of the right size is invisible, and a
     /// pad that jumps about is not.
     @ViewBuilder
     private func special(_ direction: SwipeDirection) -> some View {
-        let side = PanelStyle.padArrowSize * PanelStyle.padSpecialScale
+        let glyph = DirectionChevron(
+            direction: direction,
+            face: PanelStyle.padSpecialFace,
+            side: PanelStyle.padSpecialSide,
+            box: PanelStyle.padArrowSize * PanelStyle.padSpecialScale
+        )
 
         if let reach = session.specialReach(for: direction) {
-            PixelSprite(id: .specialArrow(direction)) {
-                Image(systemName: "chevron.up")
-                    .resizable()
-                    .scaledToFit()
-                    .foregroundStyle(Palette.lightBlue)
-                    .rotationEffect(.degrees(direction.iconRotation))
-            }
-            .frame(width: side, height: side)
-            .opacity(session.acceptsInput ? 1 : 0.4)
-            .contentShape(Rectangle())
-            .onTapGesture {
-                if session.acceptsInput { session.submit(direction, reach: reach) }
-            }
+            glyph
+                .opacity(session.acceptsInput ? 1 : 0.4)
+                .contentShape(Rectangle())
+                .onTapGesture {
+                    if session.acceptsInput { session.submit(direction, reach: reach) }
+                }
         } else {
-            Color.clear.frame(width: side, height: side)
+            Color.clear.frame(width: glyph.footprint.width, height: glyph.footprint.height)
         }
     }
 }
 
-/// Degrees to turn an up-pointing arrow by.
+/// Degrees to turn an up-pointing shape by.
 extension SwipeDirection {
     var iconRotation: Double {
         switch self {
