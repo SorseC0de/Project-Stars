@@ -20,7 +20,7 @@ extension ZodiacCatalog {
         displayName: "Pisces",
         glyph: "♓",
         element: .water,
-        accentColor: Color(hex: 0x5F_C2_A8),
+        accentColor: Color(hex: 0x4E_7F_D4),
         movement: .cardinalStep,
         passives: [
             PiscesAstralAttunement(),

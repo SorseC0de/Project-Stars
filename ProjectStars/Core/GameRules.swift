@@ -1129,6 +1129,21 @@ enum GameRules {
     /// Radius of one mote, in tiles.
     static let bankSparkSize: CGFloat = 0.09
 
+    // ──────────────────────────────────────────────────────────────────────
+    // MARK: - Healing
+    //
+    // Every mend throws the same motes, whatever mended it. See
+    // `HealSparkleView`.
+
+    /// How long a tile shimmers after being repaired.
+    static let healSparkleDuration: TimeInterval = 0.55
+
+    /// Motes thrown per tile healed.
+    static let healSparkleCount = 9
+
+    /// Radius of one mote, in tiles.
+    static let healSparkleSize: CGFloat = 0.055
+
     /// Capricorn's purse, in Pentacles, on each plane.
     ///
     /// Lower on Terra: the earth sign is at home down there, so the price of

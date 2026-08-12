@@ -180,6 +180,18 @@ final class GameSession {
     /// leaves, and a two-square exit lights two of them on the same beat.
     private(set) var effectBursts: [EffectBurst] = []
 
+    /// Tiles currently shimmering from having been repaired. See
+    /// `HealSparkleView`.
+    private(set) var healSparkles: [HealSparkle] = []
+
+    /// One mended square's shimmer.
+    struct HealSparkle: Identifiable, Equatable {
+        let id = UUID()
+        let point: GridPoint
+        let plane: Plane
+        let start: Date
+    }
+
     /// When the piece last gained charge, for the colour flash. `nil` when it
     /// is not flashing.
     private(set) var chargeFlashStartedAt: Date?
@@ -332,6 +344,7 @@ final class GameSession {
         pentacleBanner = nil
         elementalBurst = nil
         effectBursts = []
+        healSparkles = []
         pluming = nil
         crabWalkOrigin = nil
         afterimages = []
@@ -528,6 +541,11 @@ final class GameSession {
     private func present(_ event: GameEvent) async {
         // Every event ends with the panel told what the engine now says.
         defer { publish() }
+
+        // Checked here rather than in the handful of branches that heal, so the
+        // rule really is *any* mend from *any* source — including one added
+        // later by somebody who never reads this line.
+        noteHeals(in: event)
 
         switch event {
 
@@ -1201,6 +1219,69 @@ extension GameSession {
     /// Carries its own timestamp rather than riding the hop's: dust is kicked up
     /// by landings that are not hops at all — a fall, or taking a coin — and
     /// borrowing the hop's clock meant those bursts started already expired.
+    /// Throws teal motes off every square this event is about to *improve*.
+    ///
+    /// Compares the event's stated outcome against the board as it stands right
+    /// now, before the event is applied — so a "heal" that changed nothing, or
+    /// one that only halted further wear, correctly sparkles nothing.
+    ///
+    /// Deliberately driven by the health *change* rather than by which events
+    /// are nominally healing ones. Repair arrives under half a dozen different
+    /// names in this game — `tileHealed`, `tilesChanged`, `planeRestored`, and
+    /// whatever a sign invents next — and a list of them would be out of date
+    /// the first time one was added.
+    private func noteHeals(in event: GameEvent) {
+        var mended: [(GridPoint, Plane)] = []
+
+        func check(_ point: GridPoint, _ plane: Plane, _ after: TileHealth) {
+            guard engine[plane].contains(point) else { return }
+            let tile = engine[plane][point]
+            // The Nexys and its chasm are not ground and cannot be mended.
+            guard tile.kind == .normal, after < tile.health else { return }
+            mended.append((point, plane))
+        }
+
+        switch event {
+        case let .tileHealed(plane, point, health):
+            check(point, plane, health)
+
+        case let .tilesChanged(plane, changes):
+            for (point, health) in changes { check(point, plane, health) }
+
+        case let .tilesWorn(plane, changes), let .tilesWornOnExit(plane, changes):
+            // Wear events can carry a repair: Virgo's compensation mends one
+            // square in the same breath as damaging another.
+            for (point, health) in changes { check(point, plane, health) }
+
+        case let .tileDamaged(plane, point, health):
+            check(point, plane, health)
+
+        case let .planeRestored(plane):
+            for point in engine[plane].allPoints { check(point, plane, .healthy) }
+
+        default:
+            return
+        }
+
+        guard !mended.isEmpty else { return }
+        for (point, plane) in mended {
+            spawnHealSparkle(at: point, on: plane)
+        }
+    }
+
+    /// One tile's worth of mending shimmer.
+    private func spawnHealSparkle(at point: GridPoint, on plane: Plane) {
+        let sparkle = HealSparkle(point: point, plane: plane, start: .now)
+        healSparkles.append(sparkle)
+
+        Task { [weak self] in
+            try? await Task.sleep(
+                nanoseconds: UInt64(GameRules.healSparkleDuration * 1_000_000_000)
+            )
+            self?.healSparkles.removeAll { $0.id == sparkle.id }
+        }
+    }
+
     func kickUpDust(at point: GridPoint, on plane: Plane, magnitude: CGFloat) {
         let puff = SmokePuff(point: point, plane: plane, magnitude: magnitude, start: .now)
         smoke = puff

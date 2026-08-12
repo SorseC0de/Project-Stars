@@ -20,7 +20,7 @@ extension ZodiacCatalog {
         displayName: "Aquarius",
         glyph: "♒",
         element: .air,
-        accentColor: Color(hex: 0x4E_7F_D4),
+        accentColor: Color(hex: 0x5F_C2_A8),
         movement: .cardinalStep,
         passives: [
             AquariusQuirkyCaper(),

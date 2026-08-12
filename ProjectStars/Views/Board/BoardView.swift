@@ -84,6 +84,7 @@ struct BoardView: View {
             collectBurst(metrics: metrics)
             elementalBurst(metrics: metrics)
             effectBurst(metrics: metrics)
+            healSparkles(metrics: metrics)
             bankArc(metrics: metrics)
 
             // Hides the instant the planes swap during an ascent.
@@ -105,6 +106,21 @@ struct BoardView: View {
     }
 
     // MARK: - Board layers
+
+    /// Every square that was just mended, shimmering. See `HealSparkleView`.
+    private func healSparkles(metrics: PixelArtMetrics) -> some View {
+        ForEach(session.healSparkles.filter { $0.plane == session.visiblePlane }) { sparkle in
+            HealSparkleView(
+                start: sparkle.start,
+                tileSize: metrics.tileSize,
+                // Seeded off the square, so two tiles mended at once throw
+                // different motes instead of the same picture twice.
+                seed: sparkle.point.x &* 31 &+ sparkle.point.y
+            )
+            .frame(width: metrics.tileSize * 2, height: metrics.tileSize * 2)
+            .position(metrics.center(of: sparkle.point))
+        }
+    }
 
     /// Capricorn's takings, on their way off the board.
     ///
