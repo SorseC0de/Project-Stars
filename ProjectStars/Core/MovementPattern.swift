@@ -92,8 +92,18 @@ struct MovementPattern: Equatable {
 
     /// Where an option is available.
     enum Applicability: Equatable {
-        /// All four directions.
+        /// All four **cardinal** directions.
+        ///
+        /// Not all eight. The diagonals were added to `SwipeDirection` for
+        /// Virgo, and had `any` widened to include them every sign in the game
+        /// would silently have become a queen.
         case any
+
+        /// The four diagonals and nothing else.
+        case diagonal
+
+        /// All eight. Virgo's step, and so far only Virgo's.
+        case everyWay
 
         /// One fixed compass direction, regardless of facing.
         case absolute(SwipeDirection)
@@ -137,6 +147,10 @@ struct MovementPattern: Equatable {
         options.filter { option in
             switch option.applies {
             case .any:
+                return direction.isCardinal
+            case .diagonal:
+                return !direction.isCardinal
+            case .everyWay:
                 return true
             case let .absolute(fixed):
                 return fixed == direction
@@ -231,6 +245,16 @@ struct MovementPattern: Equatable {
             MoveOption(.any, distance: 1, style: .slide),
             MoveOption(.any, distance: 2, style: .jump),
         ]
+    )
+
+    /// **Virgo — Scrupulous Step.** One square in any of the eight directions.
+    ///
+    /// The only pattern in the game that uses `everyWay`. Virgo covers ground
+    /// nobody else can reach in a turn — a diagonal step is two cardinal steps'
+    /// worth of progress for one tile of wear — which is the whole of the buff.
+    static let scrupulousStep = MovementPattern(
+        name: "Scruple",
+        options: [MoveOption(.everyWay, distance: 1)]
     )
 
     /// **Sagittarius — Archer.** Ordinary in every direction except forward,

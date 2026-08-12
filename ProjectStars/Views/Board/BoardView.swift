@@ -400,7 +400,9 @@ struct BoardView: View {
                 SparkleView(
                     size: metrics.tileSize,
                     plane: session.visiblePlane,
-                    index: index
+                    index: index,
+                    // Virgo's ring, which plays by different rules and says so.
+                    tint: set.pattern == .ring ? Palette.pink : nil
                 )
                     .position(metrics.center(of: point))
                     .offset(GameRules.sparkleNudge)
@@ -1027,12 +1029,11 @@ struct BoardView: View {
         guard let direction = session.blockedDirection, session.blockedNudge % 2 == 1 else {
             return .zero
         }
+        // Derived from the offset rather than enumerated, so a diagonal shove
+        // leans into the corner it was aimed at.
         let distance: CGFloat = 6
-        return switch direction {
-        case .up: CGSize(width: 0, height: -distance)
-        case .down: CGSize(width: 0, height: distance)
-        case .left: CGSize(width: -distance, height: 0)
-        case .right: CGSize(width: distance, height: 0)
-        }
+        let step = direction.unitOffset
+        return CGSize(width: CGFloat(step.dx) * distance,
+                      height: CGFloat(step.dy) * distance)
     }
 }

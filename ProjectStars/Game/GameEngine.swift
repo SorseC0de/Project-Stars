@@ -863,7 +863,12 @@ struct GameEngine {
         else { return [] }
 
         let board = self[sparkles.plane]
-        let usable = sparkles.points.filter { board[$0].canHostSparkle }
+        // A set that was allowed over broken ground keeps every square it has.
+        // Filtering here would quietly undo Virgo's ring, whose whole offer is
+        // that the coin might be hanging over nothing.
+        let usable = sparkles.overBrokenGround
+            ? sparkles.points
+            : sparkles.points.filter { board[$0].canHostSparkle }
 
         // An effect pinned to one square appears there or not at all — the
         // catalogue only offered it because the set covers that square.
@@ -1572,7 +1577,23 @@ struct GameEngine {
             apply(event)
         }
 
+        // Read before the collection, since opening the coin can mend the very
+        // square it was sitting on.
+        let wasSolid = self[pickup.plane][pickup.point].isSolid
+
         commit(.pickupCollected(id: pickup.id, plane: pickup.plane, point: pickup.point))
+
+        // What the *sign* makes of having opened one, before the ground under
+        // the piece is consulted — a coin over a hole is only rescuable here.
+        for event in piece.zodiac.passives.collected(
+            pickup.id,
+            at: pickup.point,
+            on: pickup.plane,
+            wasSolid: wasSolid,
+            context: passiveContext
+        ) {
+            commit(event)
+        }
 
         // Taking one shatters any other. Two coins are a choice, not a haul —
         // and the destruction is the ordinary event, so the tile it was on

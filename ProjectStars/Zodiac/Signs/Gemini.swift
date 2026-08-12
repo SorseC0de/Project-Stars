@@ -296,11 +296,13 @@ struct ReflectiveRiftsView: View {
         let width = isVerticalEdge ? tile * 0.72 : tile * 0.34
         let height = isVerticalEdge ? tile * 0.34 : tile * 0.72
 
+        // The rifts hang off the four board edges, so only the cardinals ever
+        // reach here.
         let offset = switch edge {
         case .up: CGSize(width: 0, height: -push)
         case .down: CGSize(width: 0, height: push)
         case .left: CGSize(width: -push, height: 0)
-        case .right: CGSize(width: push, height: 0)
+        default: CGSize(width: push, height: 0)
         }
 
         return Ellipse()

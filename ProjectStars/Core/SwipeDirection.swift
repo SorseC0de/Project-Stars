@@ -9,18 +9,44 @@ import CoreGraphics
 import Foundation
 import SwiftUI
 
-/// The four input directions the game accepts.
+/// The eight input directions the game accepts.
 ///
-/// Movement is cardinal-only, so a drag is resolved by whichever axis it
-/// travelled furthest along. If diagonal-moving signs are added later, extend
-/// this enum and `MovementPattern.offsets(for:)` — nothing else needs to know.
+/// ## Why four of them are second-class
+///
+/// Almost everything moves on the cardinals. Virgo does not — she steps like a
+/// queen, one square in any of the eight — and rather than give her a parallel
+/// vocabulary, the diagonals were added here alongside the rest.
+///
+/// The cost of that is that `allCases` is now eight long, and most of the places
+/// that iterate directions mean *the four buttons on the pad*. Those use
+/// `cardinals`. Anything that means "every way a piece could conceivably go" —
+/// the legal-destination map, the joystick — uses `allCases`.
+///
+/// A pattern that has not opted in is unaffected: `Applicability.any` means the
+/// four cardinals, exactly as it always did, and a swipe resolved to a diagonal
+/// simply finds no option there.
 enum SwipeDirection: String, CaseIterable, Identifiable {
     case up
     case down
     case left
     case right
 
+    case upLeft
+    case upRight
+    case downLeft
+    case downRight
+
     var id: String { rawValue }
+
+    /// The four directions everything can move in, and the four the pad has
+    /// buttons for.
+    static let cardinals: [SwipeDirection] = [.up, .down, .left, .right]
+
+    /// The four in between.
+    static let diagonals: [SwipeDirection] = [.upLeft, .upRight, .downLeft, .downRight]
+
+    /// True for the four the whole game is built around.
+    var isCardinal: Bool { Self.cardinals.contains(self) }
 
     /// The board offset a single step in this direction corresponds to.
     var unitOffset: GridOffset {
@@ -29,6 +55,10 @@ enum SwipeDirection: String, CaseIterable, Identifiable {
         case .down: .down
         case .left: .left
         case .right: .right
+        case .upLeft: GridOffset(-1, -1)
+        case .upRight: GridOffset(1, -1)
+        case .downLeft: GridOffset(-1, 1)
+        case .downRight: GridOffset(1, 1)
         }
     }
 
@@ -37,12 +67,15 @@ enum SwipeDirection: String, CaseIterable, Identifiable {
     /// Both, rather than a preference between them — a keyboard player reaches
     /// for whichever their hands are already near, and there is nothing else
     /// bound that either could collide with.
+    /// The diagonals have none: there are only so many keys near a hand, and a
+    /// modifier combination for a movement direction is worse than a drag.
     var keyEquivalents: [KeyEquivalent] {
         switch self {
         case .up: [.upArrow, "w"]
         case .down: [.downArrow, "s"]
         case .left: [.leftArrow, "a"]
         case .right: [.rightArrow, "d"]
+        case .upLeft, .upRight, .downLeft, .downRight: []
         }
     }
 
@@ -53,6 +86,10 @@ enum SwipeDirection: String, CaseIterable, Identifiable {
         case .down: "↓"
         case .left: "←"
         case .right: "→"
+        case .upLeft: "↖"
+        case .upRight: "↗"
+        case .downLeft: "↙"
+        case .downRight: "↘"
         }
     }
 
@@ -63,6 +100,10 @@ enum SwipeDirection: String, CaseIterable, Identifiable {
         case .down: .up
         case .left: .right
         case .right: .left
+        case .upLeft: .downRight
+        case .downRight: .upLeft
+        case .upRight: .downLeft
+        case .downLeft: .upRight
         }
     }
 
@@ -74,6 +115,10 @@ enum SwipeDirection: String, CaseIterable, Identifiable {
         switch self {
         case .up, .down: [.left, .right]
         case .left, .right: [.up, .down]
+        // A diagonal's right angles are the other two diagonals, which keeps
+        // "sideways" meaning the same thing however the piece is standing.
+        case .upLeft, .downRight: [.upRight, .downLeft]
+        case .upRight, .downLeft: [.upLeft, .downRight]
         }
     }
 
@@ -98,13 +143,36 @@ enum SwipeDirection: String, CaseIterable, Identifiable {
     ///
     /// Returns `nil` when the drag is shorter than `minimumDistance`, so a tap
     /// or a twitch never commits a move by accident.
+    /// - Parameter includingDiagonals: When true the circle is cut into eight
+    ///   rather than four, so a drag at 45° means the corner instead of being
+    ///   rounded to an axis. Passed by the panel, which asks the piece whether it
+    ///   has anywhere diagonal to go — a sign that cannot move that way should
+    ///   not have its sloppy swipes rejected for aiming between two buttons.
     static func from(
         translation: CGSize,
-        minimumDistance: CGFloat = GameRules.minimumSwipeDistance
+        minimumDistance: CGFloat = GameRules.minimumSwipeDistance,
+        includingDiagonals: Bool = false
     ) -> SwipeDirection? {
         let dx = translation.width
         let dy = translation.height
         guard hypot(dx, dy) >= minimumDistance else { return nil }
+
+        if includingDiagonals {
+            // Eight equal sectors, each 45° wide, measured from due right.
+            // Screen y grows downward, so the angle is negated to make the
+            // sectors read anticlockwise from east in ordinary compass terms.
+            let sector = Int((atan2(-dy, dx) / .pi * 4).rounded()) &+ 8
+            return switch sector % 8 {
+            case 0: .right
+            case 1: .upRight
+            case 2: .up
+            case 3: .upLeft
+            case 4: .left
+            case 5: .downLeft
+            case 6: .down
+            default: .downRight
+            }
+        }
 
         // Dominant axis wins; ties (a perfect 45°) resolve to horizontal.
         if abs(dx) >= abs(dy) {

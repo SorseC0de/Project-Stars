@@ -26,6 +26,13 @@ struct SwipeInputSurface: View {
     /// responsive — but never commits a move.
     let isEnabled: Bool
 
+    /// Whether to cut the circle into eight sectors instead of four.
+    ///
+    /// Only true for a piece that can actually go diagonally. For everyone else
+    /// eight sectors would turn a perfectly clear swipe that happened to run at
+    /// 40° into a move that does not exist.
+    var includingDiagonals: Bool = false
+
     /// Where the current drag points, or `nil` when there is no drag or it is
     /// still under the preview threshold. Owned by the panel so the on-screen
     /// hint can react while the finger is still down.
@@ -69,7 +76,8 @@ struct SwipeInputSurface: View {
                 // appears early in the gesture.
                 let direction = SwipeDirection.from(
                     translation: value.translation,
-                    minimumDistance: GameRules.minimumSwipeDistance * 0.5
+                    minimumDistance: GameRules.minimumSwipeDistance * 0.5,
+                    includingDiagonals: includingDiagonals
                 )
                 liveDirection = direction
                 // Distance is part of the aim for signs that offer several, so
@@ -80,7 +88,10 @@ struct SwipeInputSurface: View {
                 liveDirection = nil
                 onPreview(nil, 0)
                 guard isEnabled,
-                      let direction = SwipeDirection.from(translation: value.translation)
+                      let direction = SwipeDirection.from(
+                          translation: value.translation,
+                          includingDiagonals: includingDiagonals
+                      )
                 else { return }
                 onCommit(direction, SwipeDirection.reach(for: value.translation))
             }

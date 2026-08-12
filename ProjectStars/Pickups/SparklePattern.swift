@@ -22,6 +22,12 @@ enum SparklePattern: String, CaseIterable, Codable, Identifiable {
     /// Five unrelated tiles anywhere on the board. Rarest.
     case scattered
 
+    /// All eight neighbours of a centre square, centre excluded.
+    ///
+    /// Never rolled. Virgo's Regulated Reboot places it deliberately, around
+    /// herself — see `VirgoRegulatedReboot`.
+    case ring
+
     var id: String { rawValue }
 
     var displayName: String {
@@ -29,6 +35,7 @@ enum SparklePattern: String, CaseIterable, Codable, Identifiable {
         case .plus: "Plus"
         case .cross: "Cross"
         case .scattered: "Scattered"
+        case .ring: "Ring"
         }
     }
 
@@ -38,6 +45,7 @@ enum SparklePattern: String, CaseIterable, Codable, Identifiable {
         case .plus: "+"
         case .cross: "×"
         case .scattered: "∴"
+        case .ring: "○"
         }
     }
 
@@ -48,10 +56,13 @@ enum SparklePattern: String, CaseIterable, Codable, Identifiable {
         case .plus: [GridOffset(0, 0)] + GridOffset.cardinals
         case .cross: [GridOffset(0, 0)] + GridOffset.diagonals
         case .scattered: nil
+        case .ring: GridOffset.cardinals + GridOffset.diagonals
         }
     }
 
     /// Weight table used when rolling for the next pattern.
+    /// A pattern with no weight is never rolled, which is how the ring stays
+    /// Virgo's alone without needing to be excluded by name.
     static var weightedChoices: [(value: SparklePattern, weight: Int)] {
         SparklePattern.allCases.map { ($0, GameRules.sparklePatternWeights[$0] ?? 0) }
     }

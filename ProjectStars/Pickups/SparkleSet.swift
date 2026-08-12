@@ -29,6 +29,14 @@ struct SparkleSet: Equatable, Codable {
     /// than moving elsewhere.
     let points: [GridPoint]
 
+    /// True when this set was allowed to settle over holes.
+    ///
+    /// Sparkles normally refuse broken ground — see `Tile.canHostSparkle` —
+    /// which is what makes a gap in a shape readable. Virgo's ring is the
+    /// exception, and the exception is the point: the coin may be sitting over
+    /// nothing, and walking onto it anyway is the gamble the ability offers.
+    var overBrokenGround: Bool = false
+
     func contains(_ point: GridPoint) -> Bool {
         points.contains(point)
     }
@@ -63,6 +71,30 @@ struct SparkleSet: Equatable, Codable {
     /// information the player can read — and, with care, engineer.
     var isPartial: Bool {
         pattern != .scattered && points.count < GameRules.sparkleCount
+    }
+}
+
+extension SparkleSet {
+
+    /// The eight squares around a centre, whatever state they are in.
+    ///
+    /// Refuses a centre whose ring would run off the board — that is the "not by
+    /// a wall" half of Regulated Reboot's condition — and refuses one whose ring
+    /// would cover the Nexys, since the island is not ground and cannot hide a
+    /// coin.
+    static func ring(around centre: GridPoint, on plane: Plane, board: Board) -> SparkleSet? {
+        let points = SparklePattern.ring.offsetsFromCentre?
+            .map { centre.offset(by: $0) } ?? []
+
+        guard points.allSatisfy({ board.contains($0) }) else { return nil }
+        guard points.allSatisfy({ board[$0].kind == .normal }) else { return nil }
+
+        return SparkleSet(
+            plane: plane,
+            pattern: .ring,
+            points: points,
+            overBrokenGround: true
+        )
     }
 }
 

@@ -21,11 +21,12 @@ extension ZodiacCatalog {
         glyph: "♍",
         element: .earth,
         accentColor: Color(hex: 0x9A_AF_6B),
-        movement: .cardinalStep,
+        movement: .scrupulousStep,
         passives: [
             VirgoControlledCompensation(),
             VirgoScrupulousStep(),
             VirgoPoisedPlummet(),
+            VirgoRebootPayout(),
         ],
         zodiaction: VirgoRegulatedReboot(),
         constellation: ZodiacCatalog.virgoConstellation
@@ -54,45 +55,60 @@ extension ZodiacCatalog {
 /// removes is the guess: for Virgo, aiming at a sparkle *is* opening it.
 struct VirgoControlledCompensation: ZodiacPassive {
 
+    /// Key this sign owns in `SignState.buffs` — set by Regulated Reboot.
+    static let silencedKey = "virgo.compensationSilenced"
+
     let displayName = "Controlled Compensation"
-    let summary = "Astra & Terra: the Pentacle always appears on the sparkling tile you are moving onto."
+    let summary = "Astra & Terra: the Pentacle always appears on the sparkling tile you are moving onto. Silent for a turn after Regulated Reboot."
 
     func preferredRevealPoint(
         among candidates: [GridPoint],
         destination: GridPoint,
         context: PassiveContext
     ) -> GridPoint? {
-        candidates.contains(destination) ? destination : nil
+        // The ring is a gamble, and a gamble you can steer is not one. Without
+        // this, Regulated Reboot would deal the coin straight into whichever
+        // neighbour Virgo was already walking to, every single time.
+        guard !context.signState.isActive(Self.silencedKey) else { return nil }
+        return candidates.contains(destination) ? destination : nil
     }
 }
 
 // MARK: - Passive 2: Scrupulous Step
 
-/// A badly cracked tile does not break under Virgo — once every three moves.
+/// Virgo steps like a queen, and treads on ruined ground without finishing it.
 ///
-/// The cooldown is what keeps it from being a licence to camp on ruined ground:
-/// it saves the step you happen to take, then makes you find real footing again.
+/// ## The step
+///
+/// One square in any of the eight directions. That is a large amount of reach
+/// for a single tile of wear — a diagonal covers what would otherwise be two
+/// moves — and it is the reason the rest of this sign can afford to be careful
+/// rather than fast.
+///
+/// ## The scruple
+///
+/// Landing on a badly cracked tile never breaks it *on arrival*. The tile is
+/// charged when Virgo **leaves** instead, which is not a reprieve so much as a
+/// deferral: the square still goes, but it goes behind her rather than under
+/// her.
+///
+/// This replaces a once-every-three-moves save. A cooldown on a rule about the
+/// ground is a rule the player cannot see — you had to remember when you last
+/// used it to know whether the square you were about to step on was safe. Always
+/// true is a rule you can plan around, and deferring rather than cancelling
+/// keeps the board's decay honest.
 struct VirgoScrupulousStep: ZodiacPassive {
 
-    /// Key this sign owns in `SignState.cooldowns`.
-    static let cooldownKey = "virgo.scrupulousStep"
-
-    /// Committed moves before it is available again.
-    static let cooldownMoves = 3
-
     let displayName = "Scrupulous Step"
-    let summary = "Astra & Terra: landing on a badly cracked tile does not break it. 3-move cooldown."
+    let summary = "Astra & Terra: step one square in any direction, diagonals included. A badly cracked tile breaks as you leave it, never as you arrive."
 
-    func modifyWear(_ proposal: WearProposal, context: PassiveContext) -> WearProposal {
-        guard proposal.tile.health == .badlyCracked,
-              proposal.wouldBreak,
-              proposal.signState.isReady(Self.cooldownKey)
-        else { return proposal }
-
-        var spared = proposal
-        spared.stages = 0
-        spared.signState.startCooldown(Self.cooldownKey, moves: Self.cooldownMoves)
-        return spared
+    func wearTiming(context: PassiveContext) -> WearTiming {
+        // Only over ground that is one landing from gone. Everywhere else Virgo
+        // wears on arrival like anyone else, so this cannot be turned into a
+        // general "damage happens behind me" by standing on a healthy tile.
+        context.currentBoard[context.piecePoint].health == .badlyCracked
+            ? .onExit
+            : .onEntry
     }
 }
 
@@ -120,29 +136,59 @@ struct VirgoPoisedPlummet: ZodiacPassive {
 
 // MARK: - Zodiaction: Regulated Reboot
 
-/// Forces a fresh sparkle phase immediately.
+/// Deals a fresh sparkle phase as a ring around Virgo — one of her eight
+/// neighbours is hiding a Pentacle, and every one of them is a single step away.
 ///
-/// If a Pentacle is already sitting on the board, this discards it and starts the
-/// hunt over; if a sparkle phase is running, it is re-rolled into a new shape
-/// somewhere else. Either way Virgo decides where the next opportunity is,
-/// instead of waiting for one.
+/// ## Why it is a ring and not a re-roll
 ///
-/// Pairs with Controlled Compensation: re-roll until the shape falls somewhere
-/// convenient, then walk onto the sparkle you want.
+/// The old version started the hunt over somewhere else on the board, which is
+/// only worth doing if the shape lands somewhere convenient — so the ability was
+/// really "press this until you like the answer". A ring makes the answer
+/// immediate: the coin is *here*, one step in some direction, and the whole of
+/// the ability is deciding which.
+///
+/// Virgo's diagonals are what make that a real question rather than a
+/// four-way guess: all eight are reachable, so every square in the ring is a
+/// live option and the choice is between eight, not four.
+///
+/// ## Why the ring may hang over holes
+///
+/// Because a guaranteed safe Pentacle every time the meter fills is not a
+/// decision. Sparkles normally refuse broken ground; this one does not, so the
+/// coin may be sitting over nothing — and stepping onto it anyway is rewarded
+/// rather than punished: the hole mends to badly cracked and the meter comes
+/// **all** the way back. Landing on a coin standing on solid ground refunds
+/// half. The gamble pays better than the safe play, which is the only way a
+/// gamble is ever worth taking.
+///
+/// ## Why it refuses to fire near a wall
+///
+/// A partial ring is a worse offer wearing the same costume — fewer squares, the
+/// same price. Refusing outright tells the player to step off the edge first,
+/// which is information; charging them a full meter for five squares instead of
+/// eight would not be.
 struct VirgoRegulatedReboot: Zodiaction {
 
     let displayName = "Regulated Reboot"
-    let summary = "Astra & Terra: immediately start a new sparkle phase, replacing any current one."
+    let summary = "Astra & Terra: ring yourself with sparkles, holes included. Step onto the coin for half your meter back — or onto the hole that held it to mend it and get all of it."
 
     /// Virgo's charge comes from its passives and from Pentacles.
     func meterGain(from move: MoveSummary, context: PassiveContext) -> Int { 0 }
 
-    func activate(context: PassiveContext, generator: inout SeededRandom) -> [GameEvent] {
-        guard let set = SparkleSet.spawn(
+    /// Needs eight neighbours, all of them ordinary ground.
+    func canActivate(context: PassiveContext) -> Bool {
+        SparkleSet.ring(
+            around: context.piecePoint,
             on: context.plane,
-            board: context.currentBoard,
-            avoiding: context.piecePoint,
-            using: &generator
+            board: context.currentBoard
+        ) != nil
+    }
+
+    func activate(context: PassiveContext, generator: inout SeededRandom) -> [GameEvent] {
+        guard let set = SparkleSet.ring(
+            around: context.piecePoint,
+            on: context.plane,
+            board: context.currentBoard
         ) else { return [] }
 
         guard let pickup = PickupCatalog.rollPickup(
@@ -150,6 +196,55 @@ struct VirgoRegulatedReboot: Zodiaction {
             using: &generator
         ) else { return [] }
 
-        return [.sparklesSpawned(set: set, pickup: pickup)]
+        var state = context.signState
+        // Two, because timers tick down at the end of the turn that set them —
+        // and this pop is a turn.
+        state.startBuff(VirgoControlledCompensation.silencedKey, moves: 2)
+
+        return [
+            .signStateChanged(state),
+            .sparklesSpawned(set: set, pickup: pickup),
+        ]
+    }
+}
+
+// MARK: - Passive: Regulated Reboot's payouts
+
+/// The half of Regulated Reboot that happens when Virgo arrives.
+///
+/// A Zodiaction fires and is gone; what it promised has to be collected by
+/// something that is still listening when the coin is opened. See
+/// `ZodiacPassive.collected(_:at:on:wasSolid:context:)`.
+struct VirgoRebootPayout: ZodiacPassive {
+
+    let displayName = "Regulated Reboot (arrival)"
+    let summary = "Astra & Terra: a Pentacle from your own ring refunds half your meter, or mends the hole it stood on and refunds all of it."
+
+    func collected(
+        _ id: PickupID,
+        at point: GridPoint,
+        on plane: Plane,
+        wasSolid: Bool,
+        context: PassiveContext
+    ) -> [GameEvent] {
+        // Only a coin from Virgo's own ring pays. The silence is the marker:
+        // it is set by the pop and lasts exactly as long as the ring does.
+        guard context.signState.isActive(VirgoControlledCompensation.silencedKey) else {
+            return []
+        }
+
+        let cap = context.zodiac.zodiaction.meterMax(on: plane)
+
+        guard wasSolid else {
+            // Stepped onto nothing and got away with it. Mended only to badly
+            // cracked: the ground remembers, and one more landing still takes
+            // it.
+            return [
+                .tileHealed(plane: plane, point: point, to: .badlyCracked),
+                .zodiactionMeterChanged(to: cap),
+            ]
+        }
+
+        return [.zodiactionMeterChanged(to: cap / 2)]
     }
 }

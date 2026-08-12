@@ -291,6 +291,22 @@ protocol ZodiacPassive {
     /// does not recognise.
     func resolveChoice(_ choice: PickupChoiceResult, context: PassiveContext) -> [GameEvent]
 
+    /// What this sign does when it opens a coin, beyond whatever the coin does.
+    ///
+    /// Fires at the moment of collection, before the ground under the piece is
+    /// consulted — which is the only moment at which `wasSolid` is still
+    /// answerable, and the only moment early enough to mend a hole the piece is
+    /// standing over. Virgo's Regulated Reboot is the whole reason it exists.
+    ///
+    /// Default: nothing.
+    func collected(
+        _ id: PickupID,
+        at point: GridPoint,
+        on plane: Plane,
+        wasSolid: Bool,
+        context: PassiveContext
+    ) -> [GameEvent]
+
     /// Whether an opened Pentacle should be banked rather than set off.
     ///
     /// Capricorn's Celestial Commerce alone. The engine puts the coin in
@@ -481,6 +497,14 @@ extension ZodiacPassive {
         context: PassiveContext
     ) -> [GameEvent] { [] }
 
+    func collected(
+        _ id: PickupID,
+        at point: GridPoint,
+        on plane: Plane,
+        wasSolid: Bool,
+        context: PassiveContext
+    ) -> [GameEvent] { [] }
+
     func banksPickups(_ id: PickupID, context: PassiveContext) -> Bool { false }
 
     func meterBonus(from move: MoveSummary, context: PassiveContext) -> Int {
@@ -651,6 +675,18 @@ extension Array where Element == any ZodiacPassive {
 
     func banksPickups(_ id: PickupID, context: PassiveContext) -> Bool {
         contains { $0.banksPickups(id, context: context) }
+    }
+
+    func collected(
+        _ id: PickupID,
+        at point: GridPoint,
+        on plane: Plane,
+        wasSolid: Bool,
+        context: PassiveContext
+    ) -> [GameEvent] {
+        flatMap {
+            $0.collected(id, at: point, on: plane, wasSolid: wasSolid, context: context)
+        }
     }
 
     /// Every passive has to agree. A refusal is a rule about the ground, and a

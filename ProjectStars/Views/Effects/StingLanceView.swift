@@ -84,9 +84,13 @@ struct StingLanceView: View {
     private var turn: Double {
         switch direction {
         case .up: 0
+        case .upRight: 45
         case .right: 90
+        case .downRight: 135
         case .down: 180
+        case .downLeft: 225
         case .left: 270
+        case .upLeft: 315
         }
     }
 

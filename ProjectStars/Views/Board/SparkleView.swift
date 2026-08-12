@@ -29,6 +29,13 @@ struct SparkleView: View {
     /// matter how they are offset, because the eye locks onto the shared rhythm.
     var index: Int = 0
 
+    /// Overrides the plane's colour.
+    ///
+    /// Virgo's ring is drawn pink so it cannot be mistaken for the ordinary
+    /// hunt: the two look the same, sit on the same board and are opened the
+    /// same way, but only one of them may be standing over a hole.
+    var tint: Color?
+
     var body: some View {
         ZStack {
             tileGlow
@@ -50,7 +57,7 @@ struct SparkleView: View {
     /// belongs centred on the square.
     private var tileGlow: some View {
         Circle()
-            .fill(Palette.sparkleGlow(on: plane))
+            .fill(tint ?? Palette.sparkleGlow(on: plane))
             .frame(
                 width: size * GameRules.sparkleTileGlowSize,
                 height: size * GameRules.sparkleTileGlowSize
@@ -76,7 +83,7 @@ struct SparkleView: View {
     }
 
     private var placeholder: some View {
-        let glow = Palette.sparkleGlow(on: plane)
+        let glow = tint ?? Palette.sparkleGlow(on: plane)
         let side = size * 0.45
 
         return ZStack {

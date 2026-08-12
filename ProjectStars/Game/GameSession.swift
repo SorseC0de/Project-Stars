@@ -1644,6 +1644,28 @@ extension GameSession {
     /// True while the player is being asked to pick a sign.
     var isChoosingPiece: Bool { pendingPickupChoice?.kind == .piece }
 
+    /// Every direction the piece has at least one legal move in.
+    ///
+    /// Drives the joystick's guides and, more importantly, whether a drag is
+    /// resolved into eight sectors or four. A sign that cannot step diagonally
+    /// must not have its sloppy 40° swipes rejected for aiming between two
+    /// buttons — so the diagonals only exist as inputs for a piece that can use
+    /// them.
+    var availableDirections: Set<SwipeDirection> {
+        let movement = engine.piece.zodiac.passives.adjustedMovement(
+            base: engine.piece.zodiac.movement,
+            context: engine.passiveSnapshot
+        )
+        return Set(SwipeDirection.allCases.filter { direction in
+            !movement.options(for: direction, facing: engine.piece.facing).isEmpty
+        })
+    }
+
+    /// True when this piece can aim between the cardinals.
+    var movesDiagonally: Bool {
+        availableDirections.contains { !$0.isCardinal }
+    }
+
     /// True while Sagittarius has an arrow in the ground waiting to be recalled.
     ///
     /// The Zodiaction button reads this: with an arrow out the button is no

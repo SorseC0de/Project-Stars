@@ -138,6 +138,10 @@ enum PanelStyle {
     static let guideArrowLit = Palette.lightBlue
     static let guideArrowDim = Palette.blue
 
+    /// The four stops only Virgo has.
+    static let guideDiagonalLit = Palette.pink
+    static let guideDiagonalDim = Palette.magenta
+
     /// Chevron colours: lit only once the drag has passed the ordinary step.
     static let guideChevronLit = Palette.magenta
     static let guideChevronDim = Palette.plum
@@ -166,7 +170,9 @@ enum PanelStyle {
         switch direction {
         case .up: 7
         case .down: 7
-        case .left, .right: 7
+        // The diagonals have no plate of their own — they are stops on the
+        // joystick, not buttons — so they never reach here.
+        default: 7
         }
     }
 
@@ -436,6 +442,7 @@ private struct PanelFrontView: View {
             if GameRules.controlScheme == .joystick {
                 SwipeInputSurface(
                     isEnabled: session.acceptsInput,
+                    includingDiagonals: session.movesDiagonally,
                     liveDirection: $liveDirection,
                     onCommit: {
                         // The stick gets the same knock the buttons do, so the
@@ -521,6 +528,7 @@ private struct PanelFrontView: View {
                 direction: liveDirection ?? session.engine.piece.facing,
                 isDragging: liveDirection != nil,
                 reach: liveReach,
+                available: session.availableDirections,
                 specialReach: session.specialReach(for:)
             )
             .allowsHitTesting(false)
@@ -648,6 +656,12 @@ struct Joystick: View {
     /// How far past the commit threshold the drag has run.
     let reach: Int
 
+    /// Which directions this piece actually has a move in.
+    ///
+    /// The guides are drawn for these and no others. A ring of eight arrows on
+    /// a sign that can use four of them is not a guide, it is a lie.
+    var available: Set<SwipeDirection> = Set(SwipeDirection.cardinals)
+
     /// The reach a sign's longer move that way needs, or `nil` if it has none.
     let specialReach: (SwipeDirection) -> Int?
 
@@ -661,7 +675,7 @@ struct Joystick: View {
         let lean = isDragging ? PanelStyle.joystickLean : 0
 
         ZStack {
-            ForEach(SwipeDirection.allCases) { hint in
+            ForEach(SwipeDirection.allCases.filter(available.contains)) { hint in
                 guide(for: hint)
                     .rotationEffect(.degrees(hint.iconRotation))
             }
@@ -713,9 +727,13 @@ struct Joystick: View {
                 .resizable()
                 .frame(width: PanelStyle.guideArrowSize.width,
                        height: PanelStyle.guideArrowSize.height)
-                .foregroundStyle(isPushed
-                    ? PanelStyle.guideArrowLit
-                    : PanelStyle.guideArrowDim)
+                // The diagonals are magenta throughout, lit or not: they are a
+                // property of the *sign* rather than of the drag, and a player
+                // who has just picked Virgo should be able to see at a glance
+                // that this stick has eight stops rather than four.
+                .foregroundStyle(hint.isCardinal
+                    ? (isPushed ? PanelStyle.guideArrowLit : PanelStyle.guideArrowDim)
+                    : (isPushed ? PanelStyle.guideDiagonalLit : PanelStyle.guideDiagonalDim))
                 .offset(y: -PanelStyle.joystickSize * PanelStyle.guideArrowOrbit)
 
             if special != nil {
@@ -732,6 +750,11 @@ struct Joystick: View {
         .opacity(isPushed ? PanelStyle.guideOpacityLit : PanelStyle.guideOpacityDim)
     }
 
+    /// Length of an offset, never zero.
+    private func hypot(_ step: GridOffset) -> CGFloat {
+        max(Foundation.hypot(CGFloat(step.dx), CGFloat(step.dy)), 1)
+    }
+
     /// The stick itself, with its own rim under it so it stands out of the well
     /// rather than being painted on.
     private func knob(side: CGFloat, step: GridOffset, lean: CGFloat) -> some View {
@@ -745,10 +768,13 @@ struct Joystick: View {
         }
         .frame(width: side * PanelStyle.joystickKnobScale,
                height: side * PanelStyle.joystickKnobScale)
+        // Normalised, so a diagonal lean is the same distance from centre as a
+        // cardinal one. Without it the stick reaches 41% further into the
+        // corners and the well stops looking round.
         .offset(
-            x: CGFloat(step.dx) * side * lean,
+            x: CGFloat(step.dx) / hypot(step) * side * lean,
             // Sits a little high at rest, so the well's core shows beneath it.
-            y: CGFloat(step.dy) * side * lean - PanelStyle.joystickKnobRise
+            y: CGFloat(step.dy) / hypot(step) * side * lean - PanelStyle.joystickKnobRise
         )
     }
 }
@@ -796,7 +822,8 @@ struct ArrowProfile {
         case .down:
             ArrowProfile(widen: PanelStyle.padAwayWiden,
                          shorten: PanelStyle.padAwayShorten)
-        case .left, .right:
+        // Only the four plates exist; a diagonal is a joystick stop.
+        default:
             ArrowProfile()
         }
     }
@@ -1035,9 +1062,13 @@ extension SwipeDirection {
     var iconRotation: Double {
         switch self {
         case .up: 0
+        case .upRight: 45
         case .right: 90
+        case .downRight: 135
         case .down: 180
+        case .downLeft: 225
         case .left: 270
+        case .upLeft: 315
         }
     }
 }
