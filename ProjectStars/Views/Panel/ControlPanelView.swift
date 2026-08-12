@@ -159,6 +159,20 @@ enum PanelStyle {
     /// the arrow turns. Raise it and every arrow gets chunkier at once.
     static let padThickness: CGFloat = 7
 
+    /// How the pair pointing away from the viewer differ from the pair crossing
+    /// the board: broader, and shorter along the way they point.
+    ///
+    /// They are seen at a shallower angle, so they foreshorten. The horizontal
+    /// pair are seen side-on and keep their proportions.
+    static let padAwayWiden: CGFloat = 1.08
+    static let padAwayShorten: CGFloat = 0.86
+
+    /// Where north's tail ends, against 0.80 for the others.
+    ///
+    /// Pointing away, what is on show is the *back* of the tail — its rear face
+    /// is toward the viewer, and that reads as extra length.
+    static let padNorthTailY: CGFloat = 0.88
+
     /// The longer-move arrow, nested outside its direction.
     static let padSpecialScale: CGFloat = 0.62
 
@@ -706,56 +720,143 @@ struct Joystick: View {
 
 // MARK: - Row 2: the direction pad
 
-/// The arrow's top face, already turned to point where it should.
+/// The arrow's outline, as points, before anything is drawn with it.
 ///
-/// The rotation happens **inside the path** rather than as a `rotationEffect` on
-/// the view, and that is the whole trick: the extrusion under it is always
-/// straight down the screen, so the shape has to be turned before it is cast.
-/// Rotate the finished stack instead and the thickness turns with it, which is
-/// the one thing a solid object's thickness never does.
-struct ArrowGlyph: Shape {
+/// Kept as points rather than a `Path` because two shapes are built from it —
+/// the top face and the side wall — and the wall needs the individual edges, not
+/// a finished path.
+struct ArrowProfile {
 
-    /// Degrees clockwise from pointing up.
-    var turn: Double = 0
+    /// Where the silhouette's corners sit, as fractions of its box.
+    var tipY: CGFloat = 0.02
+    var barbX: CGFloat = 0.98
+    var barbY: CGFloat = 0.46
+    var tailX: CGFloat = 0.71
+    var tailY: CGFloat = 0.80
 
-    func path(in rect: CGRect) -> Path {
-        func at(_ x: CGFloat, _ y: CGFloat) -> CGPoint {
-            CGPoint(x: rect.minX + rect.width * x, y: rect.minY + rect.height * y)
+    /// Stretched across and squashed along its length, before it is turned.
+    ///
+    /// The pair pointing away from the viewer are seen at a shallower angle than
+    /// the pair crossing the board, so they are shorter and broader. Applied in
+    /// the arrow's own space, so it survives the rotation.
+    var widen: CGFloat = 1
+    var shorten: CGFloat = 1
+
+    /// The one for a given direction.
+    ///
+    /// North's tail runs longer than south's: pointing away, what is on show is
+    /// the *back* of the tail, and its rear face reads as extra length.
+    static func of(_ direction: SwipeDirection) -> ArrowProfile {
+        switch direction {
+        case .up:
+            ArrowProfile(tailY: PanelStyle.padNorthTailY,
+                         widen: PanelStyle.padAwayWiden,
+                         shorten: PanelStyle.padAwayShorten)
+        case .down:
+            ArrowProfile(widen: PanelStyle.padAwayWiden,
+                         shorten: PanelStyle.padAwayShorten)
+        case .left, .right:
+            ArrowProfile()
         }
+    }
 
-        var path = Path()
-        path.move(to: at(0.50, 0.02))       // tip
-        path.addLine(to: at(0.98, 0.46))    // right barb
-        path.addLine(to: at(0.71, 0.46))    // right shoulder
-        path.addLine(to: at(0.71, 0.80))    // tail, right
-        path.addLine(to: at(0.29, 0.80))    // tail, left
-        path.addLine(to: at(0.29, 0.46))    // left shoulder
-        path.addLine(to: at(0.02, 0.46))    // left barb
-        path.closeSubpath()
+    /// The seven corners, stretched, turned, and placed in `rect`.
+    func corners(in rect: CGRect, turn: Double) -> [CGPoint] {
+        let local: [(CGFloat, CGFloat)] = [
+            (0.50, tipY),           // tip
+            (barbX, barbY),         // right barb
+            (tailX, barbY),         // right shoulder
+            (tailX, tailY),         // tail, right
+            (1 - tailX, tailY),     // tail, left
+            (1 - tailX, barbY),     // left shoulder
+            (1 - barbX, barbY),     // left barb
+        ]
 
         let centre = CGPoint(x: rect.midX, y: rect.midY)
-        return path.applying(
-            CGAffineTransform(translationX: centre.x, y: centre.y)
-                .rotated(by: turn * .pi / 180)
-                .translatedBy(x: -centre.x, y: -centre.y)
-        )
+        let turned = CGAffineTransform(translationX: centre.x, y: centre.y)
+            .rotated(by: turn * .pi / 180)
+            .translatedBy(x: -centre.x, y: -centre.y)
+
+        return local.map { x, y in
+            // Stretch about the middle of the box while it still points up.
+            let sx = 0.5 + (x - 0.5) * widen
+            let sy = 0.5 + (y - 0.5) * shorten
+            return CGPoint(x: rect.minX + rect.width * sx,
+                           y: rect.minY + rect.height * sy)
+                .applying(turned)
+        }
     }
 }
 
-/// One direction's arrow: a flat plate with thickness, seen from above.
+/// The arrow's top face.
+struct ArrowGlyph: Shape {
+
+    var direction: SwipeDirection
+
+    func path(in rect: CGRect) -> Path {
+        let corners = ArrowProfile.of(direction).corners(in: rect, turn: direction.iconRotation)
+
+        var path = Path()
+        path.addLines(corners)
+        path.closeSubpath()
+        return path
+    }
+}
+
+/// The arrow's side: the wall its thickness makes, seen from above.
 ///
-/// ## What the dark actually is
+/// ## Why this is not the top face drawn again lower down
 ///
-/// Not an outline and not shading — it is the *side* of the plate. The arrow is
-/// a solid object lying on the board, lit from above, and what shows of its edge
-/// is whatever faces downward on screen. Casting the same silhouette a few
-/// points lower and painting it dark produces exactly that, and produces it
-/// differently for each direction for free: pointing up, the undersides of the
-/// barbs and the tail show; pointing down, the two long diagonals do; pointing
-/// across, the lower diagonal and the underside of the shaft.
+/// A copy offset downward gives the right *angles* but leaves the plate hollow —
+/// nothing joins the top face to the bottom one, so at a barb's point the dark
+/// simply stops and the two shapes read as two stickers. A real extrusion has a
+/// wall standing on every edge, meeting the top face along its whole length.
 ///
-/// That is why these read as four different drawings while being one shape. It
-/// is the same reason the buttons on this panel have a rim rather than a border.
+/// So each edge is swept: the edge, the same edge dropped by the thickness, and
+/// the two verticals joining them. Every edge is swept rather than only the ones
+/// facing the viewer — the ones facing away end up behind the top face, cost
+/// nothing, and save deciding which is which.
+struct ArrowSide: Shape {
+
+    var direction: SwipeDirection
+    var thickness: CGFloat
+
+    func path(in rect: CGRect) -> Path {
+        let corners = ArrowProfile.of(direction).corners(in: rect, turn: direction.iconRotation)
+        let drop = CGPoint(x: 0, y: thickness)
+
+        var path = Path()
+
+        // The far face, so the solid is closed at the bottom.
+        path.addLines(corners.map { CGPoint(x: $0.x + drop.x, y: $0.y + drop.y) })
+        path.closeSubpath()
+
+        // A wall standing on each edge.
+        for index in corners.indices {
+            let a = corners[index]
+            let b = corners[(index + 1) % corners.count]
+
+            path.move(to: a)
+            path.addLine(to: b)
+            path.addLine(to: CGPoint(x: b.x + drop.x, y: b.y + drop.y))
+            path.addLine(to: CGPoint(x: a.x + drop.x, y: a.y + drop.y))
+            path.closeSubpath()
+        }
+
+        return path
+    }
+}
+
+/// One direction's arrow: a flat plate with real thickness, seen from above.
+///
+/// ## What the dark is
+///
+/// Not an outline and not shading — it is the side of a solid object lying on
+/// the board, lit from above. What shows of it is whatever faces down the
+/// screen, which is why pointing up shows the undersides of the barbs and the
+/// tail, pointing down shows the two long diagonals, and pointing across shows
+/// the lower diagonal and the underside of the shaft. One silhouette, three
+/// completely different-looking drawings.
 struct DirectionArrow: View {
 
     let direction: SwipeDirection
@@ -764,16 +865,18 @@ struct DirectionArrow: View {
     var box: CGFloat = PanelStyle.padArrowSize
 
     var body: some View {
-        let glyph = ArrowGlyph(turn: direction.iconRotation)
-
         ZStack {
-            glyph.fill(shadow).offset(y: PanelStyle.padThickness)
-            glyph.fill(light)
+            // Non-zero winding, so the walls and the far face merge into one
+            // solid rather than cancelling each other where they overlap.
+            ArrowSide(direction: direction, thickness: PanelStyle.padThickness)
+                .fill(shadow, style: FillStyle(eoFill: false))
+
+            ArrowGlyph(direction: direction).fill(light)
         }
         .frame(width: box, height: box)
     }
 
-    /// The space it takes. Square, since the silhouette turns inside its own box
+    /// The space it takes. Square: the silhouette turns inside its own box
     /// rather than the box turning with it.
     var footprint: CGSize { CGSize(width: box, height: box) }
 }
