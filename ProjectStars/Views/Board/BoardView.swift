@@ -274,6 +274,7 @@ struct BoardView: View {
                 // drawn by `raisedTile`, so it can depth-sort with the pieces.
                 isPopped: false,
                 isFlashing: session.flashingTiles.contains(point),
+                isPressed: session.pressedTiles.contains(point),
                 point: point,
                 drawnByField: plane == .astra
             )
@@ -565,7 +566,12 @@ struct BoardView: View {
             objects.append(BoardObject(kind: .raisedTile, point: raised.point, slot: raised.serial))
         }
         for pickup in session.visiblePickups {
-            objects.append(BoardObject(kind: .pentacle, point: pickup.point, slot: pickup.serial))
+            objects.append(BoardObject(
+                kind: .pentacle,
+                point: pickup.point,
+                slot: pickup.serial,
+                sweeping: session.isSliding
+            ))
         }
         if session.engine.nexysPlane == plane {
             objects.append(BoardObject(kind: .nexys, point: GameRules.nexysPoint))

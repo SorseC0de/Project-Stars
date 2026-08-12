@@ -1495,6 +1495,15 @@ enum GameRules {
     /// rather than seven short ones with a stop between each. Linear animation
     /// makes the overlap seamless — two linear runs at the same speed meeting
     /// mid-square are indistinguishable from one.
+    /// How long a square stays pressed after the piece has passed over it.
+    ///
+    /// Longer than one step, on purpose: the presses overlap into a wave
+    /// travelling behind the piece rather than a single square bobbing under it.
+    static let slidePressLinger: TimeInterval = 0.18
+
+    /// How far a pressed square gives, in art pixels.
+    static let slidePressDepth: CGFloat = 1.5
+
     static let slideOverlap: Double = 2.2
 
     /// A slide wears the tile it leaves and the tile it reaches, and nothing in

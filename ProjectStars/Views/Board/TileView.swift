@@ -32,6 +32,13 @@ struct TileView: View {
     /// True for one beat after this tile changes state, so it can flash.
     var isFlashing: Bool = false
 
+    /// True while a sliding piece is passing over this square.
+    ///
+    /// The tile gives a pixel or so and comes back. A slide crosses ground
+    /// without landing on it and so has no dust, no wear and no impact to draw —
+    /// this is the whole of what says something went past.
+    var isPressed: Bool = false
+
     /// Which square this is. Astra's clusters are generated from it, so each
     /// one keeps its own cloud.
     var point: GridPoint = GridPoint(0, 0)
@@ -44,6 +51,20 @@ struct TileView: View {
     var drawnByField: Bool = false
 
     var body: some View {
+        pressed {
+            content
+        }
+    }
+
+    /// The give, applied over whatever this square happens to be made of.
+    @ViewBuilder
+    private func pressed(@ViewBuilder _ content: () -> some View) -> some View {
+        content()
+            .offset(y: isPressed ? GameRules.slidePressDepth : 0)
+            .animation(.easeOut(duration: 0.09), value: isPressed)
+    }
+
+    private var content: some View {
         ZStack {
             if drawnByField, plane == .astra, tile.kind == .normal, !hasDrawnCloud {
                 // Already painted with the rest of the field.

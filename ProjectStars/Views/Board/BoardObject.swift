@@ -65,6 +65,14 @@ struct BoardObject: Identifiable, Equatable {
     /// out at a time. Everything else is always slot zero.
     var slot: Int = 0
 
+    /// True while a slide is running.
+    ///
+    /// A coin the slide is about to sweep up should pass over the piece's head
+    /// rather than behind it. Behind, it reads as having been missed — the piece
+    /// visibly goes *through* it — where in front it reads as being scooped out
+    /// of the air, which is what `pickupGathered` actually is.
+    var sweeping: Bool = false
+
     /// Stable across movement — see `BoardObjectKind`.
     ///
     /// **The square must not be part of this.** Identity is what tells SwiftUI
@@ -100,7 +108,7 @@ struct BoardObject: Identifiable, Equatable {
         case .cursorBack: return 1
 
         case .raisedTile: return 0
-        case .pentacle: return 2
+        case .pentacle: return sweeping ? 5 : 2
         case .nexys: return 4
 
         // On the island's square you are on top of it, not beside it.

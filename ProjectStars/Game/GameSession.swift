@@ -180,6 +180,22 @@ final class GameSession {
     /// leaves, and a two-square exit lights two of them on the same beat.
     private(set) var effectBursts: [EffectBurst] = []
 
+    /// Squares the piece is passing over right now, pressed down under it.
+    ///
+    /// Only a slide fills this. A slide crosses ground without landing on it —
+    /// no wear, no dust, no landing checks — which left it looking like the
+    /// piece was gliding over a photograph. The tiles giving slightly as it goes
+    /// is the cheapest way to say *something is moving across this board*
+    /// without claiming any of the consequences a landing would.
+    private(set) var pressedTiles: Set<GridPoint> = []
+
+    /// True while a slide is in progress.
+    ///
+    /// The coin sorts in front of the piece while this holds — a Pentacle the
+    /// slide is about to sweep up should pass over the piece's head, not behind
+    /// it, or it reads as having been missed.
+    private(set) var isSliding = false
+
     /// True while Aries is mid-charge, so the piece burns for the length of the
     /// run rather than for a fixed number of turns afterwards.
     private(set) var isCharging = false
@@ -361,6 +377,8 @@ final class GameSession {
         elementalBurst = nil
         effectBursts = []
         healSparkles = []
+        pressedTiles = []
+        isSliding = false
         isCharging = false
         stingStrike = nil
         pluming = nil
@@ -542,6 +560,7 @@ final class GameSession {
         // Anything lit for the duration of an action goes out with it, however
         // the action ended.
         defer { isCharging = false }
+        defer { isSliding = false }
 
         // Per-move presentation bookkeeping, cleared before anything is drawn.
         crabWalkOrigin = nil
@@ -765,8 +784,10 @@ final class GameSession {
                 await introducePentacle(id)
             }
 
-        case let .pieceSlid(from, _, plane):
+        case let .pieceSlid(from, to, plane):
             leaveAfterimage(at: from, on: plane)
+            isSliding = true
+            pressedTiles.insert(to)
             // No hop pose, no dust, no beat to speak of. The animation runs
             // *longer* than the beat it waits — see `GameRules.slideOverlap` —
             // so each square is still moving when the next starts and the whole
@@ -780,6 +801,9 @@ final class GameSession {
                 engine.apply(event)
             }
             await sleep(event.displayDuration)
+            // Released a beat behind the piece, so the press trails it rather
+            // than snapping back the instant it leaves.
+            releasePressLater(to)
 
         case let .pieceStepped(from, to, plane):
             leaveAfterimage(at: from, on: plane)
@@ -1339,6 +1363,16 @@ extension GameSession {
                 nanoseconds: UInt64(GameRules.healSparkleDuration * 1_000_000_000)
             )
             self?.healSparkles.removeAll { $0.id == sparkle.id }
+        }
+    }
+
+    /// Lets a pressed square come back up, shortly.
+    private func releasePressLater(_ point: GridPoint) {
+        Task { [weak self] in
+            try? await Task.sleep(
+                nanoseconds: UInt64(GameRules.slidePressLinger * 1_000_000_000)
+            )
+            self?.pressedTiles.remove(point)
         }
     }
 
