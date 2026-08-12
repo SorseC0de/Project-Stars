@@ -32,6 +32,19 @@ struct RevealedPickup: Equatable {
     let id: PickupID
     let plane: Plane
     let point: GridPoint
+
+    /// Which coin this *is*, as opposed to which effect it holds.
+    ///
+    /// Two Tears on the board at once are two things; a Tear destroyed and a
+    /// Tear revealed somewhere else a moment later are two different things
+    /// again. Nothing else here can tell those cases apart — `id` is the effect
+    /// and `point` is where it happens to be — and the view layer needs to,
+    /// because an identity it reuses is an identity it *animates between*. That
+    /// is how a destroyed Pentacle came to slide across the board to the next
+    /// glow phase.
+    ///
+    /// Counted rather than randomised so a seeded run stays reproducible.
+    let serial: Int
 }
 
 // MARK: - GameEngine
@@ -127,6 +140,9 @@ struct GameEngine {
     private var airborneThisMove = false
 
     private(set) var moveCount: Int
+
+    /// Hands out `RevealedPickup.serial`. Only ever counts up.
+    private var pickupSerial = 0
     private(set) var pickupsCollected: Int
 
     /// Charge toward the current sign's Zodiaction.
@@ -542,6 +558,21 @@ struct GameEngine {
 
         let planeBefore = sim.piece.plane
         let pointBefore = sim.piece.point
+
+        // A Zodiaction is an action, and every action is one turn. Committed
+        // *first*, with the facing unchanged, because a turn beginning is what
+        // ends the sparkle phase — the coin has to be on the board before a
+        // teleport can land on it.
+        //
+        // Without this a pop was the one thing in the game that happened outside
+        // of time: no move counted, no cooldown ticked, and the glow phase sat
+        // there refusing to become a Pentacle. Reported against Aquarius, true
+        // of all twelve.
+        for reveal in sim.rollPickupReveal(destination: sim.piece.point) {
+            commit(reveal)
+        }
+        commit(.moveCommitted(direction: sim.piece.facing))
+
         commit(.zodiactionFired(zodiac: sim.piece.zodiac, plane: sim.piece.plane))
 
         // Context read into a local first: it reads `sim`, and passing `&sim.rng`
@@ -567,6 +598,7 @@ struct GameEngine {
             if !sim.piece.zodiac.zodiaction.ignoresMeter(context: sim.passiveContext) {
                 commit(.zodiactionMeterChanged(to: 0))
             }
+            events += sim.tickForTurn()
             return events
         }
 
@@ -588,10 +620,26 @@ struct GameEngine {
             commit(.zodiactionMeterChanged(to: 0))
         }
 
+        events += sim.tickForTurn()
+
         // A Zodiaction can change plane too — Taurus flops through Astra, Pisces
         // swims back up — so it owes the same guarantee a move does.
         events += sim.ensurePentacleAvailable(previousPlane: planeBefore)
         return events
+    }
+
+    /// Ages the sign's memory by one turn.
+    ///
+    /// The half of step 6 in `plan(_:)` that is not about direction: a
+    /// Zodiaction advances no streak — it is not a step in any direction — but
+    /// it is a turn, so everything counting turns has to hear about it.
+    private mutating func tickForTurn() -> [GameEvent] {
+        var aged = signState
+        aged.tickTimers()
+        guard aged != signState else { return [] }
+        let event = GameEvent.signStateChanged(aged)
+        apply(event)
+        return [event]
     }
 
     // MARK: - Move queries
@@ -1096,6 +1144,15 @@ struct GameEngine {
             if remaining.isSolid || hovers || airborne {
                 // Coming to rest on somebody else's work claims it.
                 result.events += claimAbandonedWorks()
+
+                // An always-on ability with something to offer asks here — at
+                // rest, so it is looking at where the piece ended up rather than
+                // where it was aimed. The move suspends exactly as a Pentacle's
+                // question does; `planChoice` resumes it.
+                if let offer = piece.zodiac.passives.offersChoice(context: passiveContext) {
+                    commit(.choiceRequested(source: .passive(piece.zodiac), kind: offer))
+                    return result
+                }
 
                 // Coming to rest on the island while it sits on Terra rides it
                 // back up. Checked here — at rest — rather than on entering the
@@ -1664,6 +1721,20 @@ struct GameEngine {
         case let .pickup(id):
             events += sim.applyEffect(PickupCatalog.effect(for: id), choice: result)
 
+        case let .passive(zodiac):
+            // Same shape as a Zodiaction resuming, and the same debt: an
+            // accepted offer moves the piece, and a piece that moved owes a
+            // landing. A declined one produces nothing and settles nothing,
+            // which is correct — it is still standing where it already was.
+            let passiveContext = sim.passiveContext
+            let answer = zodiac.passives.resolveChoice(result, context: passiveContext)
+            for event in answer {
+                if let allowed = sim.sheltered(event) { commit(allowed) }
+            }
+            if !answer.isEmpty, !sim.isGameOver {
+                events += sim.settle(arrivedByFalling: false, wearsOnArrival: false).events
+            }
+
         case let .zodiaction(zodiac):
             // The Zodiaction picks up where it left off, and owes the same
             // settle a coin's effect does: it has almost certainly moved the
@@ -1944,9 +2015,14 @@ struct GameEngine {
         case let .pickupRevealed(id, plane, point):
             // The sparkle phase ends here: the shimmer goes out as the pickup
             // appears.
-            revealedPickups.append(RevealedPickup(id: id, plane: plane, point: point))
+            pickupSerial += 1
+            revealedPickups.append(
+                RevealedPickup(id: id, plane: plane, point: point, serial: pickupSerial)
+            )
             // The tile pops up under it, and from here on the two are separate.
-            raisedTiles.append(RevealedPickup(id: id, plane: plane, point: point))
+            raisedTiles.append(
+                RevealedPickup(id: id, plane: plane, point: point, serial: pickupSerial)
+            )
             sparkles = nil
             pendingPickup = nil
 
@@ -2058,14 +2134,22 @@ struct GameEngine {
             if let index = revealedPickups.firstIndex(where: {
                 $0.plane == plane && $0.point == from
             }) {
-                revealedPickups[index] = RevealedPickup(id: id, plane: plane, point: to)
+                // Same coin, new square — so it keeps its serial and the view
+                // slides it, which is exactly what a pull should look like.
+                revealedPickups[index] = RevealedPickup(
+                    id: id, plane: plane, point: to,
+                    serial: revealedPickups[index].serial
+                )
             }
 
         case let .pickupGathered(id, plane, point):
             // Off the board and onto the piece. The square it popped up from
             // stays raised, to be stamped flat like any other.
             revealedPickups.removeAll { $0.plane == plane && $0.point == point }
-            carriedPickups.append(RevealedPickup(id: id, plane: plane, point: point))
+            pickupSerial += 1
+            carriedPickups.append(
+                RevealedPickup(id: id, plane: plane, point: point, serial: pickupSerial)
+            )
 
         case let .arrowPlanted(plane, point):
             signState.arrow = SignState.Arrow(

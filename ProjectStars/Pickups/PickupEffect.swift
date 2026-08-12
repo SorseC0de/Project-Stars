@@ -79,6 +79,13 @@ enum PickupChoice: Equatable {
 
     /// Pick one of the Pentacles in Capricorn's purse. See `ShopBarView`.
     case shop
+
+    /// Pick one of a named handful of squares, or none of them.
+    ///
+    /// Unlike `tile`, this one may be **declined**: it is an offer rather than a
+    /// question, and a passive that fires on arrival cannot be allowed to trap
+    /// the player into moving. Aquarius' Corner Current is the first.
+    case among([GridPoint])
 }
 
 /// What the player answered.
@@ -88,6 +95,10 @@ enum PickupChoiceResult: Equatable {
 
     /// A Pentacle bought back out of the purse.
     case item(PickupID)
+
+    /// The player was offered something and said no. Only `PickupChoice.among`
+    /// can produce this; everything else must be answered.
+    case declined
 }
 
 // MARK: - PickupContext

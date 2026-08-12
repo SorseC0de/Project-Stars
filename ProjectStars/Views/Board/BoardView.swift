@@ -507,11 +507,16 @@ struct BoardView: View {
 
         // Two objects at two places: the coin can be dragged off the tile that
         // popped up for it, and the tile stays where it is.
-        for (slot, raised) in session.visibleRaisedTiles.enumerated() {
-            objects.append(BoardObject(kind: .raisedTile, point: raised.point, slot: slot))
+        //
+        // Slotted by the coin's own serial rather than by its position in the
+        // list. With two coins out, taking one renumbers the other — and a view
+        // whose identity is reused for a different coin *travels* to it, which
+        // is how a destroyed Pentacle appeared to fly to the next glow phase.
+        for raised in session.visibleRaisedTiles {
+            objects.append(BoardObject(kind: .raisedTile, point: raised.point, slot: raised.serial))
         }
-        for (slot, pickup) in session.visiblePickups.enumerated() {
-            objects.append(BoardObject(kind: .pentacle, point: pickup.point, slot: slot))
+        for pickup in session.visiblePickups {
+            objects.append(BoardObject(kind: .pentacle, point: pickup.point, slot: pickup.serial))
         }
         if session.engine.nexysPlane == plane {
             objects.append(BoardObject(kind: .nexys, point: GameRules.nexysPoint))

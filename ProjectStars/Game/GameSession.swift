@@ -1570,7 +1570,28 @@ extension GameSession {
     }
 
     /// True while the player is being asked to pick a square on the board.
-    var isChoosingTile: Bool { pendingPickupChoice?.kind == .tile }
+    var isChoosingTile: Bool {
+        switch pendingPickupChoice?.kind {
+        case .tile, .among: true
+        default: false
+        }
+    }
+
+    /// The squares that would be a legal answer, or `nil` when every square is.
+    ///
+    /// `PickupChoice.tile` deliberately allows anything, holes included — see
+    /// `TileChoiceOverlay`. `PickupChoice.among` names its handful.
+    var choosableTiles: [GridPoint]? {
+        if case let .among(points) = pendingPickupChoice?.kind { return points }
+        return nil
+    }
+
+    /// True when the outstanding question is an offer the player may walk away
+    /// from rather than one they must answer.
+    var choiceIsDeclinable: Bool {
+        if case .among = pendingPickupChoice?.kind { return true }
+        return false
+    }
 
     /// True while the player is being asked to pick a sign.
     var isChoosingPiece: Bool { pendingPickupChoice?.kind == .piece }

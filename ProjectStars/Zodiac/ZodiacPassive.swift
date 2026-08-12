@@ -258,6 +258,22 @@ protocol ZodiacPassive {
     /// being on Astra. Returns pips, and may be negative. Default: `0`.
     func meterBonus(from move: MoveSummary, context: PassiveContext) -> Int
 
+    /// An offer this passive wants to make now that the piece has come to rest.
+    ///
+    /// Returns `nil` — the overwhelming majority — when there is nothing to
+    /// offer. A returned `PickupChoice.among` suspends the move and asks; the
+    /// answer comes back to `resolveChoice(_:context:)`.
+    ///
+    /// Asked only once the landing is settled, so the passive is looking at
+    /// where the piece actually ended up rather than where it was headed.
+    func offersChoice(context: PassiveContext) -> PickupChoice?
+
+    /// What the player's answer to `offersChoice` produces.
+    ///
+    /// Return an empty array for a declined offer, or for an answer this passive
+    /// does not recognise.
+    func resolveChoice(_ choice: PickupChoiceResult, context: PassiveContext) -> [GameEvent]
+
     /// Whether an opened Pentacle should be banked rather than set off.
     ///
     /// Capricorn's Celestial Commerce alone. The engine puts the coin in
@@ -434,6 +450,13 @@ extension ZodiacPassive {
         nil
     }
 
+    func offersChoice(context: PassiveContext) -> PickupChoice? { nil }
+
+    func resolveChoice(
+        _ choice: PickupChoiceResult,
+        context: PassiveContext
+    ) -> [GameEvent] { [] }
+
     func banksPickups(_ id: PickupID, context: PassiveContext) -> Bool { false }
 
     func meterBonus(from move: MoveSummary, context: PassiveContext) -> Int {
@@ -597,6 +620,27 @@ extension Array where Element == any ZodiacPassive {
 
     func banksPickups(_ id: PickupID, context: PassiveContext) -> Bool {
         contains { $0.banksPickups(id, context: context) }
+    }
+
+    /// The first offer anyone wants to make. One at a time on purpose: two
+    /// questions stacked on a single landing is a queue the replay has no way
+    /// to express, and no sign has ever needed it.
+    func offersChoice(context: PassiveContext) -> PickupChoice? {
+        for passive in self {
+            if let offer = passive.offersChoice(context: context) { return offer }
+        }
+        return nil
+    }
+
+    func resolveChoice(
+        _ choice: PickupChoiceResult,
+        context: PassiveContext
+    ) -> [GameEvent] {
+        for passive in self {
+            let events = passive.resolveChoice(choice, context: context)
+            if !events.isEmpty { return events }
+        }
+        return []
     }
 
     func stateAfterPreventingFall(context: PassiveContext) -> SignState? {

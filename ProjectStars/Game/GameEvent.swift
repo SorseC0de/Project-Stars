@@ -15,6 +15,11 @@ import Foundation
 enum ChoiceSource: Equatable, Hashable {
     case pickup(PickupID)
     case zodiaction(Zodiac)
+
+    /// An always-on ability that offers something on arrival — Aquarius' Corner
+    /// Current. Distinct from `zodiaction` because the player did not press
+    /// anything to be asked, which is exactly why these offers can be declined.
+    case passive(Zodiac)
 }
 
 
