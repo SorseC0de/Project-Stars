@@ -49,6 +49,24 @@ final class GameSession {
         zodiactionMeter = engine.zodiactionMeter
         zodiactionMeterMax = engine.zodiactionMeterMax
         isZodiactionReady = engine.isZodiactionReady
+        purse = engine.signState.purse
+    }
+
+    /// What Capricorn has banked, oldest first. Empty for every other sign.
+    private(set) var purse: [PickupID] = []
+
+    /// A coin on its way from its tile down to the shop strip.
+    ///
+    /// One at a time: only one Pentacle is ever open at once, so there is never
+    /// a second arc to draw.
+    private(set) var bankArc: BankArc?
+
+    /// A banked coin in flight. See `BankArcView`.
+    struct BankArc: Equatable {
+        let id: PickupID
+        let from: GridPoint
+        let plane: Plane
+        let start: Date
     }
 
     /// What the session is currently doing.
@@ -184,6 +202,22 @@ final class GameSession {
     /// Real positions, not interpolated ones — see `AfterimageView` for why that
     /// is the whole difference between an afterimage and a smear.
     private(set) var afterimages: [Afterimage] = []
+
+    /// True while a move is playing out and the board should be left alone.
+    ///
+    /// A multi-tile move is *one* turn, and a long slide reads as several unless
+    /// the board says otherwise — so for as long as one is resolving, the tiles
+    /// dim and the ambient motion holds still. What is doing the moving stays
+    /// lit: the piece, the coins, and the move's own effects.
+    var isResolvingAction: Bool { phase == .resolvingMove }
+
+    /// The instant the current action began, for anything that should hold its
+    /// pose until the action finishes.
+    ///
+    /// Ambient art is a function of the wall clock, so freezing it means handing
+    /// it a clock that has stopped rather than asking it to stop — which keeps
+    /// every one of those views a pure function of a timestamp, as they all are.
+    private(set) var ambientFreeze: TimeInterval?
 
     /// One square the piece was on, and when it left.
     struct Afterimage: Identifiable, Equatable {
@@ -472,6 +506,9 @@ final class GameSession {
     private func replay(_ events: [GameEvent]) async {
         defer { publish() }
 
+        ambientFreeze = Date.now.timeIntervalSinceReferenceDate
+        defer { ambientFreeze = nil }
+
         // Per-move presentation bookkeeping, cleared before anything is drawn.
         crabWalkOrigin = nil
         pluming = nil
@@ -592,6 +629,21 @@ final class GameSession {
             }
             await sleep(event.displayDuration)
 
+        case let .pickupBanked(id, plane, point):
+            // The coin does not go off, it goes *away*. The arc is the whole
+            // animation, and the only thing telling the player where it went.
+            pentacleBanner = id
+            bankArc = BankArc(id: id, from: point, plane: plane, start: .now)
+            engine.apply(event)
+            await sleep(event.displayDuration)
+            bankArc = nil
+
+        case let .pickupSpent(id):
+            // Bought back out. The banner names it for the same reason opening
+            // one does: this is the moment the player finds out what it does.
+            pentacleBanner = id
+            engine.apply(event)
+
         case let .pickupCollected(id, plane, point):
             lastCollectedPickup = id
             pentacleBanner = id
@@ -657,7 +709,12 @@ final class GameSession {
             // *longer* than the beat it waits — see `GameRules.slideOverlap` —
             // so each square is still moving when the next starts and the whole
             // sweep is one continuous slide rather than a row of short ones.
-            withAnimation(.linear(duration: event.displayDuration * GameRules.slideOverlap)) {
+            //
+            // Smooth rather than linear: the sweep is one movement now, and one
+            // movement should ease out of its start and into its end. The
+            // overlap is what keeps the squares from showing as separate steps
+            // in between.
+            withAnimation(.smooth(duration: event.displayDuration * GameRules.slideOverlap)) {
                 engine.apply(event)
             }
             await sleep(event.displayDuration)
@@ -1436,6 +1493,15 @@ extension GameSession {
 
     /// True while the player is being asked to pick a sign.
     var isChoosingPiece: Bool { pendingPickupChoice?.kind == .piece }
+
+    /// True while Sagittarius has an arrow in the ground waiting to be recalled.
+    ///
+    /// The Zodiaction button reads this: with an arrow out the button is no
+    /// longer charging anything, it is a recall, and it says so.
+    var arrowIsPlanted: Bool { engine.signState.arrow != nil }
+
+    /// True while Capricorn's shop strip is open.
+    var isChoosingShop: Bool { pendingPickupChoice?.kind == .shop }
 
     /// The distances available along the drag in progress, nearest first.
     ///

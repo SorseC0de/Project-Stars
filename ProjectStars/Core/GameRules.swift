@@ -1107,6 +1107,37 @@ enum GameRules {
     static let pickupCollectDuration: TimeInterval = 0.20
 
     // ──────────────────────────────────────────────────────────────────────
+    // MARK: - Capricorn's purse
+    //
+    // Celestial Commerce banks a Pentacle instead of opening it, and Cosmic
+    // Cash-in spends it. See `CapricornCelestialCommerce` and `ShopBarView`.
+
+    /// How long the coin takes to travel from its tile down to the shop strip.
+    ///
+    /// Long enough to be followed by eye — the arc is the only thing that says
+    /// *where the coin went*, and a bank that happened instantly would read as a
+    /// Pentacle that fizzled.
+    static let pickupBankDuration: TimeInterval = 0.42
+
+    /// How many motes of earth-light ride the arc.
+    static let bankSparkCount = 7
+
+    /// How high the arc bows above the straight line between tile and strip,
+    /// as a fraction of the distance travelled.
+    static let bankArcHeight: CGFloat = 0.28
+
+    /// Radius of one mote, in tiles.
+    static let bankSparkSize: CGFloat = 0.09
+
+    /// Capricorn's purse, in Pentacles, on each plane.
+    ///
+    /// Lower on Terra: the earth sign is at home down there, so the price of
+    /// being at home is a smaller ceiling. Costing the cap rather than the fill
+    /// rate keeps every individual coin worth the same.
+    static let capricornPurseAstra = 10
+    static let capricornPurseTerra = 8
+
+    // ──────────────────────────────────────────────────────────────────────
     // MARK: - Sparkles
     //
     // The shimmer on candidate tiles. Drawn rather than sprited — see
@@ -1414,6 +1445,14 @@ enum GameRules {
     /// slides on the strength of it, and because "how much ground a move costs"
     /// is the question the whole game is balanced around.
     static let slideWearsEndsOnly = true
+
+    /// How far the board darkens while a move plays out.
+    ///
+    /// A long slide or a leap is one turn, and without this it reads as several
+    /// — the eye counts squares. Dimming the ground for the duration says the
+    /// board is mid-thought, and leaving the piece, the coins and the move's own
+    /// effects undimmed says which part of it is the thought.
+    static let actionDim: Double = 0.10
 
     /// How many squares a hop must cover to count as a leap worth drawing —
     /// Sagittarius' full bound rather than any long step.

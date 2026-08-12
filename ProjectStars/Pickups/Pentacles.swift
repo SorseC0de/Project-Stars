@@ -474,7 +474,10 @@ struct AstralBlossomEffect: PickupEffect {
             // rebuild what has already fallen through.
             guard tile.canBeRepaired, !tile.health.isHole else { continue }
 
-            changes[point] = tile.health.healed
+            // Fully, not by a stage. The Blaze it mirrors takes a tile most of
+            // the way to a hole in one go, and a repair worth crossing the board
+            // for has to answer that rather than nudge it.
+            changes[point] = .healthy
         }
 
         guard !changes.isEmpty else { return [] }

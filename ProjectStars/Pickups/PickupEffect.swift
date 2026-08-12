@@ -76,12 +76,18 @@ enum PickupChoice: Equatable {
 
     /// Pick one of the twelve signs.
     case piece
+
+    /// Pick one of the Pentacles in Capricorn's purse. See `ShopBarView`.
+    case shop
 }
 
 /// What the player answered.
 enum PickupChoiceResult: Equatable {
     case tile(GridPoint)
     case piece(Zodiac)
+
+    /// A Pentacle bought back out of the purse.
+    case item(PickupID)
 }
 
 // MARK: - PickupContext

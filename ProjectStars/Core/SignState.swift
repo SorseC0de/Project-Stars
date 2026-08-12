@@ -39,6 +39,7 @@ import Foundation
 /// | `buffs`      | yes                     | no                      |
 /// | `planeFlags` | **no**                  | no                      |
 /// | `runFlags`   | yes                     | **yes**¹                |
+/// | `purse`      | yes                     | no                      |
 ///
 /// ¹ Scorpio's Samsaric Shed is explicitly refreshed by changing pieces, so `runFlags` is
 /// the one scope a piece change *does* wipe. See `clearedForPieceChange`.
@@ -92,6 +93,18 @@ struct SignState: Equatable {
 
     /// Keyed one-shots that last the whole run.
     var runFlags: Set<String> = []
+
+    // MARK: Purse
+
+    /// Pentacles Capricorn has banked instead of opening, oldest first.
+    ///
+    /// Only Celestial Commerce fills it, and only Cosmic Cash-in empties it. It
+    /// is a list rather than a set because two Tears banked are two Tears to
+    /// spend — quantity is the whole point of a purse.
+    ///
+    /// It survives a plane change (the money is in your pocket, not on the
+    /// board) and not a piece change, since nobody else can spend it.
+    var purse: [PickupID] = []
 
     // MARK: Tile memory
 

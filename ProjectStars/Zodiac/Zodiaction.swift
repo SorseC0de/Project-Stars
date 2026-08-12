@@ -36,6 +36,13 @@ protocol Zodiaction {
     /// Meter required to fire.
     var meterMax: Int { get }
 
+    /// Meter required to fire *on this plane*.
+    ///
+    /// Defaults to `meterMax`, which is right for eleven signs. Capricorn's
+    /// purse is smaller on Terra, and a cap that moves with the plane is the
+    /// only way to say that — a flat number cannot.
+    func meterMax(on plane: Plane) -> Int
+
     /// How much meter the move that just resolved was worth.
     ///
     /// **Required — there is deliberately no default.** There is no universal
@@ -102,6 +109,8 @@ protocol Zodiaction {
 
 extension Zodiaction {
     var meterMax: Int { GameRules.defaultZodiactionMeterMax }
+
+    func meterMax(on plane: Plane) -> Int { meterMax }
 
     func canActivate(context: PassiveContext) -> Bool { true }
 

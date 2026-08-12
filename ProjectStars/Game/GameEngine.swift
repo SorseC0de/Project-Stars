@@ -155,7 +155,7 @@ struct GameEngine {
     var currentBoard: Board { self[piece.plane] }
 
     /// Pips needed to pop the current sign's Zodiaction.
-    var zodiactionMeterMax: Int { piece.zodiac.zodiaction.meterMax }
+    var zodiactionMeterMax: Int { piece.zodiac.zodiaction.meterMax(on: piece.plane) }
 
     /// True when the Zodiaction can be popped right now.
     var isZodiactionReady: Bool {
@@ -1511,6 +1511,19 @@ struct GameEngine {
             commit(.pickupDestroyed(id: other.id, plane: other.plane, point: other.point))
         }
 
+        // Capricorn does not open coins, it banks them — the effect never runs
+        // and the contents are spent later through Cosmic Cash-in. Z-Charge is
+        // the exception the design names: charge cannot be stored as charge, so
+        // it goes off like anyone else's.
+        if pickup.id != .zCharge,
+           piece.zodiac.passives.banksPickups(pickup.id, context: passiveContext) {
+            var state = signState
+            state.purse.append(pickup.id)
+            commit(.signStateChanged(state))
+            commit(.pickupBanked(id: pickup.id, plane: pickup.plane, point: pickup.point))
+            return (true, pickup.id, events)
+        }
+
         let effect = PickupCatalog.effect(for: pickup.id)
 
         // Effects that need an answer park here. The session collects it and
@@ -1622,6 +1635,30 @@ struct GameEngine {
 
         let planeBefore = sim.piece.plane
         commit(.choiceResolved)
+
+        // Buying from the purse is not a question any one sign answers — it is
+        // a Pentacle being opened late, so it is run here rather than inside
+        // Cosmic Cash-in, which has no way to reach `applyEffect`.
+        if case let .item(id) = result {
+            if let index = sim.signState.purse.firstIndex(of: id) {
+                var state = sim.signState
+                state.purse.remove(at: index)
+                commit(.signStateChanged(state))
+            }
+            commit(.pickupSpent(id: id))
+
+            let effect = PickupCatalog.effect(for: id)
+            // A banked coin that still owes a question asks it now, through the
+            // ordinary pickup path — buying an Astral Breeze should feel like
+            // opening one.
+            if effect.choice != .none {
+                commit(.choiceRequested(source: .pickup(id), kind: effect.choice))
+                return events
+            }
+            events += sim.applyEffect(effect, choice: nil)
+            events += sim.ensurePentacleAvailable(previousPlane: planeBefore)
+            return events
+        }
 
         switch pending.source {
         case let .pickup(id):
@@ -2000,6 +2037,12 @@ struct GameEngine {
                 pendingPickup = nil
                 sparkles = nil
             }
+
+        // The purse itself moves through `signStateChanged`; these two are
+        // announcements, so the strip and the arc of light have something to
+        // animate off.
+        case .pickupBanked, .pickupSpent:
+            break
 
         case let .pickupCollected(_, plane, point):
             raisedTiles.removeAll { $0.plane == plane && $0.point == point }

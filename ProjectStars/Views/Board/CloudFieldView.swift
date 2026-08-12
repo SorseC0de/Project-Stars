@@ -55,6 +55,13 @@ struct CloudFieldView: View {
     /// Squares flashing because they just changed state.
     var flashing: Set<GridPoint> = []
 
+    /// A stopped clock, while a move plays out.
+    ///
+    /// Handed a time rather than told to stop: every cluster is a pure function
+    /// of a timestamp, so freezing them is a matter of passing the same one
+    /// twice. See `GameSession.ambientFreeze`.
+    var freeze: TimeInterval?
+
     /// The raised squares, which draw themselves. See the note above.
     var excluding: Set<GridPoint> = []
 
@@ -73,7 +80,7 @@ struct CloudFieldView: View {
         TimelineView(
             .animation(minimumInterval: 1 / GameRules.cloudFrameRate, paused: isPaused)
         ) { timeline in
-            let now = timeline.date.timeIntervalSinceReferenceDate
+            let now = freeze ?? timeline.date.timeIntervalSinceReferenceDate
 
             Canvas { context, _ in
                 for point in board.allPoints {

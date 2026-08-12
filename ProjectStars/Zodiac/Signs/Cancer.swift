@@ -61,20 +61,20 @@ extension ZodiacCatalog {
 struct CancerCrabtitude: ZodiacPassive {
 
     let displayName = "Crabtitude"
-    let summary = "Terra: +1 charge for a full 2-tile sidestep. Astra: +1 for any sidestep."
+    let summary = "Astra: +1 charge for a seafoam scuttle. Terra: none."
 
     func meterBonus(from move: MoveSummary, context: PassiveContext) -> Int {
         // Sideways is measured against the facing the piece had *before* the
         // move, which is what `MoveSummary.direction` versus the facing it
         // turned to would confuse — so compare the travelled axis to the axis of
         // the square it started on instead.
-        let travelled = move.origin.manhattanDistance(to: move.destination)
-        guard move.wasSideways else { return 0 }
-
-        switch move.endingPlane {
-        case .astra: return travelled >= 1 ? 1 : 0
-        case .terra: return travelled >= 2 ? 1 : 0
+        guard move.wasSideways, move.origin.manhattanDistance(to: move.destination) >= 2 else {
+            return 0
         }
+
+        // Astra only. The scuttle is a slide now and covers two squares for one
+        // turn's wear, which is payment enough on the plane Cancer is weak on.
+        return move.endingPlane == .astra ? 1 : 0
     }
 }
 

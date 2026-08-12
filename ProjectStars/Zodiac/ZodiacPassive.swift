@@ -257,6 +257,13 @@ protocol ZodiacPassive {
     /// itself — Aries pays for a streak, Leo for falling, Pisces simply for
     /// being on Astra. Returns pips, and may be negative. Default: `0`.
     func meterBonus(from move: MoveSummary, context: PassiveContext) -> Int
+
+    /// Whether an opened Pentacle should be banked rather than set off.
+    ///
+    /// Capricorn's Celestial Commerce alone. The engine puts the coin in
+    /// `SignState.purse` and skips its effect entirely; Z-Charge is exempt at
+    /// the engine, since charge cannot be saved as charge. Default: false.
+    func banksPickups(_ id: PickupID, context: PassiveContext) -> Bool
 }
 
 // MARK: - WearTiming
@@ -427,6 +434,8 @@ extension ZodiacPassive {
         nil
     }
 
+    func banksPickups(_ id: PickupID, context: PassiveContext) -> Bool { false }
+
     func meterBonus(from move: MoveSummary, context: PassiveContext) -> Int {
         0
     }
@@ -584,6 +593,10 @@ extension Array where Element == any ZodiacPassive {
 
     func meterBonus(from move: MoveSummary, context: PassiveContext) -> Int {
         reduce(0) { $0 + $1.meterBonus(from: move, context: context) }
+    }
+
+    func banksPickups(_ id: PickupID, context: PassiveContext) -> Bool {
+        contains { $0.banksPickups(id, context: context) }
     }
 
     func stateAfterPreventingFall(context: PassiveContext) -> SignState? {

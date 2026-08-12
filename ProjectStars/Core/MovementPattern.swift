@@ -216,7 +216,10 @@ struct MovementPattern: Equatable {
         name: "Sidestep",
         options: [
             MoveOption(.any, distance: 1),
-            MoveOption(.relative(.sideways), distance: 2),
+            // A slide, and only ever the full two: one square sideways is just
+            // a step, and offering it as a separate option asked the player to
+            // choose between two things that do the same thing.
+            MoveOption(.relative(.sideways), distance: 2, style: .slide),
         ]
     )
 

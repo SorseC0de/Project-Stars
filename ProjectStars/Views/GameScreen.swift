@@ -51,7 +51,20 @@ struct GameScreen: View {
 
                     // What you just opened, on every pickup rather than only the
                     // first. Pinned low so it never covers the piece.
-                    if let banner = session.pentacleBanner {
+                    //
+                    // The shop takes the same slot, and outranks it: the strip
+                    // is waiting on an answer, the banner is only telling you
+                    // something. Neither ever covers the board.
+                    if session.isChoosingShop {
+                        ShopBarView(
+                            purse: session.purse,
+                            accent: session.zodiac.definition.accentColor
+                        ) { id in
+                            session.resolvePickupChoice(.item(id))
+                        }
+                        .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .bottom)
+                        .padding(.bottom, 6)
+                    } else if let banner = session.pentacleBanner {
                         PentacleBannerView(id: banner)
                             .padding(.horizontal, 10)
                             .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .bottom)
@@ -92,6 +105,7 @@ struct GameScreen: View {
         .animation(.easeInOut(duration: 0.25), value: session.pentacleIntro)
         .animation(.easeInOut(duration: 0.2), value: session.isPaused)
         .animation(.spring(response: 0.35, dampingFraction: 0.85), value: session.pentacleBanner)
+        .animation(.spring(response: 0.32, dampingFraction: 0.82), value: session.isChoosingShop)
         .statusBarHidden()
     }
 

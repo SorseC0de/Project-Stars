@@ -26,7 +26,7 @@ extension ZodiacCatalog {
         passives: [
             GeminiMirroredMending(),
             GeminiReflectiveRifts(),
-            GeminiSplitSoul(),
+            GeminiSoulSplit(),
         ],
         zodiaction: GeminiMirroredMandate(),
         constellation: ZodiacCatalog.geminiConstellation
@@ -155,7 +155,7 @@ struct GeminiReflectiveRifts: ZodiacPassive {
     }
 }
 
-// MARK: - Passive 3: Split Soul
+// MARK: - Passive 3: Soul Split
 
 /// Falling from Astra splits Gemini in two: half drops to Terra, half stays
 /// above, and the player controls them on alternating turns.
@@ -174,8 +174,8 @@ struct GeminiReflectiveRifts: ZodiacPassive {
 ///   Sub-passive **Sibling Soul** rides on the same machinery: when one half
 ///   falls from Astra straight into a Terra hole, it does not die. The soul
 ///   rises, is absorbed by the half still on Astra, and grants half a meter.
-struct GeminiSplitSoul: ZodiacPassive {
-    let displayName = "Split Soul"
+struct GeminiSoulSplit: ZodiacPassive {
+    let displayName = "Soul Split"
     let summary = "Falling from Astra splits you in two, controlled on alternating turns. (Not yet implemented.)"
 }
 
@@ -195,7 +195,7 @@ struct GeminiMirroredMandate: Zodiaction {
     let summary = "Astra & Terra: the right half of the board becomes a mirror of the left. On Terra it also tears a single-use set of rifts."
 
     /// - TODO: Gemini's charge is specified to come from rejoining the two
-    ///   halves of Split Soul, which does not exist yet. Until it does, Gemini
+    ///   halves of Soul Split, which does not exist yet. Until it does, Gemini
     ///   can only charge from Pentacles.
     func meterGain(from move: MoveSummary, context: PassiveContext) -> Int { 0 }
 

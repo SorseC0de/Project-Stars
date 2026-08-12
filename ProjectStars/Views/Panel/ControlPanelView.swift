@@ -236,6 +236,16 @@ enum PanelStyle {
     static let meterPipCorner: CGFloat = 2
     static let meterEmptyOpacity: Double = 0.22
 
+    /// Capricorn's meter, drawn as coins. Ten of them on Astra, so they are
+    /// small — but round and rimmed, which is enough to read as money at a
+    /// glance and to be counted without reading anything.
+    static let meterCoinSize: CGFloat = 11
+    static let meterCoinSpacing: CGFloat = 3
+    static let meterCoinRim: CGFloat = 1.5
+
+    /// The bow, for Sagittarius' recall.
+    static let zodiactionRecallGlyphSize: CGFloat = 34
+
     /// The breath the button takes while it is ready to fire.
     ///
     /// A slow pulse rather than a flash: the meter being full is a standing
@@ -1090,20 +1100,32 @@ struct ZodiactionButton: View {
         // key, which is where it was previously found lagging.
         let ready = session.isZodiactionReady
         let element = ElementFX.ramp(for: session.zodiac.element)
+        let recall = session.arrowIsPlanted
 
         TimelineView(.animation) { timeline in
             CelButton(
-                tint: ready ? Palette.yellow : Palette.stone,
-                isEnabled: ready && session.acceptsInput
+                tint: recall ? Palette.red : (ready ? Palette.yellow : Palette.stone),
+                // Availability decides the colour; the move in progress decides
+                // only whether a touch lands. Tying both to `acceptsInput` made
+                // this flash grey on every step of every move.
+                isEnabled: ready || recall,
+                acceptsTouch: session.acceptsInput
             ) {
                 Haptics.zodiaction()
                 session.fireZodiaction()
             } label: {
-                label(charged: element.mid)
+                if recall { recallLabel } else { label(charged: element.mid) }
             }
             .frame(height: PanelStyle.zodiactionButtonHeight)
             .background {
-                if ready { readyGlow(element.bright, at: timeline.date) }
+                // The recall bloom does not breathe. A ready-pulse means *this
+                // is available now*; the arrow being out is a state, and a state
+                // that pulses reads as a second thing being offered.
+                if recall {
+                    staticGlow(Palette.red)
+                } else if ready {
+                    readyGlow(element.bright, at: timeline.date)
+                }
             }
         }
     }
@@ -1130,24 +1152,64 @@ struct ZodiactionButton: View {
         .padding(.horizontal, PanelStyle.zodiactionLabelInset)
     }
 
+    /// What the button becomes while an arrow is in the ground.
+    ///
+    /// No words and no meter, because neither is true any more: the shot is
+    /// paid for, nothing is charging, and the only thing the button does now is
+    /// call it back. A bow says that in less space than a sentence would.
+    private var recallLabel: some View {
+        Image(systemName: "figure.archery")
+            .font(.system(size: PanelStyle.zodiactionRecallGlyphSize, weight: .black))
+            .foregroundStyle(Palette.warmBlack)
+    }
+
     /// Pips rather than a bar: the meter is a whole number of charges and the
     /// player counts them, which a continuous fill hides.
     ///
     /// Charged pips take the sign's element, so the meter says *whose* charge it
     /// is as well as how much — the same colour the piece wears when full.
+    ///
+    /// Capricorn counts Pentacles rather than deeds, so its meter is drawn as
+    /// coins. Same variable, same maths — see `CapricornCelestialCommerce`.
+    @ViewBuilder
     private func meter(charged: Color) -> some View {
         let filled = session.zodiactionMeter
 
-        return HStack(spacing: PanelStyle.meterPipSpacing) {
-            ForEach(0..<session.zodiactionMeterMax, id: \.self) { index in
-                RoundedRectangle(cornerRadius: PanelStyle.meterPipCorner)
-                    .fill(index < filled
-                        ? charged
-                        : Palette.warmBlack.opacity(PanelStyle.meterEmptyOpacity))
-                    .frame(height: PanelStyle.meterPipHeight)
+        if session.zodiac == .capricorn {
+            HStack(spacing: PanelStyle.meterCoinSpacing) {
+                ForEach(0..<session.zodiactionMeterMax, id: \.self) { index in
+                    Circle()
+                        .fill(index < filled
+                            ? Palette.pentacle
+                            : Palette.warmBlack.opacity(PanelStyle.meterEmptyOpacity))
+                        .overlay {
+                            // A rim only on the coins that are actually there,
+                            // so an empty slot stays a hole rather than becoming
+                            // a second, duller coin.
+                            if index < filled {
+                                Circle().strokeBorder(
+                                    Palette.pentacleEdge,
+                                    lineWidth: PanelStyle.meterCoinRim
+                                )
+                            }
+                        }
+                        .frame(width: PanelStyle.meterCoinSize,
+                               height: PanelStyle.meterCoinSize)
+                }
             }
+            .animation(.easeOut(duration: 0.18), value: filled)
+        } else {
+            HStack(spacing: PanelStyle.meterPipSpacing) {
+                ForEach(0..<session.zodiactionMeterMax, id: \.self) { index in
+                    RoundedRectangle(cornerRadius: PanelStyle.meterPipCorner)
+                        .fill(index < filled
+                            ? charged
+                            : Palette.warmBlack.opacity(PanelStyle.meterEmptyOpacity))
+                        .frame(height: PanelStyle.meterPipHeight)
+                }
+            }
+            .animation(.easeOut(duration: 0.18), value: filled)
         }
-        .animation(.easeOut(duration: 0.18), value: filled)
     }
 
     /// The breath: a blurred copy of the button's own shape, behind it.
@@ -1165,6 +1227,15 @@ struct ZodiactionButton: View {
             .fill(colour)
             .blur(radius: PanelStyle.readyGlowRadius)
             .opacity(strength)
+            .allowsHitTesting(false)
+    }
+
+    /// The same bloom, held still. See `body` for why it does not breathe.
+    private func staticGlow(_ colour: Color) -> some View {
+        RoundedRectangle(cornerRadius: PanelStyle.buttonCorner)
+            .fill(colour)
+            .blur(radius: PanelStyle.readyGlowRadius)
+            .opacity(PanelStyle.readyGlowMax)
             .allowsHitTesting(false)
     }
 }
@@ -1191,6 +1262,15 @@ struct CelButton<Label: View>: View {
     var tint: Color = Palette.gold
     var depth: CGFloat = PanelStyle.buttonDepth
     var isEnabled: Bool = true
+
+    /// Whether a touch would land *right now*.
+    ///
+    /// Separate from `isEnabled` because they answer different questions. A
+    /// button is disabled when the thing it does is unavailable, and it goes
+    /// grey to say so. It merely stops taking touches while a move is playing
+    /// out — and greying for that made the Zodiaction button flash grey and back
+    /// to gold on every single step, which read as the charge draining.
+    var acceptsTouch: Bool = true
 
     let action: () -> Void
     @ViewBuilder let label: () -> Label
@@ -1226,15 +1306,15 @@ struct CelButton<Label: View>: View {
         }
         .animation(.easeOut(duration: PanelStyle.buttonPressDuration), value: isPressed)
         .contentShape(Rectangle())
-        .onTapGesture { if isEnabled { action() } }
+        .onTapGesture { if isEnabled, acceptsTouch { action() } }
         // A press has to show the instant the finger lands, which a tap gesture
         // alone cannot do — it only reports once the tap completes.
         .simultaneousGesture(
             DragGesture(minimumDistance: 0)
-                .onChanged { _ in if isEnabled { isPressed = true } }
+                .onChanged { _ in if isEnabled, acceptsTouch { isPressed = true } }
                 .onEnded { _ in isPressed = false }
         )
-        .disabled(!isEnabled)
+        .disabled(!isEnabled || !acceptsTouch)
     }
 }
 

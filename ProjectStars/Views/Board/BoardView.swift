@@ -39,6 +39,10 @@ struct BoardView: View {
             edgeLayer(board: board, plane: plane, metrics: metrics)
             faceLayer(board: board, plane: plane, metrics: metrics)
 
+            // Over the ground, under everything that moves: the piece, the
+            // coins and the move's own effects all sit above this and stay lit.
+            actionDim(metrics: metrics)
+
             sanctuary(plane: plane, metrics: metrics)
             sun(metrics: metrics)
             arrow(metrics: metrics)
@@ -80,6 +84,7 @@ struct BoardView: View {
             collectBurst(metrics: metrics)
             elementalBurst(metrics: metrics)
             effectBurst(metrics: metrics)
+            bankArc(metrics: metrics)
 
             // Hides the instant the planes swap during an ascent.
             Rectangle()
@@ -100,6 +105,35 @@ struct BoardView: View {
     }
 
     // MARK: - Board layers
+
+    /// Capricorn's takings, on their way off the board.
+    ///
+    /// Aimed at the bottom edge rather than at the strip's real position: the
+    /// strip is not on screen when a coin is banked, and the point of the arc is
+    /// that the money went *down there*. See `BankArcView`.
+    @ViewBuilder
+    private func bankArc(metrics: PixelArtMetrics) -> some View {
+        if let arc = session.bankArc, arc.plane == session.visiblePlane {
+            BankArcView(
+                from: metrics.center(of: arc.from),
+                to: CGPoint(x: metrics.boardSize / 2, y: metrics.boardSize),
+                start: arc.start,
+                tileSize: metrics.tileSize
+            )
+            .frame(width: metrics.boardSize, height: metrics.boardSize)
+        }
+    }
+
+    /// The wash that says the board is mid-move.
+    @ViewBuilder
+    private func actionDim(metrics: PixelArtMetrics) -> some View {
+        Rectangle()
+            .fill(Palette.coolBlack)
+            .frame(width: metrics.boardSize, height: metrics.boardSize)
+            .opacity(session.isResolvingAction ? GameRules.actionDim : 0)
+            .animation(.easeOut(duration: 0.14), value: session.isResolvingAction)
+            .allowsHitTesting(false)
+    }
 
     /// The plane's background, when there is art for it.
     ///
@@ -150,6 +184,7 @@ struct BoardView: View {
                     board: board,
                     metrics: metrics,
                     flashing: session.flashingTiles,
+                    freeze: session.ambientFreeze,
                     excluding: popped,
                     isPaused: session.isPaused
                 )

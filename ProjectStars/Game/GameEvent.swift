@@ -156,6 +156,19 @@ enum GameEvent: Equatable {
     /// the hunt restarts, which is why a fresh sparkle set always follows.
     case pickupDestroyed(id: PickupID, plane: Plane, point: GridPoint)
 
+    /// Capricorn banked a Pentacle rather than opening it.
+    ///
+    /// Follows `pickupCollected` and stands in for the effect's own events: the
+    /// coin came up and nothing went off. The arc of green light from the tile
+    /// to the shop strip is drawn off this.
+    case pickupBanked(id: PickupID, plane: Plane, point: GridPoint)
+
+    /// A banked Pentacle was taken back out of the purse and set off.
+    ///
+    /// Its effect's events follow immediately, exactly as they would have
+    /// followed `pickupCollected` had it never been banked.
+    case pickupSpent(id: PickupID)
+
     /// A Pentacle was swept up mid-journey and is riding with the piece.
     ///
     /// Not the same as collecting it. The coin leaves the board here and its
@@ -253,6 +266,10 @@ enum GameEvent: Equatable {
         case .choiceResolved: 0
         case .signStateChanged: 0
         case .pickupCollected: GameRules.pickupCollectDuration
+        case .pickupBanked: GameRules.pickupBankDuration
+        // Instant: the purchase is the beat, and it has already been paid for
+        // by the time the player picks the coin out of the strip.
+        case .pickupSpent: 0
         case .pickupDestroyed: GameRules.pickupCollectDuration
         case .sparklesSpawned: 0.10
         case .nexysMoved: GameRules.nexysShiftDuration
