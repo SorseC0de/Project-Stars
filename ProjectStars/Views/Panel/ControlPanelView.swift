@@ -126,7 +126,7 @@ enum PanelStyle {
     ///
     /// Two distances rather than a stack, so a direction with no longer move
     /// still puts its arrow in exactly the same place.
-    static let guideArrowOrbit: CGFloat = 0.52
+    static let guideArrowOrbit: CGFloat = 0.62
     static let guideChevronOrbit: CGFloat = 0.72
 
     /// The ordinary-step arrow, and the longer-move chevron above it.
@@ -151,13 +151,21 @@ enum PanelStyle {
     /// The box one direction chevron is drawn in.
     static let padArrowSize: CGFloat = 96
 
-    /// How thick the chevron's band is, as a fraction of that box, and how far
-    /// its point is held in from the edges so the round caps have room.
-    static let padChevronWeight: CGFloat = 0.30
-    static let padChevronInset: CGFloat = 0.12
+    /// How far the lit fill is slid up inside the silhouette. What is left
+    /// uncovered along the bottom is the shadow.
+    static let padLightLift: CGFloat = 3.5
 
-    /// How far the lit face sits above its darker side.
-    static let padChevronDepth: CGFloat = 4
+    /// The outline: its weight, and how much of the bottom takes the lighter of
+    /// its two tones.
+    static let padOutlineWidth: CGFloat = 3
+    static let padOutlineLowShare: CGFloat = 0.42
+
+    /// How far an arrow crossing the board leans, in degrees.
+    ///
+    /// Only the horizontal pair. One end of them is deeper into the scene than
+    /// the other, which on a board drawn from three-quarters above shows as a
+    /// tilt — the vertical pair are foreshortened instead.
+    static let padCrossLean: Double = 8
 
     /// How much the *pointing* axis is compressed.
     ///
@@ -184,10 +192,15 @@ enum PanelStyle {
     /// The cross's colours, matching the joystick's guide so the two schemes
     /// read as one game: gold face over an orange side, magenta for the longer
     /// move.
-    static let padFace = Palette.gold
-    static let padSide = Palette.orange
-    static let padSpecialFace = Palette.magenta
-    static let padSpecialSide = Palette.darkMagenta
+    static let padLight = Palette.gold
+    static let padShadow = Palette.orange
+
+    /// The outline, dark around the top and lighter along the bottom — the art
+    /// shades its keyline rather than drawing a flat one.
+    static let padOutline = Palette.coolBlack
+    static let padOutlineLow = Palette.darkGray
+    static let padSpecialLight = Palette.magenta
+    static let padSpecialShadow = Palette.darkMagenta
 
     // ─────────────────────────────────────────────────────────────────────
     // MARK: Row 3 — the Zodiaction
@@ -716,90 +729,126 @@ struct Joystick: View {
 
 // MARK: - Row 2: the direction pad
 
-/// A rounded chevron, pointing up, drawn as a filled band.
+/// The silhouette of the drawn arrows.
 ///
-/// Stroked and then *filled* rather than stroked at draw time: a filled shape
-/// scales with its box and can be given a solid darker copy beneath it, which is
-/// how everything else on this panel gets its depth.
-struct RoundedChevron: Shape {
-
-    /// Band thickness, as a fraction of the box's width.
-    var weight: CGFloat = PanelStyle.padChevronWeight
-
-    /// How far the shape is held in from the edges, so the round caps have room.
-    var inset: CGFloat = PanelStyle.padChevronInset
+/// ## Why it is traced rather than approximated
+///
+/// The sprites are not a triangle sitting on a rectangle. The barbs overhang the
+/// shaft by a long way, the shaft tapers toward the tail rather than running
+/// parallel, and the whole thing is wider than it is tall. Miss any of those and
+/// it stops reading as the same object — which is what a generic chevron did.
+///
+/// Coordinates are fractions of the box, pointing up, taken off the 16px art.
+struct ArrowGlyph: Shape {
 
     func path(in rect: CGRect) -> Path {
-        let pad = rect.width * inset
-        let line = rect.width * weight
-        let cap = line / 2
+        func at(_ x: CGFloat, _ y: CGFloat) -> CGPoint {
+            CGPoint(x: rect.minX + rect.width * x, y: rect.minY + rect.height * y)
+        }
 
         var path = Path()
-        path.move(to: CGPoint(x: rect.minX + pad + cap, y: rect.maxY - pad - cap))
-        path.addLine(to: CGPoint(x: rect.midX, y: rect.minY + pad + cap))
-        path.addLine(to: CGPoint(x: rect.maxX - pad - cap, y: rect.maxY - pad - cap))
-
-        return path.strokedPath(
-            StrokeStyle(lineWidth: line, lineCap: .round, lineJoin: .round)
-        )
+        path.move(to: at(0.50, 0.08))       // tip
+        path.addLine(to: at(0.93, 0.48))    // right barb
+        path.addLine(to: at(0.71, 0.48))    // right shoulder
+        path.addLine(to: at(0.65, 0.92))    // right of the tail
+        path.addLine(to: at(0.35, 0.92))    // left of the tail
+        path.addLine(to: at(0.29, 0.48))    // left shoulder
+        path.addLine(to: at(0.07, 0.48))    // left barb
+        path.closeSubpath()
+        return path
     }
 }
 
-/// One direction's chevron: a lit face over a darker side, foreshortened.
+/// One direction's arrow: two tones lit from above, inside a two-tone outline.
 ///
-/// The four are not one shape rotated four times. A chevron pointing up or down
-/// is squashed along the axis it points, because that is the axis running away
-/// from the viewer on a board drawn from three-quarters above. Left and right
-/// keep their full length. Same trick the board itself uses, applied to a
-/// control — which is what stops the pad reading as flat UI stuck under a 3/4
-/// scene.
-struct DirectionChevron: View {
+/// ## How the shading is built
+///
+/// The light comes from above for all four, so every upward-facing surface is
+/// the light tone and the underside is the shadow. That is drawn by filling the
+/// whole silhouette in shadow, then filling it again in light *shifted up a
+/// little* and clipped back inside itself — which leaves the shadow showing only
+/// along the bottom edges, exactly where a light from above would leave it.
+///
+/// The outline is the same idea: dark around the top, the lighter dark along the
+/// bottom. It is not optional trim — at this size the outline is most of what
+/// makes the shape read, which is why a strokeless version looked like nothing.
+///
+/// ## Why the four are not one shape rotated
+///
+/// The board is drawn from three-quarters above and these sit on it. An arrow
+/// pointing away from the viewer is *foreshortened*; one pointing across keeps
+/// its length and instead leans, because its far end is deeper into the scene
+/// than its near end. Four copies of one rotated arrow read as a flat overlay
+/// stuck on a 3D scene.
+struct DirectionArrow: View {
 
     let direction: SwipeDirection
-    var face: Color = PanelStyle.padFace
-    var side: Color = PanelStyle.padSide
+    var light: Color = PanelStyle.padLight
+    var shadow: Color = PanelStyle.padShadow
     var box: CGFloat = PanelStyle.padArrowSize
 
-    /// True for the two whose pointing axis runs away from the viewer.
-    private var isVertical: Bool { direction == .up || direction == .down }
+    /// True for the pair whose length runs away from the viewer.
+    private var pointsAway: Bool { direction == .up || direction == .down }
 
     var body: some View {
         ZStack {
-            RoundedChevron().fill(side).offset(y: PanelStyle.padChevronDepth)
-            RoundedChevron().fill(face)
+            ArrowGlyph().fill(shadow)
+
+            // The lit surfaces: the same shape slid up, kept inside the
+            // original so only the underside stays in shadow.
+            ArrowGlyph()
+                .fill(light)
+                .offset(y: -PanelStyle.padLightLift)
+                .clipShape(ArrowGlyph())
+
+            ArrowGlyph()
+                .stroke(PanelStyle.padOutline, lineWidth: PanelStyle.padOutlineWidth)
+
+            // The outline's own underside, lighter than the rest of it.
+            ArrowGlyph()
+                .stroke(PanelStyle.padOutlineLow, lineWidth: PanelStyle.padOutlineWidth)
+                .mask(alignment: .bottom) {
+                    Rectangle().frame(height: box * PanelStyle.padOutlineLowShare)
+                }
         }
-        // Squashed while still pointing up, then turned. Doing it the other way
-        // round would carry the compression with the arrow instead of leaving it
-        // on the screen's vertical, and all four would look identical again.
-        .frame(width: box, height: box * (isVertical ? PanelStyle.padForeshorten : 1))
+        // Squashed while it still points up, so the compression stays on the
+        // screen's vertical. Rotating first would carry it round with the arrow
+        // and all four would match again.
+        .frame(width: box, height: box * (pointsAway ? PanelStyle.padForeshorten : 1))
         .rotationEffect(.degrees(direction.iconRotation))
+        .rotationEffect(.degrees(pointsAway ? 0 : lean))
         .frame(width: footprint.width, height: footprint.height)
     }
 
-    /// The space it takes once turned.
+    /// The two crossing arrows lean opposite ways, being mirror images.
+    private var lean: Double {
+        direction == .right ? PanelStyle.padCrossLean : -PanelStyle.padCrossLean
+    }
+
+    /// The space it occupies once turned, so a caller can reserve it.
     var footprint: CGSize {
         let short = box * PanelStyle.padForeshorten
-        return isVertical
+        return pointsAway
             ? CGSize(width: box, height: short)
             : CGSize(width: short, height: box)
     }
 }
 
-/// A keyboard cross of chevrons, with a sign's longer moves nested outside.
+/// A keyboard cross of arrows, with a sign's longer moves nested outside.
 ///
 /// ## Why a keyboard cross rather than a diamond
 ///
 /// Up on its own row, then left/down/right together. It is the shape every
 /// keyboard already uses, and it costs one row less than a diamond — which on a
-/// phone is the difference between the chevrons being big enough and not.
+/// phone is the difference between the arrows being big enough and not.
 ///
 /// ## Why the longer moves nest outward
 ///
 /// A sign with a two-square sidestep cannot express that with a tap — the
 /// direction is the same, only the distance differs — so it needs its own
-/// target. Putting it *further out along the same line* is the arrangement that
-/// says "same way, more of it", and it matches the joystick's guide exactly:
-/// gold for the ordinary step, magenta beyond it for the longer one.
+/// target. Putting it *further out along the same line* says "same way, more of
+/// it", and it matches the joystick's guide: gold for the ordinary step, magenta
+/// beyond it for the longer one.
 struct DirectionPad: View {
 
     let session: GameSession
@@ -820,7 +869,7 @@ struct DirectionPad: View {
     private func column(_ direction: SwipeDirection) -> some View {
         VStack(spacing: PanelStyle.padSpecialGap) {
             if direction == .up { special(direction) }
-            chevron(direction)
+            arrow(direction)
             if direction == .down { special(direction) }
         }
     }
@@ -829,14 +878,14 @@ struct DirectionPad: View {
     private func row(_ direction: SwipeDirection) -> some View {
         HStack(spacing: PanelStyle.padSpecialGap) {
             if direction == .left { special(direction) }
-            chevron(direction)
+            arrow(direction)
             if direction == .right { special(direction) }
         }
     }
 
     /// The ordinary one-square move.
-    private func chevron(_ direction: SwipeDirection) -> some View {
-        DirectionChevron(direction: direction)
+    private func arrow(_ direction: SwipeDirection) -> some View {
+        DirectionArrow(direction: direction)
             .opacity(session.acceptsInput ? 1 : 0.4)
             .contentShape(Rectangle())
             .onTapGesture {
@@ -851,10 +900,10 @@ struct DirectionPad: View {
     /// pad that jumps about is not.
     @ViewBuilder
     private func special(_ direction: SwipeDirection) -> some View {
-        let glyph = DirectionChevron(
+        let glyph = DirectionArrow(
             direction: direction,
-            face: PanelStyle.padSpecialFace,
-            side: PanelStyle.padSpecialSide,
+            light: PanelStyle.padSpecialLight,
+            shadow: PanelStyle.padSpecialShadow,
             box: PanelStyle.padArrowSize * PanelStyle.padSpecialScale
         )
 
