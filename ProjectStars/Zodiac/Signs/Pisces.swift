@@ -125,6 +125,11 @@ struct PiscesGaiaGeyser: ZodiacPassive {
     let displayName = "Gaia Geyser"
     let summary = "Astra → Terra: arriving rings you with droplets, mending each square they land on. Take one for a full meter; the rest dry up."
 
+    /// The fish dives. See `ZodiacPassive.fallIsControlled(to:context:)`.
+    func fallIsControlled(to plane: Plane, context: PassiveContext) -> Bool {
+        plane == .terra
+    }
+
     func amend(_ events: [GameEvent], context: PassiveContext) -> [GameEvent] {
         guard arrived(in: events, context: context) else { return [] }
 

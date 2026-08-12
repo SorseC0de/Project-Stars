@@ -124,6 +124,13 @@ struct VirgoPoisedPlummet: ZodiacPassive {
     let displayName = "Poised Plummet"
     let summary = "Astra: falling to Terra fully restores the tile you land on."
 
+    /// Poised is the word. The repair is certain, not a roll, so this qualifies
+    /// on the same rule Leo and Pisces do — see
+    /// `ZodiacPassive.fallIsControlled(to:context:)`.
+    func fallIsControlled(to plane: Plane, context: PassiveContext) -> Bool {
+        plane == .terra
+    }
+
     func restoresTileOnFallArrival(
         tile: Tile,
         at point: GridPoint,

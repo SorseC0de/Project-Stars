@@ -535,7 +535,7 @@ enum GameRules {
     /// shows where the drag points, and a tap advances forward.
     /// **Buttons** is a keyboard cross, with a sign's special moves appearing as
     /// smaller arrows beside the direction they apply to.
-    enum ControlScheme: CaseIterable { case joystick, buttons }
+    enum ControlScheme: CaseIterable { case joystick, buttons, grid }
 
     /// A `var` so a debug button can flip it. It becomes a stored preference
     /// once the selection screen exists.

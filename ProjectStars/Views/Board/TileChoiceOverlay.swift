@@ -33,6 +33,15 @@ struct TileChoiceOverlay: View {
 
     @State private var pulse = false
 
+    /// True when the answer is being collected on the pad in the control area
+    /// instead of here.
+    ///
+    /// The board still draws what is being *held* — Libra's slab hangs over the
+    /// grid whichever scheme is running, because it is a thing in the world —
+    /// and still offers the way to decline. What moves down to the pad is the
+    /// aiming, which is the part that wants a thumb.
+    private var answeredBelow: Bool { GameRules.controlScheme == .grid }
+
     var body: some View {
         let allowed = session.choosableTiles
 
@@ -57,7 +66,7 @@ struct TileChoiceOverlay: View {
     /// — the board simply shows where the shape fits, and the player taps one.
     private func placement(_ slab: GavelSlab) -> some View {
         ZStack {
-            ForEach(GridPoint.allPoints(size: metrics.gridSize), id: \.self) { anchor in
+            ForEach(answeredBelow ? [] : GridPoint.allPoints(size: metrics.gridSize), id: \.self) { anchor in
                 let fits = slab.canBePlaced(anchoredAt: anchor, on: session.engine.currentBoard)
 
                 Rectangle()
@@ -73,15 +82,17 @@ struct TileChoiceOverlay: View {
             }
             .allowsHitTesting(false)
 
-            Color.clear
-                .contentShape(Rectangle())
-                .onTapGesture(coordinateSpace: .local) { location in
-                    guard let anchor = metrics.gridPoint(at: location) else { return }
-                    guard slab.canBePlaced(
-                        anchoredAt: anchor, on: session.engine.currentBoard
-                    ) else { return }
-                    session.resolvePickupChoice(.place(slab, anchor))
-                }
+            if !answeredBelow {
+                Color.clear
+                    .contentShape(Rectangle())
+                    .onTapGesture(coordinateSpace: .local) { location in
+                        guard let anchor = metrics.gridPoint(at: location) else { return }
+                        guard slab.canBePlaced(
+                            anchoredAt: anchor, on: session.engine.currentBoard
+                        ) else { return }
+                        session.resolvePickupChoice(.place(slab, anchor))
+                    }
+            }
 
             SlabPhantomView(slab: slab, metrics: metrics)
                 .allowsHitTesting(false)
@@ -101,7 +112,7 @@ struct TileChoiceOverlay: View {
             // after it covers the whole board rather than one square, and 49
             // board-sized targets stack into "every tap hits the last one".
             ZStack {
-                ForEach(highlighted(allowed), id: \.self) { point in
+                ForEach(answeredBelow ? [] : highlighted(allowed), id: \.self) { point in
                     Rectangle()
                         .fill(accent.opacity(pulse ? 0.22 : 0.10))
                         .overlay(
@@ -116,16 +127,18 @@ struct TileChoiceOverlay: View {
             // One tap surface for the whole grid, resolved back to a square
             // through the same metrics that laid the board out — so the square
             // the player taps is by construction the square they see.
-            Color.clear
-                .contentShape(Rectangle())
-                .onTapGesture(coordinateSpace: .local) { location in
-                    guard let point = metrics.gridPoint(at: location) else { return }
-                    // A tap outside the offered set is not an answer. Ignored
-                    // rather than treated as a decline: a mis-tap should cost
-                    // nothing, and the way to say no is to say no.
-                    if let allowed, !allowed.contains(point) { return }
-                    session.resolvePickupChoice(.tile(point))
-                }
+            if !answeredBelow {
+                Color.clear
+                    .contentShape(Rectangle())
+                    .onTapGesture(coordinateSpace: .local) { location in
+                        guard let point = metrics.gridPoint(at: location) else { return }
+                        // A tap outside the offered set is not an answer. Ignored
+                        // rather than treated as a decline: a mis-tap should cost
+                        // nothing, and the way to say no is to say no.
+                        if let allowed, !allowed.contains(point) { return }
+                        session.resolvePickupChoice(.tile(point))
+                    }
+            }
 
             if session.choiceIsDeclinable {
                 declineButton

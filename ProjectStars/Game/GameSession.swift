@@ -959,11 +959,23 @@ final class GameSession {
     private func animateFall(_ event: GameEvent) async {
         let departure = GameRules.fallDuration / 2
 
+        // A sign that means to be down there does not tumble on the way. The
+        // shrink stays — that is distance — and only the spin goes, since the
+        // spin is the part that says the piece has lost control of what is
+        // happening to it.
+        let controlled: Bool = {
+            guard case let .pieceFell(_, to, _) = event else { return false }
+            return engine.piece.zodiac.passives.fallIsControlled(
+                to: to, context: engine.passiveSnapshot
+            )
+        }()
+        let tumble = controlled ? 0 : GameRules.fallSpinDegrees / 2
+
         // Spin and shrink together, and *animated* — incrementing the angle
         // outside `withAnimation` snapped the sprite round instead of turning it.
         withAnimation(.easeIn(duration: departure)) {
             isFalling = true
-            fallSpin += GameRules.fallSpinDegrees / 2
+            fallSpin += tumble
         }
         await sleep(departure)
 
@@ -978,7 +990,7 @@ final class GameSession {
         isFalling = false
         fallArrivalStartedAt = .now
         withAnimation(.linear(duration: GameRules.fallArrivalDuration)) {
-            fallSpin += GameRules.fallSpinDegrees / 2
+            fallSpin += tumble
         }
         await sleep(GameRules.fallArrivalDuration)
 
@@ -1539,6 +1551,34 @@ extension GameSession {
 
     /// The board being rendered in the top half of the screen.
     var visibleBoard: Board { engine[visiblePlane] }
+
+    /// Every square the piece could move to this turn, and the swipe that gets
+    /// it there.
+    ///
+    /// The tap-a-square control scheme is the whole reason this exists: it needs
+    /// the inverse of the usual question. Everything else in the game asks
+    /// "where does this direction lead"; the pad asks "which direction leads
+    /// here", and gets the reach along with it so a sign with several distances
+    /// in one direction still resolves to the right one.
+    ///
+    /// Nearest first, so a square reachable two ways is credited to the shorter
+    /// move — which is the one that wears less ground.
+    var reachableSquares: [GridPoint: (direction: SwipeDirection, reach: Int)] {
+        var found: [GridPoint: (direction: SwipeDirection, reach: Int)] = [:]
+
+        for direction in SwipeDirection.allCases {
+            let options = engine.moveOptions(for: direction)
+            for (reach, _) in options.enumerated() {
+                guard let move = engine.resolvedMove(for: direction, reach: reach),
+                      let destination = move.path.last
+                else { continue }
+                if found[destination] == nil {
+                    found[destination] = (direction, reach)
+                }
+            }
+        }
+        return found
+    }
 
     /// The plane the piece would fall to, or `nil` on Terra.
     var planeBelow: Plane? { visiblePlane.planeBelow }

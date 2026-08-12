@@ -307,6 +307,21 @@ protocol ZodiacPassive {
         context: PassiveContext
     ) -> [GameEvent]
 
+    /// Whether a fall to `plane` is a **controlled descent** for this sign.
+    ///
+    /// Presentation only, and the one hook here that is. A fall normally spins
+    /// the piece end over end, because for eleven signs out of twelve falling is
+    /// something that happened *to* them. For a sign whose descent is
+    /// guaranteed to pay — charge on landing, ground mended on arrival — that
+    /// tumble is the game lying about what just occurred.
+    ///
+    /// So those signs keep the shrink, which is distance, and lose the spin,
+    /// which is helplessness. Deliberately **not** true for a merely *likely*
+    /// payoff: Sagittarius' Lucky Landing is a roll, and a piece that dropped
+    /// serenely and then broke the tile anyway would be worse than one that
+    /// tumbled either way.
+    func fallIsControlled(to plane: Plane, context: PassiveContext) -> Bool
+
     /// Whether leaving Astra should repair it.
     ///
     /// True for everyone but Libra, whose whole arrangement is that both boards
@@ -525,6 +540,8 @@ extension ZodiacPassive {
         context: PassiveContext
     ) -> [GameEvent] { [] }
 
+    func fallIsControlled(to plane: Plane, context: PassiveContext) -> Bool { false }
+
     func restoresPlaneOnDescent(context: PassiveContext) -> Bool {
         GameRules.astraRestoresOnDescent
     }
@@ -706,6 +723,10 @@ extension Array where Element == any ZodiacPassive {
 
     func banksPickups(_ id: PickupID, context: PassiveContext) -> Bool {
         contains { $0.banksPickups(id, context: context) }
+    }
+
+    func fallIsControlled(to plane: Plane, context: PassiveContext) -> Bool {
+        contains { $0.fallIsControlled(to: plane, context: context) }
     }
 
     /// One refusal is enough: a sign that keeps its Astra keeps it.

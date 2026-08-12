@@ -59,6 +59,11 @@ struct LeoPridefulPlant: ZodiacPassive {
     let displayName = "Prideful Plant"
     let summary = "Astra: +3 charge on landing after a fall to Terra."
 
+    /// The lion drops on purpose. See `ZodiacPassive.fallIsControlled(to:context:)`.
+    func fallIsControlled(to plane: Plane, context: PassiveContext) -> Bool {
+        plane == .terra
+    }
+
     func meterBonus(from move: MoveSummary, context: PassiveContext) -> Int {
         move.fell ? 3 : 0
     }

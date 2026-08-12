@@ -138,6 +138,14 @@ enum PanelStyle {
     static let guideArrowLit = Palette.lightBlue
     static let guideArrowDim = Palette.blue
 
+    /// The tap-a-square pad. See `GridPadView`.
+    static let gridPadCorner: CGFloat = 8
+    static let gridPadGap: CGFloat = 12
+    static let gridPadDim: Double = 0.45
+    static let gridPadConfirmWidth: CGFloat = 64
+    static let gridPadConfirmHeight: CGFloat = 64
+    static let gridPadCheckSize: CGFloat = 26
+
     /// The four stops only Virgo has.
     static let guideDiagonalLit = Palette.pink
     static let guideDiagonalDim = Palette.magenta
@@ -535,6 +543,9 @@ private struct PanelFrontView: View {
 
         case .buttons:
             DirectionPad(session: session)
+
+        case .grid:
+            GridPadView(session: session, side: PanelStyle.movementRowHeight)
         }
     }
 
