@@ -139,6 +139,18 @@ struct GameEngine {
     /// memory would be a lie about its lifetime.
     private var airborneThisMove = false
 
+    /// True while the piece is arriving somewhere **the player picked**.
+    ///
+    /// An ordinary move, and any effect that stopped to ask which square — a
+    /// warp the player aimed, a corner they chose to fly to. False for anything
+    /// that carried the piece off on its own: a slide from Astral Brook, a fall,
+    /// a Zodiaction that scatters you.
+    ///
+    /// Leo's Courageous Charge is the reason this exists. A reward for walking
+    /// onto a hole *on purpose* has to be able to tell that apart from being
+    /// dumped into one, or it is a reward for being unlucky.
+    private var arrivalWasChosen = false
+
     private(set) var moveCount: Int
 
     /// Hands out `RevealedPickup.serial`. Only ever counts up.
@@ -317,6 +329,11 @@ struct GameEngine {
             context: sim.passiveContext
         )
         defer { sim.airborneThisMove = false }
+
+        // A swipe is the player choosing a square, whatever else happens later
+        // in the move.
+        sim.arrivalWasChosen = true
+        defer { sim.arrivalWasChosen = false }
 
         let origin = sim.piece.point
         let startingPlane = sim.piece.plane
@@ -1148,12 +1165,24 @@ struct GameEngine {
                 at: point,
                 context: passiveContext
             )
-            if hovers, !remaining.isSolid,
-               let spent = piece.zodiac.passives.stateAfterPreventingFall(context: passiveContext),
-               spent != signState {
-                // A guard that actually caught the piece spends itself here,
-                // rather than decaying on a timer whether it was needed or not.
-                commit(.signStateChanged(spent))
+            if hovers, !remaining.isSolid {
+                if let spent = piece.zodiac.passives
+                    .stateAfterPreventingFall(context: passiveContext),
+                   spent != signState {
+                    // A guard that actually caught the piece spends itself here,
+                    // rather than decaying on a timer whether it was needed or
+                    // not.
+                    commit(.signStateChanged(spent))
+                }
+
+                // And whatever else the save was worth — mending the ground,
+                // paying for the nerve. Only ever reached when a passive really
+                // did catch the piece.
+                for event in piece.zodiac.passives.eventsOnPreventingFall(
+                    at: point, on: plane, context: passiveContext
+                ) {
+                    commit(event)
+                }
             }
 
             // Walking on air: holes hold the piece up, and so does the chasm.
@@ -1725,6 +1754,12 @@ struct GameEngine {
         }
 
         let planeBefore = sim.piece.plane
+
+        // Answering with a square is choosing one — the same thing a swipe does,
+        // and it should be worth the same to anything that cares.
+        if case .tile = result { sim.arrivalWasChosen = true }
+        defer { sim.arrivalWasChosen = false }
+
         commit(.choiceResolved)
 
         // Buying from the purse is not a question any one sign answers — it is
@@ -2028,6 +2063,7 @@ struct GameEngine {
             facing: piece.facing,
             moveCount: moveCount,
             zodiactionMeter: zodiactionMeter,
+            arrivalWasChosen: arrivalWasChosen,
             pickupPoints: revealedPickups.filter { $0.plane == piece.plane }.map(\.point),
             pickups: revealedPickups.filter { $0.plane == piece.plane },
             signState: signState,

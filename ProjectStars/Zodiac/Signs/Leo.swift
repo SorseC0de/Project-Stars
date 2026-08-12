@@ -26,7 +26,7 @@ extension ZodiacCatalog {
         passives: [
             LeoPridefulPlant(),
             LeoMagneticMane(),
-            LeoRallyingRoar(),
+            LeoCourageousCharge(),
         ],
         zodiaction: LeoAttractingAten(),
         constellation: ZodiacCatalog.leoConstellation
@@ -92,7 +92,71 @@ struct LeoMagneticMane: ZodiacPassive {
     }
 }
 
-// MARK: - Passive: Rallying Roar
+// MARK: - Passive: Courageous Charge
+
+/// Walking onto a hole on purpose sometimes works.
+///
+/// A one-in-four chance on Astra and one-in-two on Terra that the hole Leo steps
+/// into closes under it instead — mended outright — and the meter fills.
+///
+/// ## Why it only counts when the square was chosen
+///
+/// The whole idea is nerve. Being swept into a hole by Astral Brook, dropped
+/// into one by a collapsing tile, or scattered onto one by a Zodiaction is not
+/// bravery, it is weather — and paying out for it would make Leo the sign that
+/// is rewarded for losing control of the board. So it fires only where the
+/// player picked the square: an ordinary step, or an effect that stopped to ask.
+/// See `PassiveContext.arrivalWasChosen`.
+///
+/// ## Why it is stronger below
+///
+/// Terra is the lion's plane, and Terra is also where a hole is fatal rather
+/// than merely a descent. Doubling the odds exactly where the stake is highest
+/// is what makes this an *option* down there instead of a novelty.
+///
+/// ## Why the payout is the full meter
+///
+/// A partial refund would make this a small bonus attached to a coin-flip on
+/// your life, which nobody would ever take deliberately. Filling the meter makes
+/// the gamble a plan: Leo can walk into a hole *because* it wants the Zodiaction,
+/// and half the time it gets both that and the ground back.
+struct LeoCourageousCharge: ZodiacPassive {
+
+    /// Chance of the ground holding, per plane.
+    static let chanceAstra = 0.25
+    static let chanceTerra = 0.50
+
+    let displayName = "Courageous Charge"
+    let summary = "Astra: a quarter chance that a hole you step into on purpose mends and fills your meter. Terra: half."
+
+    func preventsFall(
+        from plane: Plane,
+        at point: GridPoint,
+        context: PassiveContext
+    ) -> Bool {
+        guard context.arrivalWasChosen else { return false }
+        return context.luck < (plane == .terra ? Self.chanceTerra : Self.chanceAstra)
+    }
+
+    func eventsOnPreventingFall(
+        at point: GridPoint,
+        on plane: Plane,
+        context: PassiveContext
+    ) -> [GameEvent] {
+        // Asked again rather than trusted: the engine calls this whenever *any*
+        // passive caught the piece, and Leo must not pay out for somebody else's
+        // save. The roll is `context.luck`, drawn once for the whole move, so
+        // asking twice gives the same answer.
+        guard preventsFall(from: plane, at: point, context: context) else { return [] }
+
+        return [
+            .tileHealed(plane: plane, point: point, to: .healthy),
+            .zodiactionMeterChanged(to: context.zodiac.zodiaction.meterMax(on: plane)),
+        ]
+    }
+}
+
+// MARK: - Hidden: Rallying Roar
 
 /// On Terra, the island offers a change of sign instead of a ride.
 ///
@@ -110,6 +174,18 @@ struct LeoMagneticMane: ZodiacPassive {
 ///
 ///   The intent is Leo as the leadership sign — the one piece that commands the
 ///   Nexys rather than merely catching a lift on it.
+///
+/// ## Why it is not in `passives`
+///
+/// It is meant to be **found**, not read. A player who steps onto the island and
+/// is offered a choice they were never promised has discovered something; the
+/// same player told about it on the selection screen has merely been given an
+/// instruction. Leo's three listed abilities are the ones you pick the sign for,
+/// and this is the one you tell other people about.
+///
+/// Kept as a type so the design does not evaporate, and so wiring it up later is
+/// a matter of adding it back to the list — or, better, of the engine consulting
+/// it directly without the panel ever naming it.
 struct LeoRallyingRoar: ZodiacPassive {
 
     let displayName = "Rallying Roar"

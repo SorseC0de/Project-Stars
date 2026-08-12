@@ -475,6 +475,12 @@ extension ZodiacPassive {
         nil
     }
 
+    func eventsOnPreventingFall(
+        at point: GridPoint,
+        on plane: Plane,
+        context: PassiveContext
+    ) -> [GameEvent] { [] }
+
     func preferredRevealPoint(
         among candidates: [GridPoint],
         destination: GridPoint,
@@ -549,6 +555,11 @@ struct PassiveContext {
 
     /// Current Zodiaction meter, in pips.
     let zodiactionMeter: Int
+
+    /// True when the piece is arriving on a square the player picked, rather
+    /// than one something else carried it to. See
+    /// `GameEngine.arrivalWasChosen`.
+    let arrivalWasChosen: Bool
 
     /// Where the revealed Pentacles are sitting, on this plane.
     ///
@@ -726,6 +737,14 @@ extension Array where Element == any ZodiacPassive {
             if let state = passive.stateAfterPreventingFall(context: context) { return state }
         }
         return nil
+    }
+
+    func eventsOnPreventingFall(
+        at point: GridPoint,
+        on plane: Plane,
+        context: PassiveContext
+    ) -> [GameEvent] {
+        flatMap { $0.eventsOnPreventingFall(at: point, on: plane, context: context) }
     }
 
     func stateAfterMove(
