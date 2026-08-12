@@ -180,6 +180,18 @@ final class GameSession {
     /// leaves, and a two-square exit lights two of them on the same beat.
     private(set) var effectBursts: [EffectBurst] = []
 
+    /// Scorpio's tail, mid-strike. See `StingLanceView`.
+    private(set) var stingStrike: StingStrike?
+
+    /// One lunge of the tail.
+    struct StingStrike: Equatable {
+        let plane: Plane
+        let from: GridPoint
+        let direction: SwipeDirection
+        let reach: Int
+        let start: Date
+    }
+
     /// Tiles currently shimmering from having been repaired. See
     /// `HealSparkleView`.
     private(set) var healSparkles: [HealSparkle] = []
@@ -345,6 +357,7 @@ final class GameSession {
         elementalBurst = nil
         effectBursts = []
         healSparkles = []
+        stingStrike = nil
         pluming = nil
         crabWalkOrigin = nil
         afterimages = []
@@ -646,6 +659,29 @@ final class GameSession {
                 engine.apply(event)
             }
             await sleep(event.displayDuration)
+
+        case let .signStateChanged(state)
+            where state.shedSkin != nil && engine.signState.shedSkin == nil:
+            // Scorpio has just died and not died. The husk appears on the square
+            // and the game stops for a moment before the island takes the piece
+            // — without the beat this read as the fall being cancelled rather
+            // than as something surviving it.
+            withAnimation(.easeOut(duration: 0.2)) {
+                engine.apply(event)
+            }
+            await sleep(GameRules.shedPauseDuration)
+
+        case let .stingStruck(plane, from, along):
+            stingStrike = StingStrike(
+                plane: plane,
+                from: from,
+                direction: engine.piece.facing,
+                reach: along.count,
+                start: .now
+            )
+            engine.apply(event)
+            await sleep(event.displayDuration)
+            stingStrike = nil
 
         case let .pickupBanked(id, plane, point):
             // The coin does not go off, it goes *away*. The arc is the whole

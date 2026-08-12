@@ -716,6 +716,13 @@ struct GameEngine {
             return nil
         }
 
+        // A sign may refuse an option for reasons the pattern cannot see —
+        // Scorpio's vault needs a hole under it. Checked after the path exists,
+        // since that is the only thing that says what the move would cross.
+        guard piece.zodiac.passives.allows(
+            option, direction: direction, path: path, context: passiveContext
+        ) else { return nil }
+
         return ResolvedMove(path: path, style: option.style, option: option, origin: piece.point)
     }
 
@@ -726,9 +733,15 @@ struct GameEngine {
     /// reflected in what the player is offered, rather than being shown a move
     /// that will not happen.
     func moveOptions(for direction: SwipeDirection) -> [MovementPattern.MoveOption] {
-        piece.zodiac.passives
+        let movement = piece.zodiac.passives
             .adjustedMovement(base: piece.zodiac.movement, context: passiveContext)
-            .options(for: direction, facing: piece.facing)
+
+        return movement.options(for: direction, facing: piece.facing).filter { option in
+            let path = movement.path(from: piece.point, direction: direction, option: option)
+            return piece.zodiac.passives.allows(
+                option, direction: direction, path: path, context: passiveContext
+            )
+        }
     }
 
     /// The square a swipe would end on, or `nil` if it has nowhere to go.
@@ -1995,6 +2008,7 @@ struct GameEngine {
             moveCount: moveCount,
             zodiactionMeter: zodiactionMeter,
             pickupPoints: revealedPickups.filter { $0.plane == piece.plane }.map(\.point),
+            pickups: revealedPickups.filter { $0.plane == piece.plane },
             signState: signState,
             luck: luck,
             luckAlt: luckAlt
@@ -2113,6 +2127,11 @@ struct GameEngine {
                 pendingPickup = nil
                 sparkles = nil
             }
+
+        // Presentation only: what the tail caught arrives as its own
+        // `pickupGathered`, and a miss changes nothing by definition.
+        case .stingStruck:
+            break
 
         // The purse itself moves through `signStateChanged`; these two are
         // announcements, so the strip and the arc of light have something to

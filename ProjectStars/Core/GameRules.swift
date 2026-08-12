@@ -1144,6 +1144,30 @@ enum GameRules {
     /// Radius of one mote, in tiles.
     static let healSparkleSize: CGFloat = 0.055
 
+    // ──────────────────────────────────────────────────────────────────────
+    // MARK: - Scorpio's sting
+
+    /// How far the tail reaches on Terra. Astra strikes the whole line.
+    static let stingReachTerra = 3
+
+    /// The beat held on the square where Scorpio shed, before it is carried to
+    /// the island.
+    ///
+    /// A rescue that happened instantly read as the fall having been cancelled.
+    /// The pause is what makes it a *death* that was survived: the piece stops,
+    /// the husk appears, and only then does the warp take it.
+    static let shedPauseDuration: TimeInterval = 0.75
+
+    /// How translucent the abandoned skin is, once it settles.
+    static let shedSkinOpacity: Double = 0.28
+
+    /// How long the strike is on screen, out and back.
+    static let stingDuration: TimeInterval = 0.34
+
+    /// How solid the lance is. Low: it is a phantasm, and the board it crosses
+    /// has to stay readable underneath it.
+    static let stingOpacity: Double = 0.55
+
     /// Capricorn's purse, in Pentacles, on each plane.
     ///
     /// Lower on Terra: the earth sign is at home down there, so the price of

@@ -258,6 +258,23 @@ protocol ZodiacPassive {
     /// being on Astra. Returns pips, and may be negative. Default: `0`.
     func meterBonus(from move: MoveSummary, context: PassiveContext) -> Int
 
+    /// Whether a movement option may be taken along this particular path.
+    ///
+    /// `adjustedMovement` decides what a sign *can* do; this decides whether it
+    /// can do it **here**. The distinction matters for any rule that depends on
+    /// what the move would cross — Scorpio's vault, which is only a vault if
+    /// there is a hole to clear — because a movement pattern is direction-blind
+    /// and cannot see the ground.
+    ///
+    /// Default: yes. Consulted both when a swipe is resolved and when the reach
+    /// selector is built, so an option that will be refused is never offered.
+    func allows(
+        _ option: MovementPattern.MoveOption,
+        direction: SwipeDirection,
+        path: [GridPoint],
+        context: PassiveContext
+    ) -> Bool
+
     /// An offer this passive wants to make now that the piece has come to rest.
     ///
     /// Returns `nil` — the overwhelming majority — when there is nothing to
@@ -450,6 +467,13 @@ extension ZodiacPassive {
         nil
     }
 
+    func allows(
+        _ option: MovementPattern.MoveOption,
+        direction: SwipeDirection,
+        path: [GridPoint],
+        context: PassiveContext
+    ) -> Bool { true }
+
     func offersChoice(context: PassiveContext) -> PickupChoice? { nil }
 
     func resolveChoice(
@@ -509,6 +533,13 @@ struct PassiveContext {
     /// everywhere a new one could spawn ends the hunt outright. Plural because
     /// Sagittarius can have two out at once.
     let pickupPoints: [GridPoint]
+
+    /// The same coins, with what they are.
+    ///
+    /// `pickupPoints` answers "is there one there"; this answers "which one",
+    /// which anything reaching out to *take* a coin needs — Scorpio's sting has
+    /// to name the Pentacle it drags back.
+    let pickups: [RevealedPickup]
 
     /// What the sign remembers between moves — streaks, cooldowns, per-visit
     /// charges. See `SignState`.
@@ -620,6 +651,17 @@ extension Array where Element == any ZodiacPassive {
 
     func banksPickups(_ id: PickupID, context: PassiveContext) -> Bool {
         contains { $0.banksPickups(id, context: context) }
+    }
+
+    /// Every passive has to agree. A refusal is a rule about the ground, and a
+    /// second passive has no standing to overrule one.
+    func allows(
+        _ option: MovementPattern.MoveOption,
+        direction: SwipeDirection,
+        path: [GridPoint],
+        context: PassiveContext
+    ) -> Bool {
+        allSatisfy { $0.allows(option, direction: direction, path: path, context: context) }
     }
 
     /// The first offer anyone wants to make. One at a time on purpose: two

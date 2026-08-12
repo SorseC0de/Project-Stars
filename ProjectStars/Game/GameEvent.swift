@@ -161,6 +161,13 @@ enum GameEvent: Equatable {
     /// the hunt restarts, which is why a fresh sparkle set always follows.
     case pickupDestroyed(id: PickupID, plane: Plane, point: GridPoint)
 
+    /// Scorpio's tail lashed out along a line.
+    ///
+    /// Presentation only — anything it caught follows as its own
+    /// `pickupGathered`. Its own event so the strike has something to draw off,
+    /// and so a miss still plays.
+    case stingStruck(plane: Plane, from: GridPoint, along: [GridPoint])
+
     /// Capricorn banked a Pentacle rather than opening it.
     ///
     /// Follows `pickupCollected` and stands in for the effect's own events: the
@@ -271,6 +278,7 @@ enum GameEvent: Equatable {
         case .choiceResolved: 0
         case .signStateChanged: 0
         case .pickupCollected: GameRules.pickupCollectDuration
+        case .stingStruck: GameRules.stingDuration
         case .pickupBanked: GameRules.pickupBankDuration
         // Instant: the purchase is the beat, and it has already been paid for
         // by the time the player picks the coin out of the strip.

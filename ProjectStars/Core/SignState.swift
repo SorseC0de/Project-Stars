@@ -94,6 +94,17 @@ struct SignState: Equatable {
     /// Keyed one-shots that last the whole run.
     var runFlags: Set<String> = []
 
+    // MARK: Shed skin
+
+    /// The husk Scorpio left behind, if it has shed. See `ScorpioSamsaricShed`.
+    var shedSkin: ShedSkin?
+
+    /// Where a shed skin is lying.
+    struct ShedSkin: Equatable {
+        var point: GridPoint
+        var plane: Plane
+    }
+
     // MARK: Purse
 
     /// Pentacles Capricorn has banked instead of opening, oldest first.
@@ -378,6 +389,7 @@ struct SignState: Equatable {
         copy.starMoves = starMoves
         copy.galeMoves = galeMoves
         copy.arrow = arrow
+        copy.shedSkin = shedSkin
         return copy
     }
 }
