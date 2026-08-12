@@ -148,57 +148,34 @@ enum PanelStyle {
 
     // ── The direction pad ─────────────────────────────────────────────────
 
-    /// The box one direction chevron is drawn in.
+    /// The box one arrow is drawn in. Square: the silhouette turns inside it
+    /// rather than the box turning with it.
     static let padArrowSize: CGFloat = 96
 
-    /// How far the lit fill is slid up inside the silhouette. What is left
-    /// uncovered along the bottom is the shadow.
-    static let padLightLift: CGFloat = 3.5
-
-    /// The outline: its weight, and how much of the bottom takes the lighter of
-    /// its two tones.
-    static let padOutlineWidth: CGFloat = 3
-    static let padOutlineLowShare: CGFloat = 0.42
-
-    /// How far an arrow crossing the board leans, in degrees.
+    /// How thick the plate is — how far its dark side shows below the top face.
     ///
-    /// Only the horizontal pair. One end of them is deeper into the scene than
-    /// the other, which on a board drawn from three-quarters above shows as a
-    /// tilt — the vertical pair are foreshortened instead.
-    static let padCrossLean: Double = 8
+    /// This is the only thing that makes the four look different from each
+    /// other, because the thickness always falls straight down the screen while
+    /// the arrow turns. Raise it and every arrow gets chunkier at once.
+    static let padThickness: CGFloat = 7
 
-    /// How much the *pointing* axis is compressed.
-    ///
-    /// The board is drawn from three-quarters above, so a chevron pointing away
-    /// from the player is foreshortened while one pointing across is not. Four
-    /// copies of one rotated arrow read as flat; four proportioned like this
-    /// read as lying on the same ground the board is on.
-    static let padForeshorten: CGFloat = 0.62
-
-    /// The longer-move chevron, nested outside its direction.
+    /// The longer-move arrow, nested outside its direction.
     static let padSpecialScale: CGFloat = 0.62
 
     /// Gaps within the cross.
     ///
-    /// Two, not one. North and south are the foreshortened chevrons and need
-    /// noticeably less room than east and west — a single spacing value has to
-    /// suit the taller pair, which is what left the cross short of room.
+    /// Two, not one. The vertical pair sit closer than the horizontal, and a
+    /// single value has to suit whichever needs more.
     static let padGapVertical: CGFloat = 0
     static let padGapHorizontal: CGFloat = 10
 
     /// Gap between a direction and its nested special.
     static let padSpecialGap: CGFloat = 0
 
-    /// The cross's colours, matching the joystick's guide so the two schemes
-    /// read as one game: gold face over an orange side, magenta for the longer
-    /// move.
+    /// The top face and the side, matching the joystick's guide so the two
+    /// schemes read as one game.
     static let padLight = Palette.gold
     static let padShadow = Palette.orange
-
-    /// The outline, dark around the top and lighter along the bottom — the art
-    /// shades its keyline rather than drawing a flat one.
-    static let padOutline = Palette.coolBlack
-    static let padOutlineLow = Palette.darkGray
     static let padSpecialLight = Palette.magenta
     static let padSpecialShadow = Palette.darkMagenta
 
@@ -729,17 +706,17 @@ struct Joystick: View {
 
 // MARK: - Row 2: the direction pad
 
-/// The silhouette of the drawn arrows.
+/// The arrow's top face, already turned to point where it should.
 ///
-/// ## Why it is traced rather than approximated
-///
-/// The sprites are not a triangle sitting on a rectangle. The barbs overhang the
-/// shaft by a long way, the shaft tapers toward the tail rather than running
-/// parallel, and the whole thing is wider than it is tall. Miss any of those and
-/// it stops reading as the same object — which is what a generic chevron did.
-///
-/// Coordinates are fractions of the box, pointing up, taken off the 16px art.
+/// The rotation happens **inside the path** rather than as a `rotationEffect` on
+/// the view, and that is the whole trick: the extrusion under it is always
+/// straight down the screen, so the shape has to be turned before it is cast.
+/// Rotate the finished stack instead and the thickness turns with it, which is
+/// the one thing a solid object's thickness never does.
 struct ArrowGlyph: Shape {
+
+    /// Degrees clockwise from pointing up.
+    var turn: Double = 0
 
     func path(in rect: CGRect) -> Path {
         func at(_ x: CGFloat, _ y: CGFloat) -> CGPoint {
@@ -747,39 +724,38 @@ struct ArrowGlyph: Shape {
         }
 
         var path = Path()
-        path.move(to: at(0.50, 0.08))       // tip
-        path.addLine(to: at(0.93, 0.48))    // right barb
-        path.addLine(to: at(0.71, 0.48))    // right shoulder
-        path.addLine(to: at(0.65, 0.92))    // right of the tail
-        path.addLine(to: at(0.35, 0.92))    // left of the tail
-        path.addLine(to: at(0.29, 0.48))    // left shoulder
-        path.addLine(to: at(0.07, 0.48))    // left barb
+        path.move(to: at(0.50, 0.02))       // tip
+        path.addLine(to: at(0.98, 0.46))    // right barb
+        path.addLine(to: at(0.71, 0.46))    // right shoulder
+        path.addLine(to: at(0.71, 0.80))    // tail, right
+        path.addLine(to: at(0.29, 0.80))    // tail, left
+        path.addLine(to: at(0.29, 0.46))    // left shoulder
+        path.addLine(to: at(0.02, 0.46))    // left barb
         path.closeSubpath()
-        return path
+
+        let centre = CGPoint(x: rect.midX, y: rect.midY)
+        return path.applying(
+            CGAffineTransform(translationX: centre.x, y: centre.y)
+                .rotated(by: turn * .pi / 180)
+                .translatedBy(x: -centre.x, y: -centre.y)
+        )
     }
 }
 
-/// One direction's arrow: two tones lit from above, inside a two-tone outline.
+/// One direction's arrow: a flat plate with thickness, seen from above.
 ///
-/// ## How the shading is built
+/// ## What the dark actually is
 ///
-/// The light comes from above for all four, so every upward-facing surface is
-/// the light tone and the underside is the shadow. That is drawn by filling the
-/// whole silhouette in shadow, then filling it again in light *shifted up a
-/// little* and clipped back inside itself — which leaves the shadow showing only
-/// along the bottom edges, exactly where a light from above would leave it.
+/// Not an outline and not shading — it is the *side* of the plate. The arrow is
+/// a solid object lying on the board, lit from above, and what shows of its edge
+/// is whatever faces downward on screen. Casting the same silhouette a few
+/// points lower and painting it dark produces exactly that, and produces it
+/// differently for each direction for free: pointing up, the undersides of the
+/// barbs and the tail show; pointing down, the two long diagonals do; pointing
+/// across, the lower diagonal and the underside of the shaft.
 ///
-/// The outline is the same idea: dark around the top, the lighter dark along the
-/// bottom. It is not optional trim — at this size the outline is most of what
-/// makes the shape read, which is why a strokeless version looked like nothing.
-///
-/// ## Why the four are not one shape rotated
-///
-/// The board is drawn from three-quarters above and these sit on it. An arrow
-/// pointing away from the viewer is *foreshortened*; one pointing across keeps
-/// its length and instead leans, because its far end is deeper into the scene
-/// than its near end. Four copies of one rotated arrow read as a flat overlay
-/// stuck on a 3D scene.
+/// That is why these read as four different drawings while being one shape. It
+/// is the same reason the buttons on this panel have a rim rather than a border.
 struct DirectionArrow: View {
 
     let direction: SwipeDirection
@@ -787,51 +763,19 @@ struct DirectionArrow: View {
     var shadow: Color = PanelStyle.padShadow
     var box: CGFloat = PanelStyle.padArrowSize
 
-    /// True for the pair whose length runs away from the viewer.
-    private var pointsAway: Bool { direction == .up || direction == .down }
-
     var body: some View {
+        let glyph = ArrowGlyph(turn: direction.iconRotation)
+
         ZStack {
-            ArrowGlyph().fill(shadow)
-
-            // The lit surfaces: the same shape slid up, kept inside the
-            // original so only the underside stays in shadow.
-            ArrowGlyph()
-                .fill(light)
-                .offset(y: -PanelStyle.padLightLift)
-                .clipShape(ArrowGlyph())
-
-            ArrowGlyph()
-                .stroke(PanelStyle.padOutline, lineWidth: PanelStyle.padOutlineWidth)
-
-            // The outline's own underside, lighter than the rest of it.
-            ArrowGlyph()
-                .stroke(PanelStyle.padOutlineLow, lineWidth: PanelStyle.padOutlineWidth)
-                .mask(alignment: .bottom) {
-                    Rectangle().frame(height: box * PanelStyle.padOutlineLowShare)
-                }
+            glyph.fill(shadow).offset(y: PanelStyle.padThickness)
+            glyph.fill(light)
         }
-        // Squashed while it still points up, so the compression stays on the
-        // screen's vertical. Rotating first would carry it round with the arrow
-        // and all four would match again.
-        .frame(width: box, height: box * (pointsAway ? PanelStyle.padForeshorten : 1))
-        .rotationEffect(.degrees(direction.iconRotation))
-        .rotationEffect(.degrees(pointsAway ? 0 : lean))
-        .frame(width: footprint.width, height: footprint.height)
+        .frame(width: box, height: box)
     }
 
-    /// The two crossing arrows lean opposite ways, being mirror images.
-    private var lean: Double {
-        direction == .right ? PanelStyle.padCrossLean : -PanelStyle.padCrossLean
-    }
-
-    /// The space it occupies once turned, so a caller can reserve it.
-    var footprint: CGSize {
-        let short = box * PanelStyle.padForeshorten
-        return pointsAway
-            ? CGSize(width: box, height: short)
-            : CGSize(width: short, height: box)
-    }
+    /// The space it takes. Square, since the silhouette turns inside its own box
+    /// rather than the box turning with it.
+    var footprint: CGSize { CGSize(width: box, height: box) }
 }
 
 /// A keyboard cross of arrows, with a sign's longer moves nested outside.
