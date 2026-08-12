@@ -1620,9 +1620,16 @@ extension GameSession {
     /// True while the player is being asked to pick a square on the board.
     var isChoosingTile: Bool {
         switch pendingPickupChoice?.kind {
-        case .tile, .among: true
+        case .tile, .among, .place: true
         default: false
         }
+    }
+
+    /// The slab Libra is being asked to place, if that is the outstanding
+    /// question. See `GaleforceGavelEffect`.
+    var placingSlab: GavelSlab? {
+        if case let .place(slab) = pendingPickupChoice?.kind { return slab }
+        return nil
     }
 
     /// The squares that would be a legal answer, or `nil` when every square is.

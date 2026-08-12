@@ -307,6 +307,20 @@ protocol ZodiacPassive {
         context: PassiveContext
     ) -> [GameEvent]
 
+    /// Whether leaving Astra should repair it.
+    ///
+    /// True for everyone but Libra, whose whole arrangement is that both boards
+    /// persist — an Astra that healed itself every time she went down would make
+    /// half of her game disappear behind her. Default: the global rule.
+    func restoresPlaneOnDescent(context: PassiveContext) -> Bool
+
+    /// Whether standing on the Nexys should take the piece *down* as well as up.
+    ///
+    /// The island only ever went one way, because for everyone else the point of
+    /// it is the ride home. Libra rides it both ways — see
+    /// `LibraJudicatorElevator`. Default: false.
+    func ridesNexysDown(context: PassiveContext) -> Bool
+
     /// Whether an opened Pentacle should be banked rather than set off.
     ///
     /// Capricorn's Celestial Commerce alone. The engine puts the coin in
@@ -511,6 +525,12 @@ extension ZodiacPassive {
         context: PassiveContext
     ) -> [GameEvent] { [] }
 
+    func restoresPlaneOnDescent(context: PassiveContext) -> Bool {
+        GameRules.astraRestoresOnDescent
+    }
+
+    func ridesNexysDown(context: PassiveContext) -> Bool { false }
+
     func banksPickups(_ id: PickupID, context: PassiveContext) -> Bool { false }
 
     func meterBonus(from move: MoveSummary, context: PassiveContext) -> Int {
@@ -686,6 +706,15 @@ extension Array where Element == any ZodiacPassive {
 
     func banksPickups(_ id: PickupID, context: PassiveContext) -> Bool {
         contains { $0.banksPickups(id, context: context) }
+    }
+
+    /// One refusal is enough: a sign that keeps its Astra keeps it.
+    func restoresPlaneOnDescent(context: PassiveContext) -> Bool {
+        allSatisfy { $0.restoresPlaneOnDescent(context: context) }
+    }
+
+    func ridesNexysDown(context: PassiveContext) -> Bool {
+        contains { $0.ridesNexysDown(context: context) }
     }
 
     func collected(

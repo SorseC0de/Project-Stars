@@ -24,8 +24,8 @@ extension ZodiacCatalog {
         movement: .cardinalStep,
         passives: [
             LibraEquitableImpact(),
-            LibraCarefulCurrent(),
-            LibraStellarScales(),
+            LibraAxialAdjudication(),
+            LibraJudicatorElevator(),
         ],
         zodiaction: LibraBalancingBreeze(),
         constellation: ZodiacCatalog.libraConstellation
@@ -82,67 +82,49 @@ struct LibraEquitableImpact: ZodiacPassive {
     }
 }
 
-// MARK: - Passive 2: Careful Current
+// MARK: - Passive 2: Axial Adjudication
 
-/// A row or column that levels out — every square on it at the same wear — is
-/// fully restored. Libra must alternate between the two, never the same axis
-/// twice running.
+/// A line at one uniform wear is fully restored — **rows** on Terra, **columns**
+/// on Astra.
 ///
-/// The alternation is what keeps it from being a repair engine: once a row pays
-/// out, the next payout has to come from a column, so Libra has to keep damage
-/// spread evenly across both axes. Equitable Impact's twin trenches are exactly
-/// the tool for that, which is why the two passives belong together.
+/// ## Why the axis is fixed to the plane
 ///
-/// Rows and columns containing the Nexys or its chasm are skipped — a structural
-/// square has no wear state to match, so those lines can never be uniform.
-struct LibraCarefulCurrent: ZodiacPassive {
+/// It used to alternate: a row paid out, then the next payout had to be a
+/// column. That is a rule about *history*, and history is the one thing a board
+/// cannot show you — the player had to remember which one went last to know
+/// what they were building toward.
+///
+/// Nailing each axis to a plane says the same thing on the board itself. On
+/// Terra you are levelling rows; go up and you are levelling columns. Libra now
+/// keeps two boards at once (see `LibraJudicatorElevator`), and giving each its
+/// own grain is what makes them feel like two different problems rather than one
+/// problem seen twice.
+///
+/// Lines containing the Nexys or its chasm are skipped — a structural square has
+/// no wear state to match, so those lines can never be uniform.
+struct LibraAxialAdjudication: ZodiacPassive {
 
-    /// Key this sign owns in `SignState.counters`. `0` row, `1` column.
-    static let lastAxisKey = "libra.lastCarefulAxis"
-
-    private static let rowAxis = 0
-    private static let columnAxis = 1
-
-    let displayName = "Careful Current"
-    let summary = "Astra & Terra: a row or column at one uniform wear is fully restored, alternating axes."
+    let displayName = "Axial Adjudication"
+    let summary = "Terra: a row at one uniform wear is fully restored. Astra: a column."
 
     func amend(_ events: [GameEvent], context: PassiveContext) -> [GameEvent] {
         let board = context.currentBoard
-        let lastAxis = context.signState.counters[Self.lastAxisKey]
+        guard let line = uniformLine(on: context.plane, board: board) else { return [] }
 
-        // Whichever axis did not pay out last time gets first refusal.
-        let order = lastAxis == Self.rowAxis
-            ? [Self.columnAxis, Self.rowAxis]
-            : [Self.rowAxis, Self.columnAxis]
-
-        for axis in order where axis != lastAxis {
-            guard let line = uniformLine(axis: axis, board: board) else { continue }
-
-            let changes = line.reduce(into: [GridPoint: TileHealth]()) { $0[$1] = .healthy }
-
-            var state = context.signState
-            state.counters[Self.lastAxisKey] = axis
-
-            return [
-                .tilesChanged(plane: context.plane, changes: changes),
-                .signStateChanged(state),
-            ]
-        }
-
-        return []
+        let changes = line.reduce(into: [GridPoint: TileHealth]()) { $0[$1] = .healthy }
+        return [.tilesChanged(plane: context.plane, changes: changes)]
     }
 
-    /// The first line on `axis` whose squares all share one damaged state.
+    /// The first line on this plane's axis whose squares all share one damaged
+    /// state.
     ///
-    /// A line already at full health is ignored — restoring it would be a no-op
-    /// that still burned the alternation.
-    private func uniformLine(axis: Int, board: Board) -> [GridPoint]? {
+    /// A line already at full health is ignored: restoring it would be a no-op.
+    private func uniformLine(on plane: Plane, board: Board) -> [GridPoint]? {
         for index in 0..<board.size {
             let line = (0..<board.size).map { other in
-                axis == Self.rowAxis ? GridPoint(other, index) : GridPoint(index, other)
+                plane == .terra ? GridPoint(other, index) : GridPoint(index, other)
             }
 
-            // Structural squares have no wear state, so their line cannot level.
             guard line.allSatisfy({ board[$0].kind == .normal }) else { continue }
 
             let health = board[line[0]].health
@@ -155,92 +137,106 @@ struct LibraCarefulCurrent: ZodiacPassive {
     }
 }
 
-// MARK: - Passive 3: Stellar Scales
+// MARK: - Passive 3: Judicator Elevator
 
-/// The sparkle phase sometimes comes up mirrored — the same shape again, folded
-/// across the board's middle.
+/// The island is Libra's lift, and Astra does not tidy itself up behind her.
 ///
-/// Up to ten sparkles instead of five, which is not simply twice the odds: a
-/// mirrored set covers both halves of the board, so wherever the piece happens
-/// to be standing there is something worth walking to. The scales balance the
-/// hunt as well as the ground.
+/// ## Two boards, not one board and a floor
 ///
-/// Commoner on Astra, where Libra is at home, and rare below.
-struct LibraStellarScales: ZodiacPassive {
+/// Every other sign treats Astra as somewhere to survive and Terra as what
+/// happens when they fail. Libra is the exception: standing on the Nexys carries
+/// her whichever way she is not, freely and as often as she likes, so both
+/// planes are live at once.
+///
+/// The price is that Astra stops regenerating. For everyone else, leaving Astra
+/// repairs it — that is the mechanism that makes long runs possible at all — and
+/// for a sign that can leave and come back at will it would be an infinite
+/// board. So Libra's Astra decays and stays decayed, and keeping it habitable is
+/// her job rather than the game's.
+///
+/// That is what turns the rest of the kit into a management game: Axial
+/// Adjudication mends a line on whichever plane she is standing on, the Gavel
+/// drops ground where she needs it, and Balancing Breeze copies one board over
+/// the other. None of those are worth much with one board to look after.
+struct LibraJudicatorElevator: ZodiacPassive {
 
-    let displayName = "Stellar Scales"
-    let summary = "Astra: 5% chance the sparkle phase appears mirrored across the board. Terra: 1%."
+    let displayName = "Judicator Elevator"
+    let summary = "Astra & Terra: stand on the Nexys to travel between planes at will. In exchange, Astra never repairs itself for you."
 
-    func mirroredSparkleChance(context: PassiveContext) -> Double {
-        switch context.plane {
-        case .astra: GameRules.stellarScalesChanceAstra
-        case .terra: GameRules.stellarScalesChanceTerra
+    func ridesNexysDown(context: PassiveContext) -> Bool { true }
+
+    func restoresPlaneOnDescent(context: PassiveContext) -> Bool { false }
+
+    /// The Nexys Shift becomes the Galeforce Gavel in her hands.
+    ///
+    /// A straight trade of weights rather than an extra entry, so the uncommon
+    /// tier's odds are exactly what they are for everyone else. The Shift itself
+    /// is worth nothing to Libra — it moves the island to her plane, and she can
+    /// already go to the island — so this is not a bonus so much as the slot
+    /// being spent on something she can use.
+    func pickupWeight(_ base: Int, for id: PickupID, context: PassiveContext) -> Int {
+        switch id {
+        case .nexysShift: 0
+        case .galeforceGavel: PickupCatalog.effect(for: .nexysShift).weight
+        default: base
         }
     }
 }
 
 // MARK: - Zodiaction: Balancing Breeze
 
-/// Rewrites every tile's state according to the plane's own
-/// logic — mercy below, symmetry above.
+/// Copies the plane Libra is standing on over the top of the other one.
 ///
-/// - **Terra** resolves everything toward its extreme: cracked tiles mend
-///   completely, badly cracked tiles collapse into holes. A cleaner board with
-///   sharper edges.
-/// - **Astra** swaps opposites instead: cracked and badly cracked trade places,
-///   and — the reason to hold it — every hole becomes healthy while every healthy
-///   tile becomes a hole. On a wrecked Astra board that is a full reprieve; on a
-///   fresh one it is a catastrophe. Timing is the whole card.
+/// ## Why a copy rather than a transformation
+///
+/// The old Breeze rewrote the current board by a table — cracked becomes
+/// healthy, healthy becomes a hole, and so on — which was a card you held for
+/// one specific board state and otherwise never played. Copying is the move that
+/// belongs to a sign with two boards: whichever one you have been keeping tidy
+/// becomes the one you were neglecting.
+///
+/// It is symmetrical and it is brutal in both directions. Stand on a repaired
+/// Astra and Terra is repaired with it; stand on a wrecked Terra with the meter
+/// full and you have just wrecked Astra as well. The scales do not care which
+/// way they tip, which is the whole of the sign.
+///
+/// ## What it does not copy
+///
+/// Structural squares — the island and the chasm it leaves — are skipped in both
+/// directions. They sit on opposite planes by definition, and a copy that moved
+/// them would put two islands on one board or none on either.
+///
+/// The square a Pentacle is standing on is skipped as well, for the reason it
+/// always was: a coin over a hole is destroyed, and destroying the coin at the
+/// same moment the board loses everywhere a new one could spawn ends the hunt
+/// for good.
 struct LibraBalancingBreeze: Zodiaction {
 
     let displayName = "Balancing Breeze"
-    let summary = "Terra: cracked mend, badly cracked collapse. Astra: cracked ↔ badly cracked, holes ↔ healthy."
+    let summary = "Astra & Terra: copy the board you are standing on over the top of the other one."
 
     /// - TODO: Libra has no charge rule specified. It currently fills only from
     ///   Pentacles.
     func meterGain(from move: MoveSummary, context: PassiveContext) -> Int { 0 }
 
-    func activate(context: PassiveContext, generator: inout SeededRandom) -> [GameEvent] {
-        let board = context.currentBoard
-
-        // The scales tip in one motion, so the whole board travels as a single
-        // `tilesChanged`.
-        var changes: [GridPoint: TileHealth] = [:]
-        for point in board.allPoints {
-            let tile = board[point]
-            // Structural squares sit outside the scales.
-            guard tile.kind == .normal else { continue }
-
-            // So does the square the Pentacle is on. Popping this on a fresh
-            // Astra board turns every healthy tile into a hole; if the coin's
-            // tile went with them the coin would be destroyed and there would be
-            // nowhere left to spawn its replacement, ending the hunt for good.
-            // The scales weigh the ground, not what is standing on it.
-            guard !context.pickupPoints.contains(point) else { continue }
-            guard let target = swapped(tile.health, on: context.plane),
-                  target != tile.health else { continue }
-            changes[point] = target
-        }
-
-        return changes.isEmpty ? [] : [.tilesChanged(plane: context.plane, changes: changes)]
+    /// There is nothing to copy onto from a plane with nothing under it.
+    func canActivate(context: PassiveContext) -> Bool {
+        context.boardBelow != nil || context.plane == .terra
     }
 
-    /// The state a tile is rewritten to, or `nil` to leave it alone.
-    private func swapped(_ health: TileHealth, on plane: Plane) -> TileHealth? {
-        switch plane {
-        case .terra:
-            switch health {
-            case .cracked: return .healthy
-            case .badlyCracked: return .hole
-            case .healthy, .hole: return nil
-            }
-        case .astra:
-            switch health {
-            case .cracked: return .badlyCracked
-            case .badlyCracked: return .cracked
-            case .hole: return .healthy
-            case .healthy: return .hole
-            }
+    func activate(context: PassiveContext, generator: inout SeededRandom) -> [GameEvent] {
+        let source = context.currentBoard
+        let target: Plane = context.plane == .astra ? .terra : .astra
+
+        var changes: [GridPoint: TileHealth] = [:]
+        for point in source.allPoints {
+            // Structural on either side is left alone: the island belongs to
+            // whichever plane it is on, and the chasm is its shadow.
+            guard source[point].kind == .normal else { continue }
+            guard !context.pickupPoints.contains(point) else { continue }
+            changes[point] = source[point].health
         }
+
+        return changes.isEmpty ? [] : [.tilesChanged(plane: target, changes: changes)]
     }
 }

@@ -80,6 +80,14 @@ enum PickupChoice: Equatable {
     /// Pick one of the Pentacles in Capricorn's purse. See `ShopBarView`.
     case shop
 
+    /// Pick where to drop a slab of ground.
+    ///
+    /// Carries the slab itself, because the board has to draw it: the player is
+    /// choosing an anchor for a *shape*, and a cursor that showed only the
+    /// square under their finger would be asking them to hold the other three in
+    /// their head. See `GaleforceGavelEffect`.
+    case place(GavelSlab)
+
     /// Pick one of a named handful of squares, or none of them.
     ///
     /// Unlike `tile`, this one may be **declined**: it is an offer rather than a
@@ -99,6 +107,13 @@ enum PickupChoiceResult: Equatable {
     /// The player was offered something and said no. Only `PickupChoice.among`
     /// can produce this; everything else must be answered.
     case declined
+
+    /// A slab, and the square its anchor was dropped on.
+    ///
+    /// Carries the slab back rather than trusting the effect to have kept it:
+    /// the roll happened when the question was asked, and the answer has to name
+    /// what it is an answer *to*.
+    case place(GavelSlab, GridPoint)
 }
 
 // MARK: - PickupContext
@@ -208,7 +223,20 @@ protocol PickupEffect {
     var requiredSpawnPoint: GridPoint? { get }
 
     /// Input this effect needs from the player before it can resolve.
+    ///
+    /// A *description* of the question, and therefore static. An effect whose
+    /// question has random content in it — Libra's Gavel, which rolls the slab
+    /// before showing it — declares the shape of the question here and supplies
+    /// the real one from `rolledChoice(using:)`.
     var choice: PickupChoice { get }
+
+    /// The question actually put to the player, with anything random in it
+    /// already decided.
+    ///
+    /// Defaults to `choice`. Rolled at the moment the question is asked and
+    /// carried inside it, so the answer names what it was answering and a seeded
+    /// run replays identically.
+    func rolledChoice(using generator: inout SeededRandom) -> PickupChoice
 
     /// Whether arriving somewhere new because of this effect wears the tile
     /// landed on.
@@ -241,4 +269,6 @@ extension PickupEffect {
     var requiredSpawnPoint: GridPoint? { nil }
     var choice: PickupChoice { .none }
     var arrivalWearsTile: Bool { true }
+
+    func rolledChoice(using generator: inout SeededRandom) -> PickupChoice { choice }
 }

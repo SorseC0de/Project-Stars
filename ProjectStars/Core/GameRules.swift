@@ -377,10 +377,6 @@ enum GameRules {
     static let magneticManeSteps = 1
     static let magneticManeStepsWithSun = 2
 
-    /// How often Libra's Stellar Scales mirrors a sparkle phase, by plane.
-    static let stellarScalesChanceAstra = 0.05
-    static let stellarScalesChanceTerra = 0.01
-
     /// How often Sagittarius' Fortunate Find turns up a second Pentacle, by
     /// plane.
     ///

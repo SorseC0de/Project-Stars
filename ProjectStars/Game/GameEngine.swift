@@ -1316,6 +1316,15 @@ struct GameEngine {
                     commit(.nexysMoved(to: .astra, carryingPiece: true))
                     result.ascended = true
                 }
+
+                // And the other way, for a sign that treats the island as an
+                // elevator rather than as a rescue. Sent as an ordinary descent
+                // so everything watching for an arrival on Terra sees one.
+                if plane == .astra,
+                   self[plane][point].kind == .nexys,
+                   piece.zodiac.passives.ridesNexysDown(context: passiveContext) {
+                    commit(.nexysMoved(to: .terra, carryingPiece: true))
+                }
                 return result
             }
 
@@ -1339,7 +1348,8 @@ struct GameEngine {
             // Leaving Astra repairs it, so a player who can climb back up finds
             // fresh ground waiting. This is the mechanism that makes long runs
             // possible at all.
-            if GameRules.astraRestoresOnDescent, plane == .astra {
+            if piece.zodiac.passives.restoresPlaneOnDescent(context: passiveContext),
+               plane == .astra {
                 commit(.planeRestored(plane: .astra))
             }
         }
@@ -1754,7 +1764,12 @@ struct GameEngine {
         // Effects that need an answer park here. The session collects it and
         // calls `planChoice(_:)`, which resumes from exactly this point.
         guard effect.choice == .none else {
-            commit(.choiceRequested(source: .pickup(pickup.id), kind: effect.choice))
+            // Asked through `rolledChoice`, so anything random inside the
+            // question is decided now and travels with it.
+            commit(.choiceRequested(
+                source: .pickup(pickup.id),
+                kind: effect.rolledChoice(using: &rng)
+            ))
             return (true, pickup.id, events)
         }
 
@@ -1820,7 +1835,7 @@ struct GameEngine {
         }
 
         // Leaving Astra repairs it however you left, not only by falling.
-        if GameRules.astraRestoresOnDescent,
+        if piece.zodiac.passives.restoresPlaneOnDescent(context: passiveContext),
            planeBefore == .astra,
            piece.plane == .terra,
            !events.contains(.planeRestored(plane: .astra)) {
@@ -1883,7 +1898,10 @@ struct GameEngine {
             // ordinary pickup path — buying an Astral Breeze should feel like
             // opening one.
             if effect.choice != .none {
-                commit(.choiceRequested(source: .pickup(id), kind: effect.choice))
+                commit(.choiceRequested(
+                    source: .pickup(id),
+                    kind: effect.rolledChoice(using: &sim.rng)
+                ))
                 return events
             }
             events += sim.applyEffect(effect, choice: nil)

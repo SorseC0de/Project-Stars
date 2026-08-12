@@ -93,6 +93,10 @@ enum PickupID: String, CaseIterable, Codable, Identifiable, Hashable {
     /// `GaiaDropletEffect`.
     case gaiaDroplet
 
+    /// Libra's slab of ground. Takes the Nexys Shift's place in the roll while
+    /// she is playing — see `LibraJudicatorElevator` and `GaleforceGavelEffect`.
+    case galeforceGavel
+
     var id: String { rawValue }
 }
 
@@ -800,6 +804,79 @@ struct ShadowWorkEffect: PickupEffect {
     }
 }
 
+/// Libra drops a slab of ground wherever she decides it belongs.
+///
+/// ## Why this replaces the Nexys Shift
+///
+/// The Shift moves the island to your plane, which for every other sign is a way
+/// home. Libra has a way home — the island is already her lift — so the coin was
+/// worth nothing to her. Giving her the slot rather than adding a slot keeps the
+/// odds of the uncommon tier exactly where they were.
+///
+/// ## What arrives is not up to her
+///
+/// A shape and a state, both rolled: one to four squares in some orientation, at
+/// any of the four wear levels, holes included. Libra chooses **where**, and only
+/// where. That is the sign — she does not decide what the world hands her, she
+/// decides what to do with it — and it is what makes the ability a placement
+/// puzzle instead of a repair.
+///
+/// The board draws the slab floating over the cursor while she aims, green where
+/// it would land and red where it would hang off the edge or over the island. A
+/// slab that does not fit entirely cannot be dropped at all: allowing a corner of
+/// a four-square shape to be used would make the rarity of the big shapes
+/// meaningless.
+struct GaleforceGavelEffect: PickupEffect {
+
+    let id: PickupID = .galeforceGavel
+    let rarity: PickupRarity = .uncommon
+
+    /// Zero, so it is never rolled by anyone. Libra swaps it into the Nexys
+    /// Shift's place through `ZodiacPassive.pickupWeight` — the same idiom
+    /// Pisces uses to trade Z-Charge against the Tear.
+    let weight = 0
+    let displayName = "Galeforce Gavel"
+    let summary = "Place a slab of ground anywhere it fits."
+    let glyph = "⚖"
+    let element: ZodiacElement? = .air
+
+    /// The slab arrives as ground; the square Libra is standing on to place it
+    /// is not part of the deal and should not be charged for the privilege.
+    let arrivalWearsTile = false
+
+    /// Rolled on opening, then asked about.
+    ///
+    /// `PickupChoice` is a static description of a question, so the roll cannot
+    /// live there — it happens here, on the first call, and travels inside the
+    /// question itself.
+    let choice: PickupChoice = .place(
+        GavelSlab(shape: .single, rotation: 0, health: .healthy)
+    )
+
+    /// The real question, with a freshly rolled slab in it.
+    ///
+    /// The engine asks the effect for its choice before suspending; this is
+    /// where the dice are thrown, so a seeded run places the same slab every
+    /// time.
+    func rolledChoice(using generator: inout SeededRandom) -> PickupChoice {
+        .place(GavelSlab.roll(using: &generator))
+    }
+
+    func plan(
+        context: PickupContext,
+        choice: PickupChoiceResult?,
+        generator: inout SeededRandom
+    ) -> [GameEvent] {
+        guard case let .place(slab, anchor) = choice else { return [] }
+        guard slab.canBePlaced(anchoredAt: anchor, on: context.currentBoard) else { return [] }
+
+        let changes = slab.squares(anchoredAt: anchor)
+            .reduce(into: [GridPoint: TileHealth]()) { $0[$1] = slab.health }
+
+        return [.tilesChanged(plane: context.plane, changes: changes)]
+    }
+}
+
 /// A droplet of the water Pisces brings up with it.
 ///
 /// Eight of these ring the fish when it arrives on Terra, and taking any one
@@ -868,6 +945,7 @@ enum PickupCatalog {
         .shadowWork: ShadowWorkEffect(),
 
         .gaiaDroplet: GaiaDropletEffect(),
+        .galeforceGavel: GaleforceGavelEffect(),
     ]
 
     /// The effect for an id. Traps on an unregistered id, which can only happen

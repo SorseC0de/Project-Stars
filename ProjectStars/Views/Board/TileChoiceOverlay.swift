@@ -36,6 +36,65 @@ struct TileChoiceOverlay: View {
     var body: some View {
         let allowed = session.choosableTiles
 
+        if let slab = session.placingSlab {
+            placement(slab)
+        } else {
+            picker(allowed)
+        }
+    }
+
+    // MARK: - Placing a slab
+
+    /// Libra aiming the Galeforce Gavel.
+    ///
+    /// The slab floats over the board rather than under the finger, because the
+    /// finger is on top of the answer: the player has to be able to see the
+    /// squares the shape would cover, and a hand covering three of four of them
+    /// is the whole reason a phantom exists.
+    ///
+    /// Green where it would land, red where it would not. Drawn for **every**
+    /// anchor at once rather than following a hover, since a phone has no hover
+    /// — the board simply shows where the shape fits, and the player taps one.
+    private func placement(_ slab: GavelSlab) -> some View {
+        ZStack {
+            ForEach(GridPoint.allPoints(size: metrics.gridSize), id: \.self) { anchor in
+                let fits = slab.canBePlaced(anchoredAt: anchor, on: session.engine.currentBoard)
+
+                Rectangle()
+                    .fill((fits ? Palette.jade : Palette.red).opacity(pulse ? 0.30 : 0.14))
+                    .overlay(
+                        Rectangle().strokeBorder(
+                            (fits ? Palette.jade : Palette.red).opacity(0.85),
+                            lineWidth: 1
+                        )
+                    )
+                    .frame(width: metrics.tileSize, height: metrics.tileSize)
+                    .position(metrics.center(of: anchor))
+            }
+            .allowsHitTesting(false)
+
+            Color.clear
+                .contentShape(Rectangle())
+                .onTapGesture(coordinateSpace: .local) { location in
+                    guard let anchor = metrics.gridPoint(at: location) else { return }
+                    guard slab.canBePlaced(
+                        anchoredAt: anchor, on: session.engine.currentBoard
+                    ) else { return }
+                    session.resolvePickupChoice(.place(slab, anchor))
+                }
+
+            SlabPhantomView(slab: slab, metrics: metrics)
+                .allowsHitTesting(false)
+        }
+        .frame(width: metrics.boardSize, height: metrics.boardSize)
+        .animation(.easeInOut(duration: 0.7).repeatForever(autoreverses: true), value: pulse)
+        .onAppear { pulse = true }
+        .transition(.opacity)
+    }
+
+    // MARK: - Picking a square
+
+    private func picker(_ allowed: [GridPoint]?) -> some View {
         ZStack {
             // Highlights are display only. They must not carry the gesture:
             // `.position` fills the available space, so a hit shape applied
