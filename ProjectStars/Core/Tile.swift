@@ -31,6 +31,17 @@ enum TileKind: String, CaseIterable, Codable, Hashable {
     /// Distinct from `.normal` at `.hole` because a healing effect must not be
     /// able to patch it.
     case chasm
+
+    /// A **pool**: standing water Pisces leaves where it comes down.
+    ///
+    /// Structural like the island, and for the same reason — it is not ground in
+    /// a state of repair, it is a different thing sitting where ground was. It
+    /// cannot be worn, healed or sparkled, and it pays a pip of charge to
+    /// whoever steps into it.
+    ///
+    /// It is not permanent. Changing plane or changing sign evaporates it, and
+    /// so does anything hot enough — see `GameEngine.evaporatePools(...)`.
+    case pool
 }
 
 // MARK: - Tile
@@ -53,6 +64,9 @@ struct Tile: Hashable, Codable {
         case .normal: !health.isHole
         case .nexys: true
         case .chasm: false
+        // Shallow enough to stand in. A pool that dropped the piece would be a
+        // hole with a colour, and this is meant to be somewhere to go.
+        case .pool: true
         }
     }
 
@@ -103,4 +117,8 @@ struct Tile: Hashable, Codable {
 
     /// The gap the Nexys leaves on the other plane.
     static let chasm = Tile(kind: .chasm, health: .hole)
+
+    /// Standing water. Healthy because a pool is not damaged ground — it is not
+    /// ground at all.
+    static let pool = Tile(kind: .pool, health: .healthy)
 }

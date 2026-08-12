@@ -21,9 +21,9 @@ extension ZodiacCatalog {
         glyph: "♓",
         element: .water,
         accentColor: Color(hex: 0x4E_7F_D4),
-        movement: .cardinalStep,
+        movement: .starstream,
         passives: [
-            PiscesAstralAttunement(),
+            PiscesStarstreamSurfer(),
             PiscesGaiaGeyser(),
             PiscesAridAquanaut(),
         ],
@@ -46,58 +46,124 @@ extension ZodiacCatalog {
     )
 }
 
-// MARK: - Passive 1: Astral Attunement
+// MARK: - Passive 1: Starstream Surfer
 
-/// The tide runs one way: every move on Astra charges, every move on Terra
-/// drains.
+/// The fish does not walk. It rides the current — any turn it likes — and that
+/// ride is the only thing that charges it on Astra.
 ///
-/// It makes Pisces the only sign with a reason to *stay* on Astra rather than
-/// treat it as a floor to fall through — and the only one whose meter is a
-/// countdown once it goes down.
+/// ## What changed and why
 ///
-/// ## Astra pays on arrival, Terra charges on departure
+/// Astral Attunement paid a pip for every move made on Astra, which made the
+/// correct play "take as many small steps up here as possible". That is not a
+/// water sign, it is a metronome. The surf — what used to be half of Surging
+/// Stream — is now ordinary movement, and the meter fills from *using* it.
 ///
-/// Not symmetry for its own sake. Charging Terra's drain on *arrival* meant the
-/// move that reached a Pentacle paid the toll and collected in the same breath:
-/// land on a Z-Charge at zero and you finished on two, not three, which reads as
-/// the coin having shortchanged you. Billing the drain to the square you *leave*
-/// puts the toll on the move that spends the ground, and lets a coin be worth
-/// exactly what it says.
+/// So charging is a decision with a shape: a surf crosses the board, wears the
+/// tile it left and the tile it stopped on, and puts Pisces against a wall. It
+/// is the best thing the sign can do and it costs position every single time.
 ///
-/// It also means the descent itself is free — a move that starts on Astra never
-/// drains — which is right, since Gaia Geyser is filling the meter on that very
-/// move.
-struct PiscesAstralAttunement: ZodiacPassive {
+/// ## Terra is unchanged
+///
+/// A pip drains for every square left, exactly as before. Billed on departure
+/// rather than arrival so the move that reaches a Pentacle does not pay the toll
+/// and collect in the same breath — land on a Z-Charge at zero and you finish on
+/// three, which is what the coin says it gives.
+struct PiscesStarstreamSurfer: ZodiacPassive {
 
-    let displayName = "Astral Attunement"
-    let summary = "Astra: +1 charge on arrival. Terra: −1 charge for every square you leave."
+    let displayName = "Starstream Surfer"
+    let summary = "Astra: surf to the far wall on any turn, and charge \(GameRules.starstreamCharge) for doing it — ordinary steps give nothing. Terra: −1 charge for every square you leave."
 
     func meterBonus(from move: MoveSummary, context: PassiveContext) -> Int {
-        if move.endingPlane == .astra { return 1 }
-        return move.startingPlane == .terra ? -1 : 0
+        // Standing water pays whoever is standing in it, on either plane. Only
+        // Pisces can be — pools evaporate the moment the sign changes — but the
+        // rule is written where it can be *read* rather than left implied by
+        // that.
+        let pool = context.currentBoard[move.restingPoint].kind == .pool
+            ? GameRules.poolCharge
+            : 0
+
+        if move.endingPlane == .astra {
+            // A surf is any move that covered more ground than a step. Nothing
+            // else in this pattern can.
+            let surfed = move.origin.manhattanDistance(to: move.destination) > 1
+            return pool + (surfed ? GameRules.starstreamCharge : 0)
+        }
+
+        return pool + (move.startingPlane == .terra ? -1 : 0)
     }
 }
 
 // MARK: - Passive 2: Gaia Geyser
 
-/// Arriving on Terra fills the meter completely.
+/// Coming down on Terra brings the water with you: eight droplets ring the fish
+/// where it lands, and every square one settles on is mended a stage — holes
+/// included.
 ///
-/// Which is what keeps Astral Attunement from being a straight punishment: the descent
-/// hands Pisces a full meter, and Terra then spends it a pip at a time. The fish
-/// arrives rich and leaks.
+/// ## Why droplets rather than a number
 ///
-/// Fires on the move that *arrives* — started on Astra, ended on Terra — rather
-/// than on any move spent there, so it cannot be farmed by bouncing.
+/// The old version simply filled the meter on arrival, which was correct as
+/// balance and dead as a moment: the most dramatic thing Pisces does produced a
+/// bar going up. The ring puts the same value on the board as eight places to
+/// stand, and taking one dismisses the other seven — so arriving on Terra is now
+/// a decision about *where*, made at exactly the moment the fish has the most to
+/// spend and the least time to spend it.
+///
+/// ## The arithmetic is unchanged
+///
+/// A droplet is a full meter and the move that collects it drains one on the way
+/// out, so the fish stands up on nine. That is precisely where the old
+/// fill-on-arrival left it after its first step, which is the number everything
+/// downstream was tuned against.
+///
+/// ## Why the mending reaches holes
+///
+/// Water finds the low ground. A hole mended to badly cracked is still a bad
+/// square, but it is a square — and it means a fall into a wrecked corner of
+/// Terra leaves the fish with somewhere to go rather than nowhere.
 struct PiscesGaiaGeyser: ZodiacPassive {
 
     let displayName = "Gaia Geyser"
-    let summary = "Astra → Terra: arriving on Terra fully restores your charge."
+    let summary = "Astra → Terra: arriving rings you with droplets, mending each square they land on. Take one for a full meter; the rest dry up."
 
-    func meterBonus(from move: MoveSummary, context: PassiveContext) -> Int {
-        guard move.startingPlane == .astra, move.endingPlane == .terra else { return 0 }
-        // Returned as a top-up rather than an absolute, since the engine sums
-        // every contribution and then clamps to the meter's maximum.
-        return context.zodiac.zodiaction.meterMax
+    func amend(_ events: [GameEvent], context: PassiveContext) -> [GameEvent] {
+        guard arrived(in: events, context: context) else { return [] }
+
+        let board = context.currentBoard
+        let ring = GridOffset.cardinals + GridOffset.diagonals
+
+        var produced: [GameEvent] = []
+        for square in ring.map({ context.piecePoint.offset(by: $0) })
+        where board.contains(square) && board[square].kind == .normal {
+
+            // The water mends as it lands, one stage, holes included.
+            if board[square].health != .healthy {
+                produced.append(
+                    .tileHealed(plane: context.plane, point: square, to: board[square].health.healed)
+                )
+            }
+            produced.append(
+                .pickupRevealed(id: .gaiaDroplet, plane: context.plane, point: square)
+            )
+        }
+        return produced
+    }
+
+    /// True when this move is the one that brought the fish down.
+    ///
+    /// Read off the events rather than from a `MoveSummary`, because `amend` is
+    /// the only hook that runs late enough to place things on the board and it
+    /// is handed the events instead. A fall to Terra is the one that counts;
+    /// bouncing around down there is not.
+    private func arrived(in events: [GameEvent], context: PassiveContext) -> Bool {
+        guard context.plane == .terra else { return false }
+        return events.contains { event in
+            switch event {
+            case let .pieceFell(_, to, _): to == .terra
+            case let .pieceTeleported(_, _, from, to): from == .astra && to == .terra
+            case let .nexysMoved(to, carrying): to == .terra && carrying
+            default: false
+            }
+        }
     }
 }
 
@@ -169,9 +235,13 @@ struct PiscesAridAquanaut: ZodiacPassive {
 ///   there for the taking. The way back to full is Z-Charge, which nets +2 on
 ///   Terra — three collected against the one pip the move costs. Do not "fix"
 ///   this by exempting a move from the drain.
-/// - **Astra — Downstream:** the Astral Brook, run from the meter instead of
-///   from a coin. Sweeps to the far edge along the facing, wearing every tile
-///   crossed and passing over holes.
+/// - **Astra — Surging Stream:** the fish leaps, comes down *through* the cloud,
+///   and lands on Terra — setting off Gaia Geyser on the way — leaving a pool of
+///   standing water on the square it hits.
+///
+///   The old Astra half was the Astral Brook run from the meter, which is now
+///   ordinary movement (`PiscesStarstreamSurfer`) and had nothing left to be a
+///   super. This is the other thing water does: it goes down, and it stays.
 struct PiscesSurgingStream: Zodiaction {
 
     let displayName = "Surging Stream"
@@ -182,9 +252,9 @@ struct PiscesSurgingStream: Zodiaction {
     /// the ability *is* on each plane, and the panel will want them set smaller
     /// under the name once the bottom display is revamped for larger text.
     let subtitle = "Upstream / Downstream"
-    let summary = "Terra: surface on Astra one square along, holing the cloud you came through. Astra: sweep to the far edge, damaging every tile you cross."
+    let summary = "Terra: surface on Astra one square along, holing the cloud you came through. Astra: dive through the cloud to Terra, leaving a pool where you land."
 
-    /// Pisces' charge comes entirely from Astral Attunement and Gaia Geyser.
+    /// Pisces' charge comes entirely from Starstream Surfer and Gaia Geyser.
     func meterGain(from move: MoveSummary, context: PassiveContext) -> Int { 0 }
 
     /// Upstream refuses on the turn the fall brought Pisces down: a descent has
@@ -242,17 +312,40 @@ struct PiscesSurgingStream: Zodiaction {
 
     // MARK: Astra — Downstream
 
-    /// The Astral Brook, run as a Zodiaction rather than out of a coin.
+    /// Up, through the cloud, and down onto Terra — leaving water behind.
     ///
-    /// Literally that effect — the same function, not a copy of it — so the two
-    /// cannot drift apart. Pisces is the water sign; the Brook is the water
-    /// Essence; there is no reason for them to be different things.
+    /// ## Why it is a dive rather than a fall
+    ///
+    /// Falling through Astra is what happens to Pisces when a tile gives out.
+    /// This is the same journey made on purpose, and the difference has to be
+    /// visible: the fish hops *up* first and comes down through its own square,
+    /// which stays whole. Nothing is broken to get down there.
+    ///
+    /// Gaia Geyser fires off the arrival like any other descent, so the ring of
+    /// droplets is waiting when the fish lands.
+    ///
+    /// ## The pool
+    ///
+    /// The water the fish came down in stays where it hit. It is not ground and
+    /// cannot be worn or mended, it pays a pip to anything standing in it, and
+    /// it lasts until Pisces leaves the plane, stops being Pisces, or something
+    /// burns it off. On a plane that drains a pip for every square you leave,
+    /// somewhere that pays one back is a place worth walking to.
     private func downstream(_ context: PassiveContext) -> [GameEvent] {
-        AstralBrookEffect.slide(
-            on: context.currentBoard,
-            plane: context.plane,
-            from: context.piecePoint,
-            facing: context.facing
-        )
+        let landing = context.piecePoint
+
+        // Refuses over the chasm: there is no Terra square under the island's
+        // gap to come down on, and water cannot pool in a hole that is not
+        // there.
+        guard let below = context.boardBelow, below.contains(landing) else { return [] }
+        guard below[landing].kind == .normal || below[landing].kind == .pool else { return [] }
+
+        return [
+            // The descent proper. `pieceFell` rather than a teleport, so
+            // everything that watches for an arrival on Terra — Gaia Geyser
+            // above all — sees exactly what it expects.
+            .pieceFell(from: .astra, to: .terra, at: landing),
+            .poolFormed(plane: .terra, point: landing),
+        ]
     }
 }

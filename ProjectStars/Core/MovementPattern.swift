@@ -83,10 +83,25 @@ struct MovementPattern: Equatable {
         /// only where it lands.
         var style: MovementStyle
 
-        init(_ applies: Applicability, distance: Int, style: MovementStyle = .slide) {
+        /// When true the move runs until the board runs out, and `distance` is
+        /// only a sort key.
+        ///
+        /// A pattern cannot know how far the wall is — it has no board — so the
+        /// path for one of these is built by `GameEngine.resolvedMove(for:reach:)`
+        /// instead. Pisces' surf is the only user: it is the Astral Brook made
+        /// into ordinary movement, and the Brook has always gone to the edge.
+        var reachesWall: Bool
+
+        init(
+            _ applies: Applicability,
+            distance: Int,
+            style: MovementStyle = .slide,
+            reachesWall: Bool = false
+        ) {
             self.applies = applies
             self.distance = distance
             self.style = style
+            self.reachesWall = reachesWall
         }
     }
 
@@ -244,6 +259,20 @@ struct MovementPattern: Equatable {
         options: [
             MoveOption(.any, distance: 1, style: .slide),
             MoveOption(.any, distance: 2, style: .jump),
+        ]
+    )
+
+    /// **Pisces — Starstream Surfer.** An ordinary step, or a surf to the wall.
+    ///
+    /// The long option is Downstream — what used to be half of Pisces'
+    /// Zodiaction — made available on any turn. The sort key is the board's
+    /// width so it always comes second in the reach selector; the actual
+    /// distance is however far the water goes.
+    static let starstream = MovementPattern(
+        name: "Starstream",
+        options: [
+            MoveOption(.any, distance: 1),
+            MoveOption(.any, distance: GameRules.gridSize, style: .slide, reachesWall: true),
         ]
     )
 

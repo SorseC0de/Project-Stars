@@ -43,6 +43,7 @@ struct BoardView: View {
             // coins and the move's own effects all sit above this and stay lit.
             actionDim(metrics: metrics)
 
+            pools(board: board, plane: plane, metrics: metrics)
             shedSkin(plane: plane, metrics: metrics)
             sanctuary(plane: plane, metrics: metrics)
             sun(metrics: metrics)
@@ -108,6 +109,15 @@ struct BoardView: View {
     }
 
     // MARK: - Board layers
+
+    /// Pisces' standing water. See `PoolView`.
+    private func pools(board: Board, plane: Plane, metrics: PixelArtMetrics) -> some View {
+        ForEach(board.allPoints.filter { board[$0].kind == .pool }, id: \.self) { point in
+            PoolView(size: metrics.tileSize, freeze: session.ambientFreeze)
+                .position(metrics.center(of: point))
+                .transition(.opacity)
+        }
+    }
 
     /// The husk Scorpio left where it died. See `ScorpioSamsaricShed`.
     ///

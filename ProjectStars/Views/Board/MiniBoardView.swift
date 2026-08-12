@@ -53,6 +53,7 @@ struct MiniBoardView: View {
         case .normal: Palette.tileFace(tile.health, on: plane, shade: .at(point))
         case .nexys: Palette.nexysFace
         case .chasm: Palette.chasm
+        case .pool: Palette.lightBlue
         }
     }
 }

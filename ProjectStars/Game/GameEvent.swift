@@ -161,6 +161,15 @@ enum GameEvent: Equatable {
     /// the hunt restarts, which is why a fresh sparkle set always follows.
     case pickupDestroyed(id: PickupID, plane: Plane, point: GridPoint)
 
+    /// Water settled on a square and became a pool. See `TileKind.pool`.
+    case poolFormed(plane: Plane, point: GridPoint)
+
+    /// A pool dried up, leaving the square as ordinary healthy ground.
+    ///
+    /// Whether a droplet is left behind is the caller's business — burning one
+    /// off leaves a pickup, changing plane simply loses it.
+    case poolEvaporated(plane: Plane, point: GridPoint)
+
     /// Scorpio's tail lashed out along a line.
     ///
     /// Presentation only — anything it caught follows as its own
@@ -278,6 +287,8 @@ enum GameEvent: Equatable {
         case .choiceResolved: 0
         case .signStateChanged: 0
         case .pickupCollected: GameRules.pickupCollectDuration
+        case .poolFormed: GameRules.poolFormDuration
+        case .poolEvaporated: GameRules.poolFormDuration
         case .stingStruck: GameRules.stingDuration
         case .pickupBanked: GameRules.pickupBankDuration
         // Instant: the purchase is the beat, and it has already been paid for

@@ -432,7 +432,7 @@ struct GameEngine {
             }
 
             // 5. Keep a Pentacle reachable. See `ensurePentacleAvailable`.
-            events += sim.ensurePentacleAvailable(previousPlane: startingPlane)
+            events += sim.ensurePentacleAvailable(previousPlane: startingPlane, after: events)
         }
 
         // 5a. Some options cost something to have taken — Capricorn's climb puts
@@ -552,7 +552,7 @@ struct GameEngine {
             events += sim.settle(arrivedByFalling: false).events
         }
 
-        events += sim.ensurePentacleAvailable(previousPlane: previousPlane)
+        events += sim.ensurePentacleAvailable(previousPlane: previousPlane, after: events)
         return events
     }
 
@@ -641,7 +641,7 @@ struct GameEngine {
 
         // A Zodiaction can change plane too — Taurus flops through Astra, Pisces
         // swims back up — so it owes the same guarantee a move does.
-        events += sim.ensurePentacleAvailable(previousPlane: planeBefore)
+        events += sim.ensurePentacleAvailable(previousPlane: planeBefore, after: events)
         return events
     }
 
@@ -703,6 +703,20 @@ struct GameEngine {
             reach: reach
         ) else { return nil }
 
+        // A wall-runner is measured against the board rather than declared, so
+        // it is built here and skips the bounds check below — it is in bounds by
+        // construction, and empty when there is nowhere to go.
+        if option.reachesWall {
+            let path = pathToWall(from: piece.point, direction: direction)
+            guard !path.isEmpty else { return nil }
+            guard piece.zodiac.passives.allows(
+                option, direction: direction, path: path, context: passiveContext
+            ) else { return nil }
+            return ResolvedMove(
+                path: path, style: option.style, option: option, origin: piece.point
+            )
+        }
+
         let path = movement.path(from: piece.point, direction: direction, option: option)
         // The whole path has to fit on the board, not just its end: a slide
         // cannot run off the edge and come back.
@@ -741,6 +755,96 @@ struct GameEngine {
         ) else { return nil }
 
         return ResolvedMove(path: path, style: option.style, option: option, origin: piece.point)
+    }
+
+    /// Dries up any pool that has no business still being there.
+    ///
+    /// Water belongs to the fish that brought it. Leave the plane and it is
+    /// behind you; stop being Pisces and it was never yours. Both cases are
+    /// handled by asking, at the end of every planner, whether each pool is
+    /// still standing where the current piece can see it.
+    ///
+    /// ## Why these evaporations leave nothing behind
+    ///
+    /// A pool burned off by fire leaves a droplet, because the player is
+    /// standing there to take it — see `evaporatePools(at:)`. A pool left behind
+    /// by a change of plane or of sign leaves nothing, because a Pentacle
+    /// stranded on a plane the piece is not on is exactly what
+    /// `ensurePentacleAvailable` exists to sweep up: it would be destroyed on
+    /// the same turn it was created, which is a worse story than the water
+    /// simply having dried.
+    private mutating func evaporateStalePools() -> [GameEvent] {
+        let stillOwned = piece.zodiac == .pisces
+        var events: [GameEvent] = []
+
+        for plane in Plane.allCases {
+            for point in self[plane].allPoints where self[plane][point].kind == .pool {
+                if stillOwned, plane == piece.plane { continue }
+                let event = GameEvent.poolEvaporated(plane: plane, point: point)
+                events.append(event)
+                apply(event)
+            }
+        }
+        return events
+    }
+
+    /// Boils off any pool that something just tried to damage.
+    ///
+    /// ## Why "tried"
+    ///
+    /// A pool is structural — `Tile.canBeWorn` is false for it — so nothing can
+    /// wear it and ordinary movement never names it. What *does* name it is an
+    /// area effect that paints a region without looking: an Astral Blaze across
+    /// the 3x3, Leo's sun overhead, a charge burning a line. Those are the hot
+    /// things, and this is how they reach the water without any of them needing
+    /// to know pools exist.
+    ///
+    /// So the rule is not "fire evaporates pools" written out in a list of fire
+    /// sources — it is *anything that would have damaged this square, had it
+    /// been ground*. New effects get the interaction for free.
+    ///
+    /// Each one leaves a droplet, since the player is standing there to take it.
+    private mutating func burnOffPools(namedBy events: [GameEvent]) -> [GameEvent] {
+        var struck: [Plane: Set<GridPoint>] = [:]
+
+        for event in events {
+            switch event {
+            case let .tileDamaged(plane, point, _):
+                struck[plane, default: []].insert(point)
+            case let .tilesChanged(plane, changes),
+                 let .tilesWorn(plane, changes),
+                 let .tilesWornOnExit(plane, changes):
+                struck[plane, default: []].formUnion(changes.keys)
+            default:
+                break
+            }
+        }
+
+        var produced: [GameEvent] = []
+        for (plane, points) in struck {
+            for point in points where self[plane][point].kind == .pool {
+                for event in [
+                    GameEvent.poolEvaporated(plane: plane, point: point),
+                    GameEvent.pickupRevealed(id: .gaiaDroplet, plane: plane, point: point),
+                ] {
+                    produced.append(event)
+                    apply(event)
+                }
+            }
+        }
+        return produced
+    }
+
+    /// Every square from the one ahead to the far edge, in order.
+    private func pathToWall(from origin: GridPoint, direction: SwipeDirection) -> [GridPoint] {
+        let step = direction.unitOffset
+        var path: [GridPoint] = []
+        var point = origin.offset(by: step)
+        while currentBoard.contains(point) {
+            path.append(point)
+            point = point.offset(by: step)
+        }
+        return path
     }
 
     /// Every distance available in `direction` right now, nearest first.
@@ -824,7 +928,8 @@ struct GameEngine {
         let tile = currentBoard[point]
         var status: CursorStatus = switch tile.kind {
         case .chasm: .open
-        case .nexys: .clear
+        // Standing water is somewhere to stand.
+        case .nexys, .pool: .clear
         case .normal:
             switch tile.health {
             case .healthy: .clear
@@ -1782,7 +1887,7 @@ struct GameEngine {
                 return events
             }
             events += sim.applyEffect(effect, choice: nil)
-            events += sim.ensurePentacleAvailable(previousPlane: planeBefore)
+            events += sim.ensurePentacleAvailable(previousPlane: planeBefore, after: events)
             return events
         }
 
@@ -1821,7 +1926,7 @@ struct GameEngine {
             }
         }
 
-        events += sim.ensurePentacleAvailable(previousPlane: planeBefore)
+        events += sim.ensurePentacleAvailable(previousPlane: planeBefore, after: events)
         return events
     }
 
@@ -1886,10 +1991,18 @@ struct GameEngine {
     ///
     /// Skipped while a Pentacle is parked awaiting an answer — `planChoice(_:)`
     /// finishes that move and calls this itself.
-    private mutating func ensurePentacleAvailable(previousPlane: Plane) -> [GameEvent] {
+    private mutating func ensurePentacleAvailable(
+        previousPlane: Plane,
+        after played: [GameEvent] = []
+    ) -> [GameEvent] {
         guard !isGameOver, pendingChoice == nil else { return [] }
 
-        var events: [GameEvent] = []
+        // Every planner ends here, which makes it the one place guaranteed to
+        // notice that the piece has changed plane or changed sign — and the one
+        // place holding the whole move, which is what the water has to be
+        // checked against.
+        var events: [GameEvent] = evaporateStalePools()
+        events += burnOffPools(namedBy: played)
 
         // A coin whose tile has broken underneath it goes down with it. Area
         // effects and board-wide Zodiactions can open a hole anywhere, the
@@ -2184,6 +2297,14 @@ struct GameEngine {
                 pendingPickup = nil
                 sparkles = nil
             }
+
+        case let .poolFormed(plane, point):
+            self[plane][point] = .pool
+
+        case let .poolEvaporated(plane, point):
+            // Back to ordinary ground, whole. The water was standing *on* the
+            // square, not eating it, so there is nothing to have worn out.
+            self[plane][point] = Tile(kind: .normal, health: .healthy)
 
         // Presentation only: what the tail caught arrives as its own
         // `pickupGathered`, and a miss changes nothing by definition.

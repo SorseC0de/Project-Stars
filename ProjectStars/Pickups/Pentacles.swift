@@ -87,6 +87,12 @@ enum PickupID: String, CaseIterable, Codable, Identifiable, Hashable {
     /// Spawns a mirrored shadow of your piece.
     case shadowWork
 
+    // MARK: Not a Pentacle
+
+    /// A droplet from Pisces' Gaia Geyser. Never rolled — see
+    /// `GaiaDropletEffect`.
+    case gaiaDroplet
+
     var id: String { rawValue }
 }
 
@@ -794,6 +800,49 @@ struct ShadowWorkEffect: PickupEffect {
     }
 }
 
+/// A droplet of the water Pisces brings up with it.
+///
+/// Eight of these ring the fish when it arrives on Terra, and taking any one
+/// dismisses the rest — so the geyser is a full meter *and* a choice about which
+/// square to be standing on when you have it.
+///
+/// ## Why it is a Pentacle at all
+///
+/// It reuses the coin machinery — reveal, collect, destroy-the-others — because
+/// all of that already works and none of it is Pentacle-specific. What makes it
+/// not a Pentacle is `weight = 0`: `PickupCatalog.rollPickup` filters those out,
+/// so it can never turn up in an ordinary hunt however many tiers are added
+/// later.
+struct GaiaDropletEffect: PickupEffect {
+
+    let id: PickupID = .gaiaDroplet
+    let rarity: PickupRarity = .common
+
+    /// Never rolled. Placed by `PiscesGaiaGeyser` and by a pool burning off.
+    let weight = 0
+    let displayName = "Gaia Droplet"
+    let summary = "Gain \(GameRules.gaiaDropletCharge) Zodiaction charge."
+    let glyph = "💧"
+    let element: ZodiacElement? = .water
+
+    /// The droplet mended its square when it appeared; landing on it must not
+    /// then wear the square it just repaired.
+    let arrivalWearsTile = false
+
+    func plan(
+        context: PickupContext,
+        choice: PickupChoiceResult?,
+        generator: inout SeededRandom
+    ) -> [GameEvent] {
+        let filled = min(
+            context.zodiactionMeter + GameRules.gaiaDropletCharge,
+            context.zodiactionMeterMax
+        )
+        guard filled != context.zodiactionMeter else { return [] }
+        return [.zodiactionMeterChanged(to: filled)]
+    }
+}
+
 // MARK: - PickupCatalog
 
 /// The registry of every Pentacle, and the roll that decides which one spawns.
@@ -817,6 +866,8 @@ enum PickupCatalog {
 
         .polaris: PolarisEffect(),
         .shadowWork: ShadowWorkEffect(),
+
+        .gaiaDroplet: GaiaDropletEffect(),
     ]
 
     /// The effect for an id. Traps on an unregistered id, which can only happen

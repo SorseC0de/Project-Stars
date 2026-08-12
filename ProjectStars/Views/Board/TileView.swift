@@ -120,6 +120,8 @@ struct TileView: View {
         switch tile.kind {
         case .chasm, .nexys: .hole
         case .normal: tile.health == .healthy ? nil : tile.health
+        // A pool has no wear to overlay. `PoolView` draws the water itself.
+        case .pool: nil
         }
     }
 }

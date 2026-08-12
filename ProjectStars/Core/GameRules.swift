@@ -1140,6 +1140,36 @@ enum GameRules {
     static let healSparkleSize: CGFloat = 0.055
 
     // ──────────────────────────────────────────────────────────────────────
+    // MARK: - Pisces' water
+    //
+    // The pool Surging Stream leaves, and the droplets Gaia Geyser throws up.
+
+    /// How long water takes to gather or dry up.
+    static let poolFormDuration: TimeInterval = 0.30
+
+    /// Charge for one surf. See `PiscesStarstreamSurfer`.
+    ///
+    /// Three, against the one pip a step used to pay. A surf costs position and
+    /// wears two tiles, and it has to be worth more than the three ordinary
+    /// steps it replaces or nobody would ever take it.
+    static let starstreamCharge = 3
+
+    /// Charge for stepping into a pool. Paid every time, not once.
+    ///
+    /// One, and deliberately small. The pool is a place worth walking back to on
+    /// a plane that drains a pip for every square you leave — it is break-even
+    /// plus nothing, which makes it a foothold rather than an engine.
+    static let poolCharge = 1
+
+    /// Charge from one of Gaia Geyser's droplets.
+    ///
+    /// A full meter. The move that takes it drains one on the way out, so the
+    /// fish stands up from the geyser on nine — exactly where the old
+    /// fill-on-arrival left it after its first step, which is the number this
+    /// was tuned against.
+    static let gaiaDropletCharge = defaultZodiactionMeterMax
+
+    // ──────────────────────────────────────────────────────────────────────
     // MARK: - Scorpio's sting
 
     /// How far the tail reaches on Terra. Astra strikes the whole line.
