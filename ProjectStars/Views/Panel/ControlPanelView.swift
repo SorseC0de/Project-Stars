@@ -121,8 +121,13 @@ enum PanelStyle {
     // ordinary step, and above it a chevron for the sign's longer move that way.
     // The chevron is only drawn where such a move exists.
 
-    /// How far out from the centre a guide sits, as a fraction of the well.
-    static let guideOrbit: CGFloat = 0.40
+    /// How far out from the centre each part of a guide sits, as a fraction of
+    /// the well. The arrow clears the rim; the chevron sits beyond it.
+    ///
+    /// Two distances rather than a stack, so a direction with no longer move
+    /// still puts its arrow in exactly the same place.
+    static let guideArrowOrbit: CGFloat = 0.52
+    static let guideChevronOrbit: CGFloat = 0.72
 
     /// The ordinary-step arrow, and the longer-move chevron above it.
     static let guideArrowSize = CGSize(width: 30, height: 12.5)
@@ -540,35 +545,17 @@ struct SignBadge: View {
     let zodiac: Zodiac
 
     var body: some View {
-        ZStack {
-            mark(
-                Image("Signs/\(zodiac.rawValue)"),
-                tint: PanelStyle.signWatermarkTint,
-                side: PanelStyle.signWatermarkSize
-            )
-            .opacity(PanelStyle.signWatermarkOpacity)
-
-            mark(
-                Image("Elements/\(zodiac.element.rawValue)"),
-                tint: ElementFX.ramp(for: zodiac.element).bright,
-                side: PanelStyle.elementMarkSize
-            )
-        }
-        .frame(width: PanelStyle.elementMarkSize, height: PanelStyle.elementMarkSize)
-    }
-
-    /// One flat vector, tinted.
-    ///
-    /// `.template` is what lets a monochrome export take a palette entry — the
-    /// whole reason the icons are drawn flat.
-    private func mark(_ icon: Image, tint: Color, side: CGFloat) -> some View {
-        icon
+        // No outer frame: this is a background, and it has to be free to take
+        // whatever size it is given — including being scaled up on the info
+        // face. Clamping it to a fixed box is what shrank it to nothing.
+        Image("Signs/\(zodiac.rawValue)")
             .renderingMode(.template)
             .resizable()
             .scaledToFit()
-            .foregroundStyle(tint)
-            .frame(width: side * PanelStyle.markInset, height: side * PanelStyle.markInset)
-            .frame(width: side, height: side)
+            .foregroundStyle(PanelStyle.signWatermarkTint)
+            .opacity(PanelStyle.signWatermarkOpacity)
+            .frame(width: PanelStyle.signWatermarkSize,
+                   height: PanelStyle.signWatermarkSize)
     }
 }
 
@@ -607,7 +594,6 @@ struct Joystick: View {
         ZStack {
             ForEach(SwipeDirection.allCases) { hint in
                 guide(for: hint)
-                    .offset(y: -side * PanelStyle.guideOrbit)
                     .rotationEffect(.degrees(hint.iconRotation))
             }
 
@@ -649,7 +635,20 @@ struct Joystick: View {
         let special = specialReach(hint)
         let takesSpecial = isPushed && special.map { reach >= $0 } == true
 
-        VStack(spacing: PanelStyle.guideSpacing) {
+        // Each sits at its own distance rather than stacking, so whether the
+        // chevron exists cannot move the arrow. Stacked, a direction with no
+        // special produced a shorter stack that fell inside the well and
+        // disappeared behind it — which is why the arrows went missing.
+        ZStack {
+            Image(systemName: "arrowtriangle.up.fill")
+                .resizable()
+                .frame(width: PanelStyle.guideArrowSize.width,
+                       height: PanelStyle.guideArrowSize.height)
+                .foregroundStyle(isPushed
+                    ? PanelStyle.guideArrowLit
+                    : PanelStyle.guideArrowDim)
+                .offset(y: -PanelStyle.joystickSize * PanelStyle.guideArrowOrbit)
+
             if special != nil {
                 Image(systemName: "chevron.compact.up")
                     .resizable()
@@ -658,15 +657,8 @@ struct Joystick: View {
                     .foregroundStyle(takesSpecial
                         ? PanelStyle.guideChevronLit
                         : PanelStyle.guideChevronDim)
+                    .offset(y: -PanelStyle.joystickSize * PanelStyle.guideChevronOrbit)
             }
-
-            Image(systemName: "arrowtriangle.up.fill")
-                .resizable()
-                .frame(width: PanelStyle.guideArrowSize.width,
-                       height: PanelStyle.guideArrowSize.height)
-                .foregroundStyle(isPushed
-                    ? PanelStyle.guideArrowLit
-                    : PanelStyle.guideArrowDim)
         }
         .opacity(isPushed ? PanelStyle.guideOpacityLit : PanelStyle.guideOpacityDim)
     }
