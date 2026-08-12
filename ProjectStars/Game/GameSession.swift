@@ -408,14 +408,6 @@ final class GameSession {
         publish()
     }
 
-    /// Cycles the sign-badge treatment. Debug builds only.
-    func debugCycleBadge() {
-        let all = GameRules.BadgeStyle.allCases
-        let next = (all.firstIndex(of: GameRules.badgeStyle) ?? 0) + 1
-        GameRules.badgeStyle = all[next % all.count]
-        publish()
-    }
-
     /// Stages the Astral Bolt as the next Pentacle. Debug builds only.
     ///
     /// Only the *next* one, and it does not disturb the coin already on the

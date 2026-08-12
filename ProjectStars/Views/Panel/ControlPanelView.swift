@@ -33,9 +33,9 @@ import SwiftUI
 /// the result, which is miserable if they live in another file among four
 /// hundred rules.
 ///
-/// The two things that are not here are `GameRules.controlScheme` and
-/// `GameRules.badgeStyle`, because those change what the panel *is* rather than
-/// how it looks, and other code branches on them.
+/// The one thing that is not here is `GameRules.controlScheme`, because it
+/// changes what the panel *is* rather than how it looks, and other code branches
+/// on it.
 ///
 /// ## Order
 ///
@@ -61,15 +61,20 @@ enum PanelStyle {
     /// Space between the badge, the name and the buttons.
     static let topRowSpacing: CGFloat = 10
 
-    /// Height of the sign's mark, and the element's as a fraction of it.
-    static let badgeSize: CGFloat = 52
-    static let badgeElementScale: CGFloat = 0.82
+    /// The sign's own mark, drawn large and faint behind the row.
+    ///
+    /// A watermark rather than an icon: at this size it is texture, and the name
+    /// beside it is what actually identifies the sign. Its tint and opacity are
+    /// what keep it from competing with the text over it.
+    static let signWatermarkSize: CGFloat = 150
+    static let signWatermarkOpacity: Double = 0.33
+    static let signWatermarkTint = Palette.outline
 
-    /// Gap between the two marks, as a fraction of the sign's.
-    static let badgeGap: CGFloat = 0.34
+    /// The element's mark, small and lit, at full strength.
+    static let elementMarkSize: CGFloat = 28
 
-    /// How much of a badge the glyph fills, leaving room for its surround.
-    static let badgeGlyphInset: CGFloat = 0.62
+    /// How much of a mark's box the glyph fills.
+    static let markInset: CGFloat = 0.62
 
     /// The sign's name. It shrinks rather than truncating, so this is the size
     /// it takes when there is room.
@@ -84,39 +89,86 @@ enum PanelStyle {
 
     // ─────────────────────────────────────────────────────────────────────
     // MARK: Row 2 — movement
+    //
+    // Both schemes are given the same height, so switching between them cannot
+    // move anything else on the panel.
 
-    /// The stick's diameter, and how far its knob leans while a finger is down.
-    /// It homes to centre when released.
+    /// The room movement gets, whichever scheme is in play.
+    static let movementRowHeight: CGFloat = 150
+
+    // ── The joystick ──────────────────────────────────────────────────────
+
+    /// The well's diameter, and the knob as a fraction of it.
     static let joystickSize: CGFloat = 108
-    static let joystickLean: CGFloat = 0.20
-
-    /// How big the knob is, as a fraction of the well.
     static let joystickKnobScale: CGFloat = 0.52
 
-    /// The four direction hints, at rest and on the one being pushed.
-    static let joystickHintDim: Double = 0.28
-    static let joystickHintLit: Double = 1
-    static let joystickHintSize: CGFloat = 0.11
-    static let joystickHintOrbit: CGFloat = 0.40
+    /// The flat core behind the knob, which shows around it as it leans.
+    static let joystickCoreScale: CGFloat = 0.33
 
-    /// Edge length of a direction button in the button scheme, the smaller
-    /// special-move arrows beside them, and the gaps between.
-    static let directionButtonSize: CGFloat = 62
-    static let specialArrowScale: CGFloat = 0.62
-    static let directionGap: CGFloat = 0.14
-    static let specialGap: CGFloat = 4
+    /// How far the knob leans while a finger is down, as a fraction of the well,
+    /// and how far it sits above centre at rest.
+    static let joystickLean: CGFloat = 0.20
+    static let joystickKnobRise: CGFloat = 7
+
+    /// The rim, and what it becomes while being dragged.
+    static let joystickRimWidth: CGFloat = 0.03
+    static let joystickRimColour = Palette.dusk
+    static let joystickRimActive = Palette.magenta
+
+    // ── The direction guide ───────────────────────────────────────────────
+    //
+    // One guide per direction, sitting outside the well: an arrow for the
+    // ordinary step, and above it a chevron for the sign's longer move that way.
+    // The chevron is only drawn where such a move exists.
+
+    /// How far out from the centre a guide sits, as a fraction of the well.
+    static let guideOrbit: CGFloat = 0.40
+
+    /// The ordinary-step arrow, and the longer-move chevron above it.
+    static let guideArrowSize = CGSize(width: 30, height: 12.5)
+    static let guideChevronSize = CGSize(width: 25, height: 15)
+    static let guideSpacing: CGFloat = 2
+
+    /// Arrow colours: the direction being pushed, and the rest.
+    static let guideArrowLit = Palette.lightBlue
+    static let guideArrowDim = Palette.blue
+
+    /// Chevron colours: lit only once the drag has passed the ordinary step.
+    static let guideChevronLit = Palette.magenta
+    static let guideChevronDim = Palette.plum
+
+    /// Overall strength of a guide, pushed and idle.
+    static let guideOpacityLit: Double = 1
+    static let guideOpacityDim: Double = 0.33
+
+    // ── The direction pad ─────────────────────────────────────────────────
+
+    /// The bare arrow buttons: no plate behind them, just the sprite.
+    static let padArrowSize: CGFloat = 62
+
+    /// The longer-move arrow, which sits *outside* its direction — above up,
+    /// left of left — so the pair reads as one control extending outward.
+    static let padSpecialScale: CGFloat = 0.62
+
+    /// Gaps between the cross's buttons, and between a button and its special.
+    static let padGap: CGFloat = 8
+    static let padSpecialGap: CGFloat = 2
 
     // ─────────────────────────────────────────────────────────────────────
     // MARK: Row 3 — the Zodiaction
 
-    /// Height of the fire button, and the gap between its name and its meter.
+    /// Height of the fire button, and the gap between its stacked lines.
     static let zodiactionButtonHeight: CGFloat = 78
     static let zodiactionStackSpacing: CGFloat = 5
 
-    /// The Zodiaction's name, and how far it is inset from the button's edges.
-    static let zodiactionNameSize: CGFloat = 17
-    static let zodiactionNameTracking: CGFloat = 1
-    static let zodiactionNameMinScale: CGFloat = 0.55
+    /// The small word above the name, and the name itself.
+    static let zodiactionLabelSize: CGFloat = 12
+    static let zodiactionLabelTracking: CGFloat = 4
+    static let zodiactionNameSize: CGFloat = 19
+    static let zodiactionNameTracking: CGFloat = 2
+    static let zodiactionNameMinScale: CGFloat = 0.5
+
+    /// How far the label is inset from the button's edges.
     static let zodiactionLabelInset: CGFloat = 16
 
     /// One pip of the meter, and how dim an unfilled one is.
@@ -124,6 +176,16 @@ enum PanelStyle {
     static let meterPipSpacing: CGFloat = 3
     static let meterPipCorner: CGFloat = 2
     static let meterEmptyOpacity: Double = 0.22
+
+    /// The breath the button takes while it is ready to fire.
+    ///
+    /// A slow pulse rather than a flash: the meter being full is a standing
+    /// state, not an event, and something that blinks at you for a whole minute
+    /// stops reading as an invitation and starts reading as an alarm.
+    static let readyPulsePeriod: TimeInterval = 1.6
+    static let readyGlowRadius: CGFloat = 14
+    static let readyGlowMin: Double = 0.15
+    static let readyGlowMax: Double = 0.55
 
     // ─────────────────────────────────────────────────────────────────────
     // MARK: The buttons everything is built from
@@ -145,7 +207,7 @@ enum PanelStyle {
 
     /// Spacing between blocks on the info face, and its type sizes.
     static let infoSpacing: CGFloat = 12
-    static let infoTitleSize: CGFloat = 17
+    static let infoTitleSize: CGFloat = 26
     static let infoSectionSize: CGFloat = 9
     static let infoNameSize: CGFloat = 13
     static let infoDetailSize: CGFloat = 11
@@ -153,7 +215,7 @@ enum PanelStyle {
     /// The button that turns the panel back over.
     static let backWidth: CGFloat = 84
     static let backHeight: CGFloat = 40
-    static let backLabelSize: CGFloat = 12
+    static let backLabelSize: CGFloat = 24
 
     // ─────────────────────────────────────────────────────────────────────
     // MARK: Debug row
@@ -164,8 +226,8 @@ enum PanelStyle {
     static let debugSignSize: CGFloat = 26
     static let debugSignSpacing: CGFloat = 3
     static let debugSignCorner: CGFloat = 5
-    static let debugRowSpacing: CGFloat = 6
-    static let debugButtonHeight: CGFloat = 30
+    static let debugRowSpacing: CGFloat = 16
+    static let debugButtonHeight: CGFloat = 35
     static let debugLabelSize: CGFloat = 10
 }
 
@@ -201,16 +263,46 @@ struct ControlPanelView: View {
     /// a board with two sides.
     @State private var turns = 0
 
-    /// Where the in-progress drag points. Owned here rather than by the input
-    /// surface so the stick can react while the finger is still down.
+    /// Where the in-progress drag points, and how far past the commit threshold
+    /// it has run.
+    ///
+    /// Owned here rather than by the input surface so the stick and its guide
+    /// can react while the finger is still down — the guide's whole job is to
+    /// say what *would* happen if the finger lifted now.
     @State private var liveDirection: SwipeDirection?
+    @State private var liveReach = 0
 
     private var showingInfo: Bool { !turns.isMultiple(of: 2) }
 
     var body: some View {
         ZStack {
             Palette.panel
-
+                .overlay(
+                    SignBadge(zodiac: session.zodiac).scaleEffect(showingInfo ? 3 : 1),
+                    alignment: showingInfo ? .center : .topLeading)
+                .overlay(
+                    HStack {
+                        Image("Elements/\(session.zodiac.element.rawValue)")
+                            .resizable()
+                            .scaledToFit()
+                            .foregroundStyle(ElementFX.ramp(for: session.zodiac.element).bright)
+                            .frame(width: PanelStyle.elementMarkSize)
+                        
+                        let nameSize: CGFloat = showingInfo ? PanelStyle.infoTitleSize : PanelStyle.signNameSize
+                        Text(session.zodiac.definition.displayName.uppercased())
+                            .font(.system(size: nameSize, weight: .heavy, design: .rounded))
+                            .tracking(PanelStyle.signNameTracking)
+                            .foregroundStyle(Palette.gold)
+                        // One line, never truncated: it shrinks rather than taking the
+                        // width it wants and shoving the row off screen.
+                            .lineLimit(1)
+                            .minimumScaleFactor(PanelStyle.signNameMinScale)
+                            .layoutPriority(1)
+                            .animation(.bouncy(extraBounce: 0.2), value: nameSize)
+                    }.padding(),
+                    alignment: .topLeading
+                )
+            
             // Both faces stay mounted; the turn hides whichever faces away.
             // Rebuilding them on every flip would restart the meter's animation
             // and drop the drag mid-gesture.
@@ -218,6 +310,7 @@ struct ControlPanelView: View {
                 PanelFrontView(
                     session: session,
                     liveDirection: $liveDirection,
+                    liveReach: $liveReach,
                     onInfo: turn
                 )
             }
@@ -264,6 +357,7 @@ private struct PanelFrontView: View {
 
     let session: GameSession
     @Binding var liveDirection: SwipeDirection?
+    @Binding var liveReach: Int
     let onInfo: () -> Void
 
     var body: some View {
@@ -275,7 +369,10 @@ private struct PanelFrontView: View {
                     isEnabled: session.acceptsInput,
                     liveDirection: $liveDirection,
                     onCommit: { session.submit($0, reach: $1) },
-                    onPreview: { session.preview(direction: $0, reach: $1) },
+                    onPreview: {
+                        liveReach = $1
+                        session.preview(direction: $0, reach: $1)
+                    },
                     onStepForward: { session.stepForward() }
                 )
             }
@@ -285,16 +382,23 @@ private struct PanelFrontView: View {
                 Spacer(minLength: 0)
                 movementRow
                 Spacer(minLength: 0)
-                #if DEBUG
-                debugRow
-                #endif
                 zodiactionRow
+                #if DEBUG
+                debugZodiacRow
+                #endif
             }
             .padding(.horizontal, PanelStyle.padding)
             .padding(.top, PanelStyle.padding)
             // Clear of the home indicator: a button under it is a button the
             // system takes the first touch of.
-            .padding(.bottom, PanelStyle.padding + safeArea)
+            //.padding(.bottom, PanelStyle.padding + safeArea)
+            .padding(.bottom, PanelStyle.padding)
+        }
+        .overlay(alignment: .trailing) {
+            #if DEBUG
+            debugMainRow
+                .padding()
+            #endif
         }
     }
 
@@ -302,17 +406,9 @@ private struct PanelFrontView: View {
 
     private var signRow: some View {
         HStack(spacing: PanelStyle.topRowSpacing) {
-            SignBadge(zodiac: session.zodiac)
+            //SignBadge(zodiac: session.zodiac)
 
-            Text(session.zodiac.definition.displayName.uppercased())
-                .font(.system(size: PanelStyle.signNameSize, weight: .heavy, design: .rounded))
-                .tracking(PanelStyle.signNameTracking)
-                .foregroundStyle(Palette.gold)
-                // One line, never truncated: it shrinks rather than taking the
-                // width it wants and shoving the row off screen.
-                .lineLimit(1)
-                .minimumScaleFactor(PanelStyle.signNameMinScale)
-                .layoutPriority(1)
+            
 
             Spacer(minLength: 0)
 
@@ -335,13 +431,23 @@ private struct PanelFrontView: View {
 
     // ── Row 2: movement ───────────────────────────────────────────────────
 
-    @ViewBuilder
+    /// Both schemes get the same height, so switching between them cannot move
+    /// anything else on the panel — which it did, because a joystick and a
+    /// three-row cross are not naturally the same size.
     private var movementRow: some View {
+        movementControl
+            .frame(height: PanelStyle.movementRowHeight)
+    }
+
+    @ViewBuilder
+    private var movementControl: some View {
         switch GameRules.controlScheme {
         case .joystick:
             Joystick(
                 direction: liveDirection ?? session.engine.piece.facing,
-                isDragging: liveDirection != nil
+                isDragging: liveDirection != nil,
+                reach: liveReach,
+                specialReach: session.specialReach(for:)
             )
             .allowsHitTesting(false)
 
@@ -364,30 +470,29 @@ private struct PanelFrontView: View {
     /// All twelve rather than a stepper: picking the one you want is a glance
     /// and a tap, where cycling is a count. Drawn with the real marks, so it
     /// doubles as a look at all twelve together. Never ships.
-    private var debugRow: some View {
+    private var debugMainRow: some View {
         VStack(spacing: PanelStyle.debugRowSpacing) {
-            HStack(spacing: PanelStyle.debugSignSpacing) {
-                ForEach(Zodiac.allCases) { sign in
-                    let isCurrent = sign == session.zodiac
+            debugButton("CTRL", width: 40) { session.debugCycleControls() }
+        }
+    }
+    
+    private var debugZodiacRow: some View {
+        HStack(spacing: PanelStyle.debugSignSpacing) {
+            ForEach(Zodiac.allCases) { sign in
+                let isCurrent = sign == session.zodiac
 
-                    Image("Signs/\(sign.rawValue)")
-                        .renderingMode(.template)
-                        .resizable()
-                        .scaledToFit()
-                        .padding(4)
-                        .foregroundStyle(isCurrent ? Palette.warmBlack : Palette.lightGray)
-                        .frame(width: PanelStyle.debugSignSize, height: PanelStyle.debugSignSize)
-                        .background {
-                            RoundedRectangle(cornerRadius: PanelStyle.debugSignCorner)
-                                .fill(isCurrent ? Palette.gold : Palette.midnight)
-                        }
-                        .onTapGesture { session.debugSwapSign(to: sign) }
-                }
-            }
-
-            HStack(spacing: 8) {
-                debugButton("CTRL", width: 64) { session.debugCycleControls() }
-                debugButton("BADGE", width: 74) { session.debugCycleBadge() }
+                Image("Signs/\(sign.rawValue)")
+                    .renderingMode(.template)
+                    .resizable()
+                    .scaledToFit()
+                    .padding(4)
+                    .foregroundStyle(isCurrent ? Palette.warmBlack : Palette.lightGray)
+                    .frame(width: PanelStyle.debugSignSize, height: PanelStyle.debugSignSize)
+                    .background {
+                        RoundedRectangle(cornerRadius: PanelStyle.debugSignCorner)
+                            .fill(isCurrent ? Palette.gold : Palette.midnight)
+                    }
+                    .onTapGesture { session.debugSwapSign(to: sign) }
             }
         }
     }
@@ -422,77 +527,55 @@ private struct PanelFrontView: View {
 
 // MARK: - Row 1: the sign's marks
 
-/// The sign's mark and its element's, drawn from the flat vector icons.
+/// The sign's mark as a watermark, with the element's lit beside it.
 ///
-/// ## Why three treatments
+/// ## Why they are sized so differently
 ///
-/// The icons are deliberately flat monochrome so presentation is a separate
-/// decision from the art. Which reads best on a phone, against a dark panel, at
-/// a glance, is a thing to be looked at rather than reasoned out — so all three
-/// are here, switched by `GameRules.badgeStyle`.
-///
-/// The element is never named in words. It is one of four marks a player learns
-/// in a minute, and spelling it out costs a line of panel forever to save a
-/// minute once.
+/// The sign's name is already written next to this, so the sign's own mark has
+/// nothing left to say — it is texture, and it earns its place by being large
+/// and faint rather than small and loud. The element is not written anywhere, so
+/// it is the one that has to be legible.
 struct SignBadge: View {
 
     let zodiac: Zodiac
-    var size: CGFloat = PanelStyle.badgeSize
 
     var body: some View {
-        HStack(spacing: size * PanelStyle.badgeGap) {
-            mark(Image("Signs/\(zodiac.rawValue)"), tint: Palette.gold, side: size)
+        ZStack {
+            mark(
+                Image("Signs/\(zodiac.rawValue)"),
+                tint: PanelStyle.signWatermarkTint,
+                side: PanelStyle.signWatermarkSize
+            )
+            .opacity(PanelStyle.signWatermarkOpacity)
+
             mark(
                 Image("Elements/\(zodiac.element.rawValue)"),
                 tint: ElementFX.ramp(for: zodiac.element).bright,
-                side: size * PanelStyle.badgeElementScale
+                side: PanelStyle.elementMarkSize
             )
         }
+        .frame(width: PanelStyle.elementMarkSize, height: PanelStyle.elementMarkSize)
     }
 
-    @ViewBuilder
+    /// One flat vector, tinted.
+    ///
+    /// `.template` is what lets a monochrome export take a palette entry — the
+    /// whole reason the icons are drawn flat.
     private func mark(_ icon: Image, tint: Color, side: CGFloat) -> some View {
-        // `.template` is what lets a flat vector take a palette entry rather
-        // than whatever it was exported as — the whole reason they are drawn
-        // monochrome.
-        let glyph = icon
+        icon
             .renderingMode(.template)
             .resizable()
             .scaledToFit()
-            .frame(width: side * PanelStyle.badgeGlyphInset,
-                   height: side * PanelStyle.badgeGlyphInset)
             .foregroundStyle(tint)
-
-        switch GameRules.badgeStyle {
-        case .flat:
-            glyph.frame(width: side, height: side)
-
-        case .emblem:
-            // Struck into a coin, using the same flat planes the buttons do.
-            ZStack {
-                Circle().fill(Palette.gold.celShadow)
-                Circle().fill(Palette.gold).padding(side * 0.09)
-                glyph
-            }
+            .frame(width: side * PanelStyle.markInset, height: side * PanelStyle.markInset)
             .frame(width: side, height: side)
-
-        case .constellationPlate:
-            // A dark plate with the mark lit on it, like a window onto the sky —
-            // which is what the board above already is.
-            ZStack {
-                RoundedRectangle(cornerRadius: side * 0.26).fill(Palette.midnight)
-                RoundedRectangle(cornerRadius: side * 0.26)
-                    .strokeBorder(Palette.gold, lineWidth: max(1, side * 0.05))
-                glyph
-            }
-            .frame(width: side, height: side)
-        }
     }
 }
 
 // MARK: - Row 2: the joystick
 
-/// A golden stick that leans the way the piece is about to go.
+/// A golden stick that leans the way the piece is about to go, ringed by a
+/// guide to what each direction offers.
 ///
 /// Not an input control — the whole panel is the input surface, and this reports
 /// what it is hearing. Which is the honest arrangement for a thumb-sized target:
@@ -506,6 +589,12 @@ struct Joystick: View {
     /// True while a finger is down, which is when the stick commits to a lean.
     let isDragging: Bool
 
+    /// How far past the commit threshold the drag has run.
+    let reach: Int
+
+    /// The reach a sign's longer move that way needs, or `nil` if it has none.
+    let specialReach: (SwipeDirection) -> Int?
+
     var body: some View {
         let side = PanelStyle.joystickSize
         let step = direction.unitOffset
@@ -516,124 +605,185 @@ struct Joystick: View {
         let lean = isDragging ? PanelStyle.joystickLean : 0
 
         ZStack {
+            ForEach(SwipeDirection.allCases) { hint in
+                guide(for: hint)
+                    .offset(y: -side * PanelStyle.guideOrbit)
+                    .rotationEffect(.degrees(hint.iconRotation))
+            }
+
             Circle()
                 .fill(Palette.midnight)
                 .frame(width: side, height: side)
 
             Circle()
-                .strokeBorder(Palette.dusk, lineWidth: max(2, side * 0.03))
+                .strokeBorder(
+                    isDragging ? PanelStyle.joystickRimActive : PanelStyle.joystickRimColour,
+                    lineWidth: max(2, side * PanelStyle.joystickRimWidth)
+                )
                 .frame(width: side, height: side)
 
-            // Four faint arrows, so it reads as a thing you push without being
-            // mistaken for four buttons. The one being pushed lights up.
-            ForEach(SwipeDirection.allCases) { hint in
-                Image(systemName: "arrowtriangle.up.fill")
-                    .font(.system(size: side * PanelStyle.joystickHintSize, weight: .black))
-                    .foregroundStyle(Palette.gold)
-                    .opacity(isDragging && hint == direction
-                        ? PanelStyle.joystickHintLit
-                        : PanelStyle.joystickHintDim)
-                    .offset(y: -side * PanelStyle.joystickHintOrbit)
-                    .rotationEffect(.degrees(hint.iconRotation))
-            }
+            // A flat core, so the well still reads as a socket when the knob
+            // leans off it.
+            Circle()
+                .fill(Palette.blue)
+                .frame(width: side * PanelStyle.joystickCoreScale,
+                       height: side * PanelStyle.joystickCoreScale)
 
-            // The knob, with its own rim under it so it stands out of the well
-            // rather than being painted on.
-            ZStack {
-                Circle().fill(Palette.gold.celShadow).offset(y: PanelStyle.buttonDepth)
-                Circle().fill(Palette.gold)
-                Circle()
-                    .fill(Palette.gold.celHighlight)
-                    .padding(side * 0.14)
-                    .mask(alignment: .top) { Rectangle().frame(maxHeight: side * 0.12) }
-            }
-            .frame(width: side * PanelStyle.joystickKnobScale,
-                   height: side * PanelStyle.joystickKnobScale)
-            .offset(x: CGFloat(step.dx) * side * lean, y: CGFloat(step.dy) * side * lean)
+            knob(side: side, step: step, lean: lean)
         }
         .animation(.spring(response: 0.18, dampingFraction: 0.7), value: direction)
         .animation(.spring(response: 0.22, dampingFraction: 0.75), value: isDragging)
+        .animation(.easeOut(duration: 0.12), value: reach)
+    }
+
+    /// What one direction offers, and what the current drag would take.
+    ///
+    /// The arrow is the ordinary step and is always there. The chevron above it
+    /// is the sign's longer move, drawn **only where one exists** — an empty
+    /// promise on the other three directions would be worse than no guide at
+    /// all — and lit only once the drag has run far enough to take it. So a lit
+    /// arrow under a dim chevron means a normal step is what will happen.
+    @ViewBuilder
+    private func guide(for hint: SwipeDirection) -> some View {
+        let isPushed = isDragging && hint == direction
+        let special = specialReach(hint)
+        let takesSpecial = isPushed && special.map { reach >= $0 } == true
+
+        VStack(spacing: PanelStyle.guideSpacing) {
+            if special != nil {
+                Image(systemName: "chevron.compact.up")
+                    .resizable()
+                    .frame(width: PanelStyle.guideChevronSize.width,
+                           height: PanelStyle.guideChevronSize.height)
+                    .foregroundStyle(takesSpecial
+                        ? PanelStyle.guideChevronLit
+                        : PanelStyle.guideChevronDim)
+            }
+
+            Image(systemName: "arrowtriangle.up.fill")
+                .resizable()
+                .frame(width: PanelStyle.guideArrowSize.width,
+                       height: PanelStyle.guideArrowSize.height)
+                .foregroundStyle(isPushed
+                    ? PanelStyle.guideArrowLit
+                    : PanelStyle.guideArrowDim)
+        }
+        .opacity(isPushed ? PanelStyle.guideOpacityLit : PanelStyle.guideOpacityDim)
+    }
+
+    /// The stick itself, with its own rim under it so it stands out of the well
+    /// rather than being painted on.
+    private func knob(side: CGFloat, step: GridOffset, lean: CGFloat) -> some View {
+        ZStack {
+            Circle().fill(Palette.gold.celShadow).offset(y: PanelStyle.buttonDepth)
+            Circle().fill(Palette.gold)
+            Circle()
+                .fill(Palette.gold.celHighlight)
+                .padding(side * 0.14)
+                .mask(alignment: .top) { Rectangle().frame(maxHeight: side * 0.12) }
+        }
+        .frame(width: side * PanelStyle.joystickKnobScale,
+               height: side * PanelStyle.joystickKnobScale)
+        .offset(
+            x: CGFloat(step.dx) * side * lean,
+            // Sits a little high at rest, so the well's core shows beneath it.
+            y: CGFloat(step.dy) * side * lean - PanelStyle.joystickKnobRise
+        )
     }
 }
 
 // MARK: - Row 2: the direction pad
 
-/// A keyboard cross of direction buttons, with a sign's special moves beside
-/// them.
+/// A keyboard cross of bare arrows, with a sign's longer moves outside them.
+///
+/// ## Why the arrows have no plate
+///
+/// They are pixel art, and a rounded button behind a sprite is two visual
+/// languages in one control. The arrow *is* the button: it is big, it is lit,
+/// and the whole cell takes the tap.
 ///
 /// ## Why a keyboard cross rather than a diamond
 ///
 /// Up on its own row, then left/down/right together. It is the shape every
-/// keyboard already uses, it is what a thumb expects, and it costs one row less
-/// than a diamond — which on a phone is the difference between buttons being big
-/// enough and not.
+/// keyboard already uses, and it costs one row less than a diamond — which on a
+/// phone is the difference between the buttons being big enough and not.
 ///
-/// ## Why the special moves are separate buttons
+/// ## Why the longer moves sit outside
 ///
-/// A sign with a two-square sidestep cannot express that with a tap: the
-/// direction is the same, only the distance differs. The joystick gets it from
-/// how far the drag went; here it needs its own button, so the longer move
-/// appears as a smaller arrow beside the direction it extends — present only
-/// when that sign can actually make it.
+/// Above up, left of left, right of right, below down. A sign with a two-square
+/// sidestep cannot express that with a tap — the direction is the same, only the
+/// distance differs — so it needs its own button, and putting it *further out*
+/// in the same direction is the arrangement that says "same way, more of it".
 struct DirectionPad: View {
 
     let session: GameSession
 
     var body: some View {
-        VStack(spacing: PanelStyle.directionButtonSize * PanelStyle.directionGap) {
-            row([.up])
-            row([.left, .down, .right])
-        }
-    }
+        VStack(spacing: PanelStyle.padSpecialGap) {
+            special(.up)
 
-    private func row(_ directions: [SwipeDirection]) -> some View {
-        HStack(spacing: PanelStyle.directionButtonSize * PanelStyle.directionGap) {
-            ForEach(directions) { direction in
-                HStack(spacing: PanelStyle.specialGap) {
-                    button(direction)
-                    special(direction)
+            VStack(spacing: PanelStyle.padGap) {
+                arrow(.up)
+
+                HStack(spacing: PanelStyle.padSpecialGap) {
+                    special(.left)
+
+                    HStack(spacing: PanelStyle.padGap) {
+                        arrow(.left)
+                        arrow(.down)
+                        arrow(.right)
+                    }
+
+                    special(.right)
                 }
             }
+
+            special(.down)
         }
     }
 
-    /// The ordinary one-square move.
-    private func button(_ direction: SwipeDirection) -> some View {
-        CelButton(isEnabled: session.acceptsInput) {
-            session.submit(direction, reach: 0)
-        } label: {
-            arrow(direction, tint: Palette.warmBlack)
-                .frame(width: PanelStyle.directionButtonSize * 0.46,
-                       height: PanelStyle.directionButtonSize * 0.46)
-        }
-        .frame(width: PanelStyle.directionButtonSize, height: PanelStyle.directionButtonSize)
-    }
-
-    /// The sign's longer move that way, when it has one.
-    @ViewBuilder
-    private func special(_ direction: SwipeDirection) -> some View {
-        if let reach = session.specialReach(for: direction) {
-            let side = PanelStyle.directionButtonSize * PanelStyle.specialArrowScale
-
-            CelButton(tint: Palette.lightBlue, isEnabled: session.acceptsInput) {
-                session.submit(direction, reach: reach)
-            } label: {
-                arrow(direction, tint: Palette.midnight)
-                    .frame(width: side * 0.5, height: side * 0.5)
-            }
-            .frame(width: side, height: side)
-        }
-    }
-
-    /// One sprite rotated rather than four, which is also how the sheet is laid
-    /// out — the cursor's brackets do the same thing.
-    private func arrow(_ direction: SwipeDirection, tint: Color) -> some View {
+    /// The ordinary one-square move: the sprite, and nothing else.
+    private func arrow(_ direction: SwipeDirection) -> some View {
         PixelSprite(id: .directionArrow(direction)) {
             Image(systemName: "arrowtriangle.up.fill")
                 .resizable()
                 .scaledToFit()
-                .foregroundStyle(tint)
+                .foregroundStyle(Palette.white)
                 .rotationEffect(.degrees(direction.iconRotation))
+        }
+        .frame(width: PanelStyle.padArrowSize, height: PanelStyle.padArrowSize)
+        .opacity(session.acceptsInput ? 1 : 0.4)
+        .contentShape(Rectangle())
+        .onTapGesture {
+            if session.acceptsInput { session.submit(direction, reach: 0) }
+        }
+    }
+
+    /// The sign's longer move that way, when it has one.
+    ///
+    /// Always laid out, even when absent, so the cross does not shift as the
+    /// piece changes sign — an empty space of the same size is invisible, and a
+    /// pad that jumps about is not.
+    @ViewBuilder
+    private func special(_ direction: SwipeDirection) -> some View {
+        let side = PanelStyle.padArrowSize * PanelStyle.padSpecialScale
+
+        if let reach = session.specialReach(for: direction) {
+            PixelSprite(id: .specialArrow(direction)) {
+                Image(systemName: "chevron.up")
+                    .resizable()
+                    .scaledToFit()
+                    .foregroundStyle(Palette.lightBlue)
+                    .rotationEffect(.degrees(direction.iconRotation))
+            }
+            .frame(width: side, height: side)
+            .opacity(session.acceptsInput ? 1 : 0.4)
+            .contentShape(Rectangle())
+            .onTapGesture {
+                if session.acceptsInput { session.submit(direction, reach: reach) }
+            }
+        } else {
+            Color.clear.frame(width: side, height: side)
         }
     }
 }
@@ -660,9 +810,12 @@ extension SwipeDirection {
 /// player to connect two things that are always about each other; putting the
 /// charge *on* the thing it charges says it once.
 ///
-/// The button names the Zodiaction and nothing else. What it does is on the back
-/// of the panel and on the selection screen — mid-run a player needs to know it
-/// is ready and what it is called.
+/// ## Why it breathes when it is ready
+///
+/// A full meter is a standing state, not an event — it can sit there for a
+/// minute while the player decides. So it pulses slowly rather than flashing:
+/// enough to catch an eye returning to the panel, not enough to nag. The glow
+/// takes the sign's element, matching the pips and the piece itself.
 struct ZodiactionButton: View {
 
     let session: GameSession
@@ -672,26 +825,44 @@ struct ZodiactionButton: View {
         // button tracks the meter however it changed — including from a debug
         // key, which is where it was previously found lagging.
         let ready = session.isZodiactionReady
+        let element = ElementFX.ramp(for: session.zodiac.element)
 
-        CelButton(
-            tint: ready ? Palette.yellow : Palette.stone,
-            isEnabled: ready && session.acceptsInput
-        ) {
-            session.fireZodiaction()
-        } label: {
-            VStack(spacing: PanelStyle.zodiactionStackSpacing) {
-                Text(session.zodiac.definition.zodiaction.displayName.uppercased())
-                    .font(.system(size: PanelStyle.zodiactionNameSize,
-                                  weight: .heavy, design: .rounded))
-                    .tracking(PanelStyle.zodiactionNameTracking)
-                    .minimumScaleFactor(PanelStyle.zodiactionNameMinScale)
-                    .lineLimit(1)
-
-                meter
+        TimelineView(.animation) { timeline in
+            CelButton(
+                tint: ready ? Palette.yellow : Palette.stone,
+                isEnabled: ready && session.acceptsInput
+            ) {
+                session.fireZodiaction()
+            } label: {
+                label(charged: element.mid)
             }
-            .padding(.horizontal, PanelStyle.zodiactionLabelInset)
+            .frame(height: PanelStyle.zodiactionButtonHeight)
+            .background {
+                if ready { readyGlow(element.bright, at: timeline.date) }
+            }
         }
-        .frame(height: PanelStyle.zodiactionButtonHeight)
+    }
+
+    /// The word, the name, and the meter.
+    private func label(charged: Color) -> some View {
+        VStack(spacing: PanelStyle.zodiactionStackSpacing) {
+            Text("ZODIACTION")
+                .font(.system(size: PanelStyle.zodiactionLabelSize,
+                              weight: .heavy, design: .rounded))
+                .tracking(PanelStyle.zodiactionLabelTracking)
+                .lineLimit(1)
+                .minimumScaleFactor(PanelStyle.zodiactionNameMinScale)
+
+            Text(session.zodiac.definition.zodiaction.displayName.uppercased())
+                .font(.system(size: PanelStyle.zodiactionNameSize,
+                              weight: .heavy, design: .rounded))
+                .tracking(PanelStyle.zodiactionNameTracking)
+                .lineLimit(1)
+                .minimumScaleFactor(PanelStyle.zodiactionNameMinScale)
+
+            meter(charged: charged)
+        }
+        .padding(.horizontal, PanelStyle.zodiactionLabelInset)
     }
 
     /// Pips rather than a bar: the meter is a whole number of charges and the
@@ -699,9 +870,8 @@ struct ZodiactionButton: View {
     ///
     /// Charged pips take the sign's element, so the meter says *whose* charge it
     /// is as well as how much — the same colour the piece wears when full.
-    private var meter: some View {
+    private func meter(charged: Color) -> some View {
         let filled = session.zodiactionMeter
-        let charged = ElementFX.ramp(for: session.zodiac.element).mid
 
         return HStack(spacing: PanelStyle.meterPipSpacing) {
             ForEach(0..<session.zodiactionMeterMax, id: \.self) { index in
@@ -713,6 +883,24 @@ struct ZodiactionButton: View {
             }
         }
         .animation(.easeOut(duration: 0.18), value: filled)
+    }
+
+    /// The breath: a blurred copy of the button's own shape, behind it.
+    ///
+    /// Driven off the clock rather than a repeating animation, like every other
+    /// effect in this game — a repeat left running is a repeat that can be left
+    /// stranded when the state it belongs to goes away.
+    private func readyGlow(_ colour: Color, at date: Date) -> some View {
+        let phase = date.timeIntervalSinceReferenceDate / PanelStyle.readyPulsePeriod
+        let breath = (sin(phase * 2 * .pi) + 1) / 2
+        let strength = PanelStyle.readyGlowMin
+            + (PanelStyle.readyGlowMax - PanelStyle.readyGlowMin) * breath
+
+        return RoundedRectangle(cornerRadius: PanelStyle.buttonCorner)
+            .fill(colour)
+            .blur(radius: PanelStyle.readyGlowRadius)
+            .opacity(strength)
+            .allowsHitTesting(false)
     }
 }
 
@@ -808,9 +996,10 @@ private struct PanelBackView: View {
             rules
 
             CelButton(tint: Palette.lightBlue, action: onBack) {
-                Text("BACK")
+                //Text("BACK")
+                Image(systemName: "arrowkeys.fill")
                     .font(.system(size: PanelStyle.backLabelSize, weight: .heavy, design: .rounded))
-                    .tracking(1)
+                    //.tracking(1)
             }
             .frame(width: PanelStyle.backWidth, height: PanelStyle.backHeight)
             .padding(PanelStyle.padding)
@@ -826,24 +1015,16 @@ private struct PanelBackView: View {
     /// meets a sign here for the first time.
     private var rules: some View {
         VStack(alignment: .leading, spacing: PanelStyle.infoSpacing) {
-            HStack(spacing: 10) {
-                SignBadge(zodiac: session.zodiac)
-                Text(session.zodiac.definition.displayName.uppercased())
-                    .font(.system(size: PanelStyle.infoTitleSize, weight: .heavy, design: .rounded))
-                    .tracking(2)
-                    .foregroundStyle(Palette.gold)
-            }
-
+            Spacer(minLength: 0)
             let definition = session.zodiac.definition
 
             entry("MOVEMENT", definition.movement.name, definition.movement.summary)
-            entry("ZODIACTION", definition.zodiaction.displayName, definition.zodiaction.summary)
 
             ForEach(Array(definition.passives.enumerated()), id: \.offset) { index, passive in
                 entry(index == 0 ? "PASSIVES" : nil, passive.displayName, passive.summary)
             }
-
-            Spacer(minLength: 0)
+            
+            entry("ZODIACTION", definition.zodiaction.displayName, definition.zodiaction.summary)
         }
         .padding(PanelStyle.padding)
         .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .topLeading)
@@ -855,16 +1036,23 @@ private struct PanelBackView: View {
     private func entry(_ section: String?, _ name: String, _ detail: String) -> some View {
         VStack(alignment: .leading, spacing: 2) {
             if let section {
-                Text(section)
-                    .font(.system(size: PanelStyle.infoSectionSize,
-                                  weight: .heavy, design: .monospaced))
-                    .tracking(3)
-                    .foregroundStyle(Palette.lightBlue)
-                    .padding(.bottom, 2)
+                HStack(spacing: 3) {
+                    Spacer()
+                    Capsule().frame(height: 2).padding(.trailing, 4).opacity(0.5)
+                    Text(section)
+                        .font(.system(size: PanelStyle.infoSectionSize,
+                                      weight: .heavy, design: .monospaced))
+                        .tracking(3)
+                        
+                        .padding(.bottom, 2)
+                    Capsule().frame(height: 2).opacity(0.5)
+                    Spacer()
+                }
+                .foregroundStyle(Palette.lightBlue)
             }
 
             Text(name)
-                .font(.system(size: PanelStyle.infoNameSize, weight: .bold, design: .rounded))
+                .font(.system(size: PanelStyle.infoNameSize * 1.2, weight: .bold, design: .rounded))
                 .foregroundStyle(Palette.white)
 
             Text(detail)
@@ -887,7 +1075,6 @@ struct ControlPanelPreview: View {
 
     @State private var session = GameSession(zodiac: .sagittarius)
     @State private var scheme = GameRules.controlScheme
-    @State private var badge = GameRules.badgeStyle
 
     /// A phone's width, since the board and the panel are two squares stacked.
     var side: CGFloat = 393
@@ -909,12 +1096,6 @@ struct ControlPanelPreview: View {
                 }
                 .pickerStyle(.segmented)
 
-                Picker("Badge", selection: $badge) {
-                    Text("FLAT").tag(GameRules.BadgeStyle.flat)
-                    Text("EMBLEM").tag(GameRules.BadgeStyle.emblem)
-                    Text("PLATE").tag(GameRules.BadgeStyle.constellationPlate)
-                }
-                .pickerStyle(.segmented)
 
                 // The two shortcuts are debug-only, so this is too — a
                 // preview still compiles in Release.
@@ -934,7 +1115,6 @@ struct ControlPanelPreview: View {
         // The two choices are global rather than per-view, so the preview writes
         // them and redraws — the same way the debug buttons work on a device.
         .onChange(of: scheme) { GameRules.controlScheme = scheme }
-        .onChange(of: badge) { GameRules.badgeStyle = badge }
     }
 
     #if DEBUG

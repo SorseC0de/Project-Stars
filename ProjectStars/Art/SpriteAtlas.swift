@@ -276,9 +276,14 @@ enum SpriteAtlas {
 
         // ── Direction arrows ─────────────────────────────────────────────
         // Row 9, in the order they sit on the sheet.
+        // Two sets on the same row: the plain white arrows, and the
+        // astral-energy ones four cells along for a sign's longer move.
         let arrowColumn: [SwipeDirection: Int] = [.left: 3, .down: 4, .up: 5, .right: 6]
+        let specialOffset = 4
+
         for (direction, column) in arrowColumn {
             map[.directionArrow(direction)] = .cells(column: column, row: 9)
+            map[.specialArrow(direction)] = .cells(column: column + specialOffset, row: 9)
         }
 
         return map

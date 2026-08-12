@@ -118,6 +118,13 @@ enum SpriteID: Hashable {
     /// The direction indicator in the input panel.
     case directionArrow(SwipeDirection)
 
+    /// The astral-energy arrow, for a sign's *longer* move that way.
+    ///
+    /// A second set rather than a tint of the first: the two sit side by side on
+    /// the pad and have to be told apart at a glance, which a recolour of the
+    /// same silhouette does not manage.
+    case specialArrow(SwipeDirection)
+
     // MARK: Effects
 
     /// One of the imported 64px effect strips. See `EffectSprite`.
@@ -156,6 +163,8 @@ enum SpriteID: Hashable {
             "cursor_warning"
         case let .directionArrow(direction):
             "arrow_\(direction.rawValue)"
+        case let .specialArrow(direction):
+            "arrow_special_\(direction.rawValue)"
         case let .effect(effect):
             effect.assetName
         }
@@ -216,6 +225,7 @@ extension SpriteID {
             CursorCorner.allCases.map { SpriteID.cursorCorner(tint, $0) }
         }
         ids += SwipeDirection.allCases.map { SpriteID.directionArrow($0) }
+        ids += SwipeDirection.allCases.map { SpriteID.specialArrow($0) }
         ids += EffectSprite.allCases.map { SpriteID.effect($0) }
         return ids
     }

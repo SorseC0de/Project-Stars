@@ -550,11 +550,6 @@ enum GameRules {
     /// once the selection screen exists.
     static var controlScheme: ControlScheme = .joystick
 
-    /// How the sign and element marks are presented — see `SignBadgeView`.
-    enum BadgeStyle: CaseIterable { case flat, emblem, constellationPlate }
-
-    /// A `var` for the same reason as `controlScheme`.
-    static var badgeStyle: BadgeStyle = .flat
 
     // ──────────────────────────────────────────────────────────────────────
     // MARK: - Input
