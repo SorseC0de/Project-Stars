@@ -350,7 +350,13 @@ enum GameRules {
     static let arrowPulsePeriod: TimeInterval = 1.4
 
     /// How long the flight takes: up out of sight, and down onto its square.
-    static let arrowFlightDuration: TimeInterval = 0.55
+    ///
+    /// The descent accelerates — see `FallingCloudView` — so most of the travel
+    /// happens in the back half of this, and at half a second the whole arrival
+    /// went past as a flicker. A second gives the cloud time to be seen coming
+    /// down, which is the only part of the shot's journey that is on screen at
+    /// all.
+    static let arrowFlightDuration: TimeInterval = 1.0
 
     /// How long a straight line has to be for Aries' Six Singe to pay.
     ///
