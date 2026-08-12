@@ -87,8 +87,47 @@ struct SagittariusVariableVoyager: ZodiacPassive {
     /// - TODO: Untuned. "Very small" in the design; start low and raise it.
     static let chance = 0.12
 
+    /// Key this sign owns in `SignState.cooldowns`.
+    static let strideKey = "sagittarius.stride"
+
     let displayName = "Variable Voyager"
-    let summary = "Small chance a badly cracked tile does not break. On Terra it mends a stage instead."
+    let summary = "Small chance a badly cracked tile does not break; on Terra it mends a stage instead. A long forward move cannot be taken twice in a row."
+
+    /// The archer draws before it looses.
+    ///
+    /// Both long forward moves are leaps now, which is a real buff: the archer
+    /// crosses its own line without wearing it. This is the price. A sign that
+    /// could leap forward every single turn simply moves at twice everyone
+    /// else's speed in the direction it cares about, and the whole tension of
+    /// this game is that ground is spent by crossing it — a piece that never
+    /// touches down is a piece playing a different game.
+    ///
+    /// One turn is enough. It does not stop the archer going far; it stops the
+    /// archer going far *without ever stopping*.
+    func allows(
+        _ option: MovementPattern.MoveOption,
+        direction: SwipeDirection,
+        path: [GridPoint],
+        context: PassiveContext
+    ) -> Bool {
+        guard option.distance > 1 else { return true }
+        return context.signState.isReady(Self.strideKey)
+    }
+
+    /// Charged only when a long move was actually taken — see
+    /// `ZodiacPassive.stateAfterMove(option:direction:context:)`.
+    func stateAfterMove(
+        option: MovementPattern.MoveOption,
+        direction: SwipeDirection,
+        context: PassiveContext
+    ) -> SignState? {
+        guard option.distance > 1 else { return nil }
+        var state = context.signState
+        // Two, because timers tick down at the end of the move that set them:
+        // one would be spent before the next move is even offered.
+        state.startCooldown(Self.strideKey, moves: 2)
+        return state
+    }
 
     func modifyWear(_ proposal: WearProposal, context: PassiveContext) -> WearProposal {
         guard proposal.tile.health == .badlyCracked,

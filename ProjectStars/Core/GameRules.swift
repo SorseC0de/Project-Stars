@@ -397,11 +397,6 @@ enum GameRules {
     /// even that. Half the time is still the most reliable repair in the game.
     static let taureanTearChance = 0.5
 
-    /// How many committed moves Aries' Brazen Blaze burns for.
-    ///
-    /// Safe to raise: a longer burn is more ground survived now and more of the
-    /// board spent later — see the note on `AriesBrazenBlaze`.
-    static let brazenBlazeMoves = 7
 
     // ── Embers ────────────────────────────────────────────────────────────
     //

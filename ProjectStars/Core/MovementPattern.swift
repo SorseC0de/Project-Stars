@@ -234,12 +234,19 @@ struct MovementPattern: Equatable {
     )
 
     /// **Sagittarius — Archer.** Ordinary in every direction except forward,
-    /// where it can stride one or two squares or loose itself three.
+    /// where it can leap two squares or loose itself three.
+    ///
+    /// Both forward options are jumps. The two-square stride used to be a slide,
+    /// which meant the archer's own direction was the one it could not safely
+    /// travel far in — it wore two tiles to go two squares. Leaping it costs the
+    /// ground nothing, and the price is paid instead by
+    /// `SagittariusVariableVoyager`, which will not let it be taken twice
+    /// running.
     static let archer = MovementPattern(
         name: "Archer",
         options: [
             MoveOption(.any, distance: 1, style: .slide),
-            MoveOption(.relative(.forward), distance: 2, style: .slide),
+            MoveOption(.relative(.forward), distance: 2, style: .jump),
             MoveOption(.relative(.forward), distance: 3, style: .jump),
         ]
     )

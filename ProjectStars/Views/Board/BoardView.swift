@@ -678,10 +678,8 @@ struct BoardView: View {
             starElement: starElement
         )
         .overlay {
-            // A burning piece sheds embers. Read straight off the buff rather
-            // than from a timestamp: it lasts as many moves as it lasts, and the
-            // fire should simply be there for all of them.
-            if session.engine.signState.isActive(AriesBrazenBlazeCarrier.buffKey) {
+            // A burning piece sheds embers, for as long as the charge runs.
+            if session.isCharging {
                 EmberView(tileSize: metrics.tileSize, scale: metrics.scale)
             }
             // And a piece the wind is carrying streams the same particles

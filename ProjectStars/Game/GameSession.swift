@@ -180,6 +180,10 @@ final class GameSession {
     /// leaves, and a two-square exit lights two of them on the same beat.
     private(set) var effectBursts: [EffectBurst] = []
 
+    /// True while Aries is mid-charge, so the piece burns for the length of the
+    /// run rather than for a fixed number of turns afterwards.
+    private(set) var isCharging = false
+
     /// Scorpio's tail, mid-strike. See `StingLanceView`.
     private(set) var stingStrike: StingStrike?
 
@@ -357,6 +361,7 @@ final class GameSession {
         elementalBurst = nil
         effectBursts = []
         healSparkles = []
+        isCharging = false
         stingStrike = nil
         pluming = nil
         crabWalkOrigin = nil
@@ -534,6 +539,9 @@ final class GameSession {
 
         ambientFreeze = Date.now.timeIntervalSinceReferenceDate
         defer { ambientFreeze = nil }
+        // Anything lit for the duration of an action goes out with it, however
+        // the action ended.
+        defer { isCharging = false }
 
         // Per-move presentation bookkeeping, cleared before anything is drawn.
         crabWalkOrigin = nil
@@ -838,6 +846,10 @@ final class GameSession {
             await sleep(event.displayDuration)
 
         case let .zodiactionFired(zodiac, plane):
+            // The ram burns for the length of its run. Lit here and put out when
+            // the action finishes, rather than counted in turns — the fire is
+            // the charge, and the charge is one turn long.
+            if zodiac == .aries { isCharging = true }
             summonConstellation(zodiac, on: plane)
             // Signs whose Zodiaction has been drawn play it; the rest keep the
             // spectral head and their programmatic burst alone.

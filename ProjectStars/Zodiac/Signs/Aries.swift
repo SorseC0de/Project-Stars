@@ -25,7 +25,6 @@ extension ZodiacCatalog {
         passives: [
             AriesSearingStride(),
             AriesSixSinge(),
-            AriesBrazenBlazeCarrier(),
         ],
         zodiaction: AriesBrazenBlaze(),
         constellation: ZodiacCatalog.ariesConstellation
@@ -67,17 +66,13 @@ struct AriesSearingStride: ZodiacPassive {
     static let requiredStreak = 3
 
     let displayName = "Searing Stride"
-    let summary = "Astra & Terra: +1 charge for each consecutive move in the same direction after the second. Silent while Brazen Blaze burns."
+    let summary = "Astra & Terra: +1 charge for each consecutive move in the same direction after the second."
 
     func meterBonus(from move: MoveSummary, context: PassiveContext) -> Int {
-        // Not while Brazen Blaze burns.
-        //
-        // The two make a loop otherwise: Blaze defers damage to the tile being
-        // left, so a burning Aries can run a straight line over ground it has
-        // not touched yet, taking no wear on arrival and charging a pip a move
-        // for doing it — which pays for the next Blaze. An ability should not
-        // fund its own repeat.
-        guard !context.signState.isActive(AriesBrazenBlazeCarrier.buffKey) else { return 0 }
+        // The charge itself pays nothing. Brazen Blaze crosses several squares
+        // in one direction in a single turn, and counting that as a streak would
+        // have the ability funding its own repeat.
+        guard context.signState.streakDirection != nil else { return 0 }
 
         // `signState` is updated before charging, so the streak already counts
         // the move being priced. Length 1 is a fresh direction and pays nothing.
@@ -113,74 +108,96 @@ struct AriesSixSinge: ZodiacPassive {
     }
 }
 
-// MARK: - Passive: Brazen Blaze carrier
-
-/// The half of Brazen Blaze that has to live in a passive.
-///
-/// A Zodiaction fires once and is gone, but Brazen Blaze changes how the next
-/// five moves *behave*. The Zodiaction sets a timer in `SignState`; this reads it.
-/// Splitting it that way keeps the buff on exactly the hooks it needs and out of
-/// the engine.
-struct AriesBrazenBlazeCarrier: ZodiacPassive {
-
-    /// Key this sign owns in `SignState.buffs`.
-    static let buffKey = "aries.brazenBlaze"
-
-    let displayName = "Brazen Blaze (active)"
-    let summary = "While Brazen Blaze burns: damage lands on the tile you leave — doubled on Astra."
-
-    func wearTiming(context: PassiveContext) -> WearTiming {
-        context.signState.isActive(Self.buffKey) ? .onExit : .onEntry
-    }
-
-    func modifyWear(_ proposal: WearProposal, context: PassiveContext) -> WearProposal {
-        guard context.signState.isActive(Self.buffKey) else { return proposal }
-
-        // Doubled on Astra only.
-        //
-        // Damage is the cost, not the payoff — the run ends when the board runs
-        // out, so tearing through it twice as fast is what Blaze charges for
-        // moving the damage behind you. That cost belongs on the plane where
-        // Aries is weak, which for a fire sign is Astra. On Terra, where it is
-        // strong, it gets the deferral at ordinary rates.
-        guard context.plane == .astra else { return proposal }
-
-        var burned = proposal
-        burned.stages = proposal.stages * 2
-        return burned
-    }
-}
-
 // MARK: - Zodiaction: Brazen Blaze
 
-/// For the next several moves, wear is charged to the tile being left rather
-/// than the one being entered — and at double strength.
+/// The ram puts its head down and runs, burning every square it leaves.
 ///
-/// ## Why the duration is also the drawback
+/// It charges along its facing until the board runs out or a hole opens in front
+/// of it, and every tile it pushes off takes **two** stages of wear instead of
+/// one. One turn, however far it goes.
 ///
-/// Lengthening it does not straightforwardly buff the sign. More moves under
-/// Blaze is more ground you survive now and more of the board gone later, since
-/// every one of those moves is doubled damage charged to somewhere you have
-/// already been. The knob buys short-term safety with long-term board — which is
-/// about as Aries as a mechanic gets, and the reason it can be raised without
-/// much fear.
+/// ## Why it is a move and not a buff
 ///
-/// Trading entry damage for exit damage is not a straight upgrade: it means the
-/// square you are standing on is the one that breaks, so a burning Aries leaves a
-/// trail of holes behind it and has to keep moving forward over ground it has not
-/// yet touched.
+/// Brazen Blaze used to be five turns of deferred, doubled damage. That read as
+/// a debuff you had inflicted on yourself: nothing visibly happened when it
+/// fired, and for the next five moves the player was playing more carefully than
+/// usual to manage it. A super should be the moment you were saving up for, and
+/// for a fire sign that moment is obviously a charge.
+///
+/// ## Why it stops at holes rather than clearing them
+///
+/// Because the run ends when you fall, and nothing that fires on a button press
+/// should be able to end it. Stopping short is also the more interesting rule:
+/// the ram cannot cross broken ground, so the length of a charge is decided by
+/// how wrecked the board already is — and Aries is the sign that wrecks it.
+///
+/// ## Why each square is checked on its own
+///
+/// A slide wears its two ends and crosses everything between them untouched —
+/// see `GameRules.slideWearsEndsOnly`. That is the wrong shape entirely for
+/// this: the whole point is the scorched line. So the charge is a run of
+/// individual steps, each paying for the square it leaves, bundled into a single
+/// turn.
 struct AriesBrazenBlaze: Zodiaction {
 
     let displayName = "Brazen Blaze"
-    let summary = "\(GameRules.brazenBlazeMoves) moves: damage the tile you leave instead of the one you land on. Doubled on Astra."
+    let summary = "Astra & Terra: charge along your facing until a wall or a hole stops you, burning every tile you leave for double damage."
 
     /// All of Aries' charge comes from Searing Stride, so the Zodiaction itself
     /// adds nothing. There is deliberately no universal charge rule.
     func meterGain(from move: MoveSummary, context: PassiveContext) -> Int { 0 }
 
+    /// Nowhere to run is not a Zodiaction that can fire. Refused rather than
+    /// spent, so facing a wall costs nothing.
+    func canActivate(context: PassiveContext) -> Bool {
+        !Self.run(context: context).isEmpty
+    }
+
     func activate(context: PassiveContext, generator: inout SeededRandom) -> [GameEvent] {
-        var state = context.signState
-        state.startBuff(AriesBrazenBlazeCarrier.buffKey, moves: GameRules.brazenBlazeMoves)
-        return [.signStateChanged(state)]
+        let path = Self.run(context: context)
+        guard !path.isEmpty else { return [] }
+
+        var events: [GameEvent] = []
+        var from = context.piecePoint
+        var board = context.currentBoard
+
+        for square in path {
+            // The square being *left* burns, which is the whole shape of this
+            // ability — the ram is already gone by the time the ground gives.
+            let leaving = board[from]
+            if leaving.canBeWorn {
+                let scorched = leaving.health.damaged.damaged
+                board[from].health = scorched
+                events.append(
+                    .tilesWornOnExit(plane: context.plane, changes: [from: scorched])
+                )
+            }
+
+            events.append(
+                .pieceStepped(from: from, to: square, plane: context.plane)
+            )
+            from = square
+        }
+
+        return events
+    }
+
+    /// The squares the charge will cross, in order.
+    ///
+    /// Stops *before* a hole rather than on it, and before the edge. Computed
+    /// against the board as it stands: nothing the charge does to a tile it has
+    /// already left can open a hole in front of it, since a straight line never
+    /// crosses the same square twice.
+    private static func run(context: PassiveContext) -> [GridPoint] {
+        let step = context.facing.unitOffset
+        var path: [GridPoint] = []
+        var point = context.piecePoint.offset(by: step)
+
+        while context.currentBoard.contains(point),
+              context.currentBoard[point].isSolid {
+            path.append(point)
+            point = point.offset(by: step)
+        }
+        return path
     }
 }
