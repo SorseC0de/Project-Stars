@@ -1406,6 +1406,15 @@ enum GameRules {
     /// mid-square are indistinguishable from one.
     static let slideOverlap: Double = 2.2
 
+    /// A slide wears the tile it leaves and the tile it reaches, and nothing in
+    /// between.
+    ///
+    /// The squares between the ends are crossed rather than stood on — one turn,
+    /// however far it goes. Recorded here because several signs' moves became
+    /// slides on the strength of it, and because "how much ground a move costs"
+    /// is the question the whole game is balanced around.
+    static let slideWearsEndsOnly = true
+
     /// How many squares a hop must cover to count as a leap worth drawing —
     /// Sagittarius' full bound rather than any long step.
     static let longJumpDistance = 3

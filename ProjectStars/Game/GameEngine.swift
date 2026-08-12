@@ -346,7 +346,10 @@ struct GameEngine {
         // 2b. Airborne signs pay their wear to the tile they are pushing off
         //     from, not the one they are about to reach. Charged here, while the
         //     piece is still standing on it.
-        let departure = sim.departCurrentTile()
+        // A slide charges the tile it pushes off from as well as the one it
+        // reaches — those two ends are the only ground it touches, so between
+        // them they carry the whole move's wear.
+        let departure = sim.departCurrentTile(force: move.style == .slide)
         events += departure.events
 
         // A jump touches nothing it flies over — not the ground, and not what is
@@ -360,7 +363,7 @@ struct GameEngine {
         //    jump touches only the destination. Either way, a tile that breaks
         //    underfoot drops the piece there and the rest of the path is
         //    abandoned.
-        var landing = sim.travel(move.path)
+        var landing = sim.travel(move.path, style: move.style)
         events += landing.events
         // Fold the departure's tallies in (its events already went out above) so
         // the move summary counts wear dealt on exit as wear dealt.
@@ -896,26 +899,48 @@ struct GameEngine {
     /// what makes a slide dangerous: if a tile gives way underfoot halfway
     /// along, the piece drops there and the remainder of the slide never
     /// happens.
-    private mutating func travel(_ path: [GridPoint]) -> LandingResult {
+    private mutating func travel(_ path: [GridPoint], style: MovementStyle) -> LandingResult {
         var result = LandingResult()
+        guard !isGameOver else { return result }
 
-        for square in path {
-            guard !isGameOver else { break }
+        switch style {
+        case .jump:
+            // A leap touches only where it lands.
+            guard let destination = path.last else { return result }
 
-            let step = GameEvent.pieceStepped(
+            let hop = GameEvent.pieceStepped(
                 from: piece.point,
-                to: square,
+                to: destination,
                 plane: piece.plane
             )
-            result.events.append(step)
-            result.covered.append(square)
-            apply(step)
+            result.events.append(hop)
+            result.covered.append(destination)
+            apply(hop)
 
-            let settled = settle(arrivedByFalling: false)
-            result.absorb(settled)
+            result.absorb(settle(arrivedByFalling: false))
 
-            // A drop ends the move; whatever was left of the path is moot.
-            if settled.fell || isGameOver { break }
+        case .slide:
+            // One turn, however far it goes.
+            //
+            // The squares between the ends are *crossed*, not stood on: no
+            // wear, no landing checks, no chance to fall in halfway. Only the
+            // tile pushed off and the tile arrived at are touched — see
+            // `GameRules.slideWearsEndsOnly`.
+            //
+            // What is picked up along the way is a separate question, and one
+            // the caller answers with `covered`.
+            for square in path {
+                let step = GameEvent.pieceSlid(
+                    from: piece.point,
+                    to: square,
+                    plane: piece.plane
+                )
+                result.events.append(step)
+                result.covered.append(square)
+                apply(step)
+            }
+
+            result.absorb(settle(arrivedByFalling: false))
         }
 
         return result
@@ -1439,8 +1464,11 @@ struct GameEngine {
     /// the top of a move, while the piece is still on the square it is leaving.
     /// - Note: Emits `tilesWornOnExit` rather than `tilesWorn`. Same rule,
     ///   different pacing — see the event's documentation.
-    private mutating func departCurrentTile() -> LandingResult {
-        guard piece.zodiac.passives.wearTiming(context: passiveContext) == .onExit else {
+    /// - Parameter force: True when the move charges its start tile whatever the
+    ///   sign's timing says — which a slide always does, since the two ends are
+    ///   the only ground it touches.
+    private mutating func departCurrentTile(force: Bool = false) -> LandingResult {
+        guard force || piece.zodiac.passives.wearTiming(context: passiveContext) == .onExit else {
             return LandingResult()
         }
         let point = piece.point
