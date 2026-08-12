@@ -152,12 +152,23 @@ enum PanelStyle {
     /// rather than the box turning with it.
     static let padArrowSize: CGFloat = 96
 
-    /// How thick the plate is — how far its dark side shows below the top face.
+    /// How thick each plate is — how far its dark side shows below the top face.
     ///
-    /// This is the only thing that makes the four look different from each
-    /// other, because the thickness always falls straight down the screen while
-    /// the arrow turns. Raise it and every arrow gets chunkier at once.
-    static let padThickness: CGFloat = 7
+    /// Per direction, because they are not seen at the same angle. The pair
+    /// pointing away show more of their edge than the pair crossing the board,
+    /// and north shows most of all: its tail is turned back-to-the-viewer, so
+    /// what would be top face there is side instead.
+    ///
+    /// Thickness is also the only thing that makes the four differ in *shape* —
+    /// it always falls straight down the screen while the arrow turns — so these
+    /// are the numbers to reach for when one of them reads wrong.
+    static func padThickness(_ direction: SwipeDirection) -> CGFloat {
+        switch direction {
+        case .up: 7
+        case .down: 7
+        case .left, .right: 7
+        }
+    }
 
     /// How the pair pointing away from the viewer differ from the pair crossing
     /// the board: broader, and shorter along the way they point.
@@ -175,9 +186,13 @@ enum PanelStyle {
     /// takes it, so the arrow ends in the same place with more of its end dark.
     static let padNorthTailToSide: CGFloat = 0.10
 
-    /// The magenta mark on the head of an arrow with a longer move, as a
-    /// fraction of the box.
-    static let padSpecialMarkSize: CGFloat = 0.20
+    /// The magenta mark on the head of an arrow with a longer move, as
+    /// fractions of the box.
+    ///
+    /// Wide and flat, echoing the head it sits inside. A mark shaped unlike its
+    /// surroundings reads as a sticker on the arrow rather than part of it.
+    static let padSpecialMarkWidth: CGFloat = 0.36
+    static let padSpecialMarkHeight: CGFloat = 0.16
     static let padSpecialMark = Palette.magenta
 
     /// How long an arrow must be held to take the longer move.
@@ -777,8 +792,10 @@ struct ArrowProfile {
     }
 
     /// How deep this arrow's side is, in points.
-    func thickness(in rect: CGRect) -> CGFloat {
-        PanelStyle.padThickness + rect.height * sideBonus * shorten
+    ///
+    /// The direction's own depth, plus whatever the top face gave up to it.
+    func thickness(_ direction: SwipeDirection, in rect: CGRect) -> CGFloat {
+        PanelStyle.padThickness(direction) + rect.height * sideBonus * shorten
     }
 
     /// The seven corners, stretched, turned, and placed in `rect`.
@@ -837,7 +854,7 @@ struct ArrowSide: Shape {
     func path(in rect: CGRect) -> Path {
         let profile = ArrowProfile.of(direction)
         let corners = profile.corners(in: rect, turn: direction.iconRotation)
-        let drop = profile.thickness(in: rect)
+        let drop = profile.thickness(direction, in: rect)
 
         var path = Path()
         path.addLines(wound(corners.map { CGPoint(x: $0.x, y: $0.y + drop) }))
@@ -888,7 +905,8 @@ struct SpecialMark: Shape {
 
     func path(in rect: CGRect) -> Path {
         let profile = ArrowProfile.of(direction)
-        let size = min(rect.width, rect.height) * PanelStyle.padSpecialMarkSize
+        let width = rect.width * PanelStyle.padSpecialMarkWidth
+        let height = rect.height * PanelStyle.padSpecialMarkHeight
 
         // Sat in the head rather than the middle of the box: the head is where
         // the eye goes, and the tail is too narrow to hold it.
@@ -899,9 +917,9 @@ struct SpecialMark: Shape {
         )
 
         var path = Path()
-        path.move(to: CGPoint(x: headCentre.x, y: headCentre.y - size / 2))
-        path.addLine(to: CGPoint(x: headCentre.x + size / 2, y: headCentre.y + size / 2))
-        path.addLine(to: CGPoint(x: headCentre.x - size / 2, y: headCentre.y + size / 2))
+        path.move(to: CGPoint(x: headCentre.x, y: headCentre.y - height / 2))
+        path.addLine(to: CGPoint(x: headCentre.x + width / 2, y: headCentre.y + height / 2))
+        path.addLine(to: CGPoint(x: headCentre.x - width / 2, y: headCentre.y + height / 2))
         path.closeSubpath()
 
         let centre = CGPoint(x: rect.midX, y: rect.midY)
