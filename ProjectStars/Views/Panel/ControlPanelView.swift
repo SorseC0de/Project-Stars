@@ -167,14 +167,24 @@ enum PanelStyle {
     static let padAwayWiden: CGFloat = 1.08
     static let padAwayShorten: CGFloat = 0.86
 
-    /// Where north's tail ends, against 0.80 for the others.
+    /// How much of north's tail is wall rather than top face, as a fraction of
+    /// the box.
     ///
-    /// Pointing away, what is on show is the *back* of the tail — its rear face
-    /// is toward the viewer, and that reads as extra length.
-    static let padNorthTailY: CGFloat = 0.88
+    /// Pointing away, the tail is turned so its *back* faces the viewer — and a
+    /// back is side, not top. The top face gives this height up and the side
+    /// takes it, so the arrow ends in the same place with more of its end dark.
+    static let padNorthTailToSide: CGFloat = 0.10
 
-    /// The longer-move arrow, nested outside its direction.
-    static let padSpecialScale: CGFloat = 0.62
+    /// The magenta mark on the head of an arrow with a longer move, as a
+    /// fraction of the box.
+    static let padSpecialMarkSize: CGFloat = 0.20
+    static let padSpecialMark = Palette.magenta
+
+    /// How long an arrow must be held to take the longer move.
+    ///
+    /// Half a second, which is what iOS settled on for haptic touch once 3D
+    /// Touch went away — so it is already the length a thumb expects to wait.
+    static let padHoldDuration: Double = 0.5
 
     /// Gaps within the cross.
     ///
@@ -183,15 +193,10 @@ enum PanelStyle {
     static let padGapVertical: CGFloat = 0
     static let padGapHorizontal: CGFloat = 10
 
-    /// Gap between a direction and its nested special.
-    static let padSpecialGap: CGFloat = 0
-
     /// The top face and the side, matching the joystick's guide so the two
     /// schemes read as one game.
     static let padLight = Palette.gold
     static let padShadow = Palette.orange
-    static let padSpecialLight = Palette.magenta
-    static let padSpecialShadow = Palette.darkMagenta
 
     // ─────────────────────────────────────────────────────────────────────
     // MARK: Row 3 — the Zodiaction
@@ -742,22 +747,33 @@ struct ArrowProfile {
     var widen: CGFloat = 1
     var shorten: CGFloat = 1
 
-    /// The one for a given direction.
+    /// Extra side height, in fractions of the box, taken off the top face.
     ///
-    /// North's tail runs longer than south's: pointing away, what is on show is
-    /// the *back* of the tail, and its rear face reads as extra length.
+    /// North is the one that needs it: pointing away, the tail is turned so its
+    /// *back* is toward the viewer, and a back is side, not top. So the yellow
+    /// gives that height up and the orange takes it — the arrow ends in the same
+    /// place, but more of its end is wall.
+    var sideBonus: CGFloat = 0
+
+    /// The one for a given direction.
     static func of(_ direction: SwipeDirection) -> ArrowProfile {
         switch direction {
         case .up:
-            ArrowProfile(tailY: PanelStyle.padNorthTailY,
+            ArrowProfile(tailY: 0.80 - PanelStyle.padNorthTailToSide,
                          widen: PanelStyle.padAwayWiden,
-                         shorten: PanelStyle.padAwayShorten)
+                         shorten: PanelStyle.padAwayShorten,
+                         sideBonus: PanelStyle.padNorthTailToSide)
         case .down:
             ArrowProfile(widen: PanelStyle.padAwayWiden,
                          shorten: PanelStyle.padAwayShorten)
         case .left, .right:
             ArrowProfile()
         }
+    }
+
+    /// How deep this arrow's side is, in points.
+    func thickness(in rect: CGRect) -> CGFloat {
+        PanelStyle.padThickness + rect.height * sideBonus * shorten
     }
 
     /// The seven corners, stretched, turned, and placed in `rect`.
@@ -794,10 +810,8 @@ struct ArrowGlyph: Shape {
     var direction: SwipeDirection
 
     func path(in rect: CGRect) -> Path {
-        let corners = ArrowProfile.of(direction).corners(in: rect, turn: direction.iconRotation)
-
         var path = Path()
-        path.addLines(corners)
+        path.addLines(ArrowProfile.of(direction).corners(in: rect, turn: direction.iconRotation))
         path.closeSubpath()
         return path
     }
@@ -807,35 +821,31 @@ struct ArrowGlyph: Shape {
 ///
 /// ## Why this is not the top face drawn again lower down
 ///
-/// A copy offset downward gives the right *angles* but leaves the plate hollow —
-/// nothing joins the top face to the bottom one, so at a barb's point the dark
-/// simply stops and the two shapes read as two stickers. A real extrusion has a
-/// wall standing on every edge, meeting the top face along its whole length.
-///
-/// So each edge is swept: the edge, the same edge dropped by the thickness, and
-/// the two verticals joining them. Every edge is swept rather than only the ones
-/// facing the viewer — the ones facing away end up behind the top face, cost
-/// nothing, and save deciding which is which.
+/// A copy offset downward gives the right angles and a hollow plate — nothing
+/// joins the two faces, so at a barb's point the dark simply stops and the pair
+/// read as two stickers. A real extrusion stands a wall on every edge, meeting
+/// the top face along its whole length.
 struct ArrowSide: Shape {
 
     var direction: SwipeDirection
-    var thickness: CGFloat
 
     func path(in rect: CGRect) -> Path {
-        let corners = ArrowProfile.of(direction).corners(in: rect, turn: direction.iconRotation)
-        let drop = thickness
+        let profile = ArrowProfile.of(direction)
+        let corners = profile.corners(in: rect, turn: direction.iconRotation)
+        let drop = profile.thickness(in: rect)
 
         var path = Path()
         path.addLines(wound(corners.map { CGPoint(x: $0.x, y: $0.y + drop) }))
         path.closeSubpath()
 
+        // Every edge is swept, not only those facing the viewer — the rest end
+        // up behind the top face, cost nothing, and save deciding which is which.
         for index in corners.indices {
             let a = corners[index]
             let b = corners[(index + 1) % corners.count]
 
             path.addLines(wound([
-                a,
-                b,
+                a, b,
                 CGPoint(x: b.x, y: b.y + drop),
                 CGPoint(x: a.x, y: a.y + drop),
             ]))
@@ -848,8 +858,8 @@ struct ArrowSide: Shape {
     /// The same polygon, always wound the same way round.
     ///
     /// Without this the walls come out in whichever order their edge happened to
-    /// run, and a non-zero fill *subtracts* a shape wound against its neighbour
-    /// — which is why the side vanished entirely rather than merely looking
+    /// run, and a non-zero fill *subtracts* a shape wound against its neighbour —
+    /// which is why the side once vanished entirely rather than merely looking
     /// wrong. Every piece wound alike means every overlap adds.
     private func wound(_ points: [CGPoint]) -> [CGPoint] {
         var twice: CGFloat = 0
@@ -862,6 +872,42 @@ struct ArrowSide: Shape {
     }
 }
 
+/// The mark inside an arrow's head saying it has a longer move.
+///
+/// Inside the head rather than beside the arrow: a second button next to the
+/// first says "another control", and this is the *same* control held down. A
+/// mark on the face says "there is more in here".
+struct SpecialMark: Shape {
+
+    var direction: SwipeDirection
+
+    func path(in rect: CGRect) -> Path {
+        let profile = ArrowProfile.of(direction)
+        let size = min(rect.width, rect.height) * PanelStyle.padSpecialMarkSize
+
+        // Sat in the head rather than the middle of the box: the head is where
+        // the eye goes, and the tail is too narrow to hold it.
+        let headCentre = CGPoint(
+            x: rect.midX,
+            y: rect.minY + rect.height * (profile.tipY + profile.barbY) / 2 * profile.shorten
+                + rect.height * (1 - profile.shorten) / 2
+        )
+
+        var path = Path()
+        path.move(to: CGPoint(x: headCentre.x, y: headCentre.y - size / 2))
+        path.addLine(to: CGPoint(x: headCentre.x + size / 2, y: headCentre.y + size / 2))
+        path.addLine(to: CGPoint(x: headCentre.x - size / 2, y: headCentre.y + size / 2))
+        path.closeSubpath()
+
+        let centre = CGPoint(x: rect.midX, y: rect.midY)
+        return path.applying(
+            CGAffineTransform(translationX: centre.x, y: centre.y)
+                .rotated(by: direction.iconRotation * .pi / 180)
+                .translatedBy(x: -centre.x, y: -centre.y)
+        )
+    }
+}
+
 /// One direction's arrow: a flat plate with real thickness, seen from above.
 ///
 /// ## What the dark is
@@ -870,11 +916,15 @@ struct ArrowSide: Shape {
 /// the board, lit from above. What shows of it is whatever faces down the
 /// screen, which is why pointing up shows the undersides of the barbs and the
 /// tail, pointing down shows the two long diagonals, and pointing across shows
-/// the lower diagonal and the underside of the shaft. One silhouette, three
-/// completely different-looking drawings.
+/// the lower diagonal and the underside of the shaft.
 struct DirectionArrow: View {
 
     let direction: SwipeDirection
+
+    /// True when this sign has a longer move this way, which the mark announces
+    /// and a long press takes.
+    var hasSpecial: Bool = false
+
     var light: Color = PanelStyle.padLight
     var shadow: Color = PanelStyle.padShadow
     var box: CGFloat = PanelStyle.padArrowSize
@@ -883,102 +933,67 @@ struct DirectionArrow: View {
         ZStack {
             // Non-zero winding, with every piece wound alike, so the walls and
             // the far face merge into one solid — see `ArrowSide.wound`.
-            ArrowSide(direction: direction, thickness: PanelStyle.padThickness)
+            ArrowSide(direction: direction)
                 .fill(shadow, style: FillStyle(eoFill: false))
 
             ArrowGlyph(direction: direction).fill(light)
+
+            if hasSpecial {
+                SpecialMark(direction: direction).fill(PanelStyle.padSpecialMark)
+            }
         }
         .frame(width: box, height: box)
     }
-
-    /// The space it takes. Square: the silhouette turns inside its own box
-    /// rather than the box turning with it.
-    var footprint: CGSize { CGSize(width: box, height: box) }
 }
 
-/// A keyboard cross of arrows, with a sign's longer moves nested outside.
+/// A keyboard cross of arrows. Tap to step; hold for a sign's longer move.
 ///
-/// ## Why a keyboard cross rather than a diamond
+/// ## Why the longer move is a hold rather than a second button
 ///
-/// Up on its own row, then left/down/right together. It is the shape every
-/// keyboard already uses, and it costs one row less than a diamond — which on a
-/// phone is the difference between the arrows being big enough and not.
-///
-/// ## Why the longer moves nest outward
-///
-/// A sign with a two-square sidestep cannot express that with a tap — the
-/// direction is the same, only the distance differs — so it needs its own
-/// target. Putting it *further out along the same line* says "same way, more of
-/// it", and it matches the joystick's guide: gold for the ordinary step, magenta
-/// beyond it for the longer one.
+/// It is the same direction — only the distance differs — so it is the same
+/// control, and a second button beside the first said otherwise. Holding is also
+/// what the joystick already does: drag further and you get more. A magenta
+/// triangle on the head says there is something to hold *for*.
 struct DirectionPad: View {
 
     let session: GameSession
 
     var body: some View {
-        VStack(spacing: PanelStyle.padGapVertical) {
-            column(.up)
+        // The horizontal pair sit level with the middle of the vertical pair
+        // rather than in a row with south. Laying them over the column is what
+        // achieves that without opening the gap between north and south.
+        ZStack {
+            VStack(spacing: PanelStyle.padGapVertical) {
+                arrow(.up)
+                arrow(.down)
+            }
 
             HStack(spacing: PanelStyle.padGapHorizontal) {
-                row(.left)
-                column(.down)
-                row(.right)
+                arrow(.left)
+                Color.clear.frame(width: PanelStyle.padArrowSize, height: 1)
+                arrow(.right)
             }
         }
     }
 
-    /// A vertical direction with its special nested beyond it.
-    private func column(_ direction: SwipeDirection) -> some View {
-        VStack(spacing: PanelStyle.padSpecialGap) {
-            if direction == .up { special(direction) }
-            arrow(direction)
-            if direction == .down { special(direction) }
-        }
-    }
-
-    /// A horizontal direction with its special nested beyond it.
-    private func row(_ direction: SwipeDirection) -> some View {
-        HStack(spacing: PanelStyle.padSpecialGap) {
-            if direction == .left { special(direction) }
-            arrow(direction)
-            if direction == .right { special(direction) }
-        }
-    }
-
-    /// The ordinary one-square move.
     private func arrow(_ direction: SwipeDirection) -> some View {
-        DirectionArrow(direction: direction)
+        let special = session.specialReach(for: direction)
+
+        return DirectionArrow(direction: direction, hasSpecial: special != nil)
             .opacity(session.acceptsInput ? 1 : 0.4)
             .contentShape(Rectangle())
-            .onTapGesture {
-                if session.acceptsInput { session.submit(direction, reach: 0) }
+            // The hold is registered first, so a press that becomes a hold does
+            // not also fire the tap when it lifts.
+            .onLongPressGesture(minimumDuration: PanelStyle.padHoldDuration) {
+                guard session.acceptsInput, let reach = special else { return }
+                Haptics.longer()
+                session.submit(direction, reach: reach)
             }
-    }
-
-    /// The sign's longer move that way, when it has one.
-    ///
-    /// Its space is held even when absent, so the cross does not shift as the
-    /// piece changes sign — an empty gap of the right size is invisible, and a
-    /// pad that jumps about is not.
-    @ViewBuilder
-    private func special(_ direction: SwipeDirection) -> some View {
-        let glyph = DirectionArrow(
-            direction: direction,
-            light: PanelStyle.padSpecialLight,
-            shadow: PanelStyle.padSpecialShadow,
-            box: PanelStyle.padArrowSize * PanelStyle.padSpecialScale
-        )
-
-        if let reach = session.specialReach(for: direction) {
-            glyph
-                .opacity(session.acceptsInput ? 1 : 0.4)
-                .contentShape(Rectangle())
-                .onTapGesture {
-                    if session.acceptsInput { session.submit(direction, reach: reach) }
-                }
-        } else {
-            Color.clear.frame(width: glyph.footprint.width, height: glyph.footprint.height)
-        }
+            .onTapGesture {
+                guard session.acceptsInput else { return }
+                Haptics.step()
+                session.submit(direction, reach: 0)
+            }
     }
 }
 
@@ -991,6 +1006,38 @@ extension SwipeDirection {
         case .down: 180
         case .left: 270
         }
+    }
+}
+
+// MARK: - Feel
+
+/// The taps the panel makes.
+///
+/// One place, so the game speaks with a consistent hand: a light knock for an
+/// ordinary move, a heavier one for firing, and the two-beat pattern for a hold
+/// that paid off — which is the same shape iOS uses for a completed haptic
+/// touch, so it is already familiar.
+enum Haptics {
+
+    /// An ordinary step, by button or by stick.
+    static func step() {
+        #if canImport(UIKit)
+        UIImpactFeedbackGenerator(style: .light).impactOccurred()
+        #endif
+    }
+
+    /// A hold that produced the longer move: two beats, not one.
+    static func longer() {
+        #if canImport(UIKit)
+        UINotificationFeedbackGenerator().notificationOccurred(.success)
+        #endif
+    }
+
+    /// Spending the meter. The heaviest thing the panel does.
+    static func zodiaction() {
+        #if canImport(UIKit)
+        UIImpactFeedbackGenerator(style: .heavy).impactOccurred()
+        #endif
     }
 }
 
