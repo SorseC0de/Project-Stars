@@ -823,27 +823,42 @@ struct ArrowSide: Shape {
 
     func path(in rect: CGRect) -> Path {
         let corners = ArrowProfile.of(direction).corners(in: rect, turn: direction.iconRotation)
-        let drop = CGPoint(x: 0, y: thickness)
+        let drop = thickness
 
         var path = Path()
-
-        // The far face, so the solid is closed at the bottom.
-        path.addLines(corners.map { CGPoint(x: $0.x + drop.x, y: $0.y + drop.y) })
+        path.addLines(wound(corners.map { CGPoint(x: $0.x, y: $0.y + drop) }))
         path.closeSubpath()
 
-        // A wall standing on each edge.
         for index in corners.indices {
             let a = corners[index]
             let b = corners[(index + 1) % corners.count]
 
-            path.move(to: a)
-            path.addLine(to: b)
-            path.addLine(to: CGPoint(x: b.x + drop.x, y: b.y + drop.y))
-            path.addLine(to: CGPoint(x: a.x + drop.x, y: a.y + drop.y))
+            path.addLines(wound([
+                a,
+                b,
+                CGPoint(x: b.x, y: b.y + drop),
+                CGPoint(x: a.x, y: a.y + drop),
+            ]))
             path.closeSubpath()
         }
 
         return path
+    }
+
+    /// The same polygon, always wound the same way round.
+    ///
+    /// Without this the walls come out in whichever order their edge happened to
+    /// run, and a non-zero fill *subtracts* a shape wound against its neighbour
+    /// — which is why the side vanished entirely rather than merely looking
+    /// wrong. Every piece wound alike means every overlap adds.
+    private func wound(_ points: [CGPoint]) -> [CGPoint] {
+        var twice: CGFloat = 0
+        for index in points.indices {
+            let a = points[index]
+            let b = points[(index + 1) % points.count]
+            twice += a.x * b.y - b.x * a.y
+        }
+        return twice < 0 ? points.reversed() : points
     }
 }
 
@@ -866,8 +881,8 @@ struct DirectionArrow: View {
 
     var body: some View {
         ZStack {
-            // Non-zero winding, so the walls and the far face merge into one
-            // solid rather than cancelling each other where they overlap.
+            // Non-zero winding, with every piece wound alike, so the walls and
+            // the far face merge into one solid — see `ArrowSide.wound`.
             ArrowSide(direction: direction, thickness: PanelStyle.padThickness)
                 .fill(shadow, style: FillStyle(eoFill: false))
 
