@@ -616,6 +616,13 @@ struct BoardView: View {
                 .offset(y: -GameRules.starSparkLift * metrics.scale)
             }
         }
+        .overlay(alignment: .top) {
+            // What the piece is carrying, riding above its head until it stops
+            // and the coin opens.
+            if !session.engine.carriedPickups.isEmpty {
+                CarriedPickupView(tileSize: metrics.tileSize, scale: metrics.scale)
+            }
+        }
         // Island and passenger travel as one object during an ascent.
         .scaleEffect(ascent.scale)
         .offset(y: ascent.lift)

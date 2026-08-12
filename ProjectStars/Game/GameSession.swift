@@ -738,6 +738,10 @@ final class GameSession {
             summonConstellation(zodiac, on: plane)
             // Signs whose Zodiaction has been drawn play it; the rest keep the
             // spectral head and their programmatic burst alone.
+            // Some Zodiactions travel and mark the ground as they go, exactly
+            // as the coin they are borrowed from does.
+            pluming = EffectSprite.zodiactionTrail(for: zodiac, on: plane)
+
             for layer in EffectSprite.zodiaction(for: zodiac) {
                 playEffect(layer, at: engine.piece.point, on: plane)
             }

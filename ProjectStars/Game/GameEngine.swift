@@ -107,6 +107,14 @@ struct GameEngine {
     /// after a coin that had been pulled away from it.
     private(set) var raisedTiles: [RevealedPickup] = []
 
+    /// Pentacles swept up mid-journey, waiting for the piece to stop.
+    ///
+    /// Borrowed from party games: crossing a coin does not interrupt the
+    /// movement, it queues. The piece carries it visibly and the effect runs
+    /// once it has come to rest — which also means an effect that moves the
+    /// piece cannot fire while it is already moving.
+    private(set) var carriedPickups: [RevealedPickup] = []
+
     /// A Pentacle that has been opened but is waiting on the player to answer a
     /// question before it can resolve. See `planChoice(_:)`.
     private(set) var pendingChoice: (source: ChoiceSource, kind: PickupChoice)?
@@ -211,6 +219,7 @@ struct GameEngine {
         self.pendingPickup = nil
         self.revealedPickups = []
         self.raisedTiles = []
+        self.carriedPickups = []
         self.pendingChoice = nil
         self.moveCount = 0
         self.pickupsCollected = 0
@@ -539,8 +548,14 @@ struct GameEngine {
             context: zodiactionContext,
             generator: &sim.rng
         ) {
-            if let allowed = sim.sheltered(event) { commit(allowed) }
+            guard let allowed = sim.sheltered(event) else { continue }
+            commit(allowed)
+            for sweep in sim.gatherIfCrossed(allowed) { commit(sweep) }
         }
+
+        // A Zodiaction that carried the piece across coins opens them here, for
+        // the same reason a Pentacle's slide does: once it has stopped.
+        events += sim.openCarriedPickups()
 
         // Asked the player something? Then nothing below can be decided yet —
         // the meter is still spent, because the ability was used, but where the
@@ -1515,8 +1530,13 @@ struct GameEngine {
         )
 
         for event in effect.plan(context: context, choice: choice, generator: &rng) {
-            if let allowed = sheltered(event) { commit(allowed) }
+            guard let allowed = sheltered(event) else { continue }
+            commit(allowed)
+            for sweep in gatherIfCrossed(allowed) { commit(sweep) }
         }
+
+        // Whatever was swept up on the way opens now that the piece has landed.
+        events += openCarriedPickups()
 
         // Arriving somewhere new is landing, and every gameplay check happens on
         // landing — so the destination settles exactly like the end of a move.
@@ -1743,6 +1763,58 @@ struct GameEngine {
         return .sparklesSpawned(set: set, pickup: pickup)
     }
 
+    /// The coin the piece has just slid onto, swept up rather than opened.
+    ///
+    /// Returns nothing for any event that is not a slide, which is most of them.
+    private mutating func gatherIfCrossed(_ event: GameEvent) -> [GameEvent] {
+        guard case let .pieceSlid(_, to, plane) = event,
+              let coin = revealedPickups.first(where: { $0.plane == plane && $0.point == to })
+        else { return [] }
+
+        let gathered = GameEvent.pickupGathered(id: coin.id, plane: plane, point: to)
+        apply(gathered)
+        return [gathered]
+    }
+
+    /// Opens everything the piece swept up on its way, now that it has stopped.
+    ///
+    /// Each one runs its full effect, so a coin caught mid-slide behaves exactly
+    /// as it would have if walked onto — including moving the piece again, which
+    /// it could not safely have done while the piece was still travelling.
+    private mutating func openCarriedPickups() -> [GameEvent] {
+        guard !carriedPickups.isEmpty else { return [] }
+
+        let carried = carriedPickups
+        carriedPickups = []
+
+        var events: [GameEvent] = []
+        for coin in carried {
+            let opened = GameEvent.pickupCollected(
+                id: coin.id,
+                plane: coin.plane,
+                point: piece.point
+            )
+            apply(opened)
+            events.append(opened)
+
+            let effect = PickupCatalog.effect(for: coin.id)
+
+            // A coin that needs an answer parks exactly as it would have.
+            guard effect.choice == .none else {
+                let asked = GameEvent.choiceRequested(
+                    source: .pickup(coin.id),
+                    kind: effect.choice
+                )
+                apply(asked)
+                events.append(asked)
+                break
+            }
+
+            events += applyEffect(effect, choice: nil)
+        }
+        return events
+    }
+
     /// A spawn with any debug override applied.
     ///
     /// Release builds compile this to the identity, so the roll is untouched.
@@ -1917,6 +1989,12 @@ struct GameEngine {
             }) {
                 revealedPickups[index] = RevealedPickup(id: id, plane: plane, point: to)
             }
+
+        case let .pickupGathered(id, plane, point):
+            // Off the board and onto the piece. The square it popped up from
+            // stays raised, to be stamped flat like any other.
+            revealedPickups.removeAll { $0.plane == plane && $0.point == point }
+            carriedPickups.append(RevealedPickup(id: id, plane: plane, point: point))
 
         case let .arrowPlanted(plane, point):
             signState.arrow = SignState.Arrow(

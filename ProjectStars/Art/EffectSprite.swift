@@ -460,6 +460,18 @@ enum EffectSprite: String, CaseIterable, Hashable {
     ///
     /// A stack rather than one strip: several of these were authored as layers
     /// meant to be composited, and drawing them singly is not what they are.
+    /// The strip a Zodiaction leaves on each square it damages as it travels.
+    ///
+    /// Pisces' Downstream *is* the Astral Brook, so it marks the ground the same
+    /// way the coin does. Without this the Zodiaction swept the board in
+    /// silence, which read as a different, lesser effect.
+    static func zodiactionTrail(for zodiac: Zodiac, on plane: Plane) -> EffectSprite? {
+        switch (zodiac, plane) {
+        case (.pisces, .astra): .waterSplash
+        default: nil
+        }
+    }
+
     static func zodiaction(for zodiac: Zodiac) -> [EffectSprite] {
         switch zodiac {
         // Aries has two: this is the flare of Brazen Blaze catching, while

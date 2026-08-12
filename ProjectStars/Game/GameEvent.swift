@@ -156,6 +156,14 @@ enum GameEvent: Equatable {
     /// the hunt restarts, which is why a fresh sparkle set always follows.
     case pickupDestroyed(id: PickupID, plane: Plane, point: GridPoint)
 
+    /// A Pentacle was swept up mid-journey and is riding with the piece.
+    ///
+    /// Not the same as collecting it. The coin leaves the board here and its
+    /// effect does **not** run — that waits until the piece stops. A slide that
+    /// stopped dead to open a coin halfway across the board would break the one
+    /// thing a slide is: one continuous movement.
+    case pickupGathered(id: PickupID, plane: Plane, point: GridPoint)
+
     /// An arrow was planted in a square, and stays there until spent.
     ///
     /// Its own event rather than a `signStateChanged` because the flight is
@@ -221,6 +229,9 @@ enum GameEvent: Equatable {
         switch self {
         case .moveBlocked: 0.18
         case .pickupRevealed: GameRules.pickupRevealDuration
+        // Instant: it happens *during* a slide, and a beat here would be the
+        // stop the whole arrangement exists to avoid.
+        case .pickupGathered: 0
         case .arrowPlanted: GameRules.arrowFlightDuration
         case .arrowCleared: 0.12
         case .pieceSlid: GameRules.slideStepDuration

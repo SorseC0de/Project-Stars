@@ -306,6 +306,17 @@ enum GameRules {
     /// How far the gale's particles blow sideways as they rise, in art pixels.
     static let galeDrift: CGFloat = 14
 
+    // ── A carried Pentacle ────────────────────────────────────────────────
+
+    /// How big the coin riding above a sliding piece is, and how far above its
+    /// square it sits, in art pixels.
+    static let carriedSize: CGFloat = 7
+    static let carriedLift: CGFloat = 30
+
+    /// How far it bobs, and how long one rise and fall takes.
+    static let carriedBob: CGFloat = 1.5
+    static let carriedBobPeriod: TimeInterval = 0.9
+
     // ── Sagittarius' arrow ────────────────────────────────────────────────
 
     /// How many committed moves an arrow stands before it rots.
