@@ -1108,6 +1108,31 @@ final class GameSession {
     ///
     /// The spin is accumulated in halves rather than set to a target angle, so
     /// it keeps turning the same way across the plane swap instead of unwinding.
+    ///
+    /// - TODO: **Replace the plane change with a proper transition.** Not the
+    ///   piece's animation — this one is fine — but the swap itself, which is
+    ///   currently a cut hidden behind a flash.
+    ///
+    ///   The effect wanted: take the game screen as it stands and scroll it
+    ///   upward, fast, looping — so the world reads as rushing past on the way
+    ///   down — with high-glow vertical capsules in white, ice blue, light
+    ///   yellow and light pink flying up through it on their own loop. Inverted
+    ///   for an ascent: everything travels down instead.
+    ///
+    ///   This is the GameMaker surface trick, and it has an equivalent here.
+    ///   `ImageRenderer` will hand back a snapshot of a view hierarchy, which is
+    ///   the surface; scrolling it is then two copies offset by the loop height
+    ///   with the phase driven off a timestamp, exactly like every other effect
+    ///   in this file. The capsules want a `Canvas` over the top — they are
+    ///   dozens of soft additive shapes, which is what `CloudSpriteField` and
+    ///   `HealSparkleView` already use one for.
+    ///
+    ///   Two things to watch. A snapshot has to be taken *before* the boards
+    ///   swap, because afterwards the view is already showing the destination.
+    ///   And `ImageRenderer` is main-actor and not free, so it wants taking once
+    ///   at the start of the transition rather than per frame — a `.drawingGroup()`
+    ///   on the live board is the cheaper fallback if the snapshot proves
+    ///   awkward to time.
     private func animateFall(_ event: GameEvent) async {
         let departure = GameRules.fallDuration / 2
 
