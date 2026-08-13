@@ -121,7 +121,7 @@ struct GameScreen: View {
 
     /// Hardware-keyboard shortcuts, for testing on the simulator and on iPad.
     ///
-    /// Zero-sized buttons in the background rather than `onKeyPress`, which needs
+    /// Zero-sized buttons in the background rather than `onKeyPress`, which needss
     /// the view to take focus — and taking focus here would fight the drag
     /// surface for input. A `keyboardShortcut` only needs the button to be in the
     /// hierarchy.

@@ -173,7 +173,8 @@ struct CloudSpriteField: View {
 
         let box = CGRect(
             x: centre.x + wander.width - width / 2,
-            y: centre.y + wander.height - height / 2 - lift,
+            y: centre.y + wander.height - height / 2 - lift
+                + GameRules.cloudSpriteDrop * metrics.scale,
             width: width,
             height: height
         )
@@ -240,10 +241,9 @@ struct CloudSpriteField: View {
 
     /// This cloud's wander from its square.
     ///
-    /// Scaled by how big the cloud actually is, so shrinking the art shrinks the
-    /// sway with it — see `GameRules.cloudSpriteShift`.
+    /// Measured in art pixels — see `GameRules.cloudSpriteShift`.
     private func shift(_ point: GridPoint, now: TimeInterval) -> CGSize {
-        let amount = GameRules.cloudSpriteShift * cloudSide
+        let amount = GameRules.cloudSpriteShift * metrics.scale
         let clock = now / GameRules.cloudSpriteShiftPeriod * 2 * .pi
         let phase = CloudCluster.phase(at: point)
 

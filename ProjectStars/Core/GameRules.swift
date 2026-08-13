@@ -721,11 +721,11 @@ enum GameRules {
     ///
     /// Per-cloud and on its own phase, so the field never pulses in unison.
     ///
-    /// Small and slow. A cloud is supposed to be *almost* still — the drift is
-    /// there to stop the field looking like a tiled texture, not to be watched.
-    /// Anything you can follow with your eye fights the grid the player is
-    /// counting squares on, which is the one thing the sky must not do.
-    static let cloudSpriteShift: CGFloat = 0.035
+    /// In **art pixels**, not as a fraction of anything, because that is the
+    /// unit this is judged in: the answer to "how far does it wander" is a
+    /// number of pixels you can see, and expressing it as a proportion of a
+    /// cloud that is itself scaled made every adjustment a division sum.
+    static let cloudSpriteShift: CGFloat = 2
     static let cloudSpriteShiftPeriod: TimeInterval = 13
 
     /// How much a cloud stretches, as a fraction either side of its true size.
@@ -733,9 +733,9 @@ enum GameRules {
     /// Horizontal and vertical run on different periods on purpose: matched,
     /// they read as a single throb, and the point is that a cloud has no fixed
     /// shape.
-    static let cloudSpriteStretch: CGFloat = 0.04
-    static let cloudSpriteStretchPeriodH: TimeInterval = 9.3
-    static let cloudSpriteStretchPeriodV: TimeInterval = 11.7
+    static let cloudSpriteStretch: CGFloat = 0.09
+    static let cloudSpriteStretchPeriodH: TimeInterval = 6.1
+    static let cloudSpriteStretchPeriodV: TimeInterval = 7.9
 
     /// How much opacity a cloud loses per stage of wear.
     ///
@@ -744,6 +744,13 @@ enum GameRules {
     /// falling. Fading is the second, blunter signal: a square you can see
     /// through is a square about to go.
     static let cloudSpriteWearFade: Double = 0.10
+
+    /// How far every cloud sits below the centre of its square, in art pixels.
+    ///
+    /// The art is drawn with its mass in the upper part of the cell, so centring
+    /// it on the square left the field riding high above the ground the piece
+    /// stands on. Four pixels puts the cloud under its own square.
+    static let cloudSpriteDrop: CGFloat = 4
 
     /// How high the cloud under a Pentacle floats, in art pixels, and how hard
     /// its glow breathes.
