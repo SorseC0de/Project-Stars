@@ -96,16 +96,39 @@ struct PaletteGlow<Content: View>: View {
                             .opacity(fade)
                     }
                 }
+                // Rendered once, offscreen, as a single texture.
+                //
+                // This is what was halving the frame rate wherever a glow was on
+                // screen — a full meter, the Bolt's rainbow — and it is worth
+                // being precise about why, because it looked like the glow was
+                // simply expensive.
+                //
+                // Every step of the trail rebuilds `content()` and runs the
+                // palette shader over it *again*, then blurs the result, and
+                // SwiftUI composites each of those as its own layer. A trail of
+                // three is four shader passes, four blurs and five composites,
+                // sixty times a second, for one piece. Grouping collapses the
+                // whole bloom into one offscreen pass whose result is drawn once
+                // — and blurs are far cheaper inside a single render than as
+                // separate composited layers.
+                //
+                // The blend has to stay outside the group so the finished bloom
+                // still adds to the board behind it.
+                .drawingGroup()
                 .blendMode(.plusLighter)
                 .allowsHitTesting(false)
             }
     }
 
     /// The content with everything but the glowing entries removed.
+    ///
+    /// Rasterised before it is used, so the shader runs once for the whole trail
+    /// rather than once per step.
     private var mask: some View {
         let flat = colors.flatMap(\.shaderComponents)
         return content()
             .colorEffect(ShaderLibrary.paletteGlowMask(.floatArray(flat)))
+            .drawingGroup()
     }
 }
 

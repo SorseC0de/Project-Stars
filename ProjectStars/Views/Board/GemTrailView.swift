@@ -60,6 +60,10 @@ struct GemTrailView: View {
                     )
             }
         }
+        // One offscreen pass for the whole stack, for the same reason
+        // `PaletteGlow` needs it: this is the sprite re-shaded and re-blurred
+        // once per copy, and a charged piece draws several of these at once.
+        .drawingGroup()
         .opacity(pow(GameRules.gemTrailFalloff, Double(step + 1)))
         // Matches `PieceView`'s figure box exactly, so the streak comes off
         // the gems and not off some point near them.
