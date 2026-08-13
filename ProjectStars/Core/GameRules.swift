@@ -720,17 +720,22 @@ enum GameRules {
     /// being legible underneath them.
     ///
     /// Per-cloud and on its own phase, so the field never pulses in unison.
-    static let cloudSpriteShift: CGFloat = 0.10
-    static let cloudSpriteShiftPeriod: TimeInterval = 5.4
+    ///
+    /// Small and slow. A cloud is supposed to be *almost* still — the drift is
+    /// there to stop the field looking like a tiled texture, not to be watched.
+    /// Anything you can follow with your eye fights the grid the player is
+    /// counting squares on, which is the one thing the sky must not do.
+    static let cloudSpriteShift: CGFloat = 0.035
+    static let cloudSpriteShiftPeriod: TimeInterval = 13
 
     /// How much a cloud stretches, as a fraction either side of its true size.
     ///
     /// Horizontal and vertical run on different periods on purpose: matched,
     /// they read as a single throb, and the point is that a cloud has no fixed
     /// shape.
-    static let cloudSpriteStretch: CGFloat = 0.09
-    static let cloudSpriteStretchPeriodH: TimeInterval = 3.7
-    static let cloudSpriteStretchPeriodV: TimeInterval = 4.9
+    static let cloudSpriteStretch: CGFloat = 0.04
+    static let cloudSpriteStretchPeriodH: TimeInterval = 9.3
+    static let cloudSpriteStretchPeriodV: TimeInterval = 11.7
 
     /// How much opacity a cloud loses per stage of wear.
     ///

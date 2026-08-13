@@ -85,6 +85,14 @@ struct CloudSpriteField: View {
                 width: metrics.boardSize + overhang * 2,
                 height: metrics.boardSize + overhang * 2
             )
+            // …and then reported to the layout as board-sized.
+            //
+            // The padding above is drawing room, not size. Without this the
+            // enclosing `ZStack` grew to the padded bounds, and everything else
+            // in it that positions itself — the tile faces, the sparkles —
+            // resolved `.position` against the larger space and drew a cloud's
+            // width off the grid.
+            .frame(width: metrics.boardSize, height: metrics.boardSize)
         }
         .allowsHitTesting(false)
     }
@@ -183,11 +191,21 @@ struct CloudSpriteField: View {
         // The glow under a lifted cloud: the same image, blurred and additive,
         // breathing. Drawn first so the cloud sits inside its own light.
         if isRaised {
-            var bloom = layer
-            bloom.opacity = layer.opacity * glow(at: now)
-            bloom.addFilter(.blur(radius: GameRules.cloudSpriteGlowRadius * metrics.scale))
-            bloom.blendMode = .plusLighter
-            bloom.draw(image, in: box)
+            // Drawn into its own layer so the blur has something bounded to work
+            // on.
+            //
+            // A blur added straight to the context is a filter over everything
+            // that follows, with no defined extent — which composited as an
+            // opaque rectangle sitting over the board rather than as light. That
+            // was the stray black square.
+            layer.drawLayer { bloom in
+                bloom.opacity = layer.opacity * glow(at: now)
+                bloom.blendMode = .plusLighter
+                bloom.addFilter(
+                    .blur(radius: GameRules.cloudSpriteGlowRadius * metrics.scale)
+                )
+                bloom.draw(image, in: box)
+            }
         }
 
         // Flipped one way, then the other, as it wears — so a square that has
