@@ -47,12 +47,10 @@ struct BoardView: View {
             pools(board: board, plane: plane, metrics: metrics)
             shedSkin(plane: plane, metrics: metrics)
             sanctuary(plane: plane, metrics: metrics)
-            sun(metrics: metrics)
             arrow(metrics: metrics)
             sparkles(metrics: metrics)
             waitingHalf(plane: plane, metrics: metrics)
             shadowDouble(plane: plane, metrics: metrics)
-            retinue(plane: plane, metrics: metrics)
             tileChoice(metrics: metrics)
 
             // The island and the piece share a clock, so the piece can ride the
@@ -828,6 +826,33 @@ struct BoardView: View {
                     ))
                     .offset(sway)
 
+                case .follower:
+                    follower(
+                        step: object.slot,
+                        at: object.point,
+                        metrics: metrics,
+                        bob: bob,
+                        pose: pose,
+                        sway: sway
+                    )
+
+                case .sun:
+                    // On the lion's head, and over everything.
+                    //
+                    // It is not a thing on the board any more — it is the light
+                    // that says a phantom is out — so it rides the piece rather
+                    // than sitting on a square, and nothing may draw across it.
+                    if let burning = session.visibleSun {
+                        SunView(sun: burning, tileSize: metrics.tileSize)
+                            .position(metrics.center(of: object.point))
+                            .offset(y: surfaceOffset(
+                                of: object.point, bob: bob, metrics: metrics
+                            ))
+                            .offset(sway)
+                            .offset(y: -metrics.tileSize
+                                - GameRules.sunHeadroom * metrics.scale)
+                    }
+
                 case .piece:
                     piece(
                         metrics: metrics,
@@ -867,6 +892,19 @@ struct BoardView: View {
             BoardObject(kind: .cursorBack, point: cursorPoint),
             BoardObject(kind: .cursorFront, point: cursorPoint),
         ]
+
+        // The Aten, over the lion.
+        if let sun = session.engine.signState.sun, sun.plane == plane {
+            objects.append(BoardObject(kind: .sun, point: session.engine.piece.point))
+        }
+
+        // Leo's company, each on its own square behind him.
+        for (step, _) in session.retinue.enumerated()
+        where session.engine.piece.plane == plane {
+            objects.append(
+                BoardObject(kind: .follower, point: followerSquare(step: step), slot: step)
+            )
+        }
 
         // Two objects at two places: the coin can be dragged off the tile that
         // popped up for it, and the tile stays where it is.
@@ -1199,55 +1237,65 @@ struct BoardView: View {
     ///
     /// Drawn inside the piece's own stack so they inherit its position, and
     /// given a slower spring so they arrive late — see `RetinueView`.
+    /// One of Leo's phantoms, drawn with everything a real piece gets.
+    ///
+    /// ## Why it takes the piece's pose
+    ///
+    /// Because it is a piece. It hops when Leo hops, sways with the cloud it is
+    /// standing on, rides the island, and sits up on a popped tile — a phantom
+    /// that skipped any of those would be a sticker being dragged around the
+    /// board, which is exactly what it looked like when this was a bare image
+    /// with a position on it.
+    ///
+    /// The pose is shared rather than delayed. They are one body in two places,
+    /// so they land together; the *position* is what lags, and that reads as
+    /// following without the two of them ever falling out of step.
     @ViewBuilder
-    private func retinue(plane: Plane, metrics: PixelArtMetrics) -> some View {
-        if session.engine.piece.plane == plane {
-            ForEach(Array(session.retinue.enumerated()), id: \.element) { step, follower in
+    private func follower(
+        step: Int,
+        at point: GridPoint,
+        metrics: PixelArtMetrics,
+        bob: CGFloat,
+        pose: HopPose,
+        sway: CGSize
+    ) -> some View {
+        if step < session.retinue.count {
+            let phantom = session.retinue[step]
+
+            ZStack {
                 RetinueView(
-                    zodiac: follower,
+                    zodiac: phantom,
                     tileSize: metrics.tileSize,
                     facing: session.engine.piece.facing,
                     scale: metrics.scale,
                     step: step
                 )
-                // Positioned on a square of its own rather than drawn inside the
-                // piece's stack.
-                //
-                // Inside it, a phantom was pinned to the piece and arrived at
-                // the same instant however slow a spring it was given — there
-                // was no position for the spring to act on, so the lag did
-                // nothing and the retinue never followed anything. With a
-                // position it can be behind, and it can be *late*.
-                .position(metrics.center(of: followerSquare(step: step)))
-                .offset(y: surfaceOffset(
-                    of: session.engine.piece.point, bob: 0, metrics: metrics
-                ))
-                .overlay {
-                    // Its own arrow, pointing at the lion.
-                    //
-                    // A phantom lends its *movement*, and movement in this game
-                    // is relative to a facing — so a follower whose facing you
-                    // cannot see is a borrowed move you cannot aim. It looks at
-                    // Leo, which is both where it came from and the only facing
-                    // that needs no explaining.
-                    FacingArrowView(
-                        facing: session.engine.piece.facing,
-                        tileSize: metrics.tileSize,
-                        scale: metrics.scale,
-                        clock: session.ambientClock(at:)
-                    )
-                    .position(metrics.center(of: followerSquare(step: step)))
-                    .opacity(GameRules.retinueArrowOpacity)
-                }
-                .animation(
-                    .spring(
-                        response: GameRules.hopDuration * GameRules.retinueLag
-                            * (1 + Double(step) * 0.3),
-                        dampingFraction: 0.72
-                    ),
-                    value: session.engine.piece.point
+
+                // Its own facing, so a borrowed move can be aimed.
+                FacingArrowView(
+                    facing: session.engine.piece.facing,
+                    tileSize: metrics.tileSize,
+                    scale: metrics.scale,
+                    clock: session.ambientClock(at:)
                 )
+                .opacity(GameRules.retinueArrowOpacity)
             }
+            // Everything the piece gets: the hop, the ground it is standing on,
+            // and the sway of that ground.
+            .scaleEffect(x: pose.scaleX, y: pose.scaleY, anchor: .bottom)
+            .offset(y: -pose.lift * metrics.scale)
+            .position(metrics.center(of: point))
+            .offset(y: surfaceOffset(of: point, bob: bob, metrics: metrics))
+            .offset(surfaceSway(of: point, at: Date(), metrics: metrics))
+            .offset(sway)
+            .animation(
+                .spring(
+                    response: GameRules.hopDuration * GameRules.retinueLag
+                        * (1 + Double(step) * 0.3),
+                    dampingFraction: 0.72
+                ),
+                value: session.engine.piece.point
+            )
         }
     }
 

@@ -279,12 +279,13 @@ enum PanelStyle {
     static let retinueSpacing: CGFloat = 8
 
     /// How wide the borrowed-Zodiaction column is: a third of the row.
-    static let retinueColumnWidth: CGFloat = 96
+    static let retinueColumnWidth: CGFloat = 118
+    static let retinueGlyphGap: CGFloat = 5
 
     /// Pip gap when the button is sharing its row. Ten pips in two thirds of the
     /// width need to give something up, and the gap is the part nobody reads.
     static let meterPipSpacingCompact: CGFloat = 2
-    static let retinueGlyphSize: CGFloat = 15
+    static let retinueGlyphSize: CGFloat = 22
     static let retinueLabelSize: CGFloat = 8
 
     /// The bow, for Sagittarius' recall.
@@ -664,11 +665,26 @@ private struct PanelFrontView: View {
                     // rest of the panel uses; a system glyph here made the
                     // borrowed supers look like they belonged to a different
                     // game from the one that lent them.
-                    PieceIconView(
-                        zodiac: follower,
-                        size: PanelStyle.retinueGlyphSize,
-                        tint: Palette.textPrimary
-                    )
+                    HStack(spacing: PanelStyle.retinueGlyphGap) {
+                        // In the button's own dark shade, so the mark reads as
+                        // stamped into the face rather than sitting on it.
+                        PieceIconView(
+                            zodiac: follower,
+                            size: PanelStyle.retinueGlyphSize,
+                            tint: ElementFX.ramp(for: follower.element).deep
+                        )
+
+                        // The name is the whole point of the button: which
+                        // borrowed super is this. Dropping it left two coloured
+                        // squares that had to be memorised.
+                        Text(follower.definition.zodiaction.displayName.uppercased())
+                            .font(.system(size: PanelStyle.retinueLabelSize,
+                                          weight: .heavy, design: .rounded))
+                            .lineLimit(2)
+                            .multilineTextAlignment(.leading)
+                            .minimumScaleFactor(0.5)
+                    }
+                    .padding(.horizontal, 6)
                 }
                 .frame(maxHeight: .infinity)
             }

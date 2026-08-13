@@ -28,6 +28,13 @@ enum BoardObjectKind: String, Hashable, CaseIterable {
     case facing
 
     case piece
+
+    /// One of Leo's phantoms. Slotted, since there can be two.
+    case follower
+
+    /// Leo's Aten, riding over the lion's head.
+    case sun
+
     case nexys
 
     /// The cursor's two **lower** brackets, which pass in front.
@@ -66,8 +73,8 @@ struct BoardObject: Identifiable, Equatable {
 
     /// Which of its kind this is, when a kind can appear more than once.
     ///
-    /// Only the Pentacle and its raised square can — Sagittarius may have two
-    /// out at a time. Everything else is always slot zero.
+    /// The Pentacle and its raised square can — Sagittarius may have two out at
+    /// a time — and so can Leo's phantoms. Everything else is always slot zero.
     var slot: Int = 0
 
     /// True while a slide is running.
@@ -108,6 +115,10 @@ struct BoardObject: Identifiable, Equatable {
         // Always in front within its row, island included.
         case .cursorFront: return 6
 
+        // Over the lion's head and over everything else on the square. It is a
+        // light source hanging in the air; nothing on the ground occludes it.
+        case .sun: return 8
+
         // Above the tile face — otherwise the raised tile would hide it — but
         // behind everything standing on that tile.
         //
@@ -123,6 +134,11 @@ struct BoardObject: Identifiable, Equatable {
 
         // On the island's square you are on top of it, not beside it.
         case .piece: return point == GameRules.nexysPoint ? 5 : 3
+
+        // Exactly where a piece would be, because that is what it is standing
+        // in for. Sorted by its own square like everything else, so a phantom
+        // behind the lion draws behind it and one in front draws in front.
+        case .follower: return point == GameRules.nexysPoint ? 5 : 3
 
         // Over the cursor, within its own row.
         //

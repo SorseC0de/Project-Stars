@@ -528,6 +528,9 @@ enum GameRules {
     /// How many committed moves the sun burns for.
     static let sunMoves = 5
 
+    /// How far above the piece's head the Aten floats, in art pixels.
+    static let sunHeadroom: CGFloat = 6
+
     /// Whether raising it mends the square underneath. Never fills a hole — a
     /// hole is not damage to the tile, it is the absence of one.
     static let sunHealsItsTile = true

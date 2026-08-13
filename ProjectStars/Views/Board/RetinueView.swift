@@ -41,31 +41,21 @@ struct RetinueView: View {
     let step: Int
 
     var body: some View {
-        let ramp = ElementFX.ramp(for: zodiac.element)
-
         PixelSprite(id: .piece(zodiac)) { Color.clear }
             .frame(width: tileSize, height: tileSize * 2)
-            // Lit from inside in its element, then bloomed — the same treatment
-            // a charged piece gets, which is the point: this *is* charge, parked
-            // next to you.
-            .colorMultiply(ramp.bright)
+            // The same treatment as Shadow Work's double, and for the same
+            // reason: a summoned figure that keeps its own colours reads as a
+            // second player rather than as a thing Leo is projecting.
+            //
+            // Not flipped, though. The shadow mirrors your moves and faces the
+            // other way to say so; a phantom copies them, and turning it round
+            // would be claiming the opposite.
+            .saturation(0)
+            .colorMultiply(Palette.midnight)
             .opacity(GameRules.retinueOpacity)
-            .background {
-                PixelSprite(id: .piece(zodiac)) { Color.clear }
-                    .frame(width: tileSize, height: tileSize * 2)
-                    .colorMultiply(ramp.mid)
-                    .blur(radius: GameRules.retinueGlowRadius * scale)
-                    .blendMode(.plusLighter)
-                    // One offscreen pass — see `PaletteGlow`, which learned this
-                    // the expensive way.
-                    .drawingGroup()
-            }
-            // Matches `PieceView`'s figure box, so the phantom stands on the
-            // ground rather than hovering over it.
+            // Matches `PieceView`'s figure box, so it stands on the ground
+            // rather than hovering over it.
             .offset(y: -tileSize / 2 - GameRules.pieceLift * scale)
-            // Placement is the board's job now — see
-            // `BoardView.followerSquare(step:)`. A phantom stands on a square
-            // behind the lion rather than being nudged away from its shoulder.
             .allowsHitTesting(false)
     }
 }
