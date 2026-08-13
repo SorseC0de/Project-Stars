@@ -1250,6 +1250,17 @@ struct BoardView: View {
     /// Two timestamps rather than one: the rise happens on Terra and the growth
     /// on Astra, with the plane swap hidden behind the flash between them.
     private func ascentPose(at date: Date, metrics: PixelArtMetrics) -> AscentPose {
+        // Aboard, the piece *is* the island as far as motion goes.
+        //
+        // It used to keep its own pose, which for a ride down meant the island
+        // performed a departure and the piece simply appeared on the other
+        // plane — the elevator worked and looked like a teleport. Sharing one
+        // timeline is the only way two things travelling together can be
+        // guaranteed to arrive together.
+        if session.nexysCarryingPiece {
+            return nexysTravelPose(at: date, metrics: metrics)
+        }
+
         if let rising = session.ascentRiseStartedAt {
             let progress = date.timeIntervalSince(rising) / GameRules.ascentRiseDuration
             return .rising(progress: min(max(progress, 0), 1), boardSize: metrics.boardSize)

@@ -525,6 +525,7 @@ final class GameSession {
         elementalBurst = nil
         effectBursts = []
         healSparkles = []
+        nexysCarryingPiece = false
         coinFlight = nil
         leapStartedAt = nil
         surfaceBounce = nil
@@ -867,11 +868,18 @@ final class GameSession {
         case .pieceFell:
             await animateFall(event)
 
-        case let .nexysMoved(destination, _) where hasLibra:
-            // The island answering the call, in Libra's own diamonds — thrown
-            // over the gap it is arriving at rather than over the piece, since
-            // that is where the player is looking.
-            playEffect(.libraZodiaction, at: GameRules.nexysPoint, on: destination)
+        case let .nexysMoved(destination, carrying) where hasLibra:
+            // The island answering the call, in Libra's own diamonds.
+            //
+            // Thrown over the square it is *leaving* when nobody is aboard —
+            // that is where the player is looking, waiting for it — and over the
+            // arrival when it is carrying somebody, because then the player is
+            // going with it.
+            playEffect(
+                .libraZodiaction,
+                at: GameRules.nexysPoint,
+                on: carrying ? destination : destination.opposite
+            )
             await animateNexysTravel(event, goingUp: destination == .astra)
 
         case let .nexysMoved(destination, carryingPiece)
@@ -1533,12 +1541,23 @@ final class GameSession {
     /// leaving — or arriving — under someone else's instruction. So it shrinks
     /// away and drifts the way it is headed, then swells back in on the far side,
     /// and the board never whites out because the player has not gone anywhere.
+    /// True while the island is travelling with the piece on it.
+    ///
+    /// The piece borrows the island's pose for the whole journey rather than
+    /// having one of its own — see `BoardView.ascentPose(at:metrics:)`. Riding
+    /// is the one case where the two must agree exactly, and two timelines that
+    /// have to agree exactly should be one timeline.
+    private(set) var nexysCarryingPiece = false
+
     private func animateNexysTravel(_ event: GameEvent, goingUp: Bool) async {
         // The island is a great deal bigger than a piece, and it goes through
         // the same hole.
         disturbClouds(at: GameRules.nexysPoint)
 
         nexysTravellingUp = goingUp
+        if case let .nexysMoved(_, carrying) = event { nexysCarryingPiece = carrying }
+        defer { nexysCarryingPiece = false }
+
         nexysDepartStartedAt = .now
         // Climbing away takes as long as carrying the player would; shrinking
         // out on Astra is quicker, because there is less to watch.
