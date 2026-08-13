@@ -102,6 +102,25 @@ struct VirgoScrupulousStep: ZodiacPassive {
     let displayName = "Scrupulous Step"
     let summary = "Astra & Terra: step one square in any direction, diagonals included. A badly cracked tile breaks as you leave it, never as you arrive."
 
+    /// A diagonal step does not turn her.
+    ///
+    /// Facing is read by a great deal more than the sprite — the cursor, every
+    /// `.relative` movement option, Libra's flanks, Sagittarius' forward stride,
+    /// Scorpio's sting, Aries' charge. All of it assumes one of four
+    /// directions, and a piece looking north-east asks questions none of that
+    /// machinery has an answer for.
+    ///
+    /// So she moves eight ways and faces four. The diagonal is a step *taken*
+    /// rather than a direction she turns to, which also reads better: she is
+    /// slipping sideways across the board, not pivoting on the spot.
+    func retainsFacing(
+        direction: SwipeDirection,
+        option: MovementPattern.MoveOption,
+        context: PassiveContext
+    ) -> Bool {
+        !direction.isCardinal
+    }
+
     func wearTiming(context: PassiveContext) -> WearTiming {
         // Only over ground that is one landing from gone. Everywhere else Virgo
         // wears on arrival like anyone else, so this cannot be turned into a

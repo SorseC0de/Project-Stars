@@ -67,15 +67,23 @@ enum SwipeDirection: String, CaseIterable, Identifiable {
     /// Both, rather than a preference between them — a keyboard player reaches
     /// for whichever their hands are already near, and there is nothing else
     /// bound that either could collide with.
-    /// The diagonals have none: there are only so many keys near a hand, and a
-    /// modifier combination for a movement direction is worse than a drag.
+    /// The diagonals take the four keys around WASD, roguelike fashion.
+    ///
+    /// Not two keys held at once. SwiftUI's `keyboardShortcut` reports a chord,
+    /// not a set of keys currently down, so "W and A together" is not something
+    /// this can hear — and the near-misses it *would* hear are two separate
+    /// cardinal moves, which on this board is a wasted tile and sometimes a
+    /// death. A key each is unambiguous.
     var keyEquivalents: [KeyEquivalent] {
         switch self {
         case .up: [.upArrow, "w"]
         case .down: [.downArrow, "s"]
         case .left: [.leftArrow, "a"]
         case .right: [.rightArrow, "d"]
-        case .upLeft, .upRight, .downLeft, .downRight: []
+        case .upLeft: ["q"]
+        case .upRight: ["e"]
+        case .downLeft: ["z"]
+        case .downRight: ["c"]
         }
     }
 

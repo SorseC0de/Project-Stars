@@ -127,12 +127,13 @@ struct GameScreen: View {
     /// hierarchy.
     ///
     /// - **Arrow keys / WASD** move, at the shortest distance available.
+    /// - **Q / E / Z / C** move diagonally, for the signs that can.
     /// - **R** restarts the run with the same sign.
     /// - **N** sends the Nexys to the other plane (debug builds only).
-    /// - **Z** fills the Zodiaction meter (debug builds only).
+    /// - **1** fills the Zodiaction meter (debug builds only).
     /// - **X** fills *and* pops it, skipping the hold (debug builds only).
     /// - **L** makes the *next* Pentacle an Astral Bolt (debug builds only).
-    /// - **C** cycles the control scheme (debug builds only).
+    /// - **2** cycles the control scheme (debug builds only).
     private var keyboardCommands: some View {
         ZStack {
             // Reach 0 — the nearest option. A key press carries no magnitude, so
@@ -152,8 +153,9 @@ struct GameScreen: View {
             Button("Shift Nexys") { session.debugShiftNexys() }
                 .keyboardShortcut("n", modifiers: [])
 
+            // On the number row: Z and C are movement now.
             Button("Fill Zodiaction") { session.debugFillZodiaction() }
-                .keyboardShortcut("z", modifiers: [])
+                .keyboardShortcut("1", modifiers: [])
 
             Button("Pop Zodiaction") { session.debugPopZodiaction() }
                 .keyboardShortcut("x", modifiers: [])
@@ -162,7 +164,7 @@ struct GameScreen: View {
                 .keyboardShortcut("l", modifiers: [])
 
             Button("Cycle controls") { session.debugCycleControls() }
-                .keyboardShortcut("c", modifiers: [])
+                .keyboardShortcut("2", modifiers: [])
 
             #endif
         }
