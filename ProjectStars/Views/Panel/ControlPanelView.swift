@@ -654,6 +654,10 @@ private struct PanelFrontView: View {
             ForEach(session.retinue, id: \.self) { follower in
                 CelButton(
                     tint: ElementFX.ramp(for: follower.element).mid,
+                    // Greyed when its own conditions refuse it — the ring beside
+                    // a wall, the shop with an empty purse — so a phantom cannot
+                    // be spent on nothing.
+                    isEnabled: session.canFireRetinue(follower),
                     acceptsTouch: session.acceptsInput
                 ) {
                     Haptics.zodiaction()

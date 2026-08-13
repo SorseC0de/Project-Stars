@@ -732,6 +732,11 @@ final class GameSession {
     var retinue: [Zodiac] { engine.signState.retinue }
 
     /// Fires a phantom's Zodiaction. See `GameEngine.planRetinueZodiaction`.
+    /// Whether a follower's button should read as pressable.
+    func canFireRetinue(_ follower: Zodiac) -> Bool {
+        engine.canFireRetinueZodiaction(follower)
+    }
+
     func fireRetinueZodiaction(_ follower: Zodiac) {
         if dismissIntroIfShowing() { return }
         guard acceptsInput else { return }

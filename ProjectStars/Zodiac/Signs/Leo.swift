@@ -324,11 +324,13 @@ struct SunView: View {
         EffectSprite.leoSun + [.leoZodiactionSummon]
     }
 
+    @Environment(\.ambientClock) private var ambientClock
+
     var body: some View {
         TimelineView(.animation) { timeline in
-            let now = timeline.date.timeIntervalSinceReferenceDate
+            let now = ambientClock(timeline.date.timeIntervalSinceReferenceDate)
 
-            ZStack {
+            let disc = ZStack {
                 ForEach(layers, id: \.self) { layer in
                     let frame = Int(now / layer.rate.frameDuration) % layer.frames
 
@@ -336,11 +338,37 @@ struct SunView: View {
                         .frame(width: side(layer), height: side(layer))
                 }
             }
+
+            ZStack {
+                // Its own light, stacked and additive.
+                //
+                // It is a small sun hanging over the lion's head and it was the
+                // only light source on the board that did not light anything.
+                // Summed copies rather than one wide blur: additive blending
+                // saturates towards white instead of clipping, which is how a
+                // glow gets *bright* rather than merely large.
+                ForEach(0..<GameRules.sunGlowPasses, id: \.self) { pass in
+                    disc
+                        .blur(radius: GameRules.sunGlowRadius
+                            * (1 + CGFloat(pass) * 0.9))
+                        .opacity(GameRules.sunGlowIntensity * breath(at: now))
+                        .blendMode(.plusLighter)
+                }
+
+                disc
+            }
             // Dims on its final move, so the last turn under it is visibly the
             // last one — the same warning the Bastion gives by pulsing faster.
             .opacity(sun.movesRemaining <= 1 ? GameRules.sunGuttering : 1)
         }
         .allowsHitTesting(false)
+    }
+
+    /// The slow swell of the glow, so it reads as burning rather than printed.
+    private func breath(at now: TimeInterval) -> Double {
+        let phase = now / GameRules.sunGlowPeriod * 2 * .pi
+        return GameRules.sunGlowMin
+            + (1 - GameRules.sunGlowMin) * (sin(phase) + 1) / 2
     }
 
     private func side(_ layer: EffectSprite) -> CGFloat {

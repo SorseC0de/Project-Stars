@@ -1270,41 +1270,61 @@ struct BoardView: View {
         if step < session.retinue.count {
             let phantom = session.retinue[step]
 
+            // Its own everything, read from the square it is standing on.
+            //
+            // Not Leo's. It was taking the lion's sway, which is the sway of a
+            // different cloud — so it drifted with ground it was not on, which
+            // is the tell that it was pinned to the piece rather than standing
+            // anywhere. A phantom is an entity: it asks the board about its own
+            // square, exactly as the piece does about its.
+            let ownSway = surfaceSway(of: point, at: Date(), metrics: metrics)
+            let ownGround = surfaceOffset(of: point, bob: bob, metrics: metrics)
+
             ZStack {
+                // Shadow first, so it stands *on* something — and over a hole
+                // there is nothing to stand on, which is exactly when a shadow
+                // and a float say the most.
+                PieceShadowView(
+                    tileSize: metrics.tileSize,
+                    opacity: GameRules.retinueShadowOpacity
+                )
+                .offset(y: metrics.tileSize * GameRules.retinueShadowDrop)
+
                 RetinueView(
                     zodiac: phantom,
                     tileSize: metrics.tileSize,
                     facing: session.engine.piece.facing,
                     scale: metrics.scale,
-                    step: step
+                    step: step,
+                    hovering: isHole(point)
                 )
-
-                // Its own facing, so a borrowed move can be aimed.
-                FacingArrowView(
-                    facing: session.engine.piece.facing,
-                    tileSize: metrics.tileSize,
-                    scale: metrics.scale,
-                    clock: session.ambientClock(at:)
-                )
-                .opacity(GameRules.retinueArrowOpacity)
             }
-            // Everything the piece gets: the hop, the ground it is standing on,
-            // and the sway of that ground.
             .scaleEffect(x: pose.scaleX, y: pose.scaleY, anchor: .bottom)
             .offset(y: -pose.lift * metrics.scale)
             .position(metrics.center(of: point))
-            .offset(y: surfaceOffset(of: point, bob: bob, metrics: metrics))
-            .offset(surfaceSway(of: point, at: Date(), metrics: metrics))
-            .offset(sway)
+            .offset(y: ownGround)
+            .offset(ownSway)
+            // Staggered, and further back the longer the line.
+            //
+            // In lockstep with Leo they read as one animation playing twice —
+            // the eye reads simultaneous movement as a single object. A beat
+            // between them is what makes them separate bodies following one.
             .animation(
                 .spring(
                     response: GameRules.hopDuration * GameRules.retinueLag
-                        * (1 + Double(step) * 0.3),
+                        * (1 + Double(step) * GameRules.retinueStagger),
                     dampingFraction: 0.72
                 ),
                 value: session.engine.piece.point
             )
         }
+    }
+
+    /// Whether that square is open air.
+    private func isHole(_ point: GridPoint) -> Bool {
+        let board = session.visibleBoard
+        guard board.contains(point) else { return false }
+        return board[point].health.isHole || board[point].kind == .chasm
     }
 
     /// The square a follower stands on: `step + 1` squares behind the lion.

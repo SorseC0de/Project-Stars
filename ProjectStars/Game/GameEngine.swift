@@ -747,6 +747,7 @@ struct GameEngine {
     /// settles where it leaves the piece, and it may ask the player a question.
     mutating func planRetinueZodiaction(_ follower: Zodiac) -> [GameEvent] {
         guard !isGameOver, signState.retinue.contains(follower) else { return [] }
+        guard canFireRetinueZodiaction(follower) else { return [] }
 
         var sim = self
         defer { self.rng = sim.rng }
@@ -760,8 +761,10 @@ struct GameEngine {
         let planeBefore = sim.piece.plane
         let pointBefore = sim.piece.point
 
-        for reveal in sim.rollPickupReveal(destination: sim.piece.point) { commit(reveal) }
-        commit(.moveCommitted(direction: sim.piece.facing))
+        // Stamped at the tail, not here — a borrowed super answers to the same
+        // rule as your own. See `actionWasATurn(from:)`.
+        let startedAt = (point: pointBefore, plane: planeBefore)
+
         commit(.zodiactionFired(zodiac: follower, plane: sim.piece.plane))
 
         // Spent first, so anything the super does — including asking a question
@@ -799,7 +802,13 @@ struct GameEngine {
             if let allowed = sim.sheltered(reaction) { commit(allowed) }
         }
 
-        events += sim.tickForTurn()
+        if sim.actionWasATurn(from: startedAt) {
+            for reveal in sim.rollPickupReveal(destination: sim.piece.point) {
+                commit(reveal)
+            }
+            commit(.moveCommitted(direction: sim.piece.facing))
+            events += sim.tickForTurn()
+        }
 
         // The double answers the move, then the unopened coin closes in. Both
         // after the player has settled, so they react to where the player
@@ -984,6 +993,34 @@ struct GameEngine {
         return events
     }
 
+    /// Whether an action that has just resolved counted as a **turn**.
+    ///
+    /// ## The rule
+    ///
+    /// A turn is a *movement of the piece* — a step, a slide, a leap, a fall, a
+    /// teleport, a ride. Everything the board does between turns hangs off that:
+    /// the glow phase advances, a Pentacle is revealed, buffs and cooldowns
+    /// count down, Gemini's other half gets its go.
+    ///
+    /// ## Why this exists as one function
+    ///
+    /// Because it was three copies of the same three lines, and they disagreed.
+    /// Every Zodiaction claimed a turn whether or not it moved anybody, so
+    /// popping Bubble Bastion where you stood advanced the glow phase, ticked
+    /// every timer down and rolled the next coin — for an ability whose entire
+    /// point is that you do not go anywhere.
+    ///
+    /// "Treat a Zodiaction as a turn" was the instruction and it was right about
+    /// the thing it was aimed at: a super that carries you somewhere is a turn
+    /// and used to not be. Applying it to every super was the overcorrection,
+    /// and the fix is not a fourth special case — it is asking the question in
+    /// the one place the answer is known.
+    ///
+    /// - Parameter from: Where the piece was before the action ran.
+    func actionWasATurn(from: (point: GridPoint, plane: Plane)) -> Bool {
+        piece.point != from.point || piece.plane != from.plane
+    }
+
     /// Whether this sign has *any* move in this direction, board aside.
     ///
     /// Asked of the pattern rather than of the position, because the question is
@@ -1019,6 +1056,22 @@ struct GameEngine {
         // stood on. An island sitting on this plane with nobody on it is the one
         // case the button ignores.
         return nexysPlane != piece.plane || isOnNexys
+    }
+
+    /// Whether a borrowed Zodiaction will actually do anything right now.
+    ///
+    /// Every super has conditions and they come with it. Virgo's ring refuses
+    /// against a wall; Cosmic Cash-in refuses on an empty purse. Leo was firing
+    /// them regardless — spending the phantom, playing the summon, and producing
+    /// nothing. Cash-in was worse than nothing: with no coins to buy, the shop
+    /// opened on an empty belt and the game could not be advanced.
+    ///
+    /// The context is rebuilt as the *follower*, because that is whose rules
+    /// these are. Asked as Leo, Virgo's ring would be checked against Leo's
+    /// movement and answer a different question.
+    func canFireRetinueZodiaction(_ follower: Zodiac) -> Bool {
+        guard signState.retinue.contains(follower) else { return false }
+        return follower.definition.zodiaction.canActivate(context: passiveContext)
     }
 
     /// Fills the Zodiaction meter outright.
@@ -1088,21 +1141,18 @@ struct GameEngine {
 
         let planeBefore = sim.piece.plane
         let pointBefore = sim.piece.point
+        let startedAt = (point: pointBefore, plane: planeBefore)
 
-        // A Zodiaction is an action, and every action is one turn. Committed
-        // *first*, with the facing unchanged, because a turn beginning is what
-        // ends the sparkle phase — the coin has to be on the board before a
-        // teleport can land on it.
+        // Deliberately *not* stamped as a turn yet.
         //
-        // Without this a pop was the one thing in the game that happened outside
-        // of time: no move counted, no cooldown ticked, and the glow phase sat
-        // there refusing to become a Pentacle. Reported against Aquarius, true
-        // of all twelve.
-        for reveal in sim.rollPickupReveal(destination: sim.piece.point) {
-            commit(reveal)
-        }
-        commit(.moveCommitted(direction: sim.piece.facing))
-
+        // A pop used to be the one thing in the game that happened outside of
+        // time — no move counted, no cooldown ticked, the glow phase sat there
+        // refusing to become a Pentacle — and stamping it up front fixed that
+        // and overshot: a super that goes off where you stand became a turn too.
+        //
+        // Whether this is a turn depends on where the piece ends up, which is
+        // not known until the super has run. So the stamp and the reveal both
+        // wait for the tail, where `actionWasATurn(from:)` is asked once.
         commit(.zodiactionFired(zodiac: sim.piece.zodiac, plane: sim.piece.plane))
 
         // Context read into a local first: it reads `sim`, and passing `&sim.rng`
@@ -1160,10 +1210,23 @@ struct GameEngine {
             if let allowed = sim.sheltered(reaction) { commit(allowed) }
         }
 
-        events += sim.tickForTurn()
+        // Everything below happens *because a turn happened*, so it is asked
+        // once, here — see `actionWasATurn(from:)`. A super that put the piece
+        // somewhere else is a turn; one that went off where you stand is not,
+        // and Bubble Bastion should not advance the glow phase or age every
+        // cooldown on the board for the privilege of not moving you.
+        if sim.actionWasATurn(from: startedAt) {
+            for reveal in sim.rollPickupReveal(destination: sim.piece.point) {
+                commit(reveal)
+            }
+            commit(.moveCommitted(direction: sim.piece.facing))
+            events += sim.tickForTurn()
+        }
 
         // A Zodiaction can change plane too — Taurus flops through Astra, Pisces
-        // swims back up — so it owes the same guarantee a move does.
+        // swims back up — so it owes the same guarantee a move does. Unconditional
+        // because it is a guarantee about the *board*, not about the turn: a
+        // plane with no reachable coin is broken however it got that way.
         events += sim.ensurePentacleAvailable(previousPlane: planeBefore, after: events)
         return events
     }
@@ -3095,6 +3158,10 @@ struct GameEngine {
             // of it with Tears: the first pop always does something, and
             // which something depends on how much was brought across. None of
             // this is player-facing — it is the seam being hidden.
+            // Only when *becoming* Capricorn. A summoned one gets nothing: Leo
+            // can go and collect Pentacles the moment the phantom appears, so
+            // the empty-purse dead end the seeding exists to prevent is not a
+            // dead end at all — it is a turn's work.
             if zodiac == .capricorn, signState.purse.isEmpty, zodiactionMeter > 0 {
                 let coins = min(zodiactionMeter, zodiactionMeterMax)
                 let full = coins >= zodiactionMeterMax

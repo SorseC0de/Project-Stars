@@ -531,6 +531,13 @@ enum GameRules {
     /// How far above the piece's head the Aten floats, in art pixels.
     static let sunHeadroom: CGFloat = 6
 
+    /// The Aten's own light.
+    static let sunGlowPasses = 3
+    static let sunGlowRadius: CGFloat = 5
+    static let sunGlowIntensity: Double = 0.55
+    static let sunGlowPeriod: TimeInterval = 2
+    static let sunGlowMin: Double = 0.6
+
     /// Whether raising it mends the square underneath. Never fills a hole — a
     /// hole is not damage to the tile, it is the absence of one.
     static let sunHealsItsTile = true
@@ -2034,6 +2041,17 @@ enum GameRules {
     /// phantom is simply told to be where the piece is and takes longer getting
     /// there.
     static let retinueLag: Double = 1.9
+
+    /// How much further behind each phantom is than the one in front.
+    static let retinueStagger: Double = 0.45
+
+    /// The shadow under a phantom, and how far below it sits.
+    static let retinueShadowOpacity: Double = 0.35
+    static let retinueShadowDrop: CGFloat = 0.32
+
+    /// Its bob over a hole, where there is nothing to stand on.
+    static let retinueFloatPeriod: TimeInterval = 1.6
+    static let retinueFloatAmount: CGFloat = 3
 
     /// How much meter comes back when a phantom is lost to a change of plane.
     ///

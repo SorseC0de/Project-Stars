@@ -122,6 +122,10 @@ struct GameScreen: View {
                 .padding(.top, 8)
             #endif
         }
+        // Every ambient animation below this reads it, `PixelSprite` included —
+        // which is how the whole board stops at once rather than view by view as
+        // somebody remembers each one.
+        .environment(\.ambientClock, session.ambientClock(at:))
         .background { keyboardCommands }
         .animation(.easeInOut(duration: 0.3), value: session.phase)
         .animation(.easeInOut(duration: 0.25), value: session.pentacleIntro)

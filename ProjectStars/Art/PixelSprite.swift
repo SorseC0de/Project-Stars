@@ -25,6 +25,8 @@ import SwiftUI
 /// which is what keeps 16x16 art crisp when scaled up by `PixelArtMetrics`.
 struct PixelSprite<Placeholder: View>: View {
 
+    @Environment(\.ambientClock) private var ambientClock
+
     let id: SpriteID
 
     /// Pins the sprite to one frame instead of cycling it.
@@ -62,7 +64,10 @@ struct PixelSprite<Placeholder: View>: View {
         let duration = SpriteSheetLoader.frameDuration(for: id)
 
         return TimelineView(.animation) { timeline in
-            let tick = Int(timeline.date.timeIntervalSinceReferenceDate / duration)
+            // The ambient clock, so every animated sprite in the game holds its
+            // pose together while the board is waiting. See `AmbientClock`.
+            let now = ambientClock(timeline.date.timeIntervalSinceReferenceDate)
+            let tick = Int(now / duration)
             if let image = SpriteSheetLoader.image(for: id, frame: tick % frames) {
                 pixels(image)
             } else {

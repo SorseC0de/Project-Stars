@@ -37,8 +37,13 @@ struct RetinueView: View {
     /// Whole-pixel scale, for art-pixel offsets.
     let scale: CGFloat
 
+    @Environment(\.ambientClock) private var ambientClock
+
     /// How far back in the line this one is. `0` follows closest.
     let step: Int
+
+    /// True when it is standing over a hole, and so is not standing at all.
+    var hovering = false
 
     var body: some View {
         PixelSprite(id: .piece(zodiac)) { Color.clear }
@@ -52,10 +57,38 @@ struct RetinueView: View {
             // would be claiming the opposite.
             .saturation(0)
             .colorMultiply(Palette.midnight)
-            .opacity(GameRules.retinueOpacity)
+            // Full strength. It is the same treatment Shadow Work's double
+            // wears, and both of them want to be looked at properly before
+            // either gets toned down.
+            .modifier(RetinueFloat(hovering: hovering))
             // Matches `PieceView`'s figure box, so it stands on the ground
             // rather than hovering over it.
             .offset(y: -tileSize / 2 - GameRules.pieceLift * scale)
             .allowsHitTesting(false)
+    }
+}
+
+/// Bobs a phantom that has nothing under it.
+///
+/// A summoned thing standing on open air is not standing, and drawing it flat on
+/// a hole reads as a bug rather than as an ability. Only over holes: everywhere
+/// else it has ground, and ground is what the shadow is for.
+private struct RetinueFloat: ViewModifier {
+
+    let hovering: Bool
+
+    @Environment(\.ambientClock) private var ambientClock
+
+    func body(content: Content) -> some View {
+        if hovering {
+            TimelineView(.animation) { timeline in
+                let now = ambientClock(timeline.date.timeIntervalSinceReferenceDate)
+                let rise = sin(now / GameRules.retinueFloatPeriod * 2 * .pi)
+
+                content.offset(y: CGFloat(rise) * GameRules.retinueFloatAmount)
+            }
+        } else {
+            content
+        }
     }
 }
