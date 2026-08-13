@@ -42,8 +42,14 @@ struct PentacleIntroView: View {
         }
         // The whole area is tappable so the player never hunts for a control —
         // which also keeps this off the swipe zone's gesture problem.
-        .contentShape(Rectangle())
-        .onTapGesture(perform: onDismiss)
+        // No tap to dismiss.
+        //
+        // The upper square is a **display**, not a control surface — see the
+        // note on `GameScreen`. This splash is dismissed by reaching for the
+        // controls: a swipe, an arrow key, a direction button. Reading it and
+        // then playing on are the same gesture, which is one fewer than tapping
+        // it away first.
+        .allowsHitTesting(false)
         .onAppear {
             withAnimation(.spring(response: 0.4, dampingFraction: 0.8)) {
                 hasAppeared = true

@@ -26,8 +26,9 @@ struct CloudSpriteView: View {
     let health: TileHealth
     let metrics: PixelArtMetrics
 
-    /// A stopped clock, while a move plays out.
-    var freeze: TimeInterval?
+    /// The ambient clock, which stops and resumes rather than jumping. See
+    /// `GameSession.ambientClock(at:)`.
+    var clock: (TimeInterval) -> TimeInterval = { $0 }
 
     /// A disturbance in the sky, if one is playing.
     var wake: CloudMotion.Wake?
@@ -43,7 +44,7 @@ struct CloudSpriteView: View {
 
     var body: some View {
         TimelineView(.animation) { timeline in
-            let now = freeze ?? timeline.date.timeIntervalSinceReferenceDate
+            let now = clock(timeline.date.timeIntervalSinceReferenceDate)
             let motion = CloudMotion(
                 point: point, health: health, metrics: metrics,
                 now: now, wake: wake, bounce: bounce
@@ -130,19 +131,19 @@ extension CloudSpriteView {
     /// for it in art would be paying twice for something the ramp already
     /// describes, and it would drift the moment either version was retouched.
     ///
-    /// ## Why the stars go the other way
+    /// ## Why the stars go white
     ///
     /// The stars are the one part of the cloud that is *not* cloudstuff, and
-    /// they read as light rather than as material. Send them to blue along with
-    /// everything else and they vanish into it. Sending them where the body came
-    /// from keeps the contrast exactly as strong as it was, with the two halves
-    /// swapped — so the lifted square is unmistakably the same cloud, inverted.
+    /// they read as light rather than as material. Sent to blue with everything
+    /// else they vanish into it. White keeps them reading as light on any body
+    /// colour at all — which is what they are — and leaves the blue to say
+    /// *which square*, with nothing competing for the same job.
     ///
     /// Lightest to lightest and darkest to darkest throughout: a ramp swapped
     /// out of order turns a rounded shape inside out.
     static let raisedSwaps: [PaletteSwap] = [
-        // Stars: light blue becomes the magenta the body used to be.
-        PaletteSwap(Palette.lightBlue, Palette.magenta),
+        // Stars: light blue becomes white.
+        PaletteSwap(Palette.lightBlue, Palette.white),
 
         // Body: the four violets become four blues, in order — and a tint
         // lighter than the obvious mapping. The violets sit near the dark end of
@@ -196,7 +197,7 @@ struct CloudMotion {
 
         frame = Self.pingPong(at: now)
         isFlipped = !stages.isMultiple(of: 2)
-        opacity = max(0, 1 - Double(stages) * GameRules.cloudSpriteWearFade)
+        opacity = GameRules.cloudOpacity(health)
 
         size = CGSize(
             width: side * wear * Self.stretch(

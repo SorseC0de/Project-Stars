@@ -329,13 +329,45 @@ final class GameSession {
     /// and something that happens on every step says nothing at all.
     private(set) var isResolvingAction = false
 
-    /// The instant the current action began, for anything that should hold its
-    /// pose until the action finishes.
+    /// When the ambient clock was stopped, or `nil` while it is running.
+    private var ambientPausedAt: TimeInterval?
+
+    /// How much time the ambient clock has spent stopped, in total.
+    private var ambientLost: TimeInterval = 0
+
+    /// The clock the ambient art runs on.
     ///
-    /// Ambient art is a function of the wall clock, so freezing it means handing
-    /// it a clock that has stopped rather than asking it to stop — which keeps
-    /// every one of those views a pure function of a timestamp, as they all are.
-    private(set) var ambientFreeze: TimeInterval?
+    /// Ambient art is a pure function of a timestamp, so freezing it means
+    /// handing it a clock that has stopped rather than asking it to stop.
+    ///
+    /// ## Why it is paused rather than pinned
+    ///
+    /// Pinning it to the instant the freeze began works until it is released,
+    /// at which point the art is handed the *wall* clock again and jumps
+    /// forward by however long it was held. For an action that is a few frames;
+    /// for a first-encounter splash, which waits on the player, it is however
+    /// long they spent reading — and every cloud on the board visibly snapped
+    /// to a new position the moment the splash went away.
+    ///
+    /// Subtracting the time spent stopped means the clock resumes exactly where
+    /// it left off. Drift against the wall clock is the point, not a defect:
+    /// nothing here is synchronised to anything outside the board.
+    func ambientClock(at now: TimeInterval) -> TimeInterval {
+        (ambientPausedAt ?? now) - ambientLost
+    }
+
+    /// Stops the ambient clock, if it is running.
+    private func pauseAmbient(at now: TimeInterval) {
+        guard ambientPausedAt == nil else { return }
+        ambientPausedAt = now
+    }
+
+    /// Starts it again from where it stopped.
+    private func resumeAmbient(at now: TimeInterval) {
+        guard let paused = ambientPausedAt else { return }
+        ambientLost += now - paused
+        ambientPausedAt = nil
+    }
 
     /// One square the piece was on, and when it left.
     struct Afterimage: Identifiable, Equatable {
@@ -499,6 +531,10 @@ final class GameSession {
     /// interleave with a move that is still animating.
     /// Updates the live preview from a drag in progress.
     func preview(direction: SwipeDirection?, reach: Int) {
+        // A drag that has only just started counts too: the splash should be
+        // gone by the time the stick has anything to say.
+        if direction != nil { dismissIntroIfShowing() }
+
         previewDirection = direction
         previewReach = reach
     }
@@ -506,6 +542,10 @@ final class GameSession {
     /// - Parameter reach: Which of the distances available that way the drag
     ///   selected. Ignored by patterns offering only one.
     func submit(_ direction: SwipeDirection, reach: Int = 0) {
+        // Reaching for the controls is how the splash is put away, and that
+        // input is spent doing it.
+        if dismissIntroIfShowing() { return }
+
         // `acceptsInput` rather than `phase` alone: it is the one place that
         // knows about pausing, first-encounter splashes and parked Pentacles, and
         // a second guard that only checked `phase` would quietly diverge from it.
@@ -604,6 +644,7 @@ final class GameSession {
     /// its shortest — a tap carries no magnitude, and guessing that the player
     /// meant the long one is exactly the mistake the drag exists to avoid.
     func stepForward() {
+        if dismissIntroIfShowing() { return }
         guard acceptsInput else { return }
         submit(engine.piece.facing, reach: 0)
     }
@@ -675,10 +716,10 @@ final class GameSession {
         defer { isResolvingAction = false }
 
         // The ambient art holds its pose for the same span, and only that span.
-        ambientFreeze = isResolvingAction
-            ? Date.now.timeIntervalSinceReferenceDate
-            : nil
-        defer { ambientFreeze = nil }
+        if isResolvingAction {
+            pauseAmbient(at: Date.now.timeIntervalSinceReferenceDate)
+        }
+        defer { resumeAmbient(at: Date.now.timeIntervalSinceReferenceDate) }
         // Anything lit for the duration of an action goes out with it, however
         // the action ended.
         defer { isCharging = false }
@@ -708,6 +749,10 @@ final class GameSession {
         // rule really is *any* mend from *any* source — including one added
         // later by somebody who never reads this line.
         noteHeals(in: event)
+
+        #if DEBUG
+        logWear(event)
+        #endif
 
         switch event {
 
@@ -1030,7 +1075,7 @@ final class GameSession {
 
         case let .tileStamped(plane, point):
             // Smoke, and nothing else. An empty raised tile has nothing to give.
-            kickUpDust(at: point, on: plane, magnitude: 1)
+            kickUpDust(at: point, on: plane, magnitude: 1, fromRaisedTile: true)
             withAnimation(.spring(response: GameRules.tilePopFallResponse, dampingFraction: 0.8)) {
                 engine.apply(event)
             }
@@ -1366,6 +1411,20 @@ final class GameSession {
     }
 
     /// Dismisses the splash and lets the paused move finish.
+    /// Dismisses the splash if one is up, and reports whether it was.
+    ///
+    /// Every control funnels through here first: reaching for the stick, the
+    /// pad or the keyboard is how the splash is put away, so the move that
+    /// dismissed it is deliberately **not** also played. Otherwise the first
+    /// input after a Pentacle would be spent before it could be read, which is
+    /// the opposite of what a splash is for.
+    @discardableResult
+    func dismissIntroIfShowing() -> Bool {
+        guard pentacleIntro != nil else { return false }
+        dismissPentacleIntro()
+        return true
+    }
+
     func dismissPentacleIntro() {
         guard let id = pentacleIntro else { return }
         codex.markSeen(id)
@@ -1457,6 +1516,10 @@ struct SmokePuff: Identifiable, Equatable {
     let plane: Plane
     let magnitude: CGFloat
     let start: Date
+
+    /// True when this is a lifted square settling rather than a footfall — see
+    /// `GameSession.kickUpDust(at:on:magnitude:fromRaisedTile:)`.
+    var fromRaisedTile = false
 }
 
 extension GameSession {
@@ -1478,6 +1541,37 @@ extension GameSession {
     /// Carries its own timestamp rather than riding the hop's: dust is kicked up
     /// by landings that are not hops at all — a fall, or taking a coin — and
     /// borrowing the hop's clock meant those bursts started already expired.
+    #if DEBUG
+    /// Prints every tile-damage event, with what it was and what it became.
+    ///
+    /// ## Delete me
+    ///
+    /// Here to answer one report: a fall to Terra taking the landing square down
+    /// two stages instead of one. The engine only ever proposes a single stage
+    /// per landing and Aries no longer has a passive that doubles anything, so
+    /// if two stages are really landing they are arriving as two separate
+    /// events — and this says which two, in order, with the plane and square.
+    ///
+    /// Remove once the cause is known.
+    private func logWear(_ event: GameEvent) {
+        func report(_ label: String, _ plane: Plane, _ changes: [GridPoint: TileHealth]) {
+            for (point, after) in changes {
+                let before = engine[plane][point].health
+                print("[wear] \(label) \(plane) \(point) \(before) -> \(after)")
+            }
+        }
+
+        switch event {
+        case let .tilesWorn(plane, changes): report("worn", plane, changes)
+        case let .tilesWornOnExit(plane, changes): report("exit", plane, changes)
+        case let .tileDamaged(plane, point, to): report("damaged", plane, [point: to])
+        case let .tilesChanged(plane, changes): report("changed", plane, changes)
+        case let .pieceFell(from, to, at): print("[wear] fell \(from)->\(to) at \(at)")
+        default: break
+        }
+    }
+    #endif
+
     /// Throws teal motes off every square this event is about to *improve*.
     ///
     /// Compares the event's stated outcome against the board as it stands right
@@ -1556,8 +1650,19 @@ extension GameSession {
         }
     }
 
-    func kickUpDust(at point: GridPoint, on plane: Plane, magnitude: CGFloat) {
-        let puff = SmokePuff(point: point, plane: plane, magnitude: magnitude, start: .now)
+    /// - Parameter fromRaisedTile: True when it is a lifted square settling
+    ///   back down rather than a footfall. That square is recoloured while it is
+    ///   up, so its smoke has to be recoloured with it.
+    func kickUpDust(
+        at point: GridPoint,
+        on plane: Plane,
+        magnitude: CGFloat,
+        fromRaisedTile: Bool = false
+    ) {
+        let puff = SmokePuff(
+            point: point, plane: plane, magnitude: magnitude,
+            start: .now, fromRaisedTile: fromRaisedTile
+        )
         smoke = puff
 
         Task { [weak self] in

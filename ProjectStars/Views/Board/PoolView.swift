@@ -28,13 +28,13 @@ struct PoolView: View {
     /// Size of a board cell, in points.
     let size: CGFloat
 
-    /// A stopped clock while an action is playing out, so the water holds its
-    /// pose along with the rest of the ambient art.
-    var freeze: TimeInterval?
+    /// The ambient clock, so the water holds its pose along with the rest of
+    /// the ambient art. See `GameSession.ambientClock(at:)`.
+    var clock: (TimeInterval) -> TimeInterval = { $0 }
 
     var body: some View {
         TimelineView(.animation) { timeline in
-            let now = freeze ?? timeline.date.timeIntervalSinceReferenceDate
+            let now = clock(timeline.date.timeIntervalSinceReferenceDate)
 
             ZStack {
                 // The body of it, inset so the tile beneath still reads as a

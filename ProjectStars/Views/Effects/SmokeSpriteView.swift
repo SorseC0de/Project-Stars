@@ -104,4 +104,15 @@ extension SmokeSpriteView {
         sourceTones,
         [Palette.pink, Palette.magenta, Palette.purple]
     ).map(PaletteSwap.init)
+
+    /// The *lifted* cloud coming apart: the blues it was recoloured into.
+    ///
+    /// A raised square is blue while it is up — see
+    /// `CloudSpriteView.raisedSwaps` — so the smoke it makes on the way down has
+    /// to be blue as well. Magenta smoke off a blue cloud reads as two different
+    /// squares, one of them somewhere behind the other.
+    static let raisedCloudSwaps: [PaletteSwap] = zip(
+        sourceTones,
+        [Palette.cyan, Palette.lightBlue, Palette.blue]
+    ).map(PaletteSwap.init)
 }

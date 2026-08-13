@@ -113,7 +113,7 @@ struct BoardView: View {
     /// Pisces' standing water. See `PoolView`.
     private func pools(board: Board, plane: Plane, metrics: PixelArtMetrics) -> some View {
         ForEach(board.allPoints.filter { board[$0].kind == .pool }, id: \.self) { point in
-            PoolView(size: metrics.tileSize, freeze: session.ambientFreeze)
+            PoolView(size: metrics.tileSize, clock: session.ambientClock(at:))
                 .position(metrics.center(of: point))
                 .transition(.opacity)
         }
@@ -297,7 +297,7 @@ struct BoardView: View {
               session.visibleBoard[point].kind == .normal
         else { return .zero }
 
-        let now = session.ambientFreeze ?? date.timeIntervalSinceReferenceDate
+        let now = session.ambientClock(at: date.timeIntervalSinceReferenceDate)
         let drift = CloudMotion.shift(point, now: now, scale: metrics.scale)
         let shove = CloudMotion.shove(
             point, wake: cloudWake, now: now, scale: metrics.scale
@@ -354,7 +354,7 @@ struct BoardView: View {
                         // Whatever is being stood on or hovered over has to stay
                         // clear of its neighbours' overlap.
                         occupied: occupiedSquares(on: plane, popped: popped),
-                        freeze: session.ambientFreeze,
+                        clock: session.ambientClock(at:),
                         wake: cloudWake,
                         bounce: surfaceBounce
                     )
@@ -363,7 +363,7 @@ struct BoardView: View {
                         board: board,
                         metrics: metrics,
                         flashing: session.flashingTiles,
-                        freeze: session.ambientFreeze,
+                        freeze: session.ambientClock(at: Date().timeIntervalSinceReferenceDate),
                         excluding: popped,
                         isPaused: session.isPaused
                     )
@@ -746,7 +746,7 @@ struct BoardView: View {
                     point: point,
                     health: board[point].health,
                     metrics: metrics,
-                    freeze: session.ambientFreeze,
+                    clock: session.ambientClock(at:),
                     wake: cloudWake,
                     bounce: surfaceBounce,
                     swaps: CloudSpriteView.raisedSwaps,
@@ -1114,7 +1114,7 @@ struct BoardView: View {
         let give = CloudMotion.dip(
             GameRules.nexysPoint,
             bounce: surfaceBounce,
-            now: session.ambientFreeze ?? date.timeIntervalSinceReferenceDate,
+            now: session.ambientClock(at: date.timeIntervalSinceReferenceDate),
             scale: metrics.scale
         )
 
@@ -1211,7 +1211,7 @@ struct BoardView: View {
                     tileSize: metrics.tileSize,
                     start: smoke.start,
                     magnitude: smoke.magnitude,
-                    swaps: smoke.plane == .astra ? SmokeSpriteView.cloudSwaps : []
+                    swaps: smokeSwaps(for: smoke)
                 )
                 .position(metrics.center(of: smoke.point))
                 .id(smoke.id)
@@ -1228,6 +1228,19 @@ struct BoardView: View {
                 .id(smoke.id)
             }
         }
+    }
+
+    /// Which recolouring a puff of smoke wants.
+    ///
+    /// Terra's dust is earth and is drawn as it was authored. Astra's is
+    /// cloudstuff and takes the sky's violets — unless it came off the *lifted*
+    /// square, which is blue while it is up and has to smoke blue on the way
+    /// down.
+    private func smokeSwaps(for smoke: SmokePuff) -> [PaletteSwap] {
+        guard smoke.plane == .astra else { return [] }
+        return smoke.fromRaisedTile
+            ? SmokeSpriteView.raisedCloudSwaps
+            : SmokeSpriteView.cloudSwaps
     }
 
     /// Sparkles thrown off by an opened Pentacle.

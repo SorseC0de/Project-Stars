@@ -743,13 +743,26 @@ enum GameRules {
     static let cloudSpriteStretchPeriodH: TimeInterval = 6.1
     static let cloudSpriteStretchPeriodV: TimeInterval = 7.9
 
-    /// How much opacity a cloud loses per stage of wear.
+    /// How solid a cloud is at each stage of wear.
     ///
-    /// The shrink alone was not reading as damage — the first outside tester
-    /// did not realise Astra decayed at all, and could not tell why he was
-    /// falling. Fading is the second, blunter signal: a square you can see
-    /// through is a square about to go.
-    static let cloudSpriteWearFade: Double = 0.16
+    /// The shrink alone was not reading as damage — the first outside tester did
+    /// not realise Astra decayed at all, and could not tell why he was falling.
+    /// Fading is the second, blunter signal: a square you can see through is a
+    /// square about to go.
+    ///
+    /// A table rather than a fade *per stage*, because the two steps are not
+    /// worth the same. Cracked is a warning and badly cracked is a last one, so
+    /// the second drop is larger than the first — a straight multiplier spaces
+    /// them evenly and makes the state that actually matters look like the
+    /// halfway point of a slope.
+    static func cloudOpacity(_ health: TileHealth) -> Double {
+        switch health {
+        case .healthy: 1.00
+        case .cracked: 0.80
+        case .badlyCracked: 0.67
+        case .hole: 0
+        }
+    }
 
     /// How far a cloud is shoved aside when something falls past it, in art
     /// pixels, and how long the shove takes to play out.
@@ -770,7 +783,7 @@ enum GameRules {
     /// second the shove was still on its way *out* when the view cut to Terra,
     /// and the settle nobody ever saw was most of the effect. It now completes
     /// inside the departure, with room to spare.
-    static let cloudWakePush: CGFloat = 14
+    static let cloudWakePush: CGFloat = 22
     static let cloudWakeDuration: TimeInterval = 0.3
 
     /// How much of the wake is spent getting *out*, as a fraction of its life.

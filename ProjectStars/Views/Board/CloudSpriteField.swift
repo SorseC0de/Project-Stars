@@ -58,8 +58,9 @@ struct CloudSpriteField: View {
     /// of clouds that are genuinely closer.
     var occupied: Set<GridPoint> = []
 
-    /// A stopped clock, while a move plays out. See `GameSession.ambientFreeze`.
-    var freeze: TimeInterval?
+    /// The ambient clock, which stops and resumes rather than jumping. See
+    /// `GameSession.ambientClock(at:)`.
+    var clock: (TimeInterval) -> TimeInterval = { $0 }
 
     /// Something dropping through the sky, pushing the clouds around it aside.
     var wake: CloudMotion.Wake?
@@ -75,7 +76,7 @@ struct CloudSpriteField: View {
 
     var body: some View {
         TimelineView(.animation) { timeline in
-            let now = freeze ?? timeline.date.timeIntervalSinceReferenceDate
+            let now = clock(timeline.date.timeIntervalSinceReferenceDate)
 
             // Padded well past the board on every side.
             //
@@ -195,7 +196,7 @@ struct CloudSpriteField: View {
         // Each stage of wear takes ten percent off. The shrink alone was not
         // reading as damage to anyone who had not been told — see
         // `GameRules.cloudSpriteWearFade`.
-        layer.opacity = max(0, 1 - Double(stages) * GameRules.cloudSpriteWearFade)
+        layer.opacity = GameRules.cloudOpacity(tile.health)
 
         if flashing.contains(point) {
             layer.addFilter(.colorMultiply(Palette.white))
