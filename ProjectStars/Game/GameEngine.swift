@@ -1652,9 +1652,29 @@ struct GameEngine {
                 return result
             }
 
-            // 4. Down it goes — unless a passive can pull the piece back from
-            //    it. Scorpio is the only sign that can, and only twice: once by
-            //    dreaming its way back up, once by shedding.
+            // 4. The phantoms go first.
+            //
+            //    They are dismissed the instant the piece is *committed* to the
+            //    hole, before anything is asked about surviving it — so a
+            //    borrowed passive can never answer for a fall. That is one rule
+            //    covering every case: an ordinary drop, a fatal one, and the
+            //    rescues that would otherwise have had to be special-cased,
+            //    Death Dream and Samsaric Shed above all. A loan cannot leave a
+            //    permanent ascent lockout on the sign that took it out.
+            //
+            //    It also reads correctly: they wink out as you go over the edge,
+            //    which is when the player expects to lose them.
+            if !signState.retinue.isEmpty {
+                refundLostRetinue()
+                var alone = signState
+                alone.retinue = []
+                alone = alone.emptyingPurseIfLent(from: signState)
+                commit(.signStateChanged(alone))
+            }
+
+            // 4a. Down it goes — unless a passive can pull the piece back from
+            //     it. Scorpio is the only sign that can, and only twice: once by
+            //     dreaming its way back up, once by shedding.
             guard let below = plane.planeBelow else {
                 if let rescue = activePassives.survivesFatalFall(
                     at: point, from: plane, context: passiveContext
