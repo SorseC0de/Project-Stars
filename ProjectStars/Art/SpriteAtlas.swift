@@ -116,6 +116,10 @@ enum SpriteAtlas {
     /// eight frames of that would dominate any sheet it shared.
     static let pentacleSheet = "Pentacle"
 
+    /// Astra's clouds: 144x96, three 48x48 frames across and two rows — the
+    /// light variant above the dark.
+    static let cloudSheet = "Astra_Cloud"
+
     /// The landing puffs, one sheet per plane. Five 32x32 frames in a row each.
     static func smokeSheet(for plane: Plane) -> String {
         switch plane {
@@ -250,6 +254,22 @@ enum SpriteAtlas {
                 width: 2, height: 2,
                 frames: GameRules.smokeFrameCount,
                 frameDuration: GameRules.smokeRate.frameDuration
+            )
+        }
+
+        // ── Astra's clouds ───────────────────────────────────────────────
+        // One strip per shade, three frames each, played ping-pong. The cell is
+        // 48px — three board squares wide — so neighbouring clouds overlap
+        // heavily. That is the intent: the drift and the stretch break up the
+        // grid, and the row-by-row depth sort keeps the overlap readable.
+        for (row, shade) in [Palette.TileShade.light, .dark].enumerated() {
+            map[.astraCloud(shade)] = SpriteSlice(
+                sheet: cloudSheet,
+                x: 0, y: row * GameRules.cloudSpritePixelSize,
+                width: GameRules.cloudSpritePixelSize,
+                height: GameRules.cloudSpritePixelSize,
+                frames: GameRules.cloudSpriteFrames,
+                frameDuration: GameRules.cloudSpriteRate.frameDuration
             )
         }
 

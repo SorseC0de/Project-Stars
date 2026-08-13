@@ -253,17 +253,31 @@ struct BoardView: View {
         let popped = Set(session.visibleRaisedTiles.map(\.point))
 
         return ZStack {
-            // Astra's ordinary squares are one canvas, not 49 — see
-            // `CloudFieldView`. Everything else still draws a tile each.
+            // Astra's ordinary squares are one canvas, not 49.
+            //
+            // Drawn art if the sheet is there, generated clusters if it is not —
+            // the same rule every placeholder in this game follows. The drawn
+            // version is also the one that made Astra affordable: see
+            // `CloudSpriteField`.
             if plane == .astra {
-                CloudFieldView(
-                    board: board,
-                    metrics: metrics,
-                    flashing: session.flashingTiles,
-                    freeze: session.ambientFreeze,
-                    excluding: popped,
-                    isPaused: session.isPaused
-                )
+                if CloudSpriteField.hasArt {
+                    CloudSpriteField(
+                        board: board,
+                        metrics: metrics,
+                        flashing: session.flashingTiles,
+                        raised: popped,
+                        freeze: session.ambientFreeze
+                    )
+                } else {
+                    CloudFieldView(
+                        board: board,
+                        metrics: metrics,
+                        flashing: session.flashingTiles,
+                        freeze: session.ambientFreeze,
+                        excluding: popped,
+                        isPaused: session.isPaused
+                    )
+                }
             }
 
             faces(board: board, plane: plane, metrics: metrics, popped: popped)
@@ -1004,18 +1018,34 @@ struct BoardView: View {
         }
     }
 
-    /// Clusters coming apart where Astra has given way.
+    /// Clusters coming apart where Astra has given way, and squares stamping
+    /// flat when a raised one goes back down.
+    ///
+    /// Drawn smoke in the cloud's own violets when the strip is there; the
+    /// generated dispersal — see `CloudPoofView` — when it is not.
     @ViewBuilder
     private func cloudPoofs(metrics: PixelArtMetrics) -> some View {
         if session.visiblePlane == .astra {
             ForEach(session.cloudPoofs) { poof in
-                CloudPoofView(
-                    shade: .at(poof.point),
-                    point: poof.point,
-                    size: metrics.tileSize,
-                    start: poof.start
-                )
-                .position(metrics.center(of: poof.point))
+                if SmokeSpriteView.hasArt(on: .astra) {
+                    SmokeSpriteView(
+                        plane: .astra,
+                        tileSize: metrics.tileSize,
+                        start: poof.start,
+                        magnitude: GameRules.cloudPoofMagnitude,
+                        swaps: SmokeSpriteView.cloudSwaps
+                    )
+                    .position(metrics.center(of: poof.point))
+                    .id(poof.id)
+                } else {
+                    CloudPoofView(
+                        shade: .at(poof.point),
+                        point: poof.point,
+                        size: metrics.tileSize,
+                        start: poof.start
+                    )
+                    .position(metrics.center(of: poof.point))
+                }
             }
         }
     }
@@ -1024,16 +1054,31 @@ struct BoardView: View {
     @ViewBuilder
     private func dust(metrics: PixelArtMetrics) -> some View {
         if let smoke = session.smoke, smoke.plane == session.visiblePlane {
-            SmokeBurstView(
-                tileSize: metrics.tileSize,
-                scale: metrics.scale,
-                plane: smoke.plane,
-                seed: smoke.id.hashValue,
-                magnitude: smoke.magnitude,
-                start: smoke.start
-            )
-            .position(metrics.center(of: smoke.point))
-            .id(smoke.id)
+            // Drawn smoke wherever there is a strip for the plane. Astra's is
+            // recoloured into its violets, so cloudstuff disperses as cloudstuff
+            // rather than as grey.
+            if SmokeSpriteView.hasArt(on: smoke.plane) {
+                SmokeSpriteView(
+                    plane: smoke.plane,
+                    tileSize: metrics.tileSize,
+                    start: smoke.start,
+                    magnitude: smoke.magnitude,
+                    swaps: smoke.plane == .astra ? SmokeSpriteView.cloudSwaps : []
+                )
+                .position(metrics.center(of: smoke.point))
+                .id(smoke.id)
+            } else {
+                SmokeBurstView(
+                    tileSize: metrics.tileSize,
+                    scale: metrics.scale,
+                    plane: smoke.plane,
+                    seed: smoke.id.hashValue,
+                    magnitude: smoke.magnitude,
+                    start: smoke.start
+                )
+                .position(metrics.center(of: smoke.point))
+                .id(smoke.id)
+            }
         }
     }
 

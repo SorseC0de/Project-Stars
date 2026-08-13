@@ -439,7 +439,7 @@ enum CloudCluster {
     /// This is the murmur3 finalizer, which is built to make one bit of input
     /// change about half the output bits. Neighbouring salts decorrelate, and
     /// the scatter is actually a scatter.
-    private static func hash(_ point: GridPoint, salt: Int) -> Double {
+    static func hash(_ point: GridPoint, salt: Int) -> Double {
         let seed = point.x &* 73_856_093 &+ point.y &* 19_349_663 &+ salt &* 83_492_791
 
         var z = UInt64(bitPattern: Int64(seed))

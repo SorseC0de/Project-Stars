@@ -681,6 +681,51 @@ enum GameRules {
         }
     }
 
+    // ──────────────────────────────────────────────────────────────────────
+    // MARK: - Astra's cloud sprite
+    //
+    // The drawn replacement for the generated clusters — see `CloudSpriteField`.
+    // Everything below this line is about the sheet; everything under "Astra
+    // clouds" above it belongs to the archived programmatic version.
+
+    /// Edge length of one cloud frame, in art pixels. Three board cells.
+    static let cloudSpritePixelSize = 48
+
+    /// Frames in the strip, and how fast it plays.
+    static let cloudSpriteFrames = 3
+    static let cloudSpriteRate = SpriteRate.fps15
+
+    /// How far a cloud drifts from its square, as a fraction of a cell.
+    ///
+    /// Per-cloud and on its own phase, so the field never pulses in unison.
+    static let cloudSpriteShift: CGFloat = 0.16
+    static let cloudSpriteShiftPeriod: TimeInterval = 5.4
+
+    /// How much a cloud stretches, as a fraction either side of its true size.
+    ///
+    /// Horizontal and vertical run on different periods on purpose: matched,
+    /// they read as a single throb, and the point is that a cloud has no fixed
+    /// shape.
+    static let cloudSpriteStretch: CGFloat = 0.09
+    static let cloudSpriteStretchPeriodH: TimeInterval = 3.7
+    static let cloudSpriteStretchPeriodV: TimeInterval = 4.9
+
+    /// How much opacity a cloud loses per stage of wear.
+    ///
+    /// The shrink alone was not reading as damage — the first outside tester
+    /// did not realise Astra decayed at all, and could not tell why he was
+    /// falling. Fading is the second, blunter signal: a square you can see
+    /// through is a square about to go.
+    static let cloudSpriteWearFade: Double = 0.10
+
+    /// How high the cloud under a Pentacle floats, in art pixels, and how hard
+    /// its glow breathes.
+    static let cloudSpriteRaiseLift: CGFloat = 3
+    static let cloudSpriteGlowPeriod: TimeInterval = 1.5
+    static let cloudSpriteGlowMin: Double = 0.18
+    static let cloudSpriteGlowMax: Double = 0.55
+    static let cloudSpriteGlowRadius: CGFloat = 3
+
     /// Puffs in one cluster.
     static let cloudPuffCount = 13
 
@@ -819,6 +864,12 @@ enum GameRules {
 
     /// Seconds a cluster takes to disperse when its square becomes a hole.
     static let cloudPoofDuration: TimeInterval = 0.5
+
+    /// How much bigger than an ordinary puff a dispersing cloud is.
+    ///
+    /// A square giving way is a bigger event than a footfall and has a whole
+    /// cell to vacate, so it wants more smoke than a landing does.
+    static let cloudPoofMagnitude: CGFloat = 1.5
 
     /// How far the puffs of a dispersing cluster travel, in art pixels.
     static let cloudPoofSpread: CGFloat = 7
