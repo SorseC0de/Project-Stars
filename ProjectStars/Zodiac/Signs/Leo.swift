@@ -87,7 +87,7 @@ struct LeoPridefulPlant: ZodiacPassive {
 struct LeoMagneticMane: ZodiacPassive {
 
     let displayName = "Magnetic Mane"
-    let summary = "Astra & Terra: a small chance each step that the Pentacle drifts a square toward you — two while an Aten burns."
+    let summary = "Astra & Terra: a chance each step that the Pentacle drifts a square toward you."
 
     func magneticPullChance(context: PassiveContext) -> Double {
         switch context.plane {
@@ -238,60 +238,37 @@ struct LeoRallyingRoar: ZodiacPassive {
 /// leaving it burning would give the pull five free moves on top of the island.
 struct LeoAttractingAten: Zodiaction {
 
-    /// Key this sign owns in `SignState.runFlags`.
-    static let nexysPullKey = "leo.attractingAten"
-
     let displayName = "Attracting Aten"
-    let summary = "Spawn a small sun on the tile ahead for 5 moves: it mends that tile and drags the Pentacle one square toward it each move."
+    let summary = "Call a phantom of another sign to follow you. Its movement and its Zodiaction are yours once each, for nothing, and its passives apply the whole time it is with you."
 
     /// Leo's charge comes from Prideful Plant.
     func meterGain(from move: MoveSummary, context: PassiveContext) -> Int { 0 }
 
+    /// A phantom follows *Leo*, not a square, so there is nowhere it can fail to
+    /// fit and no reason it cannot be called.
+    func canActivate(context: PassiveContext) -> Bool { true }
+
     func activate(context: PassiveContext, generator: inout SeededRandom) -> [GameEvent] {
-        let target = context.piecePoint.offset(by: context.facing.unitOffset)
+        var state = context.signState
 
-        // Facing off the board, the sun has nowhere to hang.
-        guard context.currentBoard.contains(target) else { return [] }
+        // The pool excludes Leo — the lion does not summon itself — and anyone
+        // already following, because two of the same phantom is one phantom and
+        // a wasted pop.
+        let taken = Set(state.retinue)
+        let pool = Zodiac.allCases.filter { $0 != .leo && !taken.contains($0) }
+        guard let summoned = pool.randomElement(using: &generator) else { return [] }
 
-        if let pull = nexysPull(to: target, context: context) { return pull }
+        state.retinue.append(summoned)
 
-        var events: [GameEvent] = []
-        let tile = context.currentBoard[target]
-
-        if GameRules.sunHealsItsTile, tile.kind == .normal,
-           !tile.health.isHole, tile.health != .healthy {
-            events.append(.tileHealed(plane: context.plane, point: target, to: TileHealth.healthy))
+        // A re-roll drops the **oldest**, not the newest, and the rest move up.
+        // The line is a queue, so the player always knows which one they are
+        // about to spend — calling again while full is a trade rather than a
+        // lottery.
+        while state.retinue.count > SignState.retinueLimit(on: context.plane) {
+            state.retinue.removeFirst()
         }
 
-        var state = context.signState
-        state.sun = SignState.Sun(
-            point: target,
-            plane: context.plane,
-            movesRemaining: GameRules.sunMoves
-        )
-        events.append(.signStateChanged(state))
-
-        return events
-    }
-
-    /// The island coming down, if this is that move.
-    ///
-    /// Returns `nil` when it is an ordinary sun, so the caller reads as one
-    /// path with one exception rather than as two branches.
-    private func nexysPull(to target: GridPoint, context: PassiveContext) -> [GameEvent]? {
-        guard target == GameRules.nexysPoint,
-              context.plane == .terra,
-              context.nexysPlane == .astra,
-              !context.signState.runFlags.contains(Self.nexysPullKey)
-        else { return nil }
-
-        var state = context.signState
-        state.runFlags.insert(Self.nexysPullKey)
-
-        return [
-            .nexysMoved(to: .terra, carryingPiece: false),
-            .signStateChanged(state),
-        ]
+        return [.signStateChanged(state)]
     }
 }
 

@@ -1817,6 +1817,26 @@ enum GameRules {
     /// longer would be a board that never stops moving.
     static let taurusStepShake: TimeInterval = 0.12
 
+    // ──────────────────────────────────────────────────────────────────────
+    // MARK: - Leo's retinue
+    //
+    // The phantoms Attracting Aten calls. See `RetinueView`.
+
+    /// How solid a phantom is. Present, but plainly not the piece.
+    static let retinueOpacity: Double = 0.7
+
+    /// How far behind the piece each one trails, in art pixels, and how hard it
+    /// glows in its element.
+    static let retinueTrail: CGFloat = 5
+    static let retinueGlowRadius: CGFloat = 2.5
+
+    /// How much slower a phantom's spring is than the piece's.
+    ///
+    /// The lag is the whole illusion: nothing computes a follow path, the
+    /// phantom is simply told to be where the piece is and takes longer getting
+    /// there.
+    static let retinueLag: Double = 1.9
+
     /// The bloom thrown by a drawn effect: blur radius in art pixels, and how
     /// bright the additive copy is.
     ///

@@ -975,6 +975,7 @@ struct BoardView: View {
         return ZStack {
             afterimages(metrics: metrics, starring: starElement, at: Date())
             gemTrail(metrics: metrics)
+            retinue(metrics: metrics)
 
             PieceView(
             zodiac: session.zodiac,
@@ -1083,6 +1084,29 @@ struct BoardView: View {
         let linear = min(max(settled / GameRules.cloudSwayEaseIn, 0), 1)
 
         return CGFloat(linear * linear * (3 - 2 * linear))
+    }
+
+    /// The phantoms following Leo.
+    ///
+    /// Drawn inside the piece's own stack so they inherit its position, and
+    /// given a slower spring so they arrive late — see `RetinueView`.
+    @ViewBuilder
+    private func retinue(metrics: PixelArtMetrics) -> some View {
+        ForEach(Array(session.retinue.enumerated()), id: \.element) { step, follower in
+            RetinueView(
+                zodiac: follower,
+                tileSize: metrics.tileSize,
+                scale: metrics.scale,
+                step: step
+            )
+            .animation(
+                .spring(
+                    response: GameRules.hopDuration * GameRules.retinueLag,
+                    dampingFraction: 0.7
+                ),
+                value: session.engine.piece.point
+            )
+        }
     }
 
     /// The colours a piece drags behind it.

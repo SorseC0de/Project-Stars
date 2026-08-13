@@ -102,6 +102,45 @@ struct GameEngine {
     /// taking either shatters the other, so it is never more than briefly two.
     private(set) var revealedPickups: [RevealedPickup] = []
 
+    /// Every passive in force right now: the piece's own, and any phantom's.
+    ///
+    /// Leo's retinue is not a summon that acts on its own — it is a set of
+    /// abilities on loan. A phantom Taurus mends what Leo lands on; a phantom
+    /// Libra puts Libra's trenches in the flanks. That falls out for free by
+    /// asking the whole company instead of the piece, which is why every rule in
+    /// this file reads this rather than `activePassives`.
+    ///
+    /// Order matters: the piece's own come first, so where a hook takes the
+    /// *first* answer rather than combining them, the sign being played wins.
+    var activePassives: [any ZodiacPassive] {
+        guard !signState.retinue.isEmpty else { return activePassives }
+        return activePassives + signState.retinue.flatMap(\.passives)
+    }
+
+    /// The piece's movement plus anything its retinue lends it.
+    ///
+    /// Every borrowed option is stamped with the phantom it came from, so taking
+    /// one can spend it — see `MovementPattern.MoveOption.owner`. The ordinary
+    /// single step every sign has is dropped from the loan: it would be a
+    /// duplicate of a move Leo already has, and spending a phantom on it would
+    /// be a trap rather than a choice.
+    var activeMovement: MovementPattern {
+        guard !signState.retinue.isEmpty else { return piece.zodiac.movement }
+
+        let base = piece.zodiac.movement
+        let borrowed = signState.retinue.flatMap { follower in
+            follower.movement.options
+                .filter { $0.distance > 1 || $0.style == .jump || $0.reachesWall }
+                .map { option -> MovementPattern.MoveOption in
+                    var lent = option
+                    lent.owner = follower
+                    return lent
+                }
+        }
+
+        return MovementPattern(name: base.name, options: base.options + borrowed)
+    }
+
     /// Just the ones the hunt is about.
     ///
     /// Every rule governing the Pentacle economy — the sparkle phase waiting for
@@ -286,7 +325,7 @@ struct GameEngine {
         let openingBoard = self[openingPlane]
         let openingPoint = piece.point
         let openingWeighting = pickupWeighting()
-        let mirrorChance = piece.zodiac.passives.mirroredSparkleChance(context: passiveContext)
+        let mirrorChance = activePassives.mirroredSparkleChance(context: passiveContext)
         if let opening = Self.rollSparkles(
             on: openingPlane,
             board: openingBoard,
@@ -344,7 +383,7 @@ struct GameEngine {
         // Some signs cross a long move on the wind — see
         // `ZodiacPassive.walksOnAir(during:context:)`. Scoped to this move, and
         // cleared however it ends.
-        sim.airborneThisMove = sim.piece.zodiac.passives.walksOnAir(
+        sim.airborneThisMove = sim.activePassives.walksOnAir(
             during: move.option,
             context: sim.passiveContext
         )
@@ -389,7 +428,7 @@ struct GameEngine {
         //    going, before it has gone anywhere.
         // …unless a passive says the piece keeps watching where it was.
         // Cancer's Seafoam Scuttle does exactly that.
-        let keepsFacing = sim.piece.zodiac.passives.retainsFacing(
+        let keepsFacing = sim.activePassives.retainsFacing(
             direction: direction,
             option: move.option,
             context: sim.passiveContext
@@ -475,10 +514,22 @@ struct GameEngine {
             events += sim.ensurePentacleAvailable(previousPlane: startingPlane, after: events)
         }
 
+        // 5a-i. A borrowed move spends the phantom that lent it.
+        //
+        //       Leo's retinue is a set of abilities on loan, and the loan is for
+        //       one use — taking the move is the use. Emitted before the sign's
+        //       own `stateAfterMove` so a phantom cannot both be spent and leave
+        //       a cooldown behind on the way out.
+        if let lender = move.option.owner, sim.signState.retinue.contains(lender) {
+            var released = sim.signState
+            released.retinue.removeAll { $0 == lender }
+            commit(.signStateChanged(released))
+        }
+
         // 5a. Some options cost something to have taken — Capricorn's climb puts
         //     itself on cooldown. Asked after the move so a climb that never
         //     happened is never charged for.
-        if let spent = sim.piece.zodiac.passives.stateAfterMove(
+        if let spent = sim.activePassives.stateAfterMove(
             option: move.option,
             direction: direction,
             context: sim.passiveContext
@@ -490,7 +541,7 @@ struct GameEngine {
         //     was doing — Gemini mirroring repairs downward, Libra levelling a
         //     row that has just gone uniform. Their output is not itself
         //     amended, so a reaction cannot retrigger itself.
-        let reactions = sim.piece.zodiac.passives.amend(events, context: sim.passiveContext)
+        let reactions = sim.activePassives.amend(events, context: sim.passiveContext)
         for reaction in reactions {
             if let allowed = sim.sheltered(reaction) { commit(allowed) }
         }
@@ -552,6 +603,67 @@ struct GameEngine {
         return events
     }
 
+    /// Fires a **phantom's** Zodiaction, free, and dismisses it.
+    ///
+    /// The borrowed super costs no meter — the meter was already spent calling
+    /// the phantom — and using it is what the loan was for, so the phantom goes
+    /// with it. Otherwise identical to an ordinary pop: it counts as a turn, it
+    /// settles where it leaves the piece, and it may ask the player a question.
+    mutating func planRetinueZodiaction(_ follower: Zodiac) -> [GameEvent] {
+        guard !isGameOver, signState.retinue.contains(follower) else { return [] }
+
+        var sim = self
+        defer { self.rng = sim.rng }
+
+        var events: [GameEvent] = []
+        func commit(_ event: GameEvent) {
+            events.append(event)
+            sim.apply(event)
+        }
+
+        let planeBefore = sim.piece.plane
+        let pointBefore = sim.piece.point
+
+        for reveal in sim.rollPickupReveal(destination: sim.piece.point) { commit(reveal) }
+        commit(.moveCommitted(direction: sim.piece.facing))
+        commit(.zodiactionFired(zodiac: follower, plane: sim.piece.plane))
+
+        // Spent first, so anything the super does — including asking a question
+        // and suspending — cannot leave the phantom hanging around afterwards.
+        var released = sim.signState
+        released.retinue.removeAll { $0 == follower }
+        commit(.signStateChanged(released))
+
+        let context = sim.passiveContext
+        for event in follower.zodiaction.activate(context: context, generator: &sim.rng) {
+            guard let allowed = sim.sheltered(event) else { continue }
+            commit(allowed)
+            for sweep in sim.gatherIfCrossed(allowed) { commit(sweep) }
+        }
+
+        events += sim.openCarriedPickups()
+
+        if sim.pendingChoice != nil {
+            events += sim.tickForTurn()
+            return events
+        }
+
+        let moved = sim.piece.plane != planeBefore || sim.piece.point != pointBefore
+        let groundGone = !sim[sim.piece.plane][sim.piece.point].isSolid
+        if !sim.isGameOver, moved || groundGone {
+            events += sim.settle(arrivedByFalling: false, wearsOnArrival: false).events
+        }
+
+        let reactions = sim.activePassives.amend(events, context: sim.passiveContext)
+        for reaction in reactions {
+            if let allowed = sim.sheltered(reaction) { commit(allowed) }
+        }
+
+        events += sim.tickForTurn()
+        events += sim.ensurePentacleAvailable(previousPlane: planeBefore, after: events)
+        return events
+    }
+
     /// Calls the island, or rides it.
     ///
     /// Libra's Judicator Elevator, as a button rather than as a thing that
@@ -603,7 +715,7 @@ struct GameEngine {
     /// Whether the lift will answer right now.
     var canCallNexys: Bool {
         guard !isGameOver else { return false }
-        guard piece.zodiac.passives.ridesNexysDown(context: passiveContext) else { return false }
+        guard activePassives.ridesNexysDown(context: passiveContext) else { return false }
 
         // Either it is elsewhere and can be summoned, or it is here and being
         // stood on. An island sitting on this plane with nobody on it is the one
@@ -745,7 +857,7 @@ struct GameEngine {
         // fired on a fall it *walked* into and not on the one its own super
         // caused — the dive emits exactly the same `pieceFell`, and nothing was
         // listening.
-        let reactions = sim.piece.zodiac.passives.amend(events, context: sim.passiveContext)
+        let reactions = sim.activePassives.amend(events, context: sim.passiveContext)
         for reaction in reactions {
             if let allowed = sim.sheltered(reaction) { commit(allowed) }
         }
@@ -806,8 +918,8 @@ struct GameEngine {
     /// Holes and the Nexys chasm are deliberately *not* excluded — moving onto
     /// one is legal, and is how the player descends to Terra.
     func resolvedMove(for direction: SwipeDirection, reach: Int = 0) -> ResolvedMove? {
-        let movement = piece.zodiac.passives.adjustedMovement(
-            base: piece.zodiac.movement,
+        let movement = activePassives.adjustedMovement(
+            base: activeMovement,
             context: passiveContext
         )
         guard let option = movement.option(
@@ -822,7 +934,7 @@ struct GameEngine {
         if option.reachesWall {
             let path = pathToWall(from: piece.point, direction: direction)
             guard !path.isEmpty else { return nil }
-            guard piece.zodiac.passives.allows(
+            guard activePassives.allows(
                 option, direction: direction, path: path, context: passiveContext
             ) else { return nil }
             return ResolvedMove(
@@ -840,7 +952,7 @@ struct GameEngine {
             // Asked of the rifts too when they have been left standing, since
             // the sign holding the board no longer has the passive that owns
             // them.
-            let wrap = piece.zodiac.passives.wrappedMove(
+            let wrap = activePassives.wrappedMove(
                 from: piece.point,
                 direction: direction,
                 context: passiveContext
@@ -863,7 +975,7 @@ struct GameEngine {
         // A sign may refuse an option for reasons the pattern cannot see —
         // Scorpio's vault needs a hole under it. Checked after the path exists,
         // since that is the only thing that says what the move would cross.
-        guard piece.zodiac.passives.allows(
+        guard activePassives.allows(
             option, direction: direction, path: path, context: passiveContext
         ) else { return nil }
 
@@ -971,12 +1083,12 @@ struct GameEngine {
     /// reflected in what the player is offered, rather than being shown a move
     /// that will not happen.
     func moveOptions(for direction: SwipeDirection) -> [MovementPattern.MoveOption] {
-        let movement = piece.zodiac.passives
-            .adjustedMovement(base: piece.zodiac.movement, context: passiveContext)
+        let movement = activePassives
+            .adjustedMovement(base: activeMovement, context: passiveContext)
 
         return movement.options(for: direction, facing: piece.facing).filter { option in
             let path = movement.path(from: piece.point, direction: direction, option: option)
-            return piece.zodiac.passives.allows(
+            return activePassives.allows(
                 option, direction: direction, path: path, context: passiveContext
             )
         }
@@ -1034,8 +1146,8 @@ struct GameEngine {
     ///     before letting go.
     func cursor(direction: SwipeDirection? = nil, reach: Int = 0) -> Cursor {
         let heading = direction ?? piece.facing
-        let movement = piece.zodiac.passives.adjustedMovement(
-            base: piece.zodiac.movement,
+        let movement = activePassives.adjustedMovement(
+            base: activeMovement,
             context: passiveContext
         )
 
@@ -1092,7 +1204,7 @@ struct GameEngine {
     /// Whether the piece could stand on this square despite it being open.
     private func wouldSurvive(_ point: GridPoint) -> Bool {
         if signState.walksOnAir { return true }
-        return piece.zodiac.passives.preventsFall(
+        return activePassives.preventsFall(
             from: piece.plane,
             at: point,
             context: passiveContext
@@ -1142,7 +1254,7 @@ struct GameEngine {
         // A passive may steer the reveal — Virgo's Controlled Compensation puts the
         // coin on the square the move is already heading for. Otherwise it is a
         // straight roll among the surviving sparkles.
-        let steered = piece.zodiac.passives.preferredRevealPoint(
+        let steered = activePassives.preferredRevealPoint(
             among: usable,
             destination: destination,
             context: passiveContext
@@ -1170,7 +1282,7 @@ struct GameEngine {
         excluding taken: GridPoint,
         on plane: Plane
     ) -> [GameEvent] {
-        let chance = piece.zodiac.passives.secondPickupChance(context: passiveContext)
+        let chance = activePassives.secondPickupChance(context: passiveContext)
         guard chance > 0 else { return [] }
 
         let roll = Double(rng.next() % 10_000) / 10_000
@@ -1340,7 +1452,7 @@ struct GameEngine {
             arrivedOnOpenGround = !landed.isSolid
             let earnsWear = wearsOnArrival
                 && (!fellAlready || GameRules.fallingLandingCausesWear)
-            let passiveAllows = piece.zodiac.passives.causesWear(
+            let passiveAllows = activePassives.causesWear(
                 on: landed,
                 at: point,
                 plane: plane,
@@ -1350,7 +1462,7 @@ struct GameEngine {
             // Airborne signs charge their wear to the tile they push off from
             // instead, which `departCurrentTile()` handles at the other end of
             // the move. Nothing is owed on arrival.
-            let timing = piece.zodiac.passives.wearTiming(context: passiveContext)
+            let timing = activePassives.wearTiming(context: passiveContext)
 
             // `landed.canBeWorn` is deliberately **not** a condition here.
             //
@@ -1368,7 +1480,7 @@ struct GameEngine {
             // fallen into, not what was landed on.
             if fellAlready, landed.canBeRepaired || landed.health == .healthy,
                !landed.health.isHole,
-               piece.zodiac.passives.restoresTileOnFallArrival(
+               activePassives.restoresTileOnFallArrival(
                    tile: landed, at: point, plane: plane, context: passiveContext
                ),
                self[plane][point].health != .healthy {
@@ -1444,13 +1556,13 @@ struct GameEngine {
             // 3. Can the piece stand on what is left? A tile it just broke
             //    cannot hold it.
             let remaining = self[plane][point]
-            let hovers = piece.zodiac.passives.preventsFall(
+            let hovers = activePassives.preventsFall(
                 from: plane,
                 at: point,
                 context: passiveContext
             )
             if hovers, !remaining.isSolid {
-                if let spent = piece.zodiac.passives
+                if let spent = activePassives
                     .stateAfterPreventingFall(context: passiveContext),
                    spent != signState {
                     // A guard that actually caught the piece spends itself here,
@@ -1462,7 +1574,7 @@ struct GameEngine {
                 // And whatever else the save was worth — mending the ground,
                 // paying for the nerve. Only ever reached when a passive really
                 // did catch the piece.
-                for event in piece.zodiac.passives.eventsOnPreventingFall(
+                for event in activePassives.eventsOnPreventingFall(
                     at: point, on: plane, context: passiveContext
                 ) {
                     commit(event)
@@ -1480,7 +1592,7 @@ struct GameEngine {
                 // rest, so it is looking at where the piece ended up rather than
                 // where it was aimed. The move suspends exactly as a Pentacle's
                 // question does; `planChoice` resumes it.
-                if let offer = piece.zodiac.passives.offersChoice(context: passiveContext) {
+                if let offer = activePassives.offersChoice(context: passiveContext) {
                     commit(.choiceRequested(source: .passive(piece.zodiac), kind: offer))
                     return result
                 }
@@ -1491,7 +1603,7 @@ struct GameEngine {
                 if GameRules.nexysAscendsFromTerra,
                    plane == .terra,
                    self[plane][point].kind == .nexys,
-                   !piece.zodiac.passives.blocksAscent(context: passiveContext) {
+                   !activePassives.blocksAscent(context: passiveContext) {
                     commit(.nexysMoved(to: .astra, carryingPiece: true))
                     result.ascended = true
                 }
@@ -1501,7 +1613,7 @@ struct GameEngine {
                 // so everything watching for an arrival on Terra sees one.
                 if plane == .astra,
                    self[plane][point].kind == .nexys,
-                   piece.zodiac.passives.ridesNexysDown(context: passiveContext) {
+                   activePassives.ridesNexysDown(context: passiveContext) {
                     commit(.nexysMoved(to: .terra, carryingPiece: true))
                 }
                 return result
@@ -1511,7 +1623,7 @@ struct GameEngine {
             //    it. Scorpio is the only sign that can, and only twice: once by
             //    dreaming its way back up, once by shedding.
             guard let below = plane.planeBelow else {
-                if let rescue = piece.zodiac.passives.survivesFatalFall(
+                if let rescue = activePassives.survivesFatalFall(
                     at: point, from: plane, context: passiveContext
                 ) {
                     for event in rescue { commit(event) }
@@ -1527,7 +1639,7 @@ struct GameEngine {
             // Leaving Astra repairs it, so a player who can climb back up finds
             // fresh ground waiting. This is the mechanism that makes long runs
             // possible at all.
-            if piece.zodiac.passives.restoresPlaneOnDescent(context: passiveContext),
+            if activePassives.restoresPlaneOnDescent(context: passiveContext),
                plane == .astra {
                 commit(.planeRestored(plane: .astra))
             }
@@ -1629,7 +1741,7 @@ struct GameEngine {
     /// Returns `nil` when it does not fire, which is what lets the sun take the
     /// turn instead.
     private mutating func planMagneticPull() -> [GameEvent]? {
-        let chance = piece.zodiac.passives.magneticPullChance(context: passiveContext)
+        let chance = activePassives.magneticPullChance(context: passiveContext)
         guard chance > 0 else { return nil }
 
         let roll = Double(rng.next() % 10_000) / 10_000
@@ -1793,7 +1905,7 @@ struct GameEngine {
             stages: GameRules.wearPerLanding,
             signState: signState
         )
-        let final = piece.zodiac.passives.modifyWear(proposal, context: passiveContext)
+        let final = activePassives.modifyWear(proposal, context: passiveContext)
 
         if final.signState != signState {
             commit(.signStateChanged(final.signState))
@@ -1806,7 +1918,7 @@ struct GameEngine {
         // Redirected impact: Libra spares what it lands on and hits the flanks
         // instead. Gathered first so a passive that zeroes `stages` still gets
         // its extras.
-        for extra in piece.zodiac.passives.additionalWear(from: final, context: passiveContext) {
+        for extra in activePassives.additionalWear(from: final, context: passiveContext) {
             guard self[plane].contains(extra) else { continue }
             let target = self[plane][extra]
             guard target.canBeWorn else { continue }
@@ -1867,12 +1979,12 @@ struct GameEngine {
     ///   sign's timing says — which a slide always does, since the two ends are
     ///   the only ground it touches.
     private mutating func departCurrentTile(force: Bool = false) -> LandingResult {
-        guard force || piece.zodiac.passives.wearTiming(context: passiveContext) == .onExit else {
+        guard force || activePassives.wearTiming(context: passiveContext) == .onExit else {
             return LandingResult()
         }
         let point = piece.point
         let plane = piece.plane
-        guard piece.zodiac.passives.causesWear(
+        guard activePassives.causesWear(
             on: self[plane][point], at: point, plane: plane, context: passiveContext
         ) else { return LandingResult() }
 
@@ -1909,7 +2021,7 @@ struct GameEngine {
 
         // What the *sign* makes of having opened one, before the ground under
         // the piece is consulted — a coin over a hole is only rescuable here.
-        for event in piece.zodiac.passives.collected(
+        for event in activePassives.collected(
             pickup.id,
             at: pickup.point,
             on: pickup.plane,
@@ -1935,7 +2047,7 @@ struct GameEngine {
         // the exception the design names: charge cannot be stored as charge, so
         // it goes off like anyone else's.
         if pickup.id != .zCharge,
-           piece.zodiac.passives.banksPickups(pickup.id, context: passiveContext) {
+           activePassives.banksPickups(pickup.id, context: passiveContext) {
             var state = signState
             state.purse.append(pickup.id)
             commit(.signStateChanged(state))
@@ -2025,7 +2137,7 @@ struct GameEngine {
         }
 
         // Leaving Astra repairs it however you left, not only by falling.
-        if piece.zodiac.passives.restoresPlaneOnDescent(context: passiveContext),
+        if activePassives.restoresPlaneOnDescent(context: passiveContext),
            planeBefore == .astra,
            piece.plane == .terra,
            !events.contains(.planeRestored(plane: .astra)) {
@@ -2151,7 +2263,7 @@ struct GameEngine {
         // The star charges for nothing but moving, whoever is carrying it.
         let starCharge = signState.isStarred ? GameRules.starChargePerMove : 0
         let gain = piece.zodiac.zodiaction.meterGain(from: move, context: passiveContext)
-            + piece.zodiac.passives.meterBonus(from: move, context: passiveContext)
+            + activePassives.meterBonus(from: move, context: passiveContext)
             + starCharge
         guard gain != 0 else { return [] }
 
@@ -2243,7 +2355,7 @@ struct GameEngine {
         let board = self[plane]
         let point = piece.point
         let weighting = pickupWeighting()
-        let mirrorChance = piece.zodiac.passives.mirroredSparkleChance(context: passiveContext)
+        let mirrorChance = activePassives.mirroredSparkleChance(context: passiveContext)
         guard let spawn = Self.rollSparkles(
             on: plane,
             board: board,
@@ -2364,7 +2476,7 @@ struct GameEngine {
     /// touching `self` inside it would be overlapping access to the same value.
     private func pickupWeighting() -> (PickupID, Int) -> Int {
         let context = passiveContext
-        let passives = piece.zodiac.passives
+        let passives = activePassives
         return { id, base in passives.pickupWeight(base, for: id, context: context) }
     }
 

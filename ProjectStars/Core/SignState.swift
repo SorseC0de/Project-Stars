@@ -105,6 +105,30 @@ struct SignState: Equatable {
         var plane: Plane
     }
 
+    // MARK: Retinue
+
+    /// The signs following Leo, oldest first.
+    ///
+    /// Leo's Attracting Aten summons a phantom of another sign, which trails the
+    /// piece and lends its movement, its Zodiaction and its passives. See
+    /// `LeoAttractingAten`.
+    ///
+    /// An array rather than one slot because Terra allows two — and the order is
+    /// load-bearing: a re-roll drops the **oldest** and the rest move up, so the
+    /// line is a queue and the player can predict which one they are about to
+    /// lose.
+    var retinue: [Zodiac] = []
+
+    /// How many phantoms may follow at once, on this plane.
+    ///
+    /// Two below, one above. Terra is where the lion is strong and where the
+    /// board is least forgiving, so the extra body is worth more there — and it
+    /// keeps the ability from being simply better on the plane Leo is already
+    /// comfortable on.
+    static func retinueLimit(on plane: Plane) -> Int {
+        plane == .terra ? 2 : 1
+    }
+
     // MARK: Purse
 
     /// Pentacles Capricorn has banked instead of opening, oldest first.
@@ -390,6 +414,8 @@ struct SignState: Equatable {
         copy.galeMoves = galeMoves
         copy.arrow = arrow
         copy.shedSkin = shedSkin
+        // The retinue is Leo's and nobody else's: a phantom follows the lion,
+        // not whoever happens to be holding the board.
         return copy
     }
 }

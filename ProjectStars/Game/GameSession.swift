@@ -678,6 +678,20 @@ final class GameSession {
     }
     #endif
 
+    /// The phantoms currently following, oldest first.
+    var retinue: [Zodiac] { engine.signState.retinue }
+
+    /// Fires a phantom's Zodiaction. See `GameEngine.planRetinueZodiaction`.
+    func fireRetinueZodiaction(_ follower: Zodiac) {
+        if dismissIntroIfShowing() { return }
+        guard acceptsInput else { return }
+
+        let events = engine.planRetinueZodiaction(follower)
+        guard !events.isEmpty else { return }
+        Haptics.zodiaction()
+        run(events)
+    }
+
     /// Presses the elevator. See `GameEngine.planNexysCall`.
     func callNexys() {
         if dismissIntroIfShowing() { return }
@@ -2238,8 +2252,10 @@ extension GameSession {
     /// buttons — so the diagonals only exist as inputs for a piece that can use
     /// them.
     var availableDirections: Set<SwipeDirection> {
-        let movement = engine.piece.zodiac.passives.adjustedMovement(
-            base: engine.piece.zodiac.movement,
+        // The whole company, so a phantom's diagonal shows up on the stick —
+        // see `GameEngine.activeMovement`.
+        let movement = engine.activePassives.adjustedMovement(
+            base: engine.activeMovement,
             context: engine.passiveSnapshot
         )
         return Set(SwipeDirection.allCases.filter { direction in

@@ -83,6 +83,14 @@ struct MovementPattern: Equatable {
         /// only where it lands.
         var style: MovementStyle
 
+        /// The phantom this option came from, if it is on loan.
+        ///
+        /// Leo's retinue lends its movement — see `LeoAttractingAten` — and
+        /// taking a borrowed move spends the phantom that lent it. The option
+        /// has to remember whose it was, because by the time the move resolves
+        /// the only thing left describing it *is* the option.
+        var owner: Zodiac?
+
         /// When true the move runs until the board runs out, and `distance` is
         /// only a sort key.
         ///
@@ -96,12 +104,14 @@ struct MovementPattern: Equatable {
             _ applies: Applicability,
             distance: Int,
             style: MovementStyle = .slide,
-            reachesWall: Bool = false
+            reachesWall: Bool = false,
+            owner: Zodiac? = nil
         ) {
             self.applies = applies
             self.distance = distance
             self.style = style
             self.reachesWall = reachesWall
+            self.owner = owner
         }
     }
 

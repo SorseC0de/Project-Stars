@@ -258,6 +258,12 @@ enum PanelStyle {
     static let meterCoinSpacing: CGFloat = 3
     static let meterCoinRim: CGFloat = 1.5
 
+    /// A phantom's button. Short, since it sits above the real one.
+    static let retinueButtonHeight: CGFloat = 40
+    static let retinueSpacing: CGFloat = 8
+    static let retinueGlyphSize: CGFloat = 15
+    static let retinueLabelSize: CGFloat = 8
+
     /// The bow, for Sagittarius' recall.
     static let zodiactionRecallGlyphSize: CGFloat = 34
 
@@ -472,6 +478,7 @@ private struct PanelFrontView: View {
                 Spacer(minLength: 0)
                 movementRow
                 Spacer(minLength: 0)
+                retinueRow
                 zodiactionRow
                 #if DEBUG
                 debugZodiacRow
@@ -520,6 +527,46 @@ private struct PanelFrontView: View {
                 .font(.system(size: PanelStyle.chromeGlyphSize, weight: .black))
         }
         .frame(width: PanelStyle.chromeButtonWidth, height: PanelStyle.chromeButtonHeight)
+    }
+
+    // ── Row 2b: the retinue ───────────────────────────────────────────────
+
+    /// A button per phantom, firing its Zodiaction free.
+    ///
+    /// Leo's own button still summons and re-rolls; these are what the summons
+    /// are *for*. Each is in its phantom's elemental colour, matching the figure
+    /// trailing the piece, so the button and the body it belongs to are the same
+    /// thing at a glance.
+    ///
+    /// The row takes no space at all when nothing is following, so eleven signs
+    /// see the panel they have always seen.
+    @ViewBuilder
+    private var retinueRow: some View {
+        if !session.retinue.isEmpty {
+            HStack(spacing: PanelStyle.retinueSpacing) {
+                ForEach(session.retinue, id: \.self) { follower in
+                    CelButton(
+                        tint: ElementFX.ramp(for: follower.element).mid,
+                        acceptsTouch: session.acceptsInput
+                    ) {
+                        Haptics.zodiaction()
+                        session.fireRetinueZodiaction(follower)
+                    } label: {
+                        VStack(spacing: 1) {
+                            Text(follower.definition.glyph)
+                                .font(.system(size: PanelStyle.retinueGlyphSize))
+                            Text(follower.definition.zodiaction.displayName.uppercased())
+                                .font(.system(size: PanelStyle.retinueLabelSize,
+                                              weight: .heavy, design: .rounded))
+                                .lineLimit(1)
+                                .minimumScaleFactor(0.5)
+                        }
+                        .padding(.horizontal, 6)
+                    }
+                    .frame(height: PanelStyle.retinueButtonHeight)
+                }
+            }
+        }
     }
 
     // ── Row 2: movement ───────────────────────────────────────────────────
