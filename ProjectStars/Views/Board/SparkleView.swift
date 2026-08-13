@@ -36,12 +36,23 @@ struct SparkleView: View {
     /// same way, but only one of them may be standing over a hole.
     var tint: Color?
 
+    /// How far the square underneath has drifted, asked once a frame.
+    ///
+    /// A closure rather than a value because the answer changes every frame and
+    /// this view is the only thing here already running a clock. Passing it as a
+    /// number would mean wrapping the sparkles in *another* `TimelineView` to
+    /// keep it fresh — which is exactly what put them a container deep and sent
+    /// them off the board, since `.position` resolves against whatever encloses
+    /// it and a `TimelineView` sizes itself to its content.
+    var sway: (Date) -> CGSize = { _ in .zero }
+
     var body: some View {
         ZStack {
             tileGlow
             placeholder
         }
         .frame(width: size, height: size)
+        .modifier(SparkleSway(sway: sway))
         // Evaluated from the clock rather than driven by a repeating animation,
         // so each sparkle can run at its own rate without needing its own
         // animation state.
@@ -160,6 +171,18 @@ struct SparkleGlyph: Shape {
 // MARK: - SparklePulse
 
 /// Breathes a sparkle in and out on a rate of its own.
+/// Rides the drift of the square underneath, a frame at a time.
+private struct SparkleSway: ViewModifier {
+
+    let sway: (Date) -> CGSize
+
+    func body(content: Content) -> some View {
+        TimelineView(.animation) { timeline in
+            content.offset(sway(timeline.date))
+        }
+    }
+}
+
 private struct SparklePulse: ViewModifier {
 
     let index: Int

@@ -725,7 +725,7 @@ enum GameRules {
     /// unit this is judged in: the answer to "how far does it wander" is a
     /// number of pixels you can see, and expressing it as a proportion of a
     /// cloud that is itself scaled made every adjustment a division sum.
-    static let cloudSpriteShift: CGFloat = 2
+    static let cloudSpriteShift: CGFloat = 1.5
     static let cloudSpriteShiftPeriod: TimeInterval = 13
 
     /// How much a cloud stretches, as a fraction either side of its true size.
@@ -733,7 +733,7 @@ enum GameRules {
     /// Horizontal and vertical run on different periods on purpose: matched,
     /// they read as a single throb, and the point is that a cloud has no fixed
     /// shape.
-    static let cloudSpriteStretch: CGFloat = 0.09
+    static let cloudSpriteStretch: CGFloat = 0.13
     static let cloudSpriteStretchPeriodH: TimeInterval = 6.1
     static let cloudSpriteStretchPeriodV: TimeInterval = 7.9
 
@@ -743,7 +743,7 @@ enum GameRules {
     /// did not realise Astra decayed at all, and could not tell why he was
     /// falling. Fading is the second, blunter signal: a square you can see
     /// through is a square about to go.
-    static let cloudSpriteWearFade: Double = 0.10
+    static let cloudSpriteWearFade: Double = 0.16
 
     /// How far a cloud is shoved aside when something falls past it, in art
     /// pixels, and how long the shove takes to play out.
@@ -782,8 +782,8 @@ enum GameRules {
     /// How many times the bloom is stacked.
     ///
     /// Additive blending saturates towards white rather than clipping, so
-    /// repeating a soft glow is how it gets *bright* instead of merely opaque —
-    /// the same trick `PaletteGlow` uses for the coins.
+    /// repeating a soft glow at widening radii is how it gets *bright* instead
+    /// of merely opaque — the same trick `PaletteGlow` uses for the coins.
     static let cloudSpriteGlowPasses = 3
 
     /// Puffs in one cluster.

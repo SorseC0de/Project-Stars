@@ -79,6 +79,16 @@ struct CloudSpriteView: View {
                     )
             }
         }
+        // Flattened before it blends.
+        //
+        // In the `Canvas` this came from, each pass was one additive draw into a
+        // bounded layer. As plain views, `.plusLighter` applies to each copy
+        // *and* to everything already on the board behind them, so the three
+        // passes lit each other and then lit the sky — the same numbers came out
+        // several times hotter than they went into the canvas. Grouping sums the
+        // passes among themselves first and composites the result once, which is
+        // what the canvas was doing.
+        .compositingGroup()
         .opacity(breath(at: now))
         .blendMode(.plusLighter)
         .allowsHitTesting(false)

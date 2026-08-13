@@ -502,31 +502,26 @@ struct BoardView: View {
     @ViewBuilder
     private func sparkles(metrics: PixelArtMetrics) -> some View {
         if let set = session.visibleSparkles {
-            // Its own clock, because a sparkle marks a *square* and the square
-            // moves. Without this the shimmer stayed nailed to the grid while
-            // the cloud it was marking wandered out from under it.
-            TimelineView(.animation) { timeline in
-                ForEach(Array(set.points.enumerated()), id: \.element) { index, point in
-                    SparkleView(
-                        size: metrics.tileSize,
-                        plane: session.visiblePlane,
-                        index: index,
-                        // Virgo's ring, which plays by different rules and says so.
-                        tint: set.pattern == .ring ? Palette.pink : nil
-                    )
-                        .position(metrics.center(of: point))
-                        .offset(GameRules.sparkleNudge)
-                        .offset(surfaceSway(of: point, at: timeline.date, metrics: metrics))
-                }
-            }
-            // Sized to the board explicitly.
+            // A plain `ForEach`, sitting directly in the board-sized stack.
             //
-            // `.position` places a view within *its container*, and the
-            // `TimelineView` above is a container that sizes itself to its own
-            // content. Without this the sparkles were positioned inside a box
-            // the size of whatever they happened to add up to, and landed
-            // nowhere near the squares they were marking.
-            .frame(width: metrics.boardSize, height: metrics.boardSize)
+            // The drift is handed to the sparkle as a closure and applied inside
+            // its own clock — see `SparkleView.sway`. Wrapping these in a
+            // `TimelineView` to get a fresh offset instead put a container
+            // between them and the board, and `.position` resolves against
+            // whatever encloses it: they were laid out inside a box the size of
+            // whatever they happened to add up to, and landed off the grid.
+            ForEach(Array(set.points.enumerated()), id: \.element) { index, point in
+                SparkleView(
+                    size: metrics.tileSize,
+                    plane: session.visiblePlane,
+                    index: index,
+                    // Virgo's ring, which plays by different rules and says so.
+                    tint: set.pattern == .ring ? Palette.pink : nil,
+                    sway: { surfaceSway(of: point, at: $0, metrics: metrics) }
+                )
+                    .position(metrics.center(of: point))
+                    .offset(GameRules.sparkleNudge)
+            }
             .transition(.opacity)
         }
     }
