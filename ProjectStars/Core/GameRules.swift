@@ -1337,6 +1337,16 @@ enum GameRules {
     /// Radius of one mote, in tiles.
     static let healSparkleSize: CGFloat = 0.055
 
+    /// How hard the tint sits on the square at its strongest.
+    /// How long the whole run of colours takes.
+    ///
+    /// Matched to the motes, so the flash and the shimmer are one event rather
+    /// than two that happen to overlap.
+    static var healFlashDuration: TimeInterval { healSparkleDuration }
+
+    static let healFlashStrength: Double = 0.85
+
+
     /// Most tiles that may shimmer at once.
     ///
     /// Libra's Balancing Breeze can mend an entire board in one event, and one

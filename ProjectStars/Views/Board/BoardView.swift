@@ -86,6 +86,7 @@ struct BoardView: View {
             collectBurst(metrics: metrics)
             elementalBurst(metrics: metrics)
             effectBurst(metrics: metrics)
+            healFlashClouds(plane: plane, metrics: metrics)
             healSparkles(metrics: metrics)
             stingLance(metrics: metrics)
             bankArc(metrics: metrics)
@@ -151,6 +152,50 @@ struct BoardView: View {
                 start: strike.start
             )
             .position(metrics.center(of: strike.from))
+        }
+    }
+
+    /// What each just-mended square is flashing, keyed by square.
+    ///
+    /// Read off the same list the motes come from, so the two halves of a mend
+    /// are one event by construction rather than by two timers agreeing.
+    private var healFlashes: [GridPoint: (ramp: [Color], strength: Double)] {
+        var found: [GridPoint: (ramp: [Color], strength: Double)] = [:]
+        let now = Date()
+
+        for sparkle in session.healSparkles where sparkle.plane == session.visiblePlane {
+            guard let tone = Palette.healFlash(
+                elapsed: now.timeIntervalSince(sparkle.start)
+            ) else { continue }
+            found[sparkle.point] = tone
+        }
+        return found
+    }
+
+    /// Astra's mended squares, drawn as views so the flash can swap their ramp.
+    ///
+    /// The field skips these — a `Canvas` cannot run the palette shader, and a
+    /// flat tint would iron the cloud into a silhouette. Same arrangement as the
+    /// lifted square.
+    @ViewBuilder
+    private func healFlashClouds(plane: Plane, metrics: PixelArtMetrics) -> some View {
+        if plane == .astra, CloudSpriteField.hasArt {
+            let board = session.visibleBoard
+            ForEach(Array(healFlashes.keys), id: \.self) { point in
+                if board.contains(point), board[point].kind == .normal,
+                   !board[point].health.isHole {
+                    CloudSpriteView(
+                        point: point,
+                        health: board[point].health,
+                        metrics: metrics,
+                        clock: session.ambientClock(at:),
+                        wake: cloudWake,
+                        bounce: surfaceBounce,
+                        healFlash: healFlashes[point]
+                    )
+                    .position(metrics.center(of: point))
+                }
+            }
         }
     }
 
@@ -358,6 +403,7 @@ struct BoardView: View {
                         raised: popped,
                         // Whatever is being stood on or hovered over has to stay
                         // clear of its neighbours' overlap.
+                        mending: Set(healFlashes.keys),
                         occupied: occupiedSquares(on: plane, popped: popped),
                         clock: session.ambientClock(at:),
                         wake: cloudWake,
@@ -396,6 +442,7 @@ struct BoardView: View {
                 // drawn by `raisedTile`, so it can depth-sort with the pieces.
                 isPopped: false,
                 isFlashing: session.flashingTiles.contains(point),
+                healFlash: healFlashes[point],
                 isPressed: session.pressedTiles.contains(point),
                 point: point,
                 drawnByField: plane == .astra

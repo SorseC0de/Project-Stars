@@ -151,6 +151,53 @@ enum Palette {
     /// The exclamation struck through an `open` cursor.
     static var cursorWarning: Color { yellow }
 
+    // MARK: - Healing
+
+    /// The ramps a mended square runs through, in order.
+    ///
+    /// Every light entry in the palette bar `cream`, which is the one that reads
+    /// as *dirty* light rather than bright — it is the parchment tone the earthen
+    /// ramp is built on, and it lands as a stain in the middle of a flash that is
+    /// supposed to be a burst of health.
+    ///
+    /// Each is a **three-shade ramp**, lightest first, rather than a single
+    /// colour. A cloud is drawn in four tones and a flat tint would iron it into
+    /// a silhouette; swapping one ramp for another keeps every fold in it and
+    /// moves only the hue.
+    ///
+    /// Running the whole set is the point. Motes alone were too small an event
+    /// for the thing they mark: repair is rare, it is the only good news the
+    /// board ever gives, and a square that riffles through every colour it could
+    /// possibly be is unmistakable from across the screen.
+    static let healFlashRamps: [[Color]] = [
+        [white, lightGray, gray],
+        [ice, cyan, lightBlue],
+        [cyan, lightBlue, blue],
+        [grass, lime, green],
+        [yellowGreen, lime, darkGreen],
+        [sakura, blush, red],
+        [blush, red, darkRed],
+        [lightBlue, blue, darkBlue],
+        [lightGray, gray, darkGray],
+    ]
+
+    /// The ramp a square mended `elapsed` ago should be wearing, and how hard,
+    /// or `nil` once the flash is over.
+    ///
+    /// Stepped rather than blended: this is pixel art, and interpolating between
+    /// palette entries spends most of its time on colours that are not in the
+    /// palette at all.
+    static func healFlash(elapsed: TimeInterval) -> (ramp: [Color], strength: Double)? {
+        guard elapsed >= 0, elapsed < GameRules.healFlashDuration else { return nil }
+
+        let progress = elapsed / GameRules.healFlashDuration
+        let step = min(Int(progress * Double(healFlashRamps.count)), healFlashRamps.count - 1)
+
+        // Fades out across the run, so the square settles into its own colour
+        // rather than snapping back to it.
+        return (healFlashRamps[step], GameRules.healFlashStrength * (1 - progress))
+    }
+
     // MARK: Gameplay elements
 
     /// The shimmer on candidate pickup tiles.

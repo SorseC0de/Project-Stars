@@ -36,6 +36,9 @@ struct CloudSpriteView: View {
     /// A landing pressing this square down, if one is playing.
     var bounce: CloudMotion.Bounce?
 
+    /// A mend running the cloud through the palette, if one is playing.
+    var healFlash: (ramp: [Color], strength: Double)?
+
     /// Recolouring applied to the sprite, if any.
     var swaps: [PaletteSwap] = []
 
@@ -51,18 +54,20 @@ struct CloudSpriteView: View {
                 now: now, impulseNow: wall, wake: wake, bounce: bounce
             )
 
-            let art = recoloured(
+            let art = flashed(recoloured(
                 PixelSprite(id: .astraCloud(.at(point)), frame: motion.frame) { EmptyView() }
                     .frame(width: motion.size.width, height: motion.size.height)
                     .scaleEffect(x: motion.isFlipped ? -1 : 1, y: 1)
-            )
+            ))
 
             art
                 .background { if glows { bloom(art, at: now) } }
-                // Desaturate first, then darken — the other way round darkens
-                // and then washes the darkening out.
-                .saturation(motion.saturation)
-                .colorMultiply(Color(white: motion.luminance))
+                // Wear is suspended for the length of a mend. The drain says
+                // "this square is failing" and the flash says "this square was
+                // just saved" — showing both at once is the board contradicting
+                // itself, and the flash is the newer news.
+                .saturation(healFlash == nil ? motion.saturation : 1)
+                .colorMultiply(Color(white: healFlash == nil ? motion.luminance : 1))
                 .offset(x: motion.offset.width, y: motion.offset.height)
         }
         .allowsHitTesting(false)
@@ -110,6 +115,30 @@ struct CloudSpriteView: View {
         let swell = (sin(phase) + 1) / 2
         return GameRules.cloudSpriteGlowMin
             + (GameRules.cloudSpriteGlowMax - GameRules.cloudSpriteGlowMin) * swell
+    }
+
+    /// The mend, drawn as a second swap on top of whatever the cloud already
+    /// wears.
+    ///
+    /// A ramp for a ramp: the four body tones go to three shades of the flash
+    /// colour, darkest doubled up. Every fold in the cloud survives and only the
+    /// hue moves — which a flat tint cannot do, and which is the whole reason
+    /// this is a swap rather than an overlay.
+    @ViewBuilder
+    private func flashed(_ art: some View) -> some View {
+        if let flash = healFlash, flash.ramp.count >= 3 {
+            art
+                .paletteSwap([
+                    PaletteSwap(Palette.pink, flash.ramp[0]),
+                    PaletteSwap(Palette.magenta, flash.ramp[1]),
+                    PaletteSwap(Palette.darkMagenta, flash.ramp[2]),
+                    PaletteSwap(Palette.purple, flash.ramp[2]),
+                ])
+                .opacity(flash.strength)
+                .background { art.opacity(1 - flash.strength) }
+        } else {
+            art
+        }
     }
 
     @ViewBuilder

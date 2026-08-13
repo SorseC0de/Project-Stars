@@ -32,6 +32,13 @@ struct TileView: View {
     /// True for one beat after this tile changes state, so it can flash.
     var isFlashing: Bool = false
 
+    /// The colour a just-mended square is currently flashing, and how hard.
+    ///
+    /// Runs through every light entry in the palette — see
+    /// `GameRules.healFlashTone(elapsed:)`. Repair is the only good news the
+    /// board ever gives and it wanted an event to match.
+    var healFlash: (ramp: [Color], strength: Double)?
+
     /// True while a sliding piece is passing over this square.
     ///
     /// The tile gives a pixel or so and comes back. A slide crosses ground
@@ -111,6 +118,18 @@ struct TileView: View {
                 Rectangle()
                     .strokeBorder(Palette.textPrimary, lineWidth: size * 0.06)
                     .opacity(isFlashing ? 0.9 : 0)
+            }
+        }
+        .overlay {
+            // The heal flash fills rather than rims. A mend changes what the
+            // square *is*, so the whole face carries it — and additive, so it
+            // brightens the tile instead of painting over it.
+            if let flash = healFlash {
+                Rectangle()
+                    .fill(flash.ramp.first ?? Palette.white)
+                    .opacity(flash.strength)
+                    .blendMode(.plusLighter)
+                    .allowsHitTesting(false)
             }
         }
     }

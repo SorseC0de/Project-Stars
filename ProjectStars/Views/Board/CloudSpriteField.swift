@@ -48,6 +48,13 @@ struct CloudSpriteField: View {
     /// Squares that are lifted, with a Pentacle floating over them.
     var raised: Set<GridPoint> = []
 
+    /// Squares mid-mend, drawn by `CloudSpriteView` instead.
+    ///
+    /// The flash is a palette swap — a ramp for a ramp, so the cloud keeps its
+    /// folds — and a `Canvas` cannot run the shader that does it. Same
+    /// arrangement as the lifted square.
+    var mending: Set<GridPoint> = []
+
     /// Squares with something standing on them.
     ///
     /// These clouds are drawn last **within their own row**: in front of their
@@ -156,6 +163,7 @@ struct CloudSpriteField: View {
             // a real view and can therefore run the palette shader. A `Canvas`
             // cannot, and that square is the only one that needs it.
             guard !raised.contains(point) else { continue }
+            guard !mending.contains(point) else { continue }
             guard let image = resolved[.at(point)] else { continue }
 
             drawCloud(
