@@ -2011,7 +2011,7 @@ enum GameRules {
     // The phantoms Attracting Aten calls. See `RetinueView`.
 
     /// How solid a phantom is. Present, but plainly not the piece.
-    static let retinueOpacity: Double = 0.7
+    static let retinueOpacity: Double = 0.65
 
     /// How solid a follower's own facing arrow is.
     ///
