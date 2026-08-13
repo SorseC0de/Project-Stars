@@ -1271,7 +1271,14 @@ struct GameEngine {
             // the move. Nothing is owed on arrival.
             let timing = piece.zodiac.passives.wearTiming(context: passiveContext)
 
-            if earnsWear, passiveAllows, timing == .onEntry, landed.canBeWorn {
+            // `landed.canBeWorn` is deliberately **not** a condition here.
+            //
+            // It asks whether *this* square can take damage, and for a sign that
+            // redirects its damage elsewhere that is the wrong question: Libra
+            // stepping onto the Nexys owes the flanks a trench either way. The
+            // island's own immunity is enforced inside `applyWear`, where it
+            // belongs.
+            if earnsWear, passiveAllows, timing == .onEntry {
                 result.absorb(applyWear(to: point, on: plane, arrivedByFalling: fellAlready))
             }
 
@@ -1696,7 +1703,6 @@ struct GameEngine {
         }
 
         let tile = self[plane][point]
-        guard tile.canBeWorn else { return result }
 
         let proposal = WearProposal(
             tile: tile,
@@ -1732,7 +1738,7 @@ struct GameEngine {
 
         // The tile underfoot. Several stages resolve to one final state rather
         // than to one event each.
-        if final.stages > 0 {
+        if final.stages > 0, tile.canBeWorn {
             var health = tile.health
             for _ in 0..<final.stages where health != .hole {
                 health = health.damaged
@@ -1742,7 +1748,7 @@ struct GameEngine {
                 result.tilesWorn += 1
                 if health.isHole { result.tilesBroken += 1 }
             }
-        } else if final.stages < 0 {
+        } else if final.stages < 0, tile.canBeRepaired {
             // Negative stages repair — see `WearProposal.stages`.
             var health = tile.health
             for _ in 0..<(-final.stages) where health != .healthy {

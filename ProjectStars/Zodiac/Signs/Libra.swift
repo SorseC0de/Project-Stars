@@ -100,8 +100,10 @@ struct LibraEquitableImpact: ZodiacPassive {
 /// own grain is what makes them feel like two different problems rather than one
 /// problem seen twice.
 ///
-/// Lines containing the Nexys or its chasm are skipped — a structural square has
-/// no wear state to match, so those lines can never be uniform.
+/// A structural square in the line is a **gap**, not a disqualification: the
+/// Nexys has no wear state to match, and treating that as "this line can never
+/// level" exempted a seventh of the board from the ability on whichever plane
+/// the island was sitting on.
 struct LibraAxialAdjudication: ZodiacPassive {
 
     let displayName = "Axial Adjudication"
@@ -109,31 +111,44 @@ struct LibraAxialAdjudication: ZodiacPassive {
 
     func amend(_ events: [GameEvent], context: PassiveContext) -> [GameEvent] {
         let board = context.currentBoard
-        guard let line = uniformLine(on: context.plane, board: board) else { return [] }
+        let restored = uniformLines(on: context.plane, board: board).flatMap { $0 }
+        guard !restored.isEmpty else { return [] }
 
-        let changes = line.reduce(into: [GridPoint: TileHealth]()) { $0[$1] = .healthy }
+        let changes = restored.reduce(into: [GridPoint: TileHealth]()) { $0[$1] = .healthy }
         return [.tilesChanged(plane: context.plane, changes: changes)]
     }
 
-    /// The first line on this plane's axis whose squares all share one damaged
-    /// state.
+    /// **Every** line on this plane's axis that has levelled out, not the first.
     ///
-    /// A line already at full health is ignored: restoring it would be a no-op.
-    private func uniformLine(on plane: Plane, board: Board) -> [GridPoint]? {
-        for index in 0..<board.size {
+    /// One at a time was an artificial cap that only showed up in play: level
+    /// two lines with a single move — which Equitable Impact's twin trenches
+    /// make an ordinary thing to do — and one of them silently did not pay.
+    /// Nothing about the design wanted that; it was where the loop happened to
+    /// `return`.
+    ///
+    /// A line already at full health is skipped, since restoring it is a no-op.
+    private func uniformLines(on plane: Plane, board: Board) -> [[GridPoint]] {
+        (0..<board.size).compactMap { index in
             let line = (0..<board.size).map { other in
                 plane == .terra ? GridPoint(other, index) : GridPoint(index, other)
             }
 
-            guard line.allSatisfy({ board[$0].kind == .normal }) else { continue }
+            // Structural squares are **skipped, not disqualifying**.
+            //
+            // The Nexys has no wear state, so a line through it could never be
+            // uniform — which quietly exempted the middle row and column from
+            // the ability, and on the plane the island is sitting on that is a
+            // seventh of the board dead to it. It reads as a gap in the line
+            // now: the rest still has to agree, and the rest is what mends.
+            let ground = line.filter { board[$0].kind == .normal }
+            guard !ground.isEmpty else { return nil }
 
-            let health = board[line[0]].health
-            guard health != .healthy else { continue }
-            guard line.allSatisfy({ board[$0].health == health }) else { continue }
+            let health = board[ground[0]].health
+            guard health != .healthy else { return nil }
+            guard ground.allSatisfy({ board[$0].health == health }) else { return nil }
 
-            return line
+            return ground
         }
-        return nil
     }
 }
 
