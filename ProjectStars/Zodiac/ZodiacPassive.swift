@@ -379,6 +379,22 @@ struct WearProposal: Equatable {
     /// here rather than needing a separate healing hook.
     var stages: Int
 
+    /// What is doing the damage. Drives how much and how it looks — see
+    /// `WearCause`. Set it through `caused(by:)` rather than directly, so the
+    /// stage count and the identity cannot disagree.
+    var cause: WearCause = .landing
+
+    /// Attributes this damage to `cause`, taking its stage count with it.
+    ///
+    /// The count is the cause's own, resolved for the plane the damage is
+    /// happening on — see `WearCause.stages(on:)`. A passive that wants a
+    /// different number still assigns `stages` afterwards, which is what the
+    /// free footfall does.
+    mutating func caused(by newCause: WearCause) {
+        cause = newCause
+        stages = newCause.stages(on: plane)
+    }
+
     /// The sign's memory, editable — this is where a passive records that it
     /// spent a cooldown or a once-per-visit charge.
     var signState: SignState

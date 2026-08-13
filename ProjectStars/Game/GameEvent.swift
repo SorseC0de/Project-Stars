@@ -5,13 +5,87 @@
 //  The atomic state changes a move is decomposed into.
 //
 
-import Foundation
+import SwiftUI
 /// What is waiting on the player's answer.
 ///
 /// Pentacles were the only thing that could ask a question, which is why the
 /// machinery was named for them. Aquarius' Gone With the Gale picks its own
 /// landing square, and Leo's Rallying Roar will offer a change of sign — so the
 /// asker is now part of the question.
+/// What did the damage, and therefore how much of it and what it looks like.
+///
+/// ## Why the event carries this
+///
+/// Wear used to be an anonymous change of state, and anything that needed to
+/// look different had to work out *who was playing* to decide — the session
+/// asked "is this Aries?" to draw the charge's fire, which was wrong on the day
+/// Leo could borrow Aries' charge and wrong the day two things burned.
+///
+/// A cause is the honest answer: the fire belongs to Brazen Blaze, not to Aries,
+/// and both the amount of damage and the effect drawn over it are properties of
+/// the *cause*. Anything that can be caused by a phantom, an item or a sign at
+/// once should describe itself here rather than be inferred.
+enum WearCause: String, Equatable, Hashable, Codable {
+
+    /// A piece arriving or leaving under its own weight. The overwhelming
+    /// majority, and the only one that is not an effect.
+    case landing
+
+    /// Aries' charge. Burns twice as deep and leaves fire behind it.
+    case brazenBlaze
+
+    /// Taurus' hooves.
+    ///
+    /// One case rather than two, because it is one ability — it simply weighs
+    /// differently depending on where the bull is standing, and the cause is the
+    /// right place to know that. Astra takes it twice over; Terra takes it once,
+    /// and the *first* footfall on a Terra square takes nothing at all, which
+    /// the passive decides because only the passive remembers which squares have
+    /// already been trodden.
+    case hooves
+
+    /// How many stages this takes out of a tile, here.
+    func stages(on plane: Plane) -> Int {
+        switch self {
+        case .landing:
+            GameRules.wearPerLanding
+        case .brazenBlaze:
+            GameRules.wearPerLanding * 2
+        case .hooves:
+            plane == .astra ? GameRules.wearPerLanding * 2 : GameRules.wearPerLanding
+        }
+    }
+
+    /// The strip drawn over each square it touches, if any.
+    var effect: EffectSprite? {
+        switch self {
+        case .landing, .hooves: nil
+        case .brazenBlaze: .blazeTrail
+        }
+    }
+
+    /// Smoke thrown up by the cause itself, and what colour it is.
+    ///
+    /// Green for the free footfall — which is why this asks whether anything
+    /// actually changed. A hoof that scuffed a square and a hoof that broke one
+    /// are the same cause, and only one of them is news.
+    func smokeTint(changedAnything: Bool) -> Color? {
+        self == .hooves && !changedAnything ? Palette.green : nil
+    }
+
+    /// Whether the board shudders under it.
+    func shakes(on plane: Plane) -> Bool {
+        self == .hooves && plane == .astra
+    }
+
+    /// True when this wants drawing even though it changed nothing.
+    ///
+    /// The free footfall is the whole reason this exists: "that step cost you
+    /// nothing" is information, and before there was a cause to hang it on the
+    /// rule was communicated by a tile conspicuously failing to change.
+    var isVisibleWithoutChange: Bool { self == .hooves }
+}
+
 enum ChoiceSource: Equatable, Hashable {
     case pickup(PickupID)
     case zodiaction(Zodiac)
@@ -94,14 +168,18 @@ enum GameEvent: Equatable {
     ///
     /// A repair can appear here too: Sagittarius' Variable Voyager mends a tile
     /// rather than breaking it, and that is still something the landing did.
-    case tilesWorn(plane: Plane, changes: [GridPoint: TileHealth])
+    case tilesWorn(plane: Plane, changes: [GridPoint: TileHealth], cause: WearCause = .landing)
 
     /// The same, for wear charged to the tile being **left** rather than
     /// entered.
     ///
     /// Separate only so it can be paced differently: exit wear is emitted before
     /// the hop, so holding on it delays the move itself.
-    case tilesWornOnExit(plane: Plane, changes: [GridPoint: TileHealth])
+    case tilesWornOnExit(
+        plane: Plane,
+        changes: [GridPoint: TileHealth],
+        cause: WearCause = .landing
+    )
 
     /// A tile was repaired and is now in state `to`.
     case tileHealed(plane: Plane, point: GridPoint, to: TileHealth)

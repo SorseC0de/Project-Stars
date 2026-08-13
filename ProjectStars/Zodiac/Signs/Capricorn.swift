@@ -119,6 +119,15 @@ struct CapricornCelestialCommerce: ZodiacPassive {
     let displayName = "Celestial Commerce"
     let summary = "Astra & Terra: Pentacles are banked instead of opened, and each is worth 1 charge. Spend them with Cosmic Cash-in."
 
+    /// A Pentacle is worth a coin. Nothing else is.
+    ///
+    /// Deliberately tied to having *collected* one rather than to charge in
+    /// general. Capricorn's meter is drawn as coins because it counts coins —
+    /// and once Leo can borrow this, any charge-granting ability in the game
+    /// would otherwise fill the purse without a Pentacle ever being picked up,
+    /// which makes the display a lie and the ability a loophole.
+    ///
+    /// Charge from elsewhere still charges the meter. It simply is not a coin.
     func meterBonus(from move: MoveSummary, context: PassiveContext) -> Int {
         move.collectedPickup == nil ? 0 : 1
     }

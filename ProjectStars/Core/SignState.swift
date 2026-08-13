@@ -387,6 +387,11 @@ struct SignState: Equatable {
         copy.planeFlags = []
         copy.planeArrivalMove = moveCount
 
+        // A borrowed purse goes with the sign that was carrying it — see
+        // `emptyingPurseIfLent(from:)`. Applied before the retinue is cleared,
+        // since it is the retinue that decides whether the purse was on loan.
+        copy = copy.emptyingPurseIfLent(from: self)
+
         // The retinue does not make the journey.
         //
         // The alternative was letting phantoms walk over holes while still
@@ -399,6 +404,24 @@ struct SignState: Equatable {
         // and it is legible before you commit: going down costs you your
         // company. See `GameRules.retinueRefund`.
         copy.retinue = []
+        return copy
+    }
+
+    /// This state with the purse dropped, if it belonged to a phantom.
+    ///
+    /// Capricorn's Celestial Commerce banks coins into `purse`, which lives on
+    /// the *run* rather than on the sign — so a borrowed Capricorn would fill a
+    /// purse that outlived it, and calling another one later would find the
+    /// takings still sitting there. A purse you can stockpile across loans is a
+    /// bank; the phantom is supposed to be a loan.
+    ///
+    /// Leo's own purse would be nonsense — the lion has no Commerce — so this
+    /// only ever fires for a borrowed one, which is exactly the case that needs
+    /// it.
+    func emptyingPurseIfLent(from previous: SignState) -> SignState {
+        guard previous.retinue.contains(.capricorn) else { return self }
+        var copy = self
+        copy.purse = []
         return copy
     }
 

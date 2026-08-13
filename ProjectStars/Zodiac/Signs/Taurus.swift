@@ -70,16 +70,17 @@ struct TaurusHooves: ZodiacPassive {
     func modifyWear(_ proposal: WearProposal, context: PassiveContext) -> WearProposal {
         var hooves = proposal
 
-        switch proposal.plane {
-        case .astra:
-            hooves.stages = proposal.stages * 2
+        // One cause; it knows what it weighs on each plane.
+        hooves.caused(by: .hooves)
 
-        case .terra:
+        if proposal.plane == .terra {
             if proposal.signState.hasPartialWear(at: proposal.point, on: .terra) {
                 // Second footfall: the tile finally gives.
                 hooves.signState.clearPartialWear(at: proposal.point, on: .terra)
             } else {
-                // First footfall only scuffs it.
+                // First footfall only scuffs it. The cause stays the same — this
+                // is still hooves — and taking nothing is what marks it as the
+                // free one.
                 hooves.signState.addPartialWear(at: proposal.point, on: .terra)
                 hooves.stages = 0
             }

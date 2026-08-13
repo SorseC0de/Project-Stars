@@ -550,6 +550,8 @@ struct GameEngine {
         if let lender = move.option.owner, sim.signState.retinue.contains(lender) {
             var released = sim.signState
             released.retinue.removeAll { $0 == lender }
+            // A borrowed Capricorn takes its takings with it.
+            if lender == .capricorn { released.purse = [] }
             commit(.signStateChanged(released))
         }
 
@@ -657,6 +659,10 @@ struct GameEngine {
 
         // Spent first, so anything the super does — including asking a question
         // and suspending — cannot leave the phantom hanging around afterwards.
+        //
+        // The purse is the exception: a borrowed Capricorn has to keep its coins
+        // until the purchase it was popped for has actually resolved, so it is
+        // emptied on the way out of `planChoice` instead.
         var released = sim.signState
         released.retinue.removeAll { $0 == follower }
         commit(.signStateChanged(released))
@@ -1062,8 +1068,8 @@ struct GameEngine {
             case let .tileDamaged(plane, point, _):
                 struck[plane, default: []].insert(point)
             case let .tilesChanged(plane, changes),
-                 let .tilesWorn(plane, changes),
-                 let .tilesWornOnExit(plane, changes):
+                 let .tilesWorn(plane, changes, _),
+                 let .tilesWornOnExit(plane, changes, _):
                 struck[plane, default: []].formUnion(changes.keys)
             default:
                 break
@@ -1872,11 +1878,11 @@ struct GameEngine {
         guard signState.sanctuary != nil || signState.arrow != nil else { return event }
 
         switch event {
-        case let .tilesWorn(plane, changes):
+        case let .tilesWorn(plane, changes, _):
             let kept = permitted(changes, on: plane)
             return kept.isEmpty ? nil : .tilesWorn(plane: plane, changes: kept)
 
-        case let .tilesWornOnExit(plane, changes):
+        case let .tilesWornOnExit(plane, changes, cause):
             let kept = permitted(changes, on: plane)
             return kept.isEmpty ? nil : .tilesWornOnExit(plane: plane, changes: kept)
 
@@ -1996,12 +2002,20 @@ struct GameEngine {
         // arrival, departure, and the extra squares passives add.
         guard !signState.isStarred else { return result }
 
+        // A cause may want saying even when it took nothing — Taurus' free
+        // footfall is the point of the whole mechanism. The square goes in at
+        // the health it already has, so applying the event is a no-op and the
+        // presentation still has somewhere to put the smoke.
+        if changes.isEmpty, final.cause.isVisibleWithoutChange, tile.kind == .normal {
+            changes[point] = tile.health
+        }
+
         guard !changes.isEmpty else { return result }
         // Same rule as everywhere else: a sanctuary refuses the damage, and the
         // event never claims it happened.
         guard let allowed = sheltered(onExit
-            ? .tilesWornOnExit(plane: plane, changes: changes)
-            : .tilesWorn(plane: plane, changes: changes))
+            ? .tilesWornOnExit(plane: plane, changes: changes, cause: final.cause)
+            : .tilesWorn(plane: plane, changes: changes, cause: final.cause))
         else { return result }
         commit(allowed)
 
@@ -2250,6 +2264,16 @@ struct GameEngine {
                 commit(.signStateChanged(state))
             }
             commit(.pickupSpent(id: id))
+
+            // The lender leaves with the rest of its purse. Capricorn goes the
+            // moment the purchase is confirmed rather than the moment the shop
+            // opened, so a phantom is never dismissed for a decision the player
+            // has not made yet.
+            if !sim.signState.purse.isEmpty, !sim.signState.retinue.contains(.capricorn) {
+                var emptied = sim.signState
+                emptied.purse = []
+                commit(.signStateChanged(emptied))
+            }
 
             let effect = PickupCatalog.effect(for: id)
             // A banked coin that still owes a question asks it now, through the
@@ -2611,7 +2635,7 @@ struct GameEngine {
                 self[plane][point].health = health
             }
 
-        case let .tilesWorn(plane, changes), let .tilesWornOnExit(plane, changes):
+        case let .tilesWorn(plane, changes, _), let .tilesWornOnExit(plane, changes, _):
             for (point, health) in changes {
                 self[plane][point].health = health
             }

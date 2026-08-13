@@ -889,16 +889,8 @@ final class GameSession {
             await sleep(event.displayDuration)
             flashingTiles.subtract(changes.keys)
 
-        case let .tilesWornOnExit(plane, changes):
-            // The fire of Brazen Blaze, laid down square by square as the ram
-            // runs. Keyed to the charge actually being under way — keyed to the
-            // *sign*, as it was, every ordinary Aries step that wore its exit
-            // tile lit up as if the super had fired.
-            if isCharging {
-                for point in changes.keys {
-                    playEffect(EffectSprite.blazeTrail, at: point, on: plane)
-                }
-            }
+        case let .tilesWornOnExit(plane, changes, cause):
+            showWear(cause, changes: changes, on: plane)
             disperseClouds(in: changes, on: plane)
             flashingTiles.formUnion(changes.keys)
             withAnimation(.easeOut(duration: GameRules.tileDamageDuration)) {
@@ -907,7 +899,8 @@ final class GameSession {
             await sleep(event.displayDuration)
             flashingTiles.subtract(changes.keys)
 
-        case let .tilesWorn(plane, changes):
+        case let .tilesWorn(plane, changes, cause):
+            showWear(cause, changes: changes, on: plane)
             disperseClouds(in: changes, on: plane)
             flashingTiles.formUnion(changes.keys)
             withAnimation(.easeOut(duration: GameRules.tileDamageDuration)) {
@@ -1161,25 +1154,6 @@ final class GameSession {
             }
             await sleep(hopDuration)
 
-            // Hooves' freebie, and the shudder it costs above.
-            //
-            // Terra: the first footfall on a square only scuffs it, and nothing
-            // said so — the tile simply did not change and the player had to
-            // infer a rule from an absence. Green earth-smoke marks the step
-            // that was free.
-            //
-            // Astra: there is no freebie up there, the opposite in fact —
-            // landings hit twice as hard — so the board takes a knock on every
-            // single step. Weight, expressed as the thing the bull does to the
-            // room rather than to the tile.
-            if zodiac == .taurus {
-                if plane == .terra {
-                    kickUpDust(at: to, on: plane, magnitude: 1, tint: Palette.green)
-                } else {
-                    shake(for: GameRules.taurusStepShake)
-                }
-            }
-
             // Dust on the *landing*, not the launch. Firing it with the step
             // put the puff at the destination before the piece got there.
             kickUpDust(at: to, on: plane, magnitude: 1)
@@ -1219,9 +1193,9 @@ final class GameSession {
             await playLeap()
 
         case let .zodiactionFired(zodiac, plane):
-            // The ram burns for the length of its run. Lit here and put out when
-            // the action finishes, rather than counted in turns — the fire is
-            // the charge, and the charge is one turn long.
+            // The ram burns for the length of its run — the embers on the piece
+            // itself. The fire it *leaves* is drawn from the damage's cause, so
+            // a borrowed charge burns exactly as the real one does.
             if zodiac == .aries { isCharging = true }
             summonConstellation(zodiac, on: plane)
             // Signs whose Zodiaction has been drawn play it; the rest keep the
@@ -1766,8 +1740,8 @@ extension GameSession {
         }
 
         switch event {
-        case let .tilesWorn(plane, changes): report("worn", plane, changes)
-        case let .tilesWornOnExit(plane, changes): report("exit", plane, changes)
+        case let .tilesWorn(plane, changes, _): report("worn", plane, changes)
+        case let .tilesWornOnExit(plane, changes, cause): report("exit", plane, changes)
         case let .tileDamaged(plane, point, to): report("damaged", plane, [point: to])
         case let .tilesChanged(plane, changes): report("changed", plane, changes)
         case let .pieceFell(from, to, at): print("[wear] fell \(from)->\(to) at \(at)")
@@ -1805,7 +1779,7 @@ extension GameSession {
         case let .tilesChanged(plane, changes):
             for (point, health) in changes { check(point, plane, health) }
 
-        case let .tilesWorn(plane, changes), let .tilesWornOnExit(plane, changes):
+        case let .tilesWorn(plane, changes, _), let .tilesWornOnExit(plane, changes, _):
             // Wear events can carry a repair: Virgo's compensation mends one
             // square in the same breath as damaging another.
             for (point, health) in changes { check(point, plane, health) }
@@ -1855,6 +1829,34 @@ extension GameSession {
         Task { [weak self] in
             try? await Task.sleep(nanoseconds: UInt64(duration * 1_000_000_000))
             self?.shakeStartedAt = nil
+        }
+    }
+
+    /// Draws whatever the cause of some damage looks like.
+    ///
+    /// One place, asking the *cause* rather than the sign. It used to ask "is
+    /// this Aries?" and "is this Taurus?", which was already wrong the day Leo
+    /// could borrow either of them and would have been wrong again the first
+    /// time two things burned. What a hoof looks like belongs to the hoof.
+    private func showWear(
+        _ cause: WearCause,
+        changes: [GridPoint: TileHealth],
+        on plane: Plane
+    ) {
+        if let strip = cause.effect {
+            for point in changes.keys { playEffect(strip, at: point, on: plane) }
+        }
+
+        if cause.shakes(on: plane) { shake(for: GameRules.taurusStepShake) }
+
+        // Read against the board as it still stands: this runs before the event
+        // is applied, so a square listed at the health it already has is a
+        // square nothing happened to.
+        let changed = changes.contains { engine[plane][$0.key].health != $0.value }
+
+        if let tint = cause.smokeTint(changedAnything: changed),
+           let point = changes.keys.first {
+            kickUpDust(at: point, on: plane, magnitude: 1, tint: tint)
         }
     }
 

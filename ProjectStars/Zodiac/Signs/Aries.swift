@@ -194,10 +194,23 @@ struct AriesBrazenBlaze: Zodiaction {
             // ability — the ram is already gone by the time the ground gives.
             let leaving = board[from]
             if leaving.canBeWorn {
-                let scorched = leaving.health.damaged.damaged
+                // The cause carries both the depth and the fire — see
+                // `WearCause`. Writing "two stages" here and drawing the flame
+                // somewhere else is how the trail ended up keyed to the sign
+                // rather than to the charge.
+                var scorched = leaving.health
+                for _ in 0..<WearCause.brazenBlaze.stages(on: context.plane)
+                where scorched != .hole {
+                    scorched = scorched.damaged
+                }
+
                 board[from].health = scorched
                 events.append(
-                    .tilesWornOnExit(plane: context.plane, changes: [from: scorched])
+                    .tilesWornOnExit(
+                        plane: context.plane,
+                        changes: [from: scorched],
+                        cause: .brazenBlaze
+                    )
                 )
             }
 
