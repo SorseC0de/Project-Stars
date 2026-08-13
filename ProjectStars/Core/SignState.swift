@@ -207,7 +207,12 @@ struct SignState: Equatable {
 
     /// A small sun hanging over one square.
     struct Sun: Equatable {
-        /// The square it burns over. It does not move once placed.
+        /// The square it is over.
+        ///
+        /// It used to be planted and left, back when the Aten's job was to drag
+        /// coins toward a fixed point. With the rework it follows Leo — see
+        /// `LeoAttractingAten` — so this is updated as the lion moves rather
+        /// than being written once.
         var point: GridPoint
         var plane: Plane
 

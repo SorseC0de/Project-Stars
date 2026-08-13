@@ -31,6 +31,9 @@ struct RetinueView: View {
     /// Size of a board cell, in points.
     let tileSize: CGFloat
 
+    /// Which way the lion is looking, so the line forms behind it.
+    let facing: SwipeDirection
+
     /// Whole-pixel scale, for art-pixel offsets.
     let scale: CGFloat
 
@@ -60,9 +63,18 @@ struct RetinueView: View {
             // Matches `PieceView`'s figure box, so the phantom stands on the
             // ground rather than hovering over it.
             .offset(y: -tileSize / 2 - GameRules.pieceLift * scale)
+            // Behind the lion, which is a direction rather than a corner.
+            //
+            // They used to trail off to the lower right whatever was happening,
+            // so walking east put the retinue in front of the piece — a line of
+            // followers leading the thing they follow. `behind` is simply the
+            // reverse of the facing, and the whole column shifts when the lion
+            // turns.
             .offset(
-                x: CGFloat(step + 1) * GameRules.retinueTrail * scale,
-                y: CGFloat(step + 1) * GameRules.retinueTrail * scale * 0.4
+                x: -CGFloat(facing.unitOffset.dx) * CGFloat(step + 1)
+                    * GameRules.retinueTrail * scale,
+                y: -CGFloat(facing.unitOffset.dy) * CGFloat(step + 1)
+                    * GameRules.retinueTrail * scale
             )
             .allowsHitTesting(false)
     }

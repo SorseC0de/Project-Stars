@@ -110,7 +110,12 @@ struct BoardObject: Identifiable, Equatable {
 
         // Above the tile face — otherwise the raised tile would hide it — but
         // behind everything standing on that tile.
-        case .cursorBack: return 1
+        //
+        // Except on the island, which is a 48x48 sprite tall enough to swallow
+        // the brackets whole. While the player is aiming *at* the Nexys that
+        // makes the one square they are looking at the one they cannot see, so
+        // there it goes in front.
+        case .cursorBack: return point == GameRules.nexysPoint ? 5 : 1
 
         case .raisedTile: return 0
         case .pentacle: return sweeping ? 5 : 2

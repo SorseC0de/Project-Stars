@@ -2263,6 +2263,18 @@ struct GameEngine {
         // the piece, not leave it hovering. Astral Blaze used to do exactly that.
         let moved = piece.plane != planeBefore || piece.point != pointBefore
         let groundGone = !self[piece.plane][piece.point].isSolid
+
+        // Being carried breaks a straight line.
+        //
+        // Aries' Six Singe pays for crossing the board under your own power, and
+        // an Astral Brook that sweeps you the width of it is the opposite of
+        // that — it is the board doing the crossing. Worse, the Brook reverses
+        // at a wall, so the ride could arrive pointing the way the streak was
+        // going and quietly finish it off.
+        if moved, piece.plane == planeBefore {
+            signState.streakDirection = nil
+            signState.streakLength = 0
+        }
         if settleAfter, moved || groundGone, !isGameOver {
             let landing = settle(
                 arrivedByFalling: false,
@@ -2683,6 +2695,17 @@ struct GameEngine {
             pendingPickup = nil
 
         case let .moveCommitted(direction):
+            // The Aten travels with the lion.
+            //
+            // Kept here rather than in the passive because it is not a decision,
+            // it is a fact about where the sun is — and a passive that has to be
+            // consulted every move to restate an unchanged rule is a passive
+            // waiting to be forgotten on the move somebody adds next.
+            if signState.sun != nil, piece.zodiac == .leo {
+                signState.sun?.point = piece.point
+                signState.sun?.plane = piece.plane
+            }
+
             piece.facing = direction
             moveCount += 1
 

@@ -1129,6 +1129,7 @@ struct BoardView: View {
             RetinueView(
                 zodiac: follower,
                 tileSize: metrics.tileSize,
+                facing: session.engine.piece.facing,
                 scale: metrics.scale,
                 step: step
             )

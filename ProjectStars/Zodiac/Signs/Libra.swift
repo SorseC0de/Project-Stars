@@ -84,21 +84,20 @@ struct LibraEquitableImpact: ZodiacPassive {
 
 // MARK: - Passive 2: Axial Adjudication
 
-/// A line at one uniform wear is fully restored — **rows** on Terra, **columns**
-/// on Astra.
+/// Any line at one uniform wear is fully restored — rows and columns, on both
+/// planes.
 ///
-/// ## Why the axis is fixed to the plane
+/// ## Why it is not one axis per plane
 ///
-/// It used to alternate: a row paid out, then the next payout had to be a
-/// column. That is a rule about *history*, and history is the one thing a board
-/// cannot show you — the player had to remember which one went last to know
-/// what they were building toward.
+/// It was, and before that it alternated. Alternating is a rule about *history*,
+/// which is the one thing a board cannot show you. Fixing an axis to each plane
+/// fixed that but cost something worse: half of every board became scenery, and
+/// the player carried "which grain am I on" around while doing the real work of
+/// levelling seven squares.
 ///
-/// Nailing each axis to a plane says the same thing on the board itself. On
-/// Terra you are levelling rows; go up and you are levelling columns. Libra now
-/// keeps two boards at once (see `LibraJudicatorElevator`), and giving each its
-/// own grain is what makes them feel like two different problems rather than one
-/// problem seen twice.
+/// Both axes everywhere is one rule rather than two, it reads off the board
+/// without being remembered, and it makes the good move possible — a pair of
+/// trenches that finishes a row and a column in the same breath.
 ///
 /// A structural square in the line is a **gap**, not a disqualification: the
 /// Nexys has no wear state to match, and treating that as "this line can never
@@ -107,18 +106,18 @@ struct LibraEquitableImpact: ZodiacPassive {
 struct LibraAxialAdjudication: ZodiacPassive {
 
     let displayName = "Axial Adjudication"
-    let summary = "Terra: a row at one uniform wear is fully restored. Astra: a column."
+    let summary = "Astra & Terra: any row or column at one uniform wear is fully restored."
 
     func amend(_ events: [GameEvent], context: PassiveContext) -> [GameEvent] {
         let board = context.currentBoard
-        let restored = uniformLines(on: context.plane, board: board).flatMap { $0 }
+        let restored = uniformLines(board: board).flatMap { $0 }
         guard !restored.isEmpty else { return [] }
 
         let changes = restored.reduce(into: [GridPoint: TileHealth]()) { $0[$1] = .healthy }
         return [.tilesChanged(plane: context.plane, changes: changes)]
     }
 
-    /// **Every** line on this plane's axis that has levelled out, not the first.
+    /// **Every** line that has levelled out, not the first one found.
     ///
     /// One at a time was an artificial cap that only showed up in play: level
     /// two lines with a single move — which Equitable Impact's twin trenches
@@ -127,11 +126,23 @@ struct LibraAxialAdjudication: ZodiacPassive {
     /// `return`.
     ///
     /// A line already at full health is skipped, since restoring it is a no-op.
-    private func uniformLines(on plane: Plane, board: Board) -> [[GridPoint]] {
-        (0..<board.size).compactMap { index in
-            let line = (0..<board.size).map { other in
-                plane == .terra ? GridPoint(other, index) : GridPoint(index, other)
-            }
+    private func uniformLines(board: Board) -> [[GridPoint]] {
+        // Rows *and* columns, on both planes.
+        //
+        // One axis per plane was a nice idea that played badly: it meant half of
+        // every board was scenery, and the player had to hold "which grain am I
+        // on" in their head while doing the actual arithmetic of levelling seven
+        // squares. Both axes everywhere is one rule instead of two, and it makes
+        // the good move — a trench that finishes a row and a column at once —
+        // possible rather than theoretical.
+        let lines: [[GridPoint]] = (0..<board.size).flatMap { index in
+            [
+                (0..<board.size).map { GridPoint($0, index) },
+                (0..<board.size).map { GridPoint(index, $0) },
+            ]
+        }
+
+        return lines.compactMap { line in
 
             // Structural squares are **skipped, not disqualifying**.
             //

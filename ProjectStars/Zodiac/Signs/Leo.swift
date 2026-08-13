@@ -260,6 +260,19 @@ struct LeoAttractingAten: Zodiaction {
 
         state.retinue.append(summoned)
 
+        // The Aten rides overhead.
+        //
+        // It used to be planted on a square in front and left there, which made
+        // it a thing on the board rather than a thing about Leo — and with the
+        // rework it no longer pulls anything, so a fixed sun was a light with no
+        // job. Following the lion is what it is *for* now: it is the sign the
+        // summon is active, and it should be wherever the player is looking.
+        state.sun = SignState.Sun(
+            point: context.piecePoint,
+            plane: context.plane,
+            movesRemaining: GameRules.sunMoves
+        )
+
         // A re-roll drops the **oldest**, not the newest, and the rest move up.
         // The line is a queue, so the player always knows which one they are
         // about to spend — calling again while full is a trade rather than a
