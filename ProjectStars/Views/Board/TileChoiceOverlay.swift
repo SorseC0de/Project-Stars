@@ -144,33 +144,11 @@ struct TileChoiceOverlay: View {
                     }
             }
 
-            if session.choiceIsDeclinable {
-                declineButton
-            }
         }
         .frame(width: metrics.boardSize, height: metrics.boardSize)
         .animation(.easeInOut(duration: 0.7).repeatForever(autoreverses: true), value: pulse)
         .onAppear { pulse = true }
         .transition(.opacity)
-    }
-
-    /// The way to walk past an offer.
-    ///
-    /// Sits over the middle of the board, which is the one place no offer's
-    /// candidates have ever been — Corner Current's are the four corners, and
-    /// anything else declinable will be similarly peripheral by nature, since
-    /// an offer worth refusing is an offer to *go somewhere*.
-    private var declineButton: some View {
-        Text("STAY")
-            .font(.system(size: 12, weight: .heavy, design: .monospaced))
-            .tracking(3)
-            .foregroundStyle(Palette.textPrimary)
-            .padding(.horizontal, 16)
-            .padding(.vertical, 9)
-            .background(Capsule().fill(Palette.warmBlack.opacity(0.85)))
-            .overlay(Capsule().strokeBorder(accent.opacity(0.8), lineWidth: 1.5))
-            .contentShape(Capsule())
-            .onTapGesture { session.resolvePickupChoice(.declined) }
     }
 
     /// Which squares to light up.

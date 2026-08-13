@@ -1757,6 +1757,10 @@ enum GameRules {
     /// effects undimmed says which part of it is the thought.
     static let actionDim: Double = 0.10
 
+    /// How far the board is dimmed while it waits on an answer. See
+    /// `BoardView.choiceDim`.
+    static let choiceDim: Double = 0.34
+
     /// How many squares a hop must cover to count as a leap worth drawing —
     /// Sagittarius' full bound rather than any long step.
     /// How far a move has to carry to count as a *bound* and throw its strip.

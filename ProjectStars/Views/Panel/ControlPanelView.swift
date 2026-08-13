@@ -145,6 +145,7 @@ enum PanelStyle {
     static let gridPadConfirmWidth: CGFloat = 64
     static let gridPadConfirmHeight: CGFloat = 64
     static let gridPadCheckSize: CGFloat = 26
+    static let gridPadDeclineSize: CGFloat = 12
 
     /// The four stops only Virgo has.
     static let guideDiagonalLit = Palette.pink

@@ -79,7 +79,15 @@ struct GridPadView: View {
         HStack(alignment: .center, spacing: PanelStyle.gridPadGap) {
             grid(board: board, cell: cell, reach: reach)
 
-            confirmButton(reach: reach)
+            VStack(spacing: PanelStyle.gridPadGap) {
+                confirmButton(reach: reach)
+
+                // An offer that can be walked away from says so down here, next
+                // to the button that accepts it. It used to sit over the middle
+                // of the board, which is the one place nothing is allowed to be
+                // pressed.
+                if session.choiceIsDeclinable { declineButton }
+            }
         }
         .frame(height: side)
         // A question about a square is a different question from "where do you
@@ -170,6 +178,20 @@ struct GridPadView: View {
                 .font(.system(size: PanelStyle.gridPadCheckSize, weight: .black))
         }
         .frame(width: PanelStyle.gridPadConfirmWidth, height: PanelStyle.gridPadConfirmHeight)
+    }
+
+    /// The way to walk past an offer. See `PickupChoice.among`.
+    private var declineButton: some View {
+        CelButton(tint: Palette.stone) {
+            session.resolvePickupChoice(.declined)
+        } label: {
+            Text("STAY")
+                .font(.system(size: PanelStyle.gridPadDeclineSize,
+                              weight: .heavy, design: .monospaced))
+                .tracking(1)
+        }
+        .frame(width: PanelStyle.gridPadConfirmWidth,
+               height: PanelStyle.gridPadConfirmHeight * 0.7)
     }
 
     // MARK: - Behaviour

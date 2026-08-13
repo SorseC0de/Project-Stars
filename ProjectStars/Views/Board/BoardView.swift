@@ -42,6 +42,7 @@ struct BoardView: View {
             // Over the ground, under everything that moves: the piece, the
             // coins and the move's own effects all sit above this and stay lit.
             actionDim(metrics: metrics)
+            choiceDim(metrics: metrics)
 
             pools(board: board, plane: plane, metrics: metrics)
             shedSkin(plane: plane, metrics: metrics)
@@ -242,6 +243,21 @@ struct BoardView: View {
             )
             .frame(width: metrics.boardSize, height: metrics.boardSize)
         }
+    }
+
+    /// The wash that says the board is waiting on an answer.
+    ///
+    /// Purple, and deeper than the action dim, because it means something
+    /// different: an action is over in a moment and this is not over until the
+    /// player does something. Without it the controls simply stop working and
+    /// there is nothing on screen saying why — the commonest way a game feels
+    /// broken when it is merely waiting.
+    private func choiceDim(metrics: PixelArtMetrics) -> some View {
+        Rectangle().fill(Palette.midnight)
+            .frame(width: metrics.boardSize, height: metrics.boardSize)
+            .opacity(session.isChoosingTile ? GameRules.choiceDim : 0)
+            .animation(.easeOut(duration: 0.18), value: session.isChoosingTile)
+            .allowsHitTesting(false)
     }
 
     /// The wash that says the board is mid-move.

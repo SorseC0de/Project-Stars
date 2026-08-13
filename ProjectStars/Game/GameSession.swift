@@ -555,6 +555,11 @@ final class GameSession {
         // input is spent doing it.
         if dismissIntroIfShowing() { return }
 
+        // While a question is open, movement steers the answer instead of the
+        // piece. Same keys, same stick, same buttons — there is only ever one
+        // thing on screen asking to be pointed at.
+        if nudgeTarget(direction) { return }
+
         // `acceptsInput` rather than `phase` alone: it is the one place that
         // knows about pausing, first-encounter splashes and parked Pentacles, and
         // a second guard that only checked `phase` would quietly diverge from it.
@@ -1473,7 +1478,13 @@ final class GameSession {
         source: ChoiceSource,
         kind: PickupChoice
     ) async -> PickupChoiceResult {
-        targetAim = nil
+        // The cursor does not jump home when it is asked a question.
+        //
+        // It was already pointing somewhere — at whatever the piece was aimed
+        // at — and that is very often the square the player wants. Starting at
+        // the piece's own cell throws away a decision they had already half
+        // made, and on a seven-wide board that is up to six taps to undo.
+        targetAim = engine.cursor(direction: nil, reach: 0).point
         pendingPickupChoice = (source, kind)
         return await withCheckedContinuation { continuation in
             choiceContinuation = continuation
@@ -2014,7 +2025,10 @@ extension GameSession {
     /// false precisely *because* the splash is up, left it on screen with no way
     /// to put it away.
     var acceptsGesture: Bool {
-        acceptsInput || pentacleIntro != nil
+        // A question counts too: the stick and the pad steer the *aim* while one
+        // is open, so they have to be live enough to report a direction even
+        // though no move will be played.
+        acceptsInput || pentacleIntro != nil || isChoosingTile
     }
 
     /// True while the player is being asked to pick a square on the board.
@@ -2040,6 +2054,22 @@ extension GameSession {
         // A free tile question takes anything, holes included — that is the
         // whole of Astral Breeze.
         return isChoosingTile
+    }
+
+    /// Steps the aim one square, and reports whether it took the input.
+    ///
+    /// Clamped rather than wrapped, and it consumes the press either way: a
+    /// cursor that fell off the east edge and reappeared in the west would be
+    /// unreadable, and one that let the keystroke through to the piece would
+    /// move the piece while the player thought they were aiming.
+    @discardableResult
+    func nudgeTarget(_ direction: SwipeDirection) -> Bool {
+        guard isChoosingTile else { return false }
+
+        let from = targetAim ?? engine.piece.point
+        let next = from.offset(by: direction.unitOffset)
+        if engine.currentBoard.contains(next) { targetAim = next }
+        return true
     }
 
     /// Moves the aim. Ignored when nothing is being asked.
