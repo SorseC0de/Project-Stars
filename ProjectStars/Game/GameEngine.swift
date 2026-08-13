@@ -2763,6 +2763,30 @@ struct GameEngine {
             piece.zodiac = zodiac
             zodiactionMeter = min(zodiactionMeter, zodiactionMeterMax)
 
+            // Becoming Capricorn turns the charge you were carrying into coins.
+            //
+            // Capricorn's meter *is* its purse, so arriving with a full one and
+            // an empty belt gives a sign whose Zodiaction is "spend a coin" no
+            // coin to spend — a full, unusable super, which reads as broken
+            // rather than as unlucky. The charge is not lost, it is converted at
+            // one Pentacle a pip.
+            //
+            // The top-up is the part worth explaining. A conversion that lands
+            // exactly on a full meter would be the same dead end one step later,
+            // so a full purse is seeded with Astral Blossoms and anything short
+            // of it with Tears: the first pop always does something, and
+            // which something depends on how much was brought across. None of
+            // this is player-facing — it is the seam being hidden.
+            if zodiac == .capricorn, signState.purse.isEmpty, zodiactionMeter > 0 {
+                let coins = min(zodiactionMeter, zodiactionMeterMax)
+                let full = coins >= zodiactionMeterMax
+
+                signState.purse = Array(
+                    repeating: full ? .astralBlossom : .restoreTile,
+                    count: max(coins, 1)
+                )
+            }
+
         case let .choiceRequested(source, kind):
             pendingChoice = (source, kind)
 

@@ -242,6 +242,13 @@ enum PanelStyle {
 
     /// Height of the fire button, and the gap between its stacked lines.
     static let zodiactionButtonHeight: CGFloat = 78
+
+    /// The full height of the Zodiaction row, which the lift panel sits above.
+    ///
+    /// Named separately from the button's own height so the two can diverge —
+    /// the row already carries padding the button does not know about, and a
+    /// panel positioned off the button alone drifts into it.
+    static var zodiactionRowHeight: CGFloat { zodiactionButtonHeight }
     static let zodiactionStackSpacing: CGFloat = 5
 
     /// The small word above the name, and the name itself.
@@ -519,9 +526,15 @@ private struct PanelFrontView: View {
             if session.showsNexysCall {
                 NexysCallView(session: session)
                     .padding(.leading, PanelStyle.padding)
-                    .padding(.bottom, PanelStyle.zodiactionButtonHeight
-                        + PanelStyle.rowSpacing
-                        + PanelStyle.padding)
+                    // Measured off the row it has to clear rather than guessed.
+                    //
+                    // A hand-totalled offset is right on exactly one device: it
+                    // was overlapping everywhere except a Pro Max at Display
+                    // Zoom, which is the size it happened to be tuned against.
+                    // Aligning to the Zodiaction row's own height means it moves
+                    // when that row does.
+                    .padding(.bottom, PanelStyle.zodiactionRowHeight
+                        + PanelStyle.rowSpacing * 2)
             }
         }
         .overlay(alignment: .trailing) {
