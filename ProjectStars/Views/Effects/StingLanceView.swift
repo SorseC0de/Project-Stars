@@ -74,7 +74,7 @@ struct StingLanceView: View {
         guard elapsed >= 0, elapsed <= life else { return 0 }
 
         let progress = elapsed / life
-        let out = 0.35
+        let out = GameRules.stingAttack
         return progress < out
             ? CGFloat(progress / out)
             : CGFloat(1 - (progress - out) / (1 - out))

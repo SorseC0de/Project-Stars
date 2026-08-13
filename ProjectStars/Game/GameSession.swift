@@ -289,6 +289,17 @@ final class GameSession {
     /// run rather than for a fixed number of turns afterwards.
     private(set) var isCharging = false
 
+    /// A coin on its way in to the piece, if one is being reeled.
+    private(set) var coinFlight: CoinFlight?
+
+    /// One coin travelling to the piece.
+    struct CoinFlight: Equatable {
+        let id: PickupID
+        let from: GridPoint
+        let plane: Plane
+        let start: Date
+    }
+
     /// Scorpio's tail, mid-strike. See `StingLanceView`.
     private(set) var stingStrike: StingStrike?
 
@@ -514,6 +525,7 @@ final class GameSession {
         elementalBurst = nil
         effectBursts = []
         healSparkles = []
+        coinFlight = nil
         leapStartedAt = nil
         surfaceBounce = nil
         cloudWake = nil
@@ -665,6 +677,31 @@ final class GameSession {
         run(events)
     }
     #endif
+
+    /// Presses the elevator. See `GameEngine.planNexysCall`.
+    func callNexys() {
+        if dismissIntroIfShowing() { return }
+        guard acceptsInput, engine.canCallNexys else { return }
+
+        let events = engine.planNexysCall()
+        guard !events.isEmpty else { return }
+        Haptics.zodiaction()
+        run(events)
+    }
+
+    /// Whether the lift is showing at all, and whether it will answer.
+    var showsNexysCall: Bool {
+        engine.piece.zodiac.passives.ridesNexysDown(context: engine.passiveSnapshot)
+    }
+
+    var canCallNexys: Bool { engine.canCallNexys }
+
+    /// Which way the lift would go if it were pressed.
+    var nexysCallDestination: Plane {
+        engine.nexysPlane != engine.piece.plane
+            ? engine.piece.plane
+            : engine.piece.plane.opposite
+    }
 
     /// One square the way the piece is already looking.
     ///
@@ -903,7 +940,23 @@ final class GameSession {
                 start: .now
             )
             engine.apply(event)
-            await sleep(event.displayDuration)
+
+            // Only the lunge is waited out here. Whatever the tail caught is the
+            // next event, so pausing for the full strike would take the coin
+            // *after* the tail had already come back — and pausing for none of
+            // it took the coin before the tail had left. The rest of the strike
+            // plays underneath the reel.
+            await sleep(event.displayDuration * GameRules.stingAttack)
+
+        case let .pickupGathered(id, plane, point):
+            // Reeled in rather than vanishing. Everything that sweeps a coin up
+            // does it this way — the sting, a slide crossing one, Leo's pull —
+            // so the coin is always seen *going somewhere* rather than simply
+            // ceasing to be on the board.
+            coinFlight = CoinFlight(id: id, from: point, plane: plane, start: .now)
+            engine.apply(event)
+            await sleep(GameRules.stingReelDuration)
+            coinFlight = nil
             stingStrike = nil
 
         case let .pickupBanked(id, plane, point):

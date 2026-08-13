@@ -1423,6 +1423,21 @@ enum GameRules {
     /// has to stay readable underneath it.
     static let stingOpacity: Double = 0.55
 
+    /// How long a coin takes to be reeled in along the tail.
+    ///
+    /// The gather used to be instantaneous and fired before the lance had
+    /// finished extending, so the Pentacle vanished while the tail was still on
+    /// its way out — the ability read as "coins near you disappear", which is
+    /// not what it does at all.
+    static let stingReelDuration: TimeInterval = 0.22
+
+    /// How much of the strike is the lunge, the rest being the withdrawal.
+    ///
+    /// Shared with the session, which waits out exactly this much before it lets
+    /// anything be gathered: the tail has to be *there* before it can take
+    /// something.
+    static let stingAttack: Double = 0.35
+
     /// Capricorn's purse, in Pentacles, on each plane.
     ///
     /// Lower on Terra: the earth sign is at home down there, so the price of

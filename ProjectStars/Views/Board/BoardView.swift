@@ -90,6 +90,7 @@ struct BoardView: View {
             healFlashClouds(plane: plane, metrics: metrics)
             healSparkles(metrics: metrics)
             stingLance(metrics: metrics)
+            reeledCoin(metrics: metrics)
             bankArc(metrics: metrics)
 
             // Hides the instant the planes swap during an ascent.
@@ -151,6 +152,43 @@ struct BoardView: View {
             .position(metrics.center(of: skin.point))
             .allowsHitTesting(false)
             .transition(.opacity)
+        }
+    }
+
+    /// A coin being drawn in to the piece.
+    ///
+    /// Travels the straight line between where it was and where the piece is,
+    /// shrinking as it arrives — so a swept Pentacle is visibly *taken* rather
+    /// than deleted from the square it was sitting on.
+    @ViewBuilder
+    private func reeledCoin(metrics: PixelArtMetrics) -> some View {
+        if let flight = session.coinFlight, flight.plane == session.visiblePlane {
+            TimelineView(.animation) { timeline in
+                let progress = min(
+                    max(timeline.date.timeIntervalSince(flight.start)
+                        / GameRules.stingReelDuration, 0),
+                    1
+                )
+                // Eased, so it leaves quickly and settles rather than sliding at
+                // a constant rate like a dragged object.
+                let eased = CGFloat(progress * progress * (3 - 2 * progress))
+
+                let from = metrics.center(of: flight.from)
+                let to = metrics.center(of: session.engine.piece.point)
+
+                PentacleView(
+                    appearance: PickupCatalog.effect(for: flight.id).appearance,
+                    size: metrics.tileSize,
+                    scale: metrics.scale
+                )
+                .scaleEffect(1 - eased * 0.45)
+                .position(
+                    x: from.x + (to.x - from.x) * eased,
+                    y: from.y + (to.y - from.y) * eased
+                )
+            }
+            .frame(width: metrics.boardSize, height: metrics.boardSize)
+            .allowsHitTesting(false)
         }
     }
 

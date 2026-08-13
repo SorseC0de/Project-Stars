@@ -552,6 +552,65 @@ struct GameEngine {
         return events
     }
 
+    /// Calls the island, or rides it.
+    ///
+    /// Libra's Judicator Elevator, as a button rather than as a thing that
+    /// happens when you stand somewhere. Two states and no third:
+    ///
+    /// - The island is on the **other** plane: it comes here. Nothing else
+    ///   moves.
+    /// - Libra is standing **on** it: it goes, and takes her with it.
+    ///
+    /// Deliberately not a toggle. An island on this plane that Libra is not
+    /// standing on does nothing at all when the button is pressed — otherwise
+    /// the sensible play is to sit still and flap it back and forth, which is
+    /// neither a decision nor something anybody enjoys watching.
+    ///
+    /// Both count as a turn, for the same reason a Zodiaction does: the board
+    /// changed because the player asked it to.
+    mutating func planNexysCall() -> [GameEvent] {
+        guard !isGameOver, canCallNexys else { return [] }
+
+        var sim = self
+        defer { self.rng = sim.rng }
+
+        var events: [GameEvent] = []
+        func commit(_ event: GameEvent) {
+            events.append(event)
+            sim.apply(event)
+        }
+
+        let planeBefore = sim.piece.plane
+
+        for reveal in sim.rollPickupReveal(destination: sim.piece.point) { commit(reveal) }
+        commit(.moveCommitted(direction: sim.piece.facing))
+
+        if sim.nexysPlane != sim.piece.plane {
+            commit(.nexysMoved(to: sim.piece.plane, carryingPiece: false))
+        } else {
+            commit(.nexysMoved(to: sim.piece.plane.opposite, carryingPiece: true))
+        }
+
+        if !sim.isGameOver {
+            events += sim.settle(arrivedByFalling: false, wearsOnArrival: false).events
+        }
+
+        events += sim.tickForTurn()
+        events += sim.ensurePentacleAvailable(previousPlane: planeBefore, after: events)
+        return events
+    }
+
+    /// Whether the lift will answer right now.
+    var canCallNexys: Bool {
+        guard !isGameOver else { return false }
+        guard piece.zodiac.passives.ridesNexysDown(context: passiveContext) else { return false }
+
+        // Either it is elsewhere and can be summoned, or it is here and being
+        // stood on. An island sitting on this plane with nobody on it is the one
+        // case the button ignores.
+        return nexysPlane != piece.plane || isOnNexys
+    }
+
     /// Fills the Zodiaction meter outright.
     ///
     /// Returns an event rather than assigning, so it travels the same path as

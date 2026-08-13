@@ -498,7 +498,10 @@ private struct PanelFrontView: View {
         HStack(spacing: PanelStyle.topRowSpacing) {
             //SignBadge(zodiac: session.zodiac)
 
-            
+            // Only Libra rides the island, so only Libra gets the panel for it.
+            if session.showsNexysCall {
+                NexysCallView(session: session)
+            }
 
             Spacer(minLength: 0)
 
