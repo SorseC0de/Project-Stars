@@ -100,6 +100,16 @@ struct GameScreen: View {
                 GameOverOverlay(session: session, onChangeSign: onQuit)
             }
         }
+        .overlay(alignment: .topLeading) {
+            #if DEBUG
+            // Over everything, including the pause and game-over sheets: the
+            // frames that matter most are the ones being dropped while
+            // something is covering the board.
+            FrameRateView()
+                .padding(.leading, 8)
+                .padding(.top, 8)
+            #endif
+        }
         .background { keyboardCommands }
         .animation(.easeInOut(duration: 0.3), value: session.phase)
         .animation(.easeInOut(duration: 0.25), value: session.pentacleIntro)

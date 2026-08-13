@@ -392,8 +392,14 @@ struct GameEngine {
         //     piece is still standing on it.
         // A slide charges the tile it pushes off from as well as the one it
         // reaches — those two ends are the only ground it touches, so between
-        // them they carry the whole move's wear.
-        let departure = sim.departCurrentTile(force: move.style == .slide)
+        // them they carry the whole move's wear. The arrival end is charged by
+        // the `settle` at the end of `travel`; this is the departure end.
+        //
+        // A one-square move is not a sweep and must not be treated as one: it
+        // has no crossed middle to be spared, so charging its exit *as well as*
+        // its arrival is simply double damage on every ordinary step.
+        let sweeps = move.style == .slide && move.path.count > 1
+        let departure = sim.departCurrentTile(force: sweeps)
         events += departure.events
 
         // A jump touches nothing it flies over — not the ground, and not what is
@@ -415,6 +421,12 @@ struct GameEngine {
         landing.tilesBroken += departure.tilesBroken
 
         var collectedPickup: PickupID?
+
+        // An always-on ability may have stopped the move to ask something — see
+        // `ZodiacPassive.offersChoice`. Nothing below may run while it waits:
+        // `planChoice` finishes the move, and a second `choiceRequested` raised
+        // from here would overwrite the one still outstanding.
+        if sim.pendingChoice != nil { return events }
 
         if !sim.isGameOver {
 
@@ -1106,7 +1118,18 @@ struct GameEngine {
         var result = LandingResult()
         guard !isGameOver else { return result }
 
-        switch style {
+        // One square is a step, whatever the pattern calls it.
+        //
+        // Almost every movement in the game is declared `.slide`, because that
+        // was the harmless default back when a slide simply meant "walk each
+        // square in turn". It means something specific now — two ends worn and
+        // the middle merely crossed, one turn however far it goes — and none of
+        // that is true of a move with no middle. Left alone, every ordinary step
+        // in the game charged its exit tile, pressed the ground, and swept
+        // coins over the piece's head.
+        let effective: MovementStyle = path.count > 1 ? style : .jump
+
+        switch effective {
         case .jump:
             // A leap touches only where it lands.
             guard let destination = path.last else { return result }

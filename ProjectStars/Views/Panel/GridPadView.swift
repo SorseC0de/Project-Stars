@@ -52,11 +52,18 @@ struct GridPadView: View {
     var body: some View {
         let board = session.visibleBoard
         let cell = side / CGFloat(board.size)
+        // Built **once** per render and handed down.
+        //
+        // `reachableSquares` resolves every option in every direction, and
+        // asking for it inside `isLegal` meant rebuilding the whole map forty-
+        // nine times a frame — and twice more for the confirm button. It is the
+        // same answer every time; it should be computed like it.
+        let reach = session.isChoosingTile ? [:] : session.reachableSquares
 
         HStack(alignment: .center, spacing: PanelStyle.gridPadGap) {
-            grid(board: board, cell: cell)
+            grid(board: board, cell: cell, reach: reach)
 
-            confirmButton
+            confirmButton(reach: reach)
         }
         .frame(height: side)
         // A question about a square is a different question from "where do you
@@ -67,12 +74,12 @@ struct GridPadView: View {
 
     // MARK: - The grid
 
-    private func grid(board: Board, cell: CGFloat) -> some View {
+    private func grid(board: Board, cell: CGFloat, reach: Reach) -> some View {
         VStack(spacing: 0) {
             ForEach(0..<board.size, id: \.self) { y in
                 HStack(spacing: 0) {
                     ForEach(0..<board.size, id: \.self) { x in
-                        square(GridPoint(x, y), board: board, cell: cell)
+                        square(GridPoint(x, y), board: board, cell: cell, reach: reach)
                     }
                 }
             }
@@ -86,10 +93,15 @@ struct GridPadView: View {
         .frame(width: side, height: side)
     }
 
-    private func square(_ point: GridPoint, board: Board, cell: CGFloat) -> some View {
+    private func square(
+        _ point: GridPoint,
+        board: Board,
+        cell: CGFloat,
+        reach: Reach
+    ) -> some View {
         let tile = board[point]
         let isAimed = aim == point
-        let legal = isLegal(point)
+        let legal = isLegal(point, reach: reach)
 
         return Rectangle()
             .fill(face(tile, at: point))
@@ -116,7 +128,7 @@ struct GridPadView: View {
                 }
             }
             .contentShape(Rectangle())
-            .onTapGesture { tap(point) }
+            .onTapGesture { tap(point, reach: reach) }
     }
 
     private func face(_ tile: Tile, at point: GridPoint) -> Color {
@@ -130,13 +142,13 @@ struct GridPadView: View {
 
     // MARK: - Confirming
 
-    private var confirmButton: some View {
+    private func confirmButton(reach: Reach) -> some View {
         CelButton(
             tint: Palette.jade,
-            isEnabled: aim.map(isLegal) == true,
+            isEnabled: aim.map { isLegal($0, reach: reach) } == true,
             acceptsTouch: session.acceptsInput || session.isChoosingTile
         ) {
-            commit()
+            commit(reach: reach)
         } label: {
             Image(systemName: "checkmark")
                 .font(.system(size: PanelStyle.gridPadCheckSize, weight: .black))
@@ -146,8 +158,11 @@ struct GridPadView: View {
 
     // MARK: - Behaviour
 
+    /// Where the piece can go, and the swipe that gets it there.
+    typealias Reach = [GridPoint: (direction: SwipeDirection, reach: Int)]
+
     /// Whether this square is something the current question accepts.
-    private func isLegal(_ point: GridPoint) -> Bool {
+    private func isLegal(_ point: GridPoint, reach: Reach) -> Bool {
         if let slab = session.placingSlab {
             return slab.canBePlaced(anchoredAt: point, on: session.engine.currentBoard)
         }
@@ -159,15 +174,15 @@ struct GridPadView: View {
             // whole of Astral Breeze.
             return true
         }
-        return session.reachableSquares.keys.contains(point)
+        return reach.keys.contains(point)
     }
 
-    private func tap(_ point: GridPoint) {
+    private func tap(_ point: GridPoint, reach: Reach) {
         // A question outranks the phase: `acceptsInput` is false while one is
         // outstanding, and the pad is where it is being answered.
         guard session.isChoosingTile || session.acceptsInput else { return }
 
-        guard isLegal(point) else {
+        guard isLegal(point, reach: reach) else {
             // A tap on an unreachable square clears the aim rather than being
             // ignored, so the pad never leaves a stale cursor behind after a
             // change of mind.
@@ -176,16 +191,16 @@ struct GridPadView: View {
         }
 
         if aim == point {
-            commit()
+            commit(reach: reach)
         } else {
             aim = point
             Haptics.step()
-            previewAim(point)
+            previewAim(point, reach: reach)
         }
     }
 
-    private func commit() {
-        guard let target = aim, isLegal(target) else { return }
+    private func commit(reach: Reach) {
+        guard let target = aim, isLegal(target, reach: reach) else { return }
         aim = nil
 
         if let slab = session.placingSlab {
@@ -197,7 +212,7 @@ struct GridPadView: View {
             return
         }
 
-        guard let move = session.reachableSquares[target] else { return }
+        guard let move = reach[target] else { return }
         Haptics.step()
         session.preview(direction: nil, reach: 0)
         session.submit(move.direction, reach: move.reach)
@@ -205,9 +220,8 @@ struct GridPadView: View {
 
     /// Shows the aim on the real board, which is where the player is looking for
     /// the consequences of it.
-    private func previewAim(_ point: GridPoint) {
-        guard !session.isChoosingTile,
-              let move = session.reachableSquares[point] else { return }
+    private func previewAim(_ point: GridPoint, reach: Reach) {
+        guard !session.isChoosingTile, let move = reach[point] else { return }
         session.preview(direction: move.direction, reach: move.reach)
     }
 }

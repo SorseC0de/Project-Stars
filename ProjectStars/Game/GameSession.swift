@@ -247,13 +247,20 @@ final class GameSession {
     /// is the whole difference between an afterimage and a smear.
     private(set) var afterimages: [Afterimage] = []
 
-    /// True while a move is playing out and the board should be left alone.
+    /// True while something big enough to be watched is playing out.
     ///
-    /// A multi-tile move is *one* turn, and a long slide reads as several unless
+    /// A multi-tile move is *one* turn, and a long sweep reads as several unless
     /// the board says otherwise — so for as long as one is resolving, the tiles
     /// dim and the ambient motion holds still. What is doing the moving stays
     /// lit: the piece, the coins, and the move's own effects.
-    var isResolvingAction: Bool { phase == .resolvingMove }
+    ///
+    /// ## Why not simply `phase == .resolvingMove`
+    ///
+    /// Because an ordinary step is also a resolving move, and it lasts about a
+    /// tenth of a second. Dimming for that put a flicker on the screen for every
+    /// single turn of the game. The wash is meant to say *stop and watch this*,
+    /// and something that happens on every step says nothing at all.
+    private(set) var isResolvingAction = false
 
     /// The instant the current action began, for anything that should hold its
     /// pose until the action finishes.
@@ -550,12 +557,49 @@ final class GameSession {
         }
     }
 
+    /// Whether this plan is an *action* — something the player should be given a
+    /// moment to watch — rather than an ordinary turn.
+    ///
+    /// A single hop from one square to the next is not. Anything that sweeps
+    /// across the board, changes plane, fires a super, or rewrites ground is.
+    /// Deliberately a question about what the events *are* rather than how long
+    /// they take: a slow step is still a step.
+    private static func isWorthWatching(_ events: [GameEvent]) -> Bool {
+        var steps = 0
+
+        for event in events {
+            switch event {
+            case .zodiactionFired, .pieceSlid, .pieceFell, .pieceTeleported,
+                 .nexysMoved, .planeRestored, .tilesChanged, .pickupCollected,
+                 .arrowPlanted, .stingStruck, .poolFormed, .pickupBanked:
+                return true
+
+            case .pieceStepped:
+                // One hop is a step; several in a row are a charge.
+                steps += 1
+                if steps > 1 { return true }
+
+            default:
+                continue
+            }
+        }
+        return false
+    }
+
     /// Applies a plan to the engine one event at a time, animating each and
     /// waiting out its display duration before the next.
     private func replay(_ events: [GameEvent]) async {
         defer { publish() }
 
-        ambientFreeze = Date.now.timeIntervalSinceReferenceDate
+        // Judged from the plan rather than from the phase: an action is a thing
+        // that travels or transforms, not merely a turn that is in progress.
+        isResolvingAction = Self.isWorthWatching(events)
+        defer { isResolvingAction = false }
+
+        // The ambient art holds its pose for the same span, and only that span.
+        ambientFreeze = isResolvingAction
+            ? Date.now.timeIntervalSinceReferenceDate
+            : nil
         defer { ambientFreeze = nil }
         // Anything lit for the duration of an action goes out with it, however
         // the action ended.
@@ -622,10 +666,11 @@ final class GameSession {
             flashingTiles.subtract(changes.keys)
 
         case let .tilesWornOnExit(plane, changes):
-            // Brazen Blaze charges its damage to the square being left, and this
-            // is the fire doing it — on each tile, as it burns, rather than at
-            // the pop five moves earlier.
-            if zodiac == .aries {
+            // The fire of Brazen Blaze, laid down square by square as the ram
+            // runs. Keyed to the charge actually being under way — keyed to the
+            // *sign*, as it was, every ordinary Aries step that wore its exit
+            // tile lit up as if the super had fired.
+            if isCharging {
                 for point in changes.keys {
                     playEffect(EffectSprite.blazeTrail, at: point, on: plane)
                 }
@@ -1340,15 +1385,20 @@ extension GameSession {
         case let .tileDamaged(plane, point, health):
             check(point, plane, health)
 
-        case let .planeRestored(plane):
-            for point in engine[plane].allPoints { check(point, plane, .healthy) }
+        case .planeRestored:
+            // Deliberately silent. Astra re-forming is a whole-plane event with
+            // its own presentation, and marking it here would put a shimmer
+            // canvas on every one of forty-nine squares at the same instant —
+            // for a repair the player is not even looking at, since they are
+            // mid-fall onto the other plane.
+            return
 
         default:
             return
         }
 
         guard !mended.isEmpty else { return }
-        for (point, plane) in mended {
+        for (point, plane) in mended.prefix(GameRules.healSparkleMaxTiles) {
             spawnHealSparkle(at: point, on: plane)
         }
     }
@@ -1674,11 +1724,11 @@ extension GameSession {
     /// to offer one. Asked of the pattern rather than hardcoded per sign, so a
     /// retuned movement changes the buttons with it.
     func specialReach(for direction: SwipeDirection) -> Int? {
-        let movement = engine.piece.zodiac.passives.adjustedMovement(
-            base: engine.piece.zodiac.movement,
-            context: engine.passiveSnapshot
-        )
-        let options = movement.options(for: direction, facing: engine.piece.facing)
+        // Asked of the engine rather than of the pattern, so an option a passive
+        // refuses *here* — Scorpio's vault with no hole under it, Sagittarius'
+        // stride on cooldown — is not drawn as a chevron the player cannot
+        // reach.
+        let options = engine.moveOptions(for: direction)
 
         guard let longest = options.map(\.distance).max(), longest > 1 else { return nil }
 

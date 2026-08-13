@@ -1141,6 +1141,15 @@ enum GameRules {
     /// Radius of one mote, in tiles.
     static let healSparkleSize: CGFloat = 0.055
 
+    /// Most tiles that may shimmer at once.
+    ///
+    /// Libra's Balancing Breeze can mend an entire board in one event, and one
+    /// `Canvas` per square all ticking every frame is a real cost for a moment
+    /// that is over in half a second. Past this the mend still happens, it is
+    /// simply not individually sparkled — nobody counts motes on forty-nine
+    /// squares, and the whole-board change is legible on its own.
+    static let healSparkleMaxTiles = 14
+
     // ──────────────────────────────────────────────────────────────────────
     // MARK: - Pisces' water
     //
