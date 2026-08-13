@@ -598,6 +598,10 @@ struct PassiveContext {
     /// `GameEngine.arrivalWasChosen`.
     let arrivalWasChosen: Bool
 
+    /// True when the square was already open when the piece got there, rather
+    /// than having broken underfoot. See `GameEngine.arrivedOnOpenGround`.
+    let arrivedOnOpenGround: Bool
+
     /// Where the revealed Pentacles are sitting, on this plane.
     ///
     /// Anything that rewrites the board wholesale has to be able to leave them

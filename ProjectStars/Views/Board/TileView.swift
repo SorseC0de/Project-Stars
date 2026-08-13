@@ -124,7 +124,11 @@ struct TileView: View {
             // The heal flash fills rather than rims. A mend changes what the
             // square *is*, so the whole face carries it — and additive, so it
             // brightens the tile instead of painting over it.
-            if let flash = healFlash {
+            // Cloud squares are not drawn here at all — `CloudSpriteField` has
+            // them — so a rectangle over one paints a square that is not there.
+            // Astra's flash is a palette swap on the cloud itself; see
+            // `CloudSpriteView.flashed`.
+            if let flash = healFlash, plane != .astra || tile.kind != .normal {
                 Rectangle()
                     .fill(flash.ramp.first ?? Palette.white)
                     .opacity(flash.strength)

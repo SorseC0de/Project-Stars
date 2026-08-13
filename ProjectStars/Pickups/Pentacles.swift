@@ -995,12 +995,20 @@ enum PickupCatalog {
             allEffects.values
                 .filter { effect in
                     // `rollsAsRarity`, not `rarity`: see `PickupEffect`.
-                    guard effect.rollsAsRarity == rarity, effect.weight > 0 else { return false }
+                    //
+                    // Deliberately **not** filtered on the effect's own weight
+                    // here. A passive may weight something *in* as well as out —
+                    // Libra's Gavel is authored at zero and swapped up into the
+                    // Nexys Shift's place — and testing the raw number first
+                    // threw it away before the sign ever got a say. It is why
+                    // the Gavel never appeared in a single session.
+                    guard effect.rollsAsRarity == rarity else { return false }
                     guard let required = effect.requiredSpawnPoint else { return true }
                     return covered.contains(required)
                 }
                 .map { (value: $0.id, weight: weighting($0.id, $0.weight)) }
-                // A passive may weight something out of the running entirely.
+                // The one weight that decides: zero here is out, whether it was
+                // authored that way or a passive put it there.
                 .filter { $0.weight > 0 }
         }
 

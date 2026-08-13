@@ -376,8 +376,8 @@ enum GameRules {
 
     /// How often Leo's Magnetic Mane drags the Pentacle a square closer, by
     /// plane. Rolled once per ordinary step.
-    static let magneticManeChanceAstra = 0.01
-    static let magneticManeChanceTerra = 0.05
+    static let magneticManeChanceAstra = 0.10
+    static let magneticManeChanceTerra = 0.25
 
     /// How far it drags, and how far it drags while an Aten is burning.
     static let magneticManeSteps = 1

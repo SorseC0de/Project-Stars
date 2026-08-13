@@ -139,7 +139,10 @@ struct LeoCourageousCharge: ZodiacPassive {
         at point: GridPoint,
         context: PassiveContext
     ) -> Bool {
-        guard context.arrivalWasChosen else { return false }
+        // Both halves matter. `arrivalWasChosen` rules out being swept or
+        // dropped into a hole; `arrivedOnOpenGround` rules out a tile that broke
+        // under the landing, which is not a hole anybody charged into.
+        guard context.arrivalWasChosen, context.arrivedOnOpenGround else { return false }
         return context.luck < (plane == .terra ? Self.chanceTerra : Self.chanceAstra)
     }
 

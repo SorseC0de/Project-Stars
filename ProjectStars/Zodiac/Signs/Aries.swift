@@ -99,12 +99,40 @@ struct AriesSearingStride: ZodiacPassive {
 /// a full meter whatever else occurred.
 struct AriesSixSinge: ZodiacPassive {
 
-    let displayName = "Six Singe"
-    let summary = "Astra & Terra: crossing the board in a straight line tops your meter up to full."
+    /// Key this sign owns in `SignState.planeFlags`.
+    static let usedThisVisitKey = "aries.sixSinge"
 
+    let displayName = "Six Singe"
+    let summary = "Astra & Terra: crossing the board in a straight line tops your meter up to full. Once per visit to a plane."
+
+    /// ## Why it is capped per visit
+    ///
+    /// A seven-wide board means crossing it costs six moves — but the edges are
+    /// a loop, and walking the rim pays out again every time a side is finished.
+    /// The ram was arriving at four supers a minute by playing ring-a-roses
+    /// around the border, which is the *opposite* of the commitment this is
+    /// meant to reward: it is the one route where a straight line never has to
+    /// take you anywhere new.
+    ///
+    /// A plane visit is the right window because leaving is already expensive.
     func meterBonus(from move: MoveSummary, context: PassiveContext) -> Int {
         guard context.signState.streakLength == GameRules.sixSingeLength else { return 0 }
+        guard !context.signState.planeFlags.contains(Self.usedThisVisitKey) else { return 0 }
         return GameRules.sixSingeBonus
+    }
+
+    /// Spends the visit's one payout.
+    func stateAfterMove(
+        option: MovementPattern.MoveOption,
+        direction: SwipeDirection,
+        context: PassiveContext
+    ) -> SignState? {
+        guard context.signState.streakLength == GameRules.sixSingeLength else { return nil }
+        guard !context.signState.planeFlags.contains(Self.usedThisVisitKey) else { return nil }
+
+        var state = context.signState
+        state.planeFlags.insert(Self.usedThisVisitKey)
+        return state
     }
 }
 

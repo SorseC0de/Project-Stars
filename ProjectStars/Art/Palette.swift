@@ -54,8 +54,8 @@ enum Palette {
     /// Backdrop tint per plane. Astra reads cool and high, Terra warm and low.
     static func planeTint(_ plane: Plane) -> Color {
         switch plane {
-        case .astra: Color(hex: 0x2B3A6B)
-        case .terra: Color(hex: 0x4A3320)
+        case .astra: darkBlue
+        case .terra: plum
         }
     }
 

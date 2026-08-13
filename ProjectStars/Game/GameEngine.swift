@@ -162,6 +162,15 @@ struct GameEngine {
     /// dumped into one, or it is a reward for being unlucky.
     private var arrivalWasChosen = false
 
+    /// True when the square being resolved was **already** open on arrival,
+    /// rather than having broken underfoot.
+    ///
+    /// Leo's Courageous Charge is a reward for walking into a hole on purpose.
+    /// Without this it also fired on a tile that gave way as it was landed on,
+    /// which is the opposite situation — nothing was chosen and nothing was
+    /// braved.
+    private var arrivedOnOpenGround = false
+
     private(set) var moveCount: Int
 
     /// Hands out `RevealedPickup.serial`. Only ever counts up.
@@ -507,7 +516,11 @@ struct GameEngine {
         // square it crosses, so it can never clear one.
         if move.style == .jump, !landing.fell {
             landing.holesJumped = Self.squaresBetween(origin, move.destination)
-                .filter { !sim[startingPlane][$0].isSolid }
+                // The Nexys' chasm is not a hole anybody made and not one that
+                // can ever be mended, so clearing it is not an achievement —
+                // it is a free, permanent pip sitting in the middle of the
+                // board. Scorpio's Void Culling is paid for *ruin*.
+                .filter { !sim[startingPlane][$0].isSolid && sim[startingPlane][$0].kind == .normal }
                 .count
         }
         let summary = MoveSummary(
@@ -1241,6 +1254,9 @@ struct GameEngine {
             //    already open, for the Nexys, and when a passive or the
             //    free-fall rule says this landing is weightless.
             let landed = self[plane][point]
+            // Recorded before wear, so a passive can tell "I stepped onto a
+            // hole" from "the tile I stepped onto became one under me".
+            arrivedOnOpenGround = !landed.isSolid
             let earnsWear = wearsOnArrival
                 && (!fellAlready || GameRules.fallingLandingCausesWear)
             let passiveAllows = piece.zodiac.passives.causesWear(
@@ -2282,6 +2298,7 @@ struct GameEngine {
             moveCount: moveCount,
             zodiactionMeter: zodiactionMeter,
             arrivalWasChosen: arrivalWasChosen,
+            arrivedOnOpenGround: arrivedOnOpenGround,
             pickupPoints: revealedPickups.filter { $0.plane == piece.plane }.map(\.point),
             pickups: revealedPickups.filter { $0.plane == piece.plane },
             signState: signState,

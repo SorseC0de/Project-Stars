@@ -48,7 +48,16 @@ final class GameSession {
     private func publish() {
         zodiactionMeter = engine.zodiactionMeter
         zodiactionMeterMax = engine.zodiactionMeterMax
-        isZodiactionReady = engine.isZodiactionReady
+        // Held steady while a move plays out.
+        //
+        // Readiness is a live question — several signs ask where the piece is
+        // standing and which way it is facing before answering — so recomputing
+        // it on every event of a move made the button strobe between grey and
+        // gold as the piece travelled. It is a statement about the *next* turn,
+        // and the next turn has not begun until this one stops.
+        if phase != .resolvingMove {
+            isZodiactionReady = engine.isZodiactionReady
+        }
         purse = engine.signState.purse
     }
 
