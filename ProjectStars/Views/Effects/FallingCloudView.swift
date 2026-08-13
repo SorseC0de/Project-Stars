@@ -61,10 +61,14 @@ struct FallingCloudView: View {
                         health: .healthy,
                         metrics: metrics
                     )
-                    ArrowView(tileSize: metrics.tileSize, scale: metrics.scale)
+                    // In flight it is a whole arrow, straight down. The mask
+                    // and the lean belong to the one that has landed.
+                    FlyingArrowView(tileSize: metrics.tileSize)
                 } else {
                     cluster(.body, at: clock)
-                    ArrowView(tileSize: metrics.tileSize, scale: metrics.scale)
+                    // In flight it is a whole arrow, straight down. The mask
+                    // and the lean belong to the one that has landed.
+                    FlyingArrowView(tileSize: metrics.tileSize)
                     cluster(.crown, at: clock)
                 }
             }

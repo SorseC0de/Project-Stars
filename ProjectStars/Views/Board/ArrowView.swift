@@ -17,11 +17,16 @@ import SwiftUI
 /// without a frame count, which matters for something that may stand in the
 /// board for fifty moves.
 ///
-/// ## Why it leans
+/// ## Why it leans, having flown straight
 ///
-/// Straight up reads as a post. Everything else the game draws in the air —
-/// the constellations, Polaris — turns or drifts, and a shaft at a slight angle
-/// says *thrown* rather than *installed*.
+/// The shot itself is vertical: the arrow goes up out of the board and comes
+/// back down onto it, both at ninety degrees, because that is the shape of a
+/// thing fired into the sky and not a thing thrown across a room.
+///
+/// Where it *sticks* is another matter. Straight up reads as a post, and
+/// everything else the game draws in the air turns or drifts, so the planted
+/// shaft leans a few degrees — which says it arrived rather than being
+/// installed, without pretending it flew at that angle.
 struct ArrowView: View {
 
     /// Rendered edge length of one cell, in points.
@@ -44,6 +49,16 @@ struct ArrowView: View {
             let pulse = (sin(now / GameRules.arrowPulsePeriod * 2 * .pi) + 1) / 2
 
             ZStack {
+                // The square it planted itself in, humming. Under the shaft, so
+                // the arrow reads as standing in it.
+                EffectSpriteView(
+                    effect: .sagittariusTeleTile,
+                    tileSize: tileSize,
+                    start: .distantPast,
+                    loops: true,
+                    clock: clock
+                )
+
                 shaft
                     .blur(radius: GameRules.arrowGlowRadius * scale)
                     .opacity(0.5 + 0.5 * pulse)
@@ -51,54 +66,31 @@ struct ArrowView: View {
 
                 shaft
             }
-            .rotationEffect(.degrees(GameRules.arrowLean))
-            // Its point is in the ground, so it stands *above* the square it
-            // marks rather than centred on it.
-            .offset(y: -GameRules.arrowRise * scale)
         }
         .allowsHitTesting(false)
     }
 
-    /// Shaft, head and fletching, in the neutral ramp — the arrow belongs to no
-    /// element, like everything else Astral.
+    /// The shaft, buried to the head.
+    ///
+    /// ## Why it is masked rather than drawn short
+    ///
+    /// The art is a whole arrow, because the same sprite is the thing that flies
+    /// — straight up out of the board and straight back down onto it. What is
+    /// left standing afterwards is the part that did not go in, so the sprite is
+    /// clipped at ground level rather than being a second, shorter drawing that
+    /// would have to be kept in step with the first.
     private var shaft: some View {
-        let ramp = ElementFX.neutral
-
-        return ZStack {
-            Capsule()
-                .fill(ramp.mid)
-                .frame(width: GameRules.arrowThickness * scale,
-                       height: GameRules.arrowLength * scale)
-
-            // The head, pointing down into the square.
-            Triangle()
-                .fill(ramp.bright)
-                .frame(width: GameRules.arrowHead * scale,
-                       height: GameRules.arrowHead * scale)
-                .offset(y: GameRules.arrowLength * scale / 2)
-
-            // Fletching, up at the nock.
-            ForEach([-1.0, 1.0], id: \.self) { side in
-                Capsule()
-                    .fill(ramp.deep)
-                    .frame(width: GameRules.arrowThickness * scale,
-                           height: GameRules.arrowHead * scale * 1.4)
-                    .rotationEffect(.degrees(35 * side))
-                    .offset(x: GameRules.arrowThickness * scale * 1.2 * side,
-                            y: -GameRules.arrowLength * scale / 2.6)
+        PixelSprite(id: .effect(.sagittariusArrow)) { EmptyView() }
+            .frame(width: tileSize * 2, height: tileSize * 2)
+            .mask(alignment: .top) {
+                // Everything above the ground line survives; the head and a
+                // little shaft below it are buried.
+                Rectangle()
+                    .frame(height: tileSize * 2 * GameRules.arrowBuriedFraction)
             }
-        }
-    }
-}
-
-/// A downward-pointing triangle, for the arrowhead.
-private struct Triangle: Shape {
-    func path(in rect: CGRect) -> Path {
-        var path = Path()
-        path.move(to: CGPoint(x: rect.midX, y: rect.maxY))
-        path.addLine(to: CGPoint(x: rect.minX, y: rect.minY))
-        path.addLine(to: CGPoint(x: rect.maxX, y: rect.minY))
-        path.closeSubpath()
-        return path
+            .rotationEffect(.degrees(GameRules.arrowLean))
+            // Its point is in the ground, so it stands *above* the square it
+            // marks rather than centred on it.
+            .offset(y: -GameRules.arrowRise * scale)
     }
 }

@@ -1283,6 +1283,16 @@ final class GameSession {
             if plane == .terra {
                 fallingCloud = nil
 
+                // Where it went in. The strike is the loudest single frame the
+                // archer has, and it belongs on the square rather than on the
+                // shaft — the arrow is what is left over, the hit is the event.
+                playEffect(.sagittariusArrowHit, at: point, on: plane)
+
+                // And the board feels it. Something came out of the sky and
+                // buried itself in the floor; a strike that big without a knock
+                // reads as a decal being placed rather than an arrival.
+                shake(for: GameRules.arrowLandShake)
+
                 // The cloud comes apart in Astra's own violets, wherever it has
                 // landed. It is cloudstuff that fell out of the sky; the ground
                 // it happens to have hit has nothing to do with what it is made

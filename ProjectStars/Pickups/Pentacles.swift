@@ -834,6 +834,7 @@ struct ShadowWorkEffect: PickupEffect {
 struct GaleforceGavelEffect: PickupEffect {
 
     let id: PickupID = .galeforceGavel
+    let appearance: PentacleAppearance = .gavel
     let rarity: PickupRarity = .uncommon
 
     /// Zero, so it is never rolled by anyone. Libra swaps it into the Nexys

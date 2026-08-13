@@ -343,6 +343,19 @@ enum GameRules {
     ///
     /// Straight up reads as a post; a few degrees says thrown.
     static let arrowRise: CGFloat = 5
+    /// How much of the arrow sprite is left above ground once it lands.
+    ///
+    /// The art is a whole arrow, because the same drawing is the thing that
+    /// flies. What stands afterwards is masked rather than drawn separately, so
+    /// there is one arrow in this game and not two that have to agree.
+    static let arrowBuriedFraction: CGFloat = 0.72
+
+    /// How long the board shudders when the arrow lands.
+    ///
+    /// Longer than Taurus' step, which happens constantly, and shorter than a
+    /// fall — this is one heavy thing arriving once.
+    static let arrowLandShake: TimeInterval = 0.22
+
     static let arrowLean: Double = 12
 
     /// Its glow, and how long one breath of it takes.
@@ -1293,6 +1306,41 @@ enum GameRules {
     /// the brightest thing on the board before anything is added to it.
     static let polarisGlowIntensity: Double = 0.3
 
+    // ──────────────────────────────────────────────────────────────────────
+    // MARK: - The gavel
+    //
+    // One frame of art, swung from code. See `PentacleView.gavelSwing(at:)`.
+    // The fractions below are portions of one loop and should sum to less than
+    // 1 — whatever is left over is the ease back to rest.
+
+    static let gavelGlowIntensity: Double = 1.3
+
+    /// How long one whole swing-and-settle takes.
+    static let gavelSwingPeriod: TimeInterval = 2.6
+
+    /// Sitting perfectly still, which is most of it. A hammer that swings
+    /// without pause is wallpaper; the stillness is what makes the swing an
+    /// event.
+    static let gavelRestFraction: Double = 0.52
+
+    /// Winding back, coming round, and held at the bottom.
+    static let gavelCockFraction: Double = 0.16
+    static let gavelStrikeFraction: Double = 0.07
+    static let gavelHangFraction: Double = 0.09
+
+    /// How far back it winds, and how far past level it carries.
+    static let gavelCockAngle: Double = 34
+    static let gavelOvershoot: Double = 16
+
+    /// It shrinks as it draws back and swells as it lands — the oldest trick
+    /// there is for making a small drawing hit hard.
+    static let gavelCockScale: CGFloat = 0.85
+    static let gavelStrikeScale: CGFloat = 1.12
+
+    /// And flattens on the way through. With nothing to strike, the squash is
+    /// the only thing that says it struck.
+    static let gavelPancake: CGFloat = 1.14
+
     /// Sparks orbiting Polaris.
     ///
     /// Split evenly between those passing behind the star and those in front —
@@ -1911,6 +1959,13 @@ enum GameRules {
     /// Fire needs considerably more than water does — see
     /// `EffectSprite.glowIntensity`.
     static let effectGlowFireIntensity: Double = 1.35
+
+    /// For strips that have to read as an event rather than as decoration.
+    ///
+    /// Above the fire default. These are things the player has to *notice* —
+    /// where the arrow landed, which square is humming, which line just levelled
+    /// — competing against a board that is always moving slightly.
+    static let effectGlowStrongIntensity: Double = 1.35
 
     /// How far an on-the-ground effect rides up so its base sits on the tile
     /// rather than its middle. In art pixels.

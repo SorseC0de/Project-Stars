@@ -90,6 +90,16 @@ enum EffectSprite: String, CaseIterable, Hashable {
     /// Libra's Zodiaction. 22 frames.
     case libraZodiaction
 
+    /// The arrow itself. One frame — it is an object, not an animation.
+    case sagittariusArrow
+
+    /// The impact where Sagittarius' arrow strikes the ground. 12 frames.
+    case sagittariusArrowHit
+
+    /// The warp square the planted arrow leaves humming. 11 frames, looped for
+    /// as long as the arrow is out there.
+    case sagittariusTeleTile
+
     // MARK: - Where the art is
 
     /// Which element this belongs to, or `nil` for the ones outside the wheel.
@@ -110,11 +120,16 @@ enum EffectSprite: String, CaseIterable, Hashable {
         switch self {
         case .ariesZodiaction, .astralBlaze, .leoPridefulLanding,
              .leoZodiactionOne, .leoZodiactionTwo, .leoZodiactionSummon,
-             .fireMisc, .sagittariusJump, .explosion, .ariesActivation:
+             .fireMisc, .sagittariusJump, .explosion, .ariesActivation,
+             .sagittariusArrow, .sagittariusArrowHit, .sagittariusTeleTile:
             .fire
-        case .cancerZodiaction, .cancerZodiactionAlternate, .libraZodiaction,
+        case .cancerZodiaction, .cancerZodiactionAlternate,
              .crabWalk, .waterSplash:
             .water
+        // Libra is air, and the diamonds were filed under water only because the
+        // first draft of them was drawn in blue.
+        case .libraZodiaction:
+            .air
         case .astralBloom:
             .earth
         case .lightning1, .lightning2, .lightning3, .lightning4:
@@ -145,6 +160,9 @@ enum EffectSprite: String, CaseIterable, Hashable {
         case .cancerZodiaction: "cancer_zaction"
         case .cancerZodiactionAlternate: "cancer_zaction_v2"
         case .libraZodiaction: "libra_zaction"
+        case .sagittariusArrow: "saggitarius_arrow"
+        case .sagittariusArrowHit: "saggitarius_arrowhit"
+        case .sagittariusTeleTile: "saggitarius_teletile"
         }
     }
 
@@ -164,7 +182,7 @@ enum EffectSprite: String, CaseIterable, Hashable {
     /// rather than everything being forced onto one grid it was never drawn on.
     var frameSize: CGSize {
         switch self {
-        case .explosion: CGSize(width: 96, height: 96)
+        case .explosion, .sagittariusArrow: CGSize(width: 96, height: 96)
         case .waterSplash: CGSize(width: 48, height: 48)
         // Tall and narrow: a bolt reaches from the sky to the ground, and its
         // frame is the only one here that is not square.
@@ -187,7 +205,9 @@ enum EffectSprite: String, CaseIterable, Hashable {
         case .crabWalk, .ariesActivation: 16
         case .explosion: 28
         case .astralBloom: 16
-        case .leoPridefulLanding: 11
+        case .sagittariusArrow: 1
+        case .leoPridefulLanding, .sagittariusTeleTile: 11
+        case .sagittariusArrowHit: 12
         case .leoZodiactionOne, .leoZodiactionTwo,
              .cancerZodiaction, .cancerZodiactionAlternate, .libraZodiaction: 22
         }
@@ -250,6 +270,10 @@ enum EffectSprite: String, CaseIterable, Hashable {
         case .astralBloom: 0
         case .leoZodiactionOne, .leoZodiactionTwo, .leoZodiactionSummon,
              .libraZodiaction: 0
+        // Both belong to the ground: the strike is where the shaft went in, and
+        // the warp square is the square itself.
+        case .sagittariusArrowHit, .sagittariusTeleTile: 0
+        case .sagittariusArrow: 0
         }
     }
 
@@ -264,11 +288,22 @@ enum EffectSprite: String, CaseIterable, Hashable {
     /// flatter and need considerably more before they read as giving off light
     /// rather than as being a picture of fire.
     var glowIntensity: Double {
+        // Named strips first, since a few are meant to be brighter than their
+        // element's default — an arrow landing and a warp square humming are
+        // both *events*, and an event that does not carry its own light gets
+        // lost against a board full of ambient motion.
+        switch self {
+        case .sagittariusArrowHit, .sagittariusTeleTile, .libraZodiaction:
+            return GameRules.effectGlowStrongIntensity
+        default:
+            break
+        }
+
         switch element {
-        case .fire: GameRules.effectGlowFireIntensity
+        case .fire: return GameRules.effectGlowFireIntensity
         // Lightning is the brightest thing in the game by a distance.
-        case .none: GameRules.effectGlowFireIntensity
-        default: GameRules.effectGlowIntensity
+        case .none: return GameRules.effectGlowFireIntensity
+        default: return GameRules.effectGlowIntensity
         }
     }
 

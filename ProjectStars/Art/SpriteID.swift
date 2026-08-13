@@ -74,6 +74,9 @@ enum SpriteID: Hashable {
     ///     Used for the tile a Pentacle is sitting on.
     case tileFace(Plane, Palette.TileShade, popped: Bool)
 
+    /// Libra's gavel, drawn as its own Pentacle.
+    case gavel
+
     /// One of Astra's clouds: a 48x48 puff covering three cells' width.
     ///
     /// Three frames, played ping-pong, in a light and a dark variant so
@@ -149,6 +152,8 @@ enum SpriteID: Hashable {
         switch self {
         case let .tileFace(plane, shade, popped):
             "tile_\(plane.rawValue)_\(shade.assetSuffix)\(popped ? "_popped" : "")"
+        case .gavel:
+            "Air/libra_gavel"
         case let .astraCloud(shade):
             "cloud_astra_\(shade.assetSuffix)"
         case let .tileEdge(plane, shade):

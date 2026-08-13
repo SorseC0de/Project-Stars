@@ -461,6 +461,10 @@ enum Palette {
     /// Polaris' sparks.
     static let polarisSparkTones: [Color] = [yellow, pink, lightBlue]
 
+    /// The gavel's own light: the golds it is drawn in, plus the sky it belongs
+    /// to. Libra is an air sign and the hammer is a storm front, not a coin.
+    static let gavelGlowTones: [Color] = [white, cyan, lightBlue, gold]
+
     /// Rarity tints, used wherever a tier needs to read before the words do.
     static let pickupUncommon = Color(hex: 0x6FD4A8)
     static let pickupRare = Color(hex: 0x8FA8F0)

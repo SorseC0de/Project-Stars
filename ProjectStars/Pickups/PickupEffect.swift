@@ -61,6 +61,10 @@ enum PentacleAppearance: String, CaseIterable, Codable {
     /// A bead of water. Gaia droplets only, and the one appearance that is not
     /// a coin at all — see `PickupClass.boon`.
     case droplet
+
+    /// Libra's gavel. A Pentacle in its own right rather than a coin with a
+    /// glyph on it — see `PentacleView.gavel`.
+    case gavel
 }
 
 // MARK: - PickupClass

@@ -205,6 +205,7 @@ private extension PentacleAppearance {
         case .shadow: "Shadow"
         case .radiant: "Polaris"
         case .droplet: "Droplet"
+        case .gavel: "Galeforce Gavel"
         }
     }
 
@@ -219,6 +220,8 @@ private extension PentacleAppearance {
             "Polaris only. Spawns from a sparkle on the north-middle tile."
         case .droplet:
             "Pisces' Gaia Geyser, and a pool boiling off. Not a Pentacle at all — see PickupClass."
+        case .gavel:
+            "Libra's Galeforce Gavel. One frame of art, swung from code — see PentacleView.gavelSwing(at:)."
         }
     }
 }

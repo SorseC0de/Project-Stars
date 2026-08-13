@@ -242,6 +242,9 @@ private extension EffectSprite {
     /// Readable name for the picker.
     var previewName: String {
         switch self {
+        case .sagittariusArrow: "Sagittarius — the arrow"
+        case .sagittariusArrowHit: "Sagittarius — arrow strike"
+        case .sagittariusTeleTile: "Sagittarius — warp square"
         case .ariesZodiaction: "Aries — Brazen Blaze trail"
         case .ariesActivation: "Aries — Brazen Blaze ignition"
         case .astralBlaze: "Astral Blaze"

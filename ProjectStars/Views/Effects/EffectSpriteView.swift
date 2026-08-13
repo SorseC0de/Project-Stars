@@ -41,10 +41,25 @@ struct EffectSpriteView: View {
     /// wants to be bigger than standard.
     var magnitude: CGFloat = 1
 
+    /// Plays for ever instead of once.
+    ///
+    /// The exception rather than the rule — an effect is normally an *event* and
+    /// stops. A warp square hums for as long as the arrow is standing in it,
+    /// which is a state rather than a moment.
+    var loops = false
+
+    /// The ambient clock, so a looping effect holds still with everything else
+    /// when the game is waiting on the player.
+    var clock: (TimeInterval) -> TimeInterval = { $0 }
+
     var body: some View {
         TimelineView(.animation) { timeline in
-            let elapsed = timeline.date.timeIntervalSince(start)
-            let frame = Int(elapsed / effect.rate.frameDuration)
+            let now = clock(timeline.date.timeIntervalSinceReferenceDate)
+            let elapsed = loops
+                ? now
+                : timeline.date.timeIntervalSince(start)
+            let step = Int(elapsed / effect.rate.frameDuration)
+            let frame = loops ? ((step % effect.frames) + effect.frames) % effect.frames : step
 
             if elapsed >= 0, frame < effect.frames {
                 let art = recoloured(

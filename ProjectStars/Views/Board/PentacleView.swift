@@ -128,6 +128,9 @@ struct PentacleView: View {
         case .standard: Palette.white
         case .shadow: Palette.midnight
         case .radiant: Palette.lightBlue
+        // Its light is the sky it belongs to: Libra is air, and the hammer is a
+        // storm front rather than a coin.
+        case .gavel: Palette.cyan
         case .droplet: Palette.cyan
         }
     }
@@ -160,6 +163,14 @@ struct PentacleView: View {
                 sprite
             }
             .rotationEffect(.degrees(spin(at: phase)))
+
+        case .gavel:
+            // Lit hard, and swung. See `gavelSwing(at:)`.
+            PaletteGlow(colors: Palette.gavelGlowTones,
+                        radius: GameRules.pentacleGlowRadius * scale,
+                        intensity: GameRules.gavelGlowIntensity) {
+                gavelSprite(at: phase)
+            }
 
         case .droplet:
             // Drawn rather than sprited, and drawn as *not a coin*: the whole
@@ -196,6 +207,90 @@ struct PentacleView: View {
                 .blur(radius: GameRules.pentacleGlowRadius * scale)
                 .blendMode(.plusLighter)
         }
+    }
+
+    /// The gavel, mid-swing.
+    ///
+    /// ## Why it is animated here rather than drawn
+    ///
+    /// It is one frame of art. A hammer that never moves is a hammer nobody
+    /// reads as a hammer — it looks like a shape — and the motion is cheap to
+    /// describe and expensive to draw: rotation, scale and a squash, all pure
+    /// functions of the clock, which is how every other effect in this game
+    /// works anyway.
+    ///
+    /// ## The swing
+    ///
+    /// Held still for most of the loop, then wound back anticlockwise and
+    /// slightly smaller, then brought round fast and clockwise, overshooting
+    /// past the rest angle and flattening on the way through — the pancake is
+    /// what sells an impact when there is nothing to hit. It hangs at the bottom
+    /// for a beat, because a swing that rebounds immediately reads as a bounce
+    /// rather than a blow, and then eases back.
+    ///
+    /// The long still stretch is deliberate: this thing sits on the board
+    /// waiting to be picked up, and something swinging without pause is
+    /// wallpaper.
+    private func gavelSprite(at now: TimeInterval) -> some View {
+        let swing = gavelSwing(at: now)
+
+        return PixelSprite(id: .gavel) { placeholder }
+            .frame(width: size, height: size)
+            .scaleEffect(x: swing.scale * swing.squash, y: swing.scale / swing.squash)
+            .rotationEffect(.degrees(swing.angle), anchor: .bottom)
+    }
+
+    /// Where the swing is, as angle, scale and squash.
+    private func gavelSwing(at now: TimeInterval) -> (angle: Double, scale: CGFloat, squash: CGFloat) {
+        let period = GameRules.gavelSwingPeriod
+        let phase = (now.truncatingRemainder(dividingBy: period) + period)
+            .truncatingRemainder(dividingBy: period) / period
+
+        let rest = GameRules.gavelRestFraction        // sitting still
+        let cock = GameRules.gavelCockFraction        // winding back
+        let strike = GameRules.gavelStrikeFraction    // coming round
+        let hang = GameRules.gavelHangFraction        // held at the bottom
+
+        func ease(_ x: Double) -> Double { x * x * (3 - 2 * x) }
+
+        if phase < rest {
+            return (0, 1, 1)
+        }
+
+        if phase < rest + cock {
+            let k = ease((phase - rest) / cock)
+            return (
+                -GameRules.gavelCockAngle * k,
+                1 - (1 - GameRules.gavelCockScale) * CGFloat(k),
+                1
+            )
+        }
+
+        if phase < rest + cock + strike {
+            // Not eased: the strike is the one part that should feel like it got
+            // away from you.
+            let k = (phase - rest - cock) / strike
+            let angle = -GameRules.gavelCockAngle
+                + (GameRules.gavelCockAngle + GameRules.gavelOvershoot) * k
+            return (
+                angle,
+                GameRules.gavelCockScale
+                    + (GameRules.gavelStrikeScale - GameRules.gavelCockScale) * CGFloat(k),
+                1 + (GameRules.gavelPancake - 1) * CGFloat(k)
+            )
+        }
+
+        if phase < rest + cock + strike + hang {
+            return (GameRules.gavelOvershoot, GameRules.gavelStrikeScale, GameRules.gavelPancake)
+        }
+
+        let k = ease((phase - rest - cock - strike - hang)
+            / max(1 - rest - cock - strike - hang, 0.001))
+        return (
+            GameRules.gavelOvershoot * (1 - k),
+            GameRules.gavelStrikeScale + (1 - GameRules.gavelStrikeScale) * CGFloat(k),
+            GameRules.gavelPancake + (1 - GameRules.gavelPancake) * CGFloat(k)
+        )
     }
 
     private var sprite: some View {
@@ -269,7 +364,7 @@ struct PentacleView: View {
         case .standard: Palette.pentacle
         case .shadow: Palette.pentacleShadow
         case .radiant: Palette.pentacleRadiant
-        case .droplet: Palette.lightBlue
+        case .droplet, .gavel: Palette.lightBlue
         }
     }
 
@@ -278,7 +373,7 @@ struct PentacleView: View {
         case .standard: Palette.pentacleEdge
         case .shadow: Palette.pentacleShadowEdge
         case .radiant: Palette.lightBlue
-        case .droplet: Palette.cyan
+        case .droplet, .gavel: Palette.cyan
         }
     }
 }
