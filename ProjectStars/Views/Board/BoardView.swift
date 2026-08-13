@@ -241,6 +241,20 @@ struct BoardView: View {
         }
     }
 
+    /// Squares whose cloud must not be lapped over by its row neighbours.
+    ///
+    /// The piece's own square above all: standing on ground you cannot see is
+    /// the one thing the overlap must never cost. The lifted squares join it,
+    /// because a Pentacle hovering behind the cloud beside it looks like a
+    /// Pentacle on a different square.
+    private func occupiedSquares(on plane: Plane, popped: Set<GridPoint>) -> Set<GridPoint> {
+        var points = popped
+        if session.engine.piece.plane == plane {
+            points.insert(session.engine.piece.point)
+        }
+        return points
+    }
+
     /// Pass two: the flat faces.
     ///
     /// The lifted tile is **not** drawn here — it stands proud of the floor, so
@@ -266,6 +280,9 @@ struct BoardView: View {
                         metrics: metrics,
                         flashing: session.flashingTiles,
                         raised: popped,
+                        // Whatever is being stood on or hovered over has to stay
+                        // clear of its neighbours' overlap.
+                        occupied: occupiedSquares(on: plane, popped: popped),
                         freeze: session.ambientFreeze
                     )
                 } else {

@@ -48,6 +48,16 @@ struct CloudSpriteField: View {
     /// Squares that are lifted, with a Pentacle floating over them.
     var raised: Set<GridPoint> = []
 
+    /// Squares with something standing on them.
+    ///
+    /// These clouds are drawn last **within their own row**: in front of their
+    /// row peers, still behind every row nearer the viewer. The art is wider
+    /// than its square, so a neighbour along the same row laps over it and
+    /// swallows the piece's footing — but the row in front is *supposed* to
+    /// cover it, and promoting the whole way would put the piece's cloud on top
+    /// of clouds that are genuinely closer.
+    var occupied: Set<GridPoint> = []
+
     /// A stopped clock, while a move plays out. See `GameSession.ambientFreeze`.
     var freeze: TimeInterval?
 
@@ -79,15 +89,19 @@ struct CloudSpriteField: View {
         .allowsHitTesting(false)
     }
 
+    /// The size one cloud is drawn at, in points.
+    private var cloudSide: CGFloat {
+        metrics.tileSize * CGFloat(GameRules.cloudSpritePixelSize)
+            / CGFloat(GameRules.tilePixelSize)
+            * GameRules.cloudSpriteScale
+    }
+
     /// How far a cloud may hang past the board and still be drawn.
     ///
     /// One whole cloud's width, which is more than any of them needs — the
     /// drift and the stretch both move them, and a margin that merely *usually*
     /// suffices is a margin that clips on the frame nobody was looking at.
-    private var overhang: CGFloat {
-        metrics.tileSize * CGFloat(GameRules.cloudSpritePixelSize)
-            / CGFloat(GameRules.tilePixelSize)
-    }
+    private var overhang: CGFloat { cloudSide }
 
     // MARK: - Drawing
 
@@ -107,8 +121,14 @@ struct CloudSpriteField: View {
         guard !resolved.isEmpty else { return }
 
         // Row order is depth order: a cloud nearer the bottom of the screen is
-        // nearer the viewer and draws over the one behind it.
-        for point in board.allPoints.sorted(by: { ($0.y, $0.x) < ($1.y, $1.x) }) {
+        // nearer the viewer and draws over the one behind it. Within a row, an
+        // occupied square goes last — see `occupied`.
+        let order = board.allPoints.sorted {
+            ($0.y, occupied.contains($0) ? 1 : 0, $0.x)
+                < ($1.y, occupied.contains($1) ? 1 : 0, $1.x)
+        }
+
+        for point in order {
             let tile = board[point]
             guard tile.kind == .normal, !tile.health.isHole else { continue }
             guard let image = resolved[.at(point)] else { continue }
@@ -130,9 +150,7 @@ struct CloudSpriteField: View {
         // Size: the wear shrink, times an independent horizontal and vertical
         // breath. Two periods rather than one, so the cloud never simply pulses.
         let wear = GameRules.cloudScale(tile.health)
-        let side = metrics.tileSize * CGFloat(GameRules.cloudSpritePixelSize)
-            / CGFloat(GameRules.tilePixelSize)
-            * GameRules.cloudSpriteScale
+        let side = cloudSide
 
         let width = side * wear * stretch(point, now: now, salt: 0,
                                           period: GameRules.cloudSpriteStretchPeriodH)
@@ -203,8 +221,11 @@ struct CloudSpriteField: View {
     }
 
     /// This cloud's wander from its square.
+    ///
+    /// Scaled by how big the cloud actually is, so shrinking the art shrinks the
+    /// sway with it — see `GameRules.cloudSpriteShift`.
     private func shift(_ point: GridPoint, now: TimeInterval) -> CGSize {
-        let amount = GameRules.cloudSpriteShift * metrics.tileSize
+        let amount = GameRules.cloudSpriteShift * cloudSide
         let clock = now / GameRules.cloudSpriteShiftPeriod * 2 * .pi
         let phase = CloudCluster.phase(at: point)
 

@@ -693,23 +693,34 @@ enum GameRules {
 
     /// Frames in the strip, and how fast it plays.
     ///
-    /// Slow on purpose. Three frames ping-ponged is a very short loop, and at
-    /// any pace you can follow it stops being drift and starts being a flicker —
-    /// the cloud has to look like it is *breathing*, not vibrating.
+    /// Very slow on purpose, and slower than a sprite rate usually goes.
+    ///
+    /// The three frames are three genuinely different cloud shapes rather than
+    /// small inbetweens, so the eye reads a change of frame as an *event*. At
+    /// anything approaching an animation rate forty-nine of those events going
+    /// off across the board is a strobe. Three a second — a frame held a third
+    /// of a second, the whole ping-pong taking well over a second — is slow
+    /// enough that a cloud looks like it is turning over rather than blinking.
     static let cloudSpriteFrames = 3
-    static let cloudSpriteRate = SpriteRate.fps7_5
+    static let cloudSpriteRate = SpriteRate(3)
 
     /// How big a cloud is drawn against the size it was authored at.
     ///
     /// The art is three cells across, which at full size buries the grid the
-    /// player is counting squares on. Three-quarters keeps the overlap that
-    /// makes the field read as weather while leaving the squares countable.
-    static let cloudSpriteScale: CGFloat = 0.75
+    /// player is counting squares on. Two-thirds keeps the overlap that makes
+    /// the field read as weather and lets the squares be counted again.
+    static let cloudSpriteScale: CGFloat = 0.66
 
-    /// How far a cloud drifts from its square, as a fraction of a cell.
+    /// How far a cloud drifts from its square, as a fraction of **its own
+    /// size** rather than of a cell.
+    ///
+    /// Measured against the cloud on purpose. Against the cell, shrinking the
+    /// art left the sway at its old absolute distance — so the smaller the
+    /// clouds got the further they wandered in proportion, and the grid stopped
+    /// being legible underneath them.
     ///
     /// Per-cloud and on its own phase, so the field never pulses in unison.
-    static let cloudSpriteShift: CGFloat = 0.16
+    static let cloudSpriteShift: CGFloat = 0.10
     static let cloudSpriteShiftPeriod: TimeInterval = 5.4
 
     /// How much a cloud stretches, as a fraction either side of its true size.
