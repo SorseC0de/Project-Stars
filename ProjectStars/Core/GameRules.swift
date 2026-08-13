@@ -692,8 +692,19 @@ enum GameRules {
     static let cloudSpritePixelSize = 48
 
     /// Frames in the strip, and how fast it plays.
+    ///
+    /// Slow on purpose. Three frames ping-ponged is a very short loop, and at
+    /// any pace you can follow it stops being drift and starts being a flicker —
+    /// the cloud has to look like it is *breathing*, not vibrating.
     static let cloudSpriteFrames = 3
-    static let cloudSpriteRate = SpriteRate.fps15
+    static let cloudSpriteRate = SpriteRate.fps7_5
+
+    /// How big a cloud is drawn against the size it was authored at.
+    ///
+    /// The art is three cells across, which at full size buries the grid the
+    /// player is counting squares on. Three-quarters keeps the overlap that
+    /// makes the field read as weather while leaving the squares countable.
+    static let cloudSpriteScale: CGFloat = 0.75
 
     /// How far a cloud drifts from its square, as a fraction of a cell.
     ///

@@ -61,12 +61,32 @@ struct CloudSpriteField: View {
         TimelineView(.animation) { timeline in
             let now = freeze ?? timeline.date.timeIntervalSinceReferenceDate
 
+            // Padded well past the board on every side.
+            //
+            // A `Canvas` clips to its own bounds, and these clouds are wider
+            // than the squares they belong to — framed to the board exactly, the
+            // outer ring was sliced off flat against the edge and the whole
+            // field read as a rectangle of weather rather than as sky.
             Canvas { context, _ in
+                context.translateBy(x: overhang, y: overhang)
                 draw(&context, at: now)
             }
-            .frame(width: metrics.boardSize, height: metrics.boardSize)
+            .frame(
+                width: metrics.boardSize + overhang * 2,
+                height: metrics.boardSize + overhang * 2
+            )
         }
         .allowsHitTesting(false)
+    }
+
+    /// How far a cloud may hang past the board and still be drawn.
+    ///
+    /// One whole cloud's width, which is more than any of them needs — the
+    /// drift and the stretch both move them, and a margin that merely *usually*
+    /// suffices is a margin that clips on the frame nobody was looking at.
+    private var overhang: CGFloat {
+        metrics.tileSize * CGFloat(GameRules.cloudSpritePixelSize)
+            / CGFloat(GameRules.tilePixelSize)
     }
 
     // MARK: - Drawing
@@ -112,6 +132,7 @@ struct CloudSpriteField: View {
         let wear = GameRules.cloudScale(tile.health)
         let side = metrics.tileSize * CGFloat(GameRules.cloudSpritePixelSize)
             / CGFloat(GameRules.tilePixelSize)
+            * GameRules.cloudSpriteScale
 
         let width = side * wear * stretch(point, now: now, salt: 0,
                                           period: GameRules.cloudSpriteStretchPeriodH)
