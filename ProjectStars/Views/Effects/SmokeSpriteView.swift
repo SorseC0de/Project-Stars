@@ -44,6 +44,12 @@ struct SmokeSpriteView: View {
     /// Recolouring applied to the strip's three tones, if any.
     var swaps: [PaletteSwap] = []
 
+    /// A wholesale colour for the puff, overriding the swaps.
+    ///
+    /// Blunter than a palette swap and meant to be: this is smoke that is
+    /// saying something rather than smoke that belongs to a place.
+    var tint: Color?
+
     /// True when the strip is present for this plane.
     static func hasArt(on plane: Plane) -> Bool {
         SpriteSheetLoader.hasArt(for: .smoke(plane))
@@ -68,7 +74,9 @@ struct SmokeSpriteView: View {
 
     @ViewBuilder
     private func recoloured(_ art: some View) -> some View {
-        if swaps.isEmpty {
+        if let tint {
+            art.colorMultiply(tint)
+        } else if swaps.isEmpty {
             art
         } else {
             art.paletteSwap(swaps)

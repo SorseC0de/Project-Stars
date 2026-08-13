@@ -1796,6 +1796,12 @@ enum GameRules {
     /// How long the whole thing takes.
     static let leapDuration: TimeInterval = 0.62
 
+    /// How long the board shudders under one of Taurus' Astra steps.
+    ///
+    /// Short — a fraction of the landing shake. Every step does it, and anything
+    /// longer would be a board that never stops moving.
+    static let taurusStepShake: TimeInterval = 0.12
+
     /// The bloom thrown by a drawn effect: blur radius in art pixels, and how
     /// bright the additive copy is.
     ///

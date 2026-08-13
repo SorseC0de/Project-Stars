@@ -1072,6 +1072,25 @@ final class GameSession {
             }
             await sleep(hopDuration)
 
+            // Hooves' freebie, and the shudder it costs above.
+            //
+            // Terra: the first footfall on a square only scuffs it, and nothing
+            // said so — the tile simply did not change and the player had to
+            // infer a rule from an absence. Green earth-smoke marks the step
+            // that was free.
+            //
+            // Astra: there is no freebie up there, the opposite in fact —
+            // landings hit twice as hard — so the board takes a knock on every
+            // single step. Weight, expressed as the thing the bull does to the
+            // room rather than to the tile.
+            if zodiac == .taurus {
+                if plane == .terra {
+                    kickUpDust(at: to, on: plane, magnitude: 1, tint: Palette.green)
+                } else {
+                    shake(for: GameRules.taurusStepShake)
+                }
+            }
+
             // Dust on the *landing*, not the launch. Firing it with the step
             // put the puff at the destination before the piece got there.
             kickUpDust(at: to, on: plane, magnitude: 1)
@@ -1097,10 +1116,12 @@ final class GameSession {
             }
             await sleep(event.displayDuration)
 
-        case let .zodiactionFired(zodiac, plane) where zodiac == .pisces && plane == .astra:
-            // The dive. Up, and the fall that follows is the event after this
-            // one — so the leap is played out here in full and the descent takes
-            // over from the top of it.
+        case let .zodiactionFired(zodiac, plane)
+            where (zodiac == .pisces && plane == .astra) || zodiac == .taurus:
+            // A deliberate leap: Pisces' dive and Taurus' flop. Whatever
+            // follows — a fall, a mend — is the next event, so the arc is played
+            // out here in full and the consequence takes over from the top of
+            // it. See `HopPose.leap(progress:)`.
             summonConstellation(zodiac, on: plane)
             for layer in EffectSprite.zodiaction(for: zodiac) {
                 playEffect(layer, at: engine.piece.point, on: plane)
@@ -1592,6 +1613,9 @@ struct SmokePuff: Identifiable, Equatable {
     /// True when this is a lifted square settling rather than a footfall — see
     /// `GameSession.kickUpDust(at:on:magnitude:fromRaisedTile:)`.
     var fromRaisedTile = false
+
+    /// Overrides the plane's own smoke colour.
+    var tint: Color?
 }
 
 extension GameSession {
@@ -1712,6 +1736,20 @@ extension GameSession {
         }
     }
 
+    /// Knocks the board for `duration`.
+    ///
+    /// The heavy-landing shake already existed but was only ever fired by the
+    /// engine's own events; this is the same thing on request, for a sign whose
+    /// *ordinary steps* are supposed to land like that.
+    func shake(for duration: TimeInterval) {
+        shakeStartedAt = .now
+
+        Task { [weak self] in
+            try? await Task.sleep(nanoseconds: UInt64(duration * 1_000_000_000))
+            self?.shakeStartedAt = nil
+        }
+    }
+
     /// Lets a pressed square come back up, shortly.
     private func releasePressLater(_ point: GridPoint) {
         Task { [weak self] in
@@ -1725,15 +1763,19 @@ extension GameSession {
     /// - Parameter fromRaisedTile: True when it is a lifted square settling
     ///   back down rather than a footfall. That square is recoloured while it is
     ///   up, so its smoke has to be recoloured with it.
+    /// - Parameter tint: Recolours the puff wholesale. Used where the smoke is
+    ///   saying something the plane's own dust does not — Taurus' free step is
+    ///   earth-green wherever it happens.
     func kickUpDust(
         at point: GridPoint,
         on plane: Plane,
         magnitude: CGFloat,
-        fromRaisedTile: Bool = false
+        fromRaisedTile: Bool = false,
+        tint: Color? = nil
     ) {
         let puff = SmokePuff(
             point: point, plane: plane, magnitude: magnitude,
-            start: .now, fromRaisedTile: fromRaisedTile
+            start: .now, fromRaisedTile: fromRaisedTile, tint: tint
         )
         smoke = puff
 

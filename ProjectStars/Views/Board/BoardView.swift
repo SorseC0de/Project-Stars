@@ -1307,7 +1307,8 @@ struct BoardView: View {
                     tileSize: metrics.tileSize,
                     start: smoke.start,
                     magnitude: smoke.magnitude,
-                    swaps: smokeSwaps(for: smoke)
+                    swaps: smokeSwaps(for: smoke),
+                    tint: smoke.tint
                 )
                 .position(metrics.center(of: smoke.point))
                 .id(smoke.id)
