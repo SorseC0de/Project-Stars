@@ -678,6 +678,11 @@ final class GameSession {
     }
     #endif
 
+    /// True when Libra's power is in play, as the piece or as a phantom.
+    var hasLibra: Bool {
+        zodiac == .libra || engine.signState.retinue.contains(.libra)
+    }
+
     /// The phantoms currently following, oldest first.
     var retinue: [Zodiac] { engine.signState.retinue }
 
@@ -705,7 +710,7 @@ final class GameSession {
 
     /// Whether the lift is showing at all, and whether it will answer.
     var showsNexysCall: Bool {
-        engine.piece.zodiac.passives.ridesNexysDown(context: engine.passiveSnapshot)
+        engine.activePassives.ridesNexysDown(context: engine.passiveSnapshot)
     }
 
     var canCallNexys: Bool { engine.canCallNexys }
@@ -841,6 +846,13 @@ final class GameSession {
         case .pieceFell:
             await animateFall(event)
 
+        case let .nexysMoved(destination, _) where hasLibra:
+            // The island answering the call, in Libra's own diamonds — thrown
+            // over the gap it is arriving at rather than over the piece, since
+            // that is where the player is looking.
+            playEffect(.libraZodiaction, at: GameRules.nexysPoint, on: destination)
+            await animateNexysTravel(event, goingUp: destination == .astra)
+
         case let .nexysMoved(destination, carryingPiece)
             where destination == .astra && carryingPiece:
             // Riding the island home is the one plane change the player earns,
@@ -859,6 +871,16 @@ final class GameSession {
             await sleep(GameRules.planeRestoreDuration)
 
         case let .tilesChanged(plane, changes):
+            // Libra's scales, made visible on the ground they levelled.
+            //
+            // The same diamonds the Zodiaction throws — this is the same power,
+            // and it should look like it wherever it lands.
+            if hasLibra {
+                for (point, health) in changes
+                where health == .healthy && engine[plane][point].health != .healthy {
+                    playEffect(.libraZodiaction, at: point, on: plane)
+                }
+            }
             disperseClouds(in: changes, on: plane)
             flashingTiles.formUnion(changes.keys)
             withAnimation(.easeOut(duration: GameRules.areaEffectDuration)) {
@@ -1257,6 +1279,21 @@ final class GameSession {
             // in the ground.
             if plane == .terra {
                 fallingCloud = nil
+
+                // The cloud comes apart in Astra's own violets, wherever it has
+                // landed. It is cloudstuff that fell out of the sky; the ground
+                // it happens to have hit has nothing to do with what it is made
+                // of.
+                if SmokeSpriteView.hasArt(on: .astra) {
+                    smoke = SmokePuff(
+                        point: point,
+                        plane: plane,
+                        magnitude: GameRules.cloudPoofMagnitude,
+                        start: .now,
+                        cloudstuff: true
+                    )
+                }
+
                 let poof = CloudPoof(point: point, start: .now)
                 cloudPoofs.append(poof)
                 Task { [weak self] in
@@ -1683,6 +1720,10 @@ struct SmokePuff: Identifiable, Equatable {
 
     /// Overrides the plane's own smoke colour.
     var tint: Color?
+
+    /// True when this puff is made of cloud regardless of where it landed —
+    /// Sagittarius' shot brings one down onto Terra.
+    var cloudstuff = false
 }
 
 extension GameSession {

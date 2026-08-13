@@ -102,6 +102,19 @@ struct GameEngine {
     /// taking either shatters the other, so it is never more than briefly two.
     private(set) var revealedPickups: [RevealedPickup] = []
 
+    /// Pays back whatever a change of plane is about to cost in phantoms.
+    ///
+    /// Applied directly rather than as an event, because it happens *inside*
+    /// applying one — the plane change and the loss are the same instant, and a
+    /// second event describing the same moment could be replayed out of order
+    /// with it.
+    private mutating func refundLostRetinue() {
+        guard GameRules.retinueRefund > 0, !signState.retinue.isEmpty else { return }
+
+        let owed = GameRules.retinueRefund * signState.retinue.count
+        zodiactionMeter = min(zodiactionMeter + owed, zodiactionMeterMax)
+    }
+
     /// Every passive in force right now: the piece's own, and any phantom's.
     ///
     /// Leo's retinue is not a summon that acts on its own — it is a set of
@@ -2565,7 +2578,14 @@ struct GameEngine {
             // Arriving anywhere by warp closes the torn set, and leaving the
             // plane closes everything.
             signState.terraRifts = false
-            if toPlane != fromPlane { signState.closeRifts() }
+            if toPlane != fromPlane {
+                // The third way to change plane, and it costs the retinue like
+                // the other two. One rule, no exceptions — which is the whole
+                // reason the rule is "any change of plane" rather than "a fall".
+                refundLostRetinue()
+                signState.closeRifts()
+                signState = signState.clearedForPlaneChange(atMove: moveCount)
+            }
             piece.plane = toPlane
             piece.point = to
 
@@ -2593,6 +2613,7 @@ struct GameEngine {
             signState = state
 
         case let .pieceFell(_, to, at):
+            refundLostRetinue()
             signState = signState.clearedForPlaneChange(atMove: moveCount)
             signState.closeRifts()
             piece.plane = to
@@ -2698,7 +2719,14 @@ struct GameEngine {
             nexysPlane = destination
             applyNexysLayout()
             if carryingPiece {
-                if piece.plane != destination { signState.closeRifts() }
+                if piece.plane != destination {
+                    // Riding the island is a change of plane like any other, so
+                    // it costs the retinue like any other — see
+                    // `SignState.clearedForPlaneChange`.
+                    refundLostRetinue()
+                    signState.closeRifts()
+                    signState = signState.clearedForPlaneChange(atMove: moveCount)
+                }
                 piece.plane = destination
                 piece.point = GameRules.nexysPoint
             }

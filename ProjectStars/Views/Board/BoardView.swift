@@ -1396,6 +1396,8 @@ struct BoardView: View {
     /// square, which is blue while it is up and has to smoke blue on the way
     /// down.
     private func smokeSwaps(for smoke: SmokePuff) -> [PaletteSwap] {
+        // Cloud that fell out of the sky is cloud wherever it lands.
+        if smoke.cloudstuff { return SmokeSpriteView.cloudSwaps }
         guard smoke.plane == .astra else { return [] }
         return smoke.fromRaisedTile
             ? SmokeSpriteView.raisedCloudSwaps

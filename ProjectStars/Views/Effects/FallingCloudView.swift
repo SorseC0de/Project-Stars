@@ -44,9 +44,29 @@ struct FallingCloudView: View {
             let clock = now.timeIntervalSinceReferenceDate
 
             ZStack {
-                cluster(.body, at: clock)
-                ArrowView(tileSize: metrics.tileSize, scale: metrics.scale)
-                cluster(.crown, at: clock)
+                if CloudSpriteField.hasArt {
+                    // The drawn cloud, with the arrow through it.
+                    //
+                    // The cluster below is the generated stand-in and was still
+                    // being used here long after Astra itself moved to the
+                    // sheet — so the shot dragged down a cloud that no longer
+                    // matched a single square on the board it came from.
+                    //
+                    // It cannot be split into body and crown the way the drawn
+                    // shapes were, so the arrow sits in front. At this size and
+                    // speed the difference is not visible; a cloud that matches
+                    // the sky very much is.
+                    CloudSpriteView(
+                        point: point,
+                        health: .healthy,
+                        metrics: metrics
+                    )
+                    ArrowView(tileSize: metrics.tileSize, scale: metrics.scale)
+                } else {
+                    cluster(.body, at: clock)
+                    ArrowView(tileSize: metrics.tileSize, scale: metrics.scale)
+                    cluster(.crown, at: clock)
+                }
             }
             .frame(width: metrics.tileSize, height: metrics.tileSize)
             .position(metrics.center(of: point))

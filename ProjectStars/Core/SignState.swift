@@ -386,6 +386,19 @@ struct SignState: Equatable {
         var copy = self
         copy.planeFlags = []
         copy.planeArrivalMove = moveCount
+
+        // The retinue does not make the journey.
+        //
+        // The alternative was letting phantoms walk over holes while still
+        // wearing the ground, which is where this started — but a follower that
+        // is lost the moment a tile you advanced reaches badly cracked turns a
+        // full meter into a coin flip, and tying them to *falls* drags in Death
+        // Dream, Samsaric Shed and every other rescue as special cases.
+        //
+        // Losing them on any change of plane is one rule with no exceptions,
+        // and it is legible before you commit: going down costs you your
+        // company. See `GameRules.retinueRefund`.
+        copy.retinue = []
         return copy
     }
 

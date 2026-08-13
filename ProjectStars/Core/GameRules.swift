@@ -1837,6 +1837,15 @@ enum GameRules {
     /// there.
     static let retinueLag: Double = 1.9
 
+    /// How much meter comes back when a phantom is lost to a change of plane.
+    ///
+    /// **Zero**, for now, and deliberately a number rather than nothing: losing
+    /// a whole meter to a fall you did not choose is the sort of thing that
+    /// reads as unfair on the twentieth run and fine on the first, and the
+    /// answer is a playtest rather than an argument. Half a meter is the obvious
+    /// alternative if it bites.
+    static let retinueRefund = 0
+
     /// The bloom thrown by a drawn effect: blur radius in art pixels, and how
     /// bright the additive copy is.
     ///
