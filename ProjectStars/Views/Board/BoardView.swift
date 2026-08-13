@@ -810,6 +810,11 @@ struct BoardView: View {
                 case .nexys:
                     nexys(plane: plane, metrics: metrics, bob: bob, ascent: ascent, travel: travel)
                 case .facing:
+                    // Positioned on the *piece's* square and offset forward from
+                    // there by the view itself, even though it sorts by the
+                    // square ahead — the arrow's reach is a fraction of a tile,
+                    // so it belongs between the two rather than centred on
+                    // either.
                     FacingArrowView(
                         facing: session.engine.piece.facing,
                         tileSize: metrics.tileSize,
@@ -844,7 +849,20 @@ struct BoardView: View {
         let cursorPoint = projectedCursor.point
         var objects: [BoardObject] = [
             BoardObject(kind: .piece, point: session.engine.piece.point),
-            BoardObject(kind: .facing, point: session.engine.piece.point),
+            // At the square it points at, not the square it comes from.
+            //
+            // Which is what restores north. The depth law sorts by row, so an
+            // arrow one square ahead sorts one row ahead: pointing south it is
+            // nearer the viewer and draws over the piece, and pointing north it
+            // is further away and draws behind — exactly as a thing lying on
+            // that patch of ground would. Anchored to the piece's own square it
+            // had a single fixed layer and had to be either always in front or
+            // always behind, and both are wrong half the time.
+            BoardObject(
+                kind: .facing,
+                point: session.engine.piece.point
+                    .offset(by: session.engine.piece.facing.unitOffset)
+            ),
             BoardObject(kind: .cursorBack, point: cursorPoint),
             BoardObject(kind: .cursorFront, point: cursorPoint),
         ]

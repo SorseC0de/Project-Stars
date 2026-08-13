@@ -124,12 +124,17 @@ struct BoardObject: Identifiable, Equatable {
         // On the island's square you are on top of it, not beside it.
         case .piece: return point == GameRules.nexysPoint ? 5 : 3
 
-        // Over the cursor.
+        // Over the cursor, within its own row.
         //
-        // They occupy the same ground and mean different things — the cursor is
-        // where a move *would* go, the arrow is which way the piece is looking —
-        // and of the two the facing is the one that is currently true. A marker
-        // for a fact should not be hidden behind a marker for a possibility.
+        // They can occupy the same ground and mean different things — the cursor
+        // is where a move *would* go, the arrow is which way the piece is
+        // looking — and of the two the facing is the one that is currently true.
+        // A marker for a fact should not be hidden behind a marker for a
+        // possibility.
+        //
+        // Row order still decides everything above that, which is what keeps the
+        // arrow behind the piece when it points north. See where the object is
+        // built in `BoardView`.
         case .facing: return 7
         }
     }
