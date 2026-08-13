@@ -45,9 +45,10 @@ struct CloudSpriteView: View {
     var body: some View {
         TimelineView(.animation) { timeline in
             let now = clock(timeline.date.timeIntervalSinceReferenceDate)
+            let wall = timeline.date.timeIntervalSinceReferenceDate
             let motion = CloudMotion(
                 point: point, health: health, metrics: metrics,
-                now: now, wake: wake, bounce: bounce
+                now: now, impulseNow: wall, wake: wake, bounce: bounce
             )
 
             let art = recoloured(
@@ -188,11 +189,18 @@ struct CloudMotion {
 
     let isFlipped: Bool
 
+    /// - Parameter now: The **ambient** clock, which stops while an action
+    ///   plays out. Drives the idle drift and stretch.
+    /// - Parameter impulseNow: The **wall** clock. Drives the wake and the
+    ///   landing dip, which are impacts rather than ambience: they are set off
+    ///   *by* the action the ambient clock is stopped for, so timing them
+    ///   against a stopped clock means they never play at all.
     init(
         point: GridPoint,
         health: TileHealth,
         metrics: PixelArtMetrics,
         now: TimeInterval,
+        impulseNow: TimeInterval,
         wake: Wake? = nil,
         bounce: Bounce? = nil
     ) {
@@ -218,8 +226,8 @@ struct CloudMotion {
         )
 
         let wander = Self.shift(point, now: now, scale: metrics.scale)
-        let shove = Self.shove(point, wake: wake, now: now, scale: metrics.scale)
-        let give = Self.dip(point, bounce: bounce, now: now, scale: metrics.scale)
+        let shove = Self.shove(point, wake: wake, now: impulseNow, scale: metrics.scale)
+        let give = Self.dip(point, bounce: bounce, now: impulseNow, scale: metrics.scale)
 
         offset = CGSize(
             width: wander.width + shove.width,

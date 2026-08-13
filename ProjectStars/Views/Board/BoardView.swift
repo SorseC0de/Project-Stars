@@ -297,13 +297,18 @@ struct BoardView: View {
               session.visibleBoard[point].kind == .normal
         else { return .zero }
 
-        let now = session.ambientClock(at: date.timeIntervalSinceReferenceDate)
+        // Drift on the ambient clock, impacts on the wall clock — see
+        // `CloudMotion.init`. A shove set off *by* the action the ambient clock
+        // is stopped for cannot be timed against that stopped clock.
+        let wall = date.timeIntervalSinceReferenceDate
+        let now = session.ambientClock(at: wall)
+
         let drift = CloudMotion.shift(point, now: now, scale: metrics.scale)
         let shove = CloudMotion.shove(
-            point, wake: cloudWake, now: now, scale: metrics.scale
+            point, wake: cloudWake, now: wall, scale: metrics.scale
         )
         let give = CloudMotion.dip(
-            point, bounce: surfaceBounce, now: now, scale: metrics.scale
+            point, bounce: surfaceBounce, now: wall, scale: metrics.scale
         )
 
         return CGSize(
@@ -1114,7 +1119,7 @@ struct BoardView: View {
         let give = CloudMotion.dip(
             GameRules.nexysPoint,
             bounce: surfaceBounce,
-            now: session.ambientClock(at: date.timeIntervalSinceReferenceDate),
+            now: date.timeIntervalSinceReferenceDate,
             scale: metrics.scale
         )
 

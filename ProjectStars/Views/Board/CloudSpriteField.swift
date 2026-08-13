@@ -84,9 +84,11 @@ struct CloudSpriteField: View {
             // than the squares they belong to — framed to the board exactly, the
             // outer ring was sliced off flat against the edge and the whole
             // field read as a rectangle of weather rather than as sky.
+            let wall = timeline.date.timeIntervalSinceReferenceDate
+
             Canvas { context, _ in
                 context.translateBy(x: overhang, y: overhang)
-                draw(&context, at: now)
+                draw(&context, at: now, impulseNow: wall)
             }
             .frame(
                 width: metrics.boardSize + overhang * 2,
@@ -120,7 +122,11 @@ struct CloudSpriteField: View {
 
     // MARK: - Drawing
 
-    private func draw(_ context: inout GraphicsContext, at now: TimeInterval) {
+    private func draw(
+        _ context: inout GraphicsContext,
+        at now: TimeInterval,
+        impulseNow: TimeInterval
+    ) {
         // Resolved once for the whole pass. `GraphicsContext.resolve` is the
         // expensive half of drawing an image, and there are only ever six
         // distinct ones however many squares are on the board.
@@ -152,7 +158,10 @@ struct CloudSpriteField: View {
             guard !raised.contains(point) else { continue }
             guard let image = resolved[.at(point)] else { continue }
 
-            drawCloud(&context, image: image, at: point, tile: tile, now: now)
+            drawCloud(
+                &context, image: image, at: point, tile: tile,
+                now: now, impulseNow: impulseNow
+            )
         }
     }
 
@@ -161,7 +170,8 @@ struct CloudSpriteField: View {
         image: GraphicsContext.ResolvedImage,
         at point: GridPoint,
         tile: Tile,
-        now: TimeInterval
+        now: TimeInterval,
+        impulseNow: TimeInterval
     ) {
         let isRaised = raised.contains(point)
         let stages = tile.health.rawValue
@@ -180,8 +190,12 @@ struct CloudSpriteField: View {
         // lift if a Pentacle is sitting on it.
         let centre = metrics.center(of: point)
         let wander = shift(point, now: now)
-        let shove = CloudMotion.shove(point, wake: wake, now: now, scale: metrics.scale)
-        let give = CloudMotion.dip(point, bounce: bounce, now: now, scale: metrics.scale)
+        let shove = CloudMotion.shove(
+            point, wake: wake, now: impulseNow, scale: metrics.scale
+        )
+        let give = CloudMotion.dip(
+            point, bounce: bounce, now: impulseNow, scale: metrics.scale
+        )
         let lift = isRaised ? GameRules.cloudSpriteRaiseLift * metrics.scale : 0
 
         let box = CGRect(
