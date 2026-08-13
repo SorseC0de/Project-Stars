@@ -56,24 +56,32 @@ struct SwipeInputSurface: View {
             // Makes the whole area draggable despite being fully transparent.
             .contentShape(Rectangle())
             .gesture(dragGesture)
-            // A single tap and a drag, and nothing else.
-            //
-            // The Zodiaction used to be a double-tap here, which made the two
-            // taps fight: SwiftUI has to wait out the double-tap window before
-            // it can deliver a single one, so stepping forward was always late
-            // *and* the double-tap was unreliable because a drag could start
-            // between the two. Now that the Zodiaction has a button of its own
-            // there is nothing to arbitrate, and the step is instant.
-            .simultaneousGesture(
-                TapGesture(count: 1).onEnded { if isEnabled { onStepForward() } }
-            )
     }
 
+    /// One gesture decides everything.
+    ///
+    /// ## Why the tap is not its own gesture any more
+    ///
+    /// It used to be a `TapGesture` running simultaneously, and that produced a
+    /// bug which looked like the stick misreading directions. The preview lit at
+    /// **half** the commit threshold, so any drag that finished between the two
+    /// lit an arrow, failed the commit test, and then let the tap through — and
+    /// the tap steps *forward*. Nudge the stick west while facing north and you
+    /// watch the west arrow light up and then walk north.
+    ///
+    /// It is worst with a mouse, where a deliberate short drag is the natural
+    /// gesture and twenty-four points is a long way.
+    ///
+    /// Two gestures with two thresholds cannot be kept in agreement. One gesture
+    /// with one rule can: **whatever the drag last showed is what the drag
+    /// does**, and a drag that showed nothing at all is a tap.
     private var dragGesture: some Gesture {
-        DragGesture(minimumDistance: 8)
+        // Zero, because this gesture is the tap as well now. The surface sits
+        // *behind* the panel's content as a sibling, so it only ever sees
+        // touches that missed a control — see the note on `SwipeInputSurface`.
+        DragGesture(minimumDistance: 0)
             .onChanged { value in
-                // Preview uses a smaller threshold than the commit so the hint
-                // appears early in the gesture.
+                // The preview threshold, and now the only threshold there is.
                 let direction = SwipeDirection.from(
                     translation: value.translation,
                     minimumDistance: GameRules.minimumSwipeDistance * 0.5,
@@ -85,15 +93,21 @@ struct SwipeInputSurface: View {
                 onPreview(direction, SwipeDirection.reach(for: value.translation))
             }
             .onEnded { value in
+                // Read before it is cleared: this is the arrow the player was
+                // looking at when they let go.
+                let aimed = liveDirection
+
                 liveDirection = nil
                 onPreview(nil, 0)
-                guard isEnabled,
-                      let direction = SwipeDirection.from(
-                          translation: value.translation,
-                          includingDiagonals: includingDiagonals
-                      )
-                else { return }
-                onCommit(direction, SwipeDirection.reach(for: value.translation))
+                guard isEnabled else { return }
+
+                if let aimed {
+                    onCommit(aimed, SwipeDirection.reach(for: value.translation))
+                } else {
+                    // Never showed a direction, so it was a tap: step the way
+                    // the piece is already looking.
+                    onStepForward()
+                }
             }
     }
 }
