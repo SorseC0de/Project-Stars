@@ -519,6 +519,14 @@ struct BoardView: View {
                         .offset(surfaceSway(of: point, at: timeline.date, metrics: metrics))
                 }
             }
+            // Sized to the board explicitly.
+            //
+            // `.position` places a view within *its container*, and the
+            // `TimelineView` above is a container that sizes itself to its own
+            // content. Without this the sparkles were positioned inside a box
+            // the size of whatever they happened to add up to, and landed
+            // nowhere near the squares they were marking.
+            .frame(width: metrics.boardSize, height: metrics.boardSize)
             .transition(.opacity)
         }
     }

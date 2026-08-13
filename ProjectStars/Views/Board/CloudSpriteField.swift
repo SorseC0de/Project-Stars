@@ -197,8 +197,9 @@ struct CloudSpriteField: View {
             layer.addFilter(.colorMultiply(Palette.white))
         }
 
-        // The glow under a lifted cloud: the same image, blurred and additive,
-        // breathing. Drawn first so the cloud sits inside its own light.
+        // Kept for the day something other than a Pentacle lifts a square. The
+        // Pentacle's own lifted cloud is skipped above and drawn by
+        // `CloudSpriteView`, which can recolour it.
         if isRaised {
             // Drawn into its own layer so the blur has something bounded to work
             // on.
