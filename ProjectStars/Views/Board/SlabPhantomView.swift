@@ -38,6 +38,9 @@ struct SlabPhantomView: View {
     var clock: (TimeInterval) -> TimeInterval = { $0 }
 
 
+    /// Which plane it will land on, so it is drawn as ground or as sky.
+    var plane: Plane = .terra
+
     var body: some View {
         // Squares relative to the shape's own top-left, so the drawing is
         // centred on itself rather than on wherever its anchor happens to sit.
@@ -54,12 +57,7 @@ struct SlabPhantomView: View {
 
             ZStack(alignment: .topLeading) {
                 ForEach(cells, id: \.self) { point in
-                    RoundedRectangle(cornerRadius: cell * 0.12)
-                        .fill(face)
-                        .overlay(
-                            RoundedRectangle(cornerRadius: cell * 0.12)
-                                .strokeBorder(Palette.textPrimary.opacity(0.5), lineWidth: 1)
-                        )
+                    ground(cell: cell)
                         .frame(width: cell, height: cell)
                         .offset(
                             x: CGFloat(point.x - minX) * cell,
@@ -76,11 +74,32 @@ struct SlabPhantomView: View {
         .allowsHitTesting(false)
     }
 
-    /// The colour the ground will actually arrive as.
-    private var face: Color {
-        slab.health.isHole
-            ? Palette.chasm
-            : Palette.tileFace(slab.health, on: .terra, shade: .light)
+    /// One square of the slab, drawn as the ground it will actually become.
+    ///
+    /// The real sprite in the real wear state, on the plane it is going to land
+    /// on — cloud above, stone below. It used to be a flat rounded rectangle in
+    /// roughly the right colour, which meant the player had to translate a
+    /// symbol into a prediction. Drawing the thing itself removes the
+    /// translation: what hovers over the cursor is what the board will look
+    /// like, held up and slightly see-through.
+    @ViewBuilder
+    private func ground(cell: CGFloat) -> some View {
+        if plane == .astra {
+            CloudSpriteView(
+                point: GridPoint(0, 0),
+                health: slab.health,
+                metrics: PixelArtMetrics(availableSide: cell * CGFloat(GameRules.gridSize)),
+                clock: clock
+            )
+        } else {
+            TileView(
+                tile: Tile(kind: .normal, health: slab.health),
+                plane: .terra,
+                shade: .light,
+                size: cell,
+                point: GridPoint(0, 0)
+            )
+        }
     }
 
     private enum Style {

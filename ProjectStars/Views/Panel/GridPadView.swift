@@ -76,7 +76,18 @@ struct GridPadView: View {
         // same answer every time; it should be computed like it.
         let reach = session.isChoosingTile ? [:] : session.reachableSquares
 
-        HStack(alignment: .center, spacing: PanelStyle.gridPadGap) {
+        HStack(alignment: .top, spacing: PanelStyle.gridPadGap) {
+            // What the slab is made of, north-west of the map.
+            //
+            // The footprint on the grid says *where* and the board above says
+            // what it will look like there; this says **what it is**, once,
+            // large enough to read without hunting. Drawn as the real thing in
+            // the real wear state, with an edge under it on Terra so it reads as
+            // a slab of ground rather than a coloured square.
+            if let slab = session.placingSlab {
+                slabToken(slab, cell: cell)
+            }
+
             grid(board: board, cell: cell, reach: reach)
 
             VStack(spacing: PanelStyle.gridPadGap) {
@@ -141,7 +152,23 @@ struct GridPadView: View {
                 }
             }
             .overlay {
-                if isAimed {
+                // The slab's footprint, in the colour of the ground it carries.
+                //
+                // Every square the shape would occupy, not just the one under
+                // the finger — placing a four-tile L on a seven-wide board is a
+                // question about the whole shape, and a single bracket answers
+                // the wrong one.
+                if let slab = session.placingSlab, footprint.contains(point) {
+                    Rectangle()
+                        .fill(slabColour(slab, legal: legal))
+                        .overlay {
+                            Rectangle()
+                                .strokeBorder(
+                                    slabEdge(slab, legal: legal),
+                                    lineWidth: PanelStyle.gridPadSlabEdge
+                                )
+                        }
+                } else if isAimed {
                     Rectangle()
                         .strokeBorder(legal ? Palette.jade : Palette.red, lineWidth: 2)
                 } else if !legal {
@@ -153,6 +180,85 @@ struct GridPadView: View {
             }
             .contentShape(Rectangle())
             .onTapGesture { tap(point, reach: reach) }
+    }
+
+    /// The single tile or cloud the slab is made of, shown beside the map.
+    ///
+    /// Deliberately bigger than a square on the pad — it is one thing to be
+    /// read, not part of the map, and at map scale a wear state is a few pixels
+    /// of colour difference.
+    private func slabToken(_ slab: GavelSlab, cell: CGFloat) -> some View {
+        let side = cell * PanelStyle.gridPadTokenScale
+
+        return VStack(spacing: 0) {
+            ZStack {
+                if session.visiblePlane == .astra {
+                    CloudSpriteView(
+                        point: GridPoint(0, 0),
+                        health: slab.health,
+                        metrics: PixelArtMetrics(
+                            availableSide: side * CGFloat(GameRules.gridSize)
+                        )
+                    )
+                } else {
+                    // The edge under it, exactly as the board draws one, so a
+                    // Terra slab reads as something with thickness.
+                    TileEdgeView(plane: .terra, shade: .light, size: side)
+                        .offset(y: GameRules.tileEdgeDrop * (side / CGFloat(GameRules.tilePixelSize)))
+
+                    TileView(
+                        tile: Tile(kind: .normal, health: slab.health),
+                        plane: .terra,
+                        shade: .light,
+                        size: side,
+                        point: GridPoint(0, 0)
+                    )
+                }
+            }
+            .frame(width: side, height: side)
+        }
+        .frame(width: side, height: side)
+        .allowsHitTesting(false)
+    }
+
+    /// Every square the slab would cover from where it is currently aimed.
+    ///
+    /// Computed once per render and asked per square, since the shape does not
+    /// change between them.
+    private var footprint: Set<GridPoint> {
+        guard let slab = session.placingSlab, let target = aim else { return [] }
+        return Set(slab.squares(anchoredAt: target))
+    }
+
+    /// What the slab's squares are painted, which is what they are *made of*.
+    ///
+    /// Green healthy, yellow cracked, orange badly cracked, black a hole — the
+    /// same ladder the board itself runs on, so the answer to "what am I about
+    /// to drop here" is read rather than remembered. Red overrides all of it
+    /// when the shape will not fit: an illegal placement is not a worse tile, it
+    /// is not a placement.
+    private func slabColour(_ slab: GavelSlab, legal: Bool) -> Color {
+        guard legal else { return Palette.red }
+
+        switch slab.health {
+        case .healthy: return Palette.jade
+        case .cracked: return Palette.yellow
+        case .badlyCracked: return Palette.orange
+        case .hole: return Palette.coolBlack
+        }
+    }
+
+    /// Its outline: a darker shade of itself, except on black, which needs the
+    /// opposite or it has no edge at all against a dim board.
+    private func slabEdge(_ slab: GavelSlab, legal: Bool) -> Color {
+        guard legal else { return Palette.darkRed }
+
+        switch slab.health {
+        case .healthy: return Palette.darkGreen
+        case .cracked: return Palette.gold
+        case .badlyCracked: return Palette.darkBrown
+        case .hole: return Palette.white
+        }
     }
 
     private func face(_ tile: Tile, at point: GridPoint) -> Color {

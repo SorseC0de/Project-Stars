@@ -142,6 +142,12 @@ enum PanelStyle {
     static let gridPadCorner: CGFloat = 8
     static let gridPadGap: CGFloat = 12
     static let gridPadDim: Double = 0.45
+
+    /// The outline on a slab's footprint squares, in points.
+    static let gridPadSlabEdge: CGFloat = 1.5
+
+    /// How much bigger the slab's type token is than a square on the pad.
+    static let gridPadTokenScale: CGFloat = 2.2
     static let gridPadConfirmWidth: CGFloat = 64
     static let gridPadConfirmHeight: CGFloat = 64
     static let gridPadCheckSize: CGFloat = 26

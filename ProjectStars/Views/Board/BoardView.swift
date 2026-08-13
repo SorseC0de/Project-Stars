@@ -807,6 +807,18 @@ struct BoardView: View {
                     pentacle(at: object.point, metrics: metrics)
                 case .nexys:
                     nexys(plane: plane, metrics: metrics, bob: bob, ascent: ascent, travel: travel)
+                case .facing:
+                    FacingArrowView(
+                        facing: session.engine.piece.facing,
+                        tileSize: metrics.tileSize,
+                        scale: metrics.scale
+                    )
+                    .position(metrics.center(of: session.engine.piece.point))
+                    .offset(y: surfaceOffset(
+                        of: session.engine.piece.point, bob: bob, metrics: metrics
+                    ))
+                    .offset(sway)
+
                 case .piece:
                     piece(
                         metrics: metrics,
@@ -829,6 +841,7 @@ struct BoardView: View {
         let cursorPoint = projectedCursor.point
         var objects: [BoardObject] = [
             BoardObject(kind: .piece, point: session.engine.piece.point),
+            BoardObject(kind: .facing, point: session.engine.piece.point),
             BoardObject(kind: .cursorBack, point: cursorPoint),
             BoardObject(kind: .cursorFront, point: cursorPoint),
         ]

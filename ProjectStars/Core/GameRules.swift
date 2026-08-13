@@ -1790,6 +1790,18 @@ enum GameRules {
     ///
     /// Longer than one step, on purpose: the presses overlap into a wave
     /// travelling behind the piece rather than a single square bobbing under it.
+    /// How far ahead of the piece its facing arrow sits, in tiles.
+    ///
+    /// Short of the next square's centre on purpose: it points *at* that square,
+    /// and sitting on it would read as something standing there.
+    static let facingArrowReach: CGFloat = 0.62
+
+    /// How big it is drawn against a full cell.
+    static let facingArrowScale: CGFloat = 0.55
+
+    /// How long it takes to swing round to a new facing.
+    static let facingArrowTurn: TimeInterval = 0.14
+
     static let slidePressLinger: TimeInterval = 0.18
 
     /// How far a pressed square gives, in art pixels.

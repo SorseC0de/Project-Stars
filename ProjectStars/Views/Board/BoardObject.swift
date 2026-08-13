@@ -22,6 +22,11 @@ enum BoardObjectKind: String, Hashable, CaseIterable {
     case cursorBack
 
     case pentacle
+    /// The little arrow on the ground ahead of the piece. Sorted just under it,
+    /// so a piece standing at the front of the board still covers its own
+    /// marker rather than being overlapped by it.
+    case facing
+
     case piece
     case nexys
 
@@ -113,6 +118,9 @@ struct BoardObject: Identifiable, Equatable {
 
         // On the island's square you are on top of it, not beside it.
         case .piece: return point == GameRules.nexysPoint ? 5 : 3
+
+        // Just under the piece it belongs to, and over the ground it points at.
+        case .facing: return point == GameRules.nexysPoint ? 5 : 2
         }
     }
 

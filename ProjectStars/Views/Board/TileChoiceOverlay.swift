@@ -100,7 +100,7 @@ struct TileChoiceOverlay: View {
 
             // Its own bob keeps running: the slab is the thing being *decided
             // about*, not part of the scenery that waits for the decision.
-            SlabPhantomView(slab: slab, metrics: metrics)
+            SlabPhantomView(slab: slab, metrics: metrics, plane: session.visiblePlane)
                 .allowsHitTesting(false)
         }
         .frame(width: metrics.boardSize, height: metrics.boardSize)
