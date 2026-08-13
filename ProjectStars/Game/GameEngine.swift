@@ -46,6 +46,12 @@ struct RevealedPickup: Equatable {
     /// Counted rather than randomised so a seeded run stays reproducible.
     let serial: Int
 
+    /// The move this coin appeared on.
+    ///
+    /// Nothing may drag a Pentacle on the turn it is revealed — see
+    /// `GameEngine.planMagneticPull()`.
+    var revealedOnMove = 0
+
     /// True when this coin was dealt by a **ring** — Virgo's Regulated Reboot.
     ///
     /// The reward for taking it belongs to the ring, not to Virgo. A phantom
@@ -1765,6 +1771,18 @@ struct GameEngine {
         let chance = activePassives.magneticPullChance(context: passiveContext)
         guard chance > 0 else { return nil }
 
+        // Never on the turn a coin appears.
+        //
+        // A Pentacle that slides the instant it is revealed is not a Pentacle
+        // the player got to look at, and it breaks any ability that *placed* it
+        // somewhere on purpose — Virgo's ring above all, where every square in
+        // the ring means something and one of them is the answer. It also
+        // removes a whole class of ordering question from everything else that
+        // deals a coin.
+        guard revealedPickups.allSatisfy({ $0.revealedOnMove < moveCount }) else {
+            return nil
+        }
+
         let roll = Double(rng.next() % 10_000) / 10_000
         guard roll < chance else { return nil }
 
@@ -2563,6 +2581,7 @@ struct GameEngine {
                 RevealedPickup(
                     id: id, plane: plane, point: point,
                     serial: pickupSerial,
+                    revealedOnMove: moveCount,
                     fromRing: sparkles?.pattern == .ring
                 )
             )
