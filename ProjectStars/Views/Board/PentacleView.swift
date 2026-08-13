@@ -34,6 +34,10 @@ struct PentacleView: View {
     /// Whole-pixel scale, for art-pixel offsets.
     var scale: CGFloat = 1
 
+    /// The ambient clock, which stops while the game waits on the player. See
+    /// `GameSession.ambientClock(at:)`.
+    var clock: (TimeInterval) -> TimeInterval = { $0 }
+
     /// Recolouring applied to the coin, if any. See `ringSwaps`.
     var swaps: [PaletteSwap] = []
 
@@ -41,7 +45,7 @@ struct PentacleView: View {
         TimelineView(.animation) { timeline in
             // One phase drives everything, so the coin, its orbit and its pool
             // of light can never drift out of step with each other.
-            let phase = timeline.date.timeIntervalSinceReferenceDate
+            let phase = clock(timeline.date.timeIntervalSinceReferenceDate)
             let rise = riseFraction(at: phase)
             let orbit = orbitOffset(at: phase)
 
@@ -241,7 +245,7 @@ struct PentacleView: View {
     }
 
     private func float(at date: Date) -> CGFloat {
-        let phase = date.timeIntervalSinceReferenceDate / GameRules.pentacleFloatPeriod
+        let phase = clock(date.timeIntervalSinceReferenceDate) / GameRules.pentacleFloatPeriod
         return CGFloat(sin(phase * 2 * .pi)) * GameRules.pentacleFloatAmplitude * scale
     }
 

@@ -42,7 +42,6 @@ struct BoardView: View {
             // Over the ground, under everything that moves: the piece, the
             // coins and the move's own effects all sit above this and stay lit.
             actionDim(metrics: metrics)
-            choiceDim(metrics: metrics)
 
             pools(board: board, plane: plane, metrics: metrics)
             shedSkin(plane: plane, metrics: metrics)
@@ -281,21 +280,6 @@ struct BoardView: View {
             )
             .frame(width: metrics.boardSize, height: metrics.boardSize)
         }
-    }
-
-    /// The wash that says the board is waiting on an answer.
-    ///
-    /// Purple, and deeper than the action dim, because it means something
-    /// different: an action is over in a moment and this is not over until the
-    /// player does something. Without it the controls simply stop working and
-    /// there is nothing on screen saying why — the commonest way a game feels
-    /// broken when it is merely waiting.
-    private func choiceDim(metrics: PixelArtMetrics) -> some View {
-        Rectangle().fill(Palette.midnight)
-            .frame(width: metrics.boardSize, height: metrics.boardSize)
-            .opacity(session.isChoosingTile ? GameRules.choiceDim : 0)
-            .animation(.easeOut(duration: 0.18), value: session.isChoosingTile)
-            .allowsHitTesting(false)
     }
 
     /// The wash that says the board is mid-move.
@@ -623,7 +607,8 @@ struct BoardView: View {
     @ViewBuilder
     private func arrow(metrics: PixelArtMetrics) -> some View {
         if let planted = session.visibleArrow {
-            ArrowView(tileSize: metrics.tileSize, scale: metrics.scale)
+            ArrowView(tileSize: metrics.tileSize, scale: metrics.scale,
+                      clock: session.ambientClock(at:))
                 .position(metrics.center(of: planted.point))
                 .transition(.scale(scale: 0.3).combined(with: .opacity))
         }
@@ -664,7 +649,8 @@ struct BoardView: View {
                     index: index,
                     // Virgo's ring, which plays by different rules and says so.
                     tint: set.pattern == .ring ? Palette.pink : nil,
-                    sway: { surfaceSway(of: point, at: $0, metrics: metrics) }
+                    sway: { surfaceSway(of: point, at: $0, metrics: metrics) },
+                    clock: session.ambientClock(at:)
                 )
                     .position(metrics.center(of: point))
                     .offset(GameRules.sparkleNudge)
@@ -915,6 +901,7 @@ struct BoardView: View {
                 appearance: PickupCatalog.effect(for: pickup.id).appearance,
                 size: metrics.tileSize,
                 scale: metrics.scale,
+                clock: session.ambientClock(at:),
                 // A coin dealt by a ring wears the ring's colours, so what it is
                 // worth is readable from across the board rather than remembered.
                 swaps: pickup.fromRing ? PentacleView.ringSwaps : []
@@ -1002,7 +989,8 @@ struct BoardView: View {
         .overlay {
             // A burning piece sheds embers, for as long as the charge runs.
             if session.isCharging {
-                EmberView(tileSize: metrics.tileSize, scale: metrics.scale)
+                EmberView(tileSize: metrics.tileSize, scale: metrics.scale,
+                          clock: session.ambientClock(at:))
             }
             // And a piece the wind is carrying streams the same particles
             // sideways — see `EmberView`.
@@ -1033,7 +1021,8 @@ struct BoardView: View {
             // What the piece is carrying, riding above its head until it stops
             // and the coin opens.
             if !session.engine.carriedPickups.isEmpty {
-                CarriedPickupView(tileSize: metrics.tileSize, scale: metrics.scale)
+                CarriedPickupView(tileSize: metrics.tileSize, scale: metrics.scale,
+                                  clock: session.ambientClock(at:))
             }
         }
         // Island and passenger travel as one object during an ascent.
@@ -1263,7 +1252,11 @@ struct BoardView: View {
 
     /// The island's current drift, in points. Negative is up.
     private func nexysBob(at date: Date, metrics: PixelArtMetrics) -> CGFloat {
-        let phase = date.timeIntervalSinceReferenceDate / GameRules.nexysFloatPeriod
+        // The ambient clock, so the island holds its height while the game waits
+        // on an answer. Its dip stays on the wall clock below — that is an
+        // impact, not ambience.
+        let phase = session.ambientClock(at: date.timeIntervalSinceReferenceDate)
+            / GameRules.nexysFloatPeriod
         let float = CGFloat(sin(phase * 2 * .pi))
             * GameRules.nexysFloatAmplitude * metrics.scale
 

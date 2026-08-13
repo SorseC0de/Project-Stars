@@ -46,6 +46,9 @@ struct SparkleView: View {
     /// it and a `TimelineView` sizes itself to its content.
     var sway: (Date) -> CGSize = { _ in .zero }
 
+    /// The ambient clock, which stops while the game waits on the player.
+    var clock: (TimeInterval) -> TimeInterval = { $0 }
+
     var body: some View {
         ZStack {
             tileGlow
@@ -56,7 +59,7 @@ struct SparkleView: View {
         // Evaluated from the clock rather than driven by a repeating animation,
         // so each sparkle can run at its own rate without needing its own
         // animation state.
-        .modifier(SparklePulse(index: index))
+        .modifier(SparklePulse(index: index, clock: clock))
         .allowsHitTesting(false)
     }
 
@@ -186,6 +189,7 @@ private struct SparkleSway: ViewModifier {
 private struct SparklePulse: ViewModifier {
 
     let index: Int
+    let clock: (TimeInterval) -> TimeInterval
 
     func body(content: Content) -> some View {
         TimelineView(.animation) { timeline in
@@ -205,7 +209,7 @@ private struct SparklePulse: ViewModifier {
             + (GameRules.sparklePulseSlowest - GameRules.sparklePulseFastest) * spread
         let offset = spread * 2 * .pi
 
-        let turns = date.timeIntervalSinceReferenceDate / period * 2 * .pi + offset
+        let turns = clock(date.timeIntervalSinceReferenceDate) / period * 2 * .pi + offset
         return CGFloat(sin(turns) + 1) / 2
     }
 }

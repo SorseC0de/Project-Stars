@@ -491,6 +491,17 @@ private struct PanelFrontView: View {
             //.padding(.bottom, PanelStyle.padding + safeArea)
             .padding(.bottom, PanelStyle.padding)
         }
+        .overlay(alignment: .bottomLeading) {
+            // The bottom-left corner, which is otherwise empty.
+            //
+            // A lift panel belongs on a wall, not stacked over the sign's name —
+            // and this is the one part of the control area nothing else wants.
+            // It is also where a left thumb already rests.
+            if session.showsNexysCall {
+                NexysCallView(session: session)
+                    .padding(PanelStyle.padding)
+            }
+        }
         .overlay(alignment: .trailing) {
             #if DEBUG
             debugMainRow
@@ -504,11 +515,6 @@ private struct PanelFrontView: View {
     private var signRow: some View {
         HStack(spacing: PanelStyle.topRowSpacing) {
             //SignBadge(zodiac: session.zodiac)
-
-            // Only Libra rides the island, so only Libra gets the panel for it.
-            if session.showsNexysCall {
-                NexysCallView(session: session)
-            }
 
             Spacer(minLength: 0)
 

@@ -140,6 +140,15 @@ struct CapricornCelestialCommerce: ZodiacPassive {
     func meterBonus(from move: MoveSummary, context: PassiveContext) -> Int {
         move.collectedPickup == nil ? 0 : 1
     }
+
+    /// Every Pentacle goes in the purse instead of going off.
+    ///
+    /// The hook this whole passive is named for, and it was never answered —
+    /// the engine asked, got the protocol's default of `false`, and Capricorn
+    /// spent the day opening coins on touch with an empty belt. Z-Charge is
+    /// excluded by the engine rather than here, because "charge cannot be stored
+    /// as charge" is a fact about charge, not about this sign.
+    func banksPickups(_ id: PickupID, context: PassiveContext) -> Bool { true }
 }
 
 // MARK: - Zodiaction: Cosmic Cash-in

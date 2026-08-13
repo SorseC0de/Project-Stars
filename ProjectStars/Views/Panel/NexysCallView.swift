@@ -45,7 +45,9 @@ struct NexysCallView: View {
         let enabled = session.canCallNexys
         let going = session.nexysCallDestination
 
-        HStack(spacing: Style.gap) {
+        // Up above down, because that is what up and down mean. Side by side
+        // they are two buttons; stacked they are a lift.
+        VStack(spacing: Style.gap) {
             lamp(.astra, isLit: enabled && going == .astra)
             lamp(.terra, isLit: enabled && going == .terra)
         }

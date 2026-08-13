@@ -30,9 +30,17 @@ struct ArrowView: View {
     /// Whole-pixel scale, for art-pixel measurements.
     let scale: CGFloat
 
+    /// The ambient clock, which stops while the game waits on the player.
+    ///
+    /// Ambient motion carrying on under a frozen game is the clearest possible
+    /// signal that nothing is waiting on anything. See
+    /// `GameSession.ambientClock(at:)`.
+    var clock: (TimeInterval) -> TimeInterval = { $0 }
+
+
     var body: some View {
         TimelineView(.animation) { timeline in
-            let now = timeline.date.timeIntervalSinceReferenceDate
+            let now = clock(timeline.date.timeIntervalSinceReferenceDate)
             let pulse = (sin(now / GameRules.arrowPulsePeriod * 2 * .pi) + 1) / 2
 
             ZStack {

@@ -2787,9 +2787,19 @@ struct GameEngine {
         case .pickupBanked, .pickupSpent:
             break
 
-        case let .pickupCollected(_, plane, point):
+        case let .pickupCollected(id, plane, point):
             raisedTiles.removeAll { $0.plane == plane && $0.point == point }
             revealedPickups.removeAll { $0.plane == plane && $0.point == point }
+
+            // And out of the pouch.
+            //
+            // `openCarriedPickups` empties it on the simulation copy, which is
+            // thrown away — only events reach the real engine. So a coin swept
+            // up by the sting stayed in the pouch forever and was re-opened by
+            // every later sweep: pick one Astral Breeze, warp, and be asked to
+            // warp again, endlessly. State the events do not carry is state the
+            // engine does not have.
+            carriedPickups.removeAll { $0.id == id }
             if revealedPentacles.isEmpty {
                 pendingPickup = nil
                 sparkles = nil

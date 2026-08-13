@@ -30,6 +30,14 @@ struct EmberView: View {
     /// Whole-pixel scale, for art-pixel distances.
     let scale: CGFloat
 
+    /// The ambient clock, which stops while the game waits on the player.
+    ///
+    /// Ambient motion carrying on under a frozen game is the clearest possible
+    /// signal that nothing is waiting on anything. See
+    /// `GameSession.ambientClock(at:)`.
+    var clock: (TimeInterval) -> TimeInterval = { $0 }
+
+
     /// Which element these are made of.
     ///
     /// Fire rises off a burning ram; Aquarius' gale streams off a piece being
@@ -44,7 +52,7 @@ struct EmberView: View {
 
     var body: some View {
         TimelineView(.animation) { timeline in
-            let now = timeline.date.timeIntervalSinceReferenceDate
+            let now = clock(timeline.date.timeIntervalSinceReferenceDate)
 
             ZStack {
                 ForEach(0..<GameRules.emberCount, id: \.self) { index in

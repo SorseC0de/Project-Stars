@@ -30,6 +30,14 @@ struct SlabPhantomView: View {
     let slab: GavelSlab
     let metrics: PixelArtMetrics
 
+    /// The ambient clock, which stops while the game waits on the player.
+    ///
+    /// Ambient motion carrying on under a frozen game is the clearest possible
+    /// signal that nothing is waiting on anything. See
+    /// `GameSession.ambientClock(at:)`.
+    var clock: (TimeInterval) -> TimeInterval = { $0 }
+
+
     var body: some View {
         // Squares relative to the shape's own top-left, so the drawing is
         // centred on itself rather than on wherever its anchor happens to sit.
@@ -42,7 +50,7 @@ struct SlabPhantomView: View {
         let cell = metrics.tileSize * Style.scale
 
         TimelineView(.animation) { timeline in
-            let bob = sin(timeline.date.timeIntervalSinceReferenceDate * 2) * Style.bob
+            let bob = sin(clock(timeline.date.timeIntervalSinceReferenceDate) * 2) * Style.bob
 
             ZStack(alignment: .topLeading) {
                 ForEach(cells, id: \.self) { point in

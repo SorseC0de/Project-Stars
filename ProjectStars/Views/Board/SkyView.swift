@@ -23,6 +23,14 @@ struct SkyView: View {
     /// Edge length of the square this fills, in points.
     let side: CGFloat
 
+    /// The ambient clock, which stops while the game waits on the player.
+    ///
+    /// Ambient motion carrying on under a frozen game is the clearest possible
+    /// signal that nothing is waiting on anything. See
+    /// `GameSession.ambientClock(at:)`.
+    var clock: (TimeInterval) -> TimeInterval = { $0 }
+
+
     var body: some View {
         ZStack {
             switch plane {
@@ -48,7 +56,7 @@ struct SkyView: View {
 
             TimelineView(.animation) { timeline in
                 Canvas { context, size in
-                    let now = timeline.date.timeIntervalSinceReferenceDate
+                    let now = clock(timeline.date.timeIntervalSinceReferenceDate)
 
                     for star in Self.stars {
                         let twinkle = sin(now / star.period * 2 * .pi + star.phase)
@@ -119,7 +127,7 @@ struct SkyView: View {
             }
 
             TimelineView(.animation) { timeline in
-                let now = timeline.date.timeIntervalSinceReferenceDate
+                let now = clock(timeline.date.timeIntervalSinceReferenceDate)
 
                 ZStack {
                     ForEach(Array(Self.clouds.enumerated()), id: \.offset) { _, cloud in

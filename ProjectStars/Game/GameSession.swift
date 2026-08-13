@@ -390,13 +390,13 @@ final class GameSession {
     }
 
     /// Stops the ambient clock, if it is running.
-    private func pauseAmbient(at now: TimeInterval) {
+    fileprivate func pauseAmbient(at now: TimeInterval) {
         guard ambientPausedAt == nil else { return }
         ambientPausedAt = now
     }
 
     /// Starts it again from where it stopped.
-    private func resumeAmbient(at now: TimeInterval) {
+    fileprivate func resumeAmbient(at now: TimeInterval) {
         guard let paused = ambientPausedAt else { return }
         ambientLost += now - paused
         ambientPausedAt = nil
@@ -1615,6 +1615,12 @@ final class GameSession {
         // the piece's own cell throws away a decision they had already half
         // made, and on a seven-wide board that is up to six taps to undo.
         targetAim = engine.cursor(direction: nil, reach: 0).point
+
+        // The board holds its pose while it waits. A question can be open for as
+        // long as the player likes, and ambient motion carrying on underneath a
+        // frozen game is the clearest possible signal that nothing is waiting on
+        // anything — which is the opposite of true.
+        pauseAmbient(at: Date.now.timeIntervalSinceReferenceDate)
         pendingPickupChoice = (source, kind)
         return await withCheckedContinuation { continuation in
             choiceContinuation = continuation
@@ -1626,6 +1632,7 @@ final class GameSession {
         guard pendingPickupChoice != nil else { return }
         pendingPickupChoice = nil
         targetAim = nil
+        resumeAmbient(at: Date.now.timeIntervalSinceReferenceDate)
         choiceContinuation?.resume(returning: result)
         choiceContinuation = nil
     }
