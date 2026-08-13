@@ -26,7 +26,6 @@ extension ZodiacCatalog {
             VirgoControlledCompensation(),
             VirgoScrupulousStep(),
             VirgoPoisedPlummet(),
-            VirgoRebootPayout(),
         ],
         zodiaction: VirgoRegulatedReboot(),
         constellation: ZodiacCatalog.virgoConstellation
@@ -231,46 +230,5 @@ struct VirgoRegulatedReboot: Zodiaction {
             .signStateChanged(state),
             .sparklesSpawned(set: set, pickup: pickup),
         ]
-    }
-}
-
-// MARK: - Passive: Regulated Reboot's payouts
-
-/// The half of Regulated Reboot that happens when Virgo arrives.
-///
-/// A Zodiaction fires and is gone; what it promised has to be collected by
-/// something that is still listening when the coin is opened. See
-/// `ZodiacPassive.collected(_:at:on:wasSolid:context:)`.
-struct VirgoRebootPayout: ZodiacPassive {
-
-    let displayName = "Regulated Reboot (arrival)"
-    let summary = "Astra & Terra: a Pentacle from your own ring refunds half your meter, or mends the hole it stood on and refunds all of it."
-
-    func collected(
-        _ id: PickupID,
-        at point: GridPoint,
-        on plane: Plane,
-        wasSolid: Bool,
-        context: PassiveContext
-    ) -> [GameEvent] {
-        // Only a coin from Virgo's own ring pays. The silence is the marker:
-        // it is set by the pop and lasts exactly as long as the ring does.
-        guard context.signState.isActive(VirgoControlledCompensation.silencedKey) else {
-            return []
-        }
-
-        let cap = context.zodiac.zodiaction.meterMax(on: plane)
-
-        guard wasSolid else {
-            // Stepped onto nothing and got away with it. Mended only to badly
-            // cracked: the ground remembers, and one more landing still takes
-            // it.
-            return [
-                .tileHealed(plane: plane, point: point, to: .badlyCracked),
-                .zodiactionMeterChanged(to: cap),
-            ]
-        }
-
-        return [.zodiactionMeterChanged(to: cap / 2)]
     }
 }

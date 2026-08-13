@@ -34,6 +34,9 @@ struct PentacleView: View {
     /// Whole-pixel scale, for art-pixel offsets.
     var scale: CGFloat = 1
 
+    /// Recolouring applied to the coin, if any. See `ringSwaps`.
+    var swaps: [PaletteSwap] = []
+
     var body: some View {
         TimelineView(.animation) { timeline in
             // One phase drives everything, so the coin, its orbit and its pool
@@ -192,11 +195,29 @@ struct PentacleView: View {
     }
 
     private var sprite: some View {
-        PixelSprite(id: .pentacle(appearance)) {
+        let art = PixelSprite(id: .pentacle(appearance)) {
             placeholder
         }
         .frame(width: size * spriteSpan, height: size * spriteSpan)
+
+        return Group {
+            if swaps.isEmpty { art } else { art.paletteSwap(swaps) }
+        }
     }
+
+    /// The colours a coin dealt by Virgo's ring wears.
+    ///
+    /// Pink for the gold, and the white highlight to yellow-green. The ring's
+    /// sparkles are already pink; matching the coin to them is what makes the
+    /// promise legible without a word of UI — and the highlight has to move too,
+    /// or the coin reads as an ordinary Pentacle somebody spilled paint on.
+    static let ringSwaps: [PaletteSwap] = [
+        PaletteSwap(Palette.white, Palette.yellowGreen),
+        PaletteSwap(Palette.yellowGreen, Palette.sakura),
+        PaletteSwap(Palette.yellow, Palette.pink),
+        PaletteSwap(Palette.gold, Palette.magenta),
+        PaletteSwap(Palette.orange, Palette.darkMagenta),
+    ]
 
     /// How many cells the sprite covers.
     ///

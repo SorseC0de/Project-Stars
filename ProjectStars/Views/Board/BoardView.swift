@@ -914,7 +914,10 @@ struct BoardView: View {
             PentacleView(
                 appearance: PickupCatalog.effect(for: pickup.id).appearance,
                 size: metrics.tileSize,
-                scale: metrics.scale
+                scale: metrics.scale,
+                // A coin dealt by a ring wears the ring's colours, so what it is
+                // worth is readable from across the board rather than remembered.
+                swaps: pickup.fromRing ? PentacleView.ringSwaps : []
             )
             .offset(y: lifted ? -GameRules.tilePopLift * metrics.scale : 0)
             .position(metrics.center(of: point))

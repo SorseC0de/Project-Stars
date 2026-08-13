@@ -45,6 +45,14 @@ struct RevealedPickup: Equatable {
     ///
     /// Counted rather than randomised so a seeded run stays reproducible.
     let serial: Int
+
+    /// True when this coin was dealt by a **ring** — Virgo's Regulated Reboot.
+    ///
+    /// The reward for taking it belongs to the ring, not to Virgo. A phantom
+    /// Virgo can be spent the same turn the sparkles appear, and a promise that
+    /// evaporated with the sign that made it would be a trap; the pink sparkles
+    /// are on the board, so what they are worth is on the board too.
+    var fromRing = false
 }
 
 // MARK: - GameEngine
@@ -2032,6 +2040,23 @@ struct GameEngine {
 
         commit(.pickupCollected(id: pickup.id, plane: pickup.plane, point: pickup.point))
 
+        // A ring's coin pays whoever takes it, whatever sign that is by then.
+        if pickup.fromRing {
+            let cap = piece.zodiac.zodiaction.meterMax(on: pickup.plane)
+
+            if wasSolid {
+                let half = min(max(zodiactionMeter, cap / 2), cap)
+                if half != zodiactionMeter { commit(.zodiactionMeterChanged(to: half)) }
+            } else {
+                // Taken over nothing and got away with it. Mended only to badly
+                // cracked — the ground remembers — and the meter comes all the
+                // way back, because the gamble has to pay better than the safe
+                // play or nobody ever takes it.
+                commit(.tileHealed(plane: pickup.plane, point: pickup.point, to: .badlyCracked))
+                if zodiactionMeter != cap { commit(.zodiactionMeterChanged(to: cap)) }
+            }
+        }
+
         // What the *sign* makes of having opened one, before the ground under
         // the piece is consulted — a coin over a hole is only rescuable here.
         for event in activePassives.collected(
@@ -2535,7 +2560,11 @@ struct GameEngine {
             // appears.
             pickupSerial += 1
             revealedPickups.append(
-                RevealedPickup(id: id, plane: plane, point: point, serial: pickupSerial)
+                RevealedPickup(
+                    id: id, plane: plane, point: point,
+                    serial: pickupSerial,
+                    fromRing: sparkles?.pattern == .ring
+                )
             )
             guard PickupCatalog.effect(for: id).pickupClass == .pentacle else { break }
             // The tile pops up under it, and from here on the two are separate.
