@@ -199,13 +199,21 @@ struct CloudSpriteField: View {
             // that follows, with no defined extent — which composited as an
             // opaque rectangle sitting over the board rather than as light. That
             // was the stray black square.
-            layer.drawLayer { bloom in
-                bloom.opacity = layer.opacity * glow(at: now)
-                bloom.blendMode = .plusLighter
-                bloom.addFilter(
-                    .blur(radius: GameRules.cloudSpriteGlowRadius * metrics.scale)
-                )
-                bloom.draw(image, in: box)
+            for pass in 0..<GameRules.cloudSpriteGlowPasses {
+                layer.drawLayer { bloom in
+                    bloom.opacity = layer.opacity * glow(at: now)
+                    bloom.blendMode = .plusLighter
+                    // Each pass wider than the last: a tight core with a soft
+                    // halo around it, rather than one flat smear.
+                    bloom.addFilter(
+                        .blur(
+                            radius: GameRules.cloudSpriteGlowRadius
+                                * metrics.scale
+                                * (1 + CGFloat(pass) * 0.8)
+                        )
+                    )
+                    bloom.draw(image, in: box)
+                }
             }
         }
 

@@ -754,11 +754,22 @@ enum GameRules {
 
     /// How high the cloud under a Pentacle floats, in art pixels, and how hard
     /// its glow breathes.
+    /// The glow is the only thing marking the square a Pentacle is on, now that
+    /// the cloud there is the same cloud as everywhere else — so it has to carry
+    /// on its own, and it is drawn several times over to do it. See
+    /// `CloudSpriteField.drawCloud`.
     static let cloudSpriteRaiseLift: CGFloat = 3
     static let cloudSpriteGlowPeriod: TimeInterval = 1.5
-    static let cloudSpriteGlowMin: Double = 0.18
-    static let cloudSpriteGlowMax: Double = 0.55
-    static let cloudSpriteGlowRadius: CGFloat = 3
+    static let cloudSpriteGlowMin: Double = 0.45
+    static let cloudSpriteGlowMax: Double = 1.0
+    static let cloudSpriteGlowRadius: CGFloat = 4
+
+    /// How many times the bloom is stacked.
+    ///
+    /// Additive blending saturates towards white rather than clipping, so
+    /// repeating a soft glow is how it gets *bright* instead of merely opaque —
+    /// the same trick `PaletteGlow` uses for the coins.
+    static let cloudSpriteGlowPasses = 3
 
     /// Puffs in one cluster.
     static let cloudPuffCount = 13

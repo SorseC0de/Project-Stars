@@ -644,18 +644,34 @@ struct BoardView: View {
     ) -> some View {
         let board = session.visibleBoard
 
-        return TileView(
-            tile: board[point],
-            plane: plane,
-            shade: .at(point),
-            size: metrics.tileSize,
-            isPopped: true,
-            isFlashing: session.flashingTiles.contains(point),
-            point: point
+        // Astra's raised square is already drawn — lifted and glowing — by
+        // `CloudSpriteField`, which promotes it within its row. Drawing it again
+        // here put the *generated* cluster on top of the sprite: a blue puff
+        // sitting over the real cloud, on the one square the player was looking
+        // hardest at.
+        //
+        // The cost is that it no longer depth-sorts against the piece and the
+        // cursor. That is the right trade: the field already promotes occupied
+        // squares past their neighbours, and the coin above it is a board object
+        // of its own and still sorts.
+        if plane == .astra, CloudSpriteField.hasArt {
+            return AnyView(Color.clear)
+        }
+
+        return AnyView(
+            TileView(
+                tile: board[point],
+                plane: plane,
+                shade: .at(point),
+                size: metrics.tileSize,
+                isPopped: true,
+                isFlashing: session.flashingTiles.contains(point),
+                point: point
+            )
+            .offset(y: -GameRules.tilePopLift * metrics.scale)
+            .position(metrics.center(of: point))
+            .transition(.opacity)
         )
-        .offset(y: -GameRules.tilePopLift * metrics.scale)
-        .position(metrics.center(of: point))
-        .transition(.opacity)
     }
 
     /// The coin hovering over its lifted tile.
