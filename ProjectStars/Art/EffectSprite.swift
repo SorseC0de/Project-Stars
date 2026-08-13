@@ -90,6 +90,9 @@ enum EffectSprite: String, CaseIterable, Hashable {
     /// Libra's Zodiaction. 22 frames.
     case libraZodiaction
 
+    /// The Astral Tear's droplet. 14 frames.
+    case droplet
+
     /// The arrow itself. One frame — it is an object, not an animation.
     case sagittariusArrow
 
@@ -132,6 +135,9 @@ enum EffectSprite: String, CaseIterable, Hashable {
             .air
         case .astralBloom:
             .earth
+        // Astral rather than elemental: the Tear belongs to no sign.
+        case .droplet:
+            .water
         case .lightning1, .lightning2, .lightning3, .lightning4:
             .air  // Unreachable: `element` short-circuits lightning to nil.
         }
@@ -160,6 +166,7 @@ enum EffectSprite: String, CaseIterable, Hashable {
         case .cancerZodiaction: "cancer_zaction"
         case .cancerZodiactionAlternate: "cancer_zaction_v2"
         case .libraZodiaction: "libra_zaction"
+        case .droplet: "droplet"
         case .sagittariusArrow: "saggitarius_arrow"
         case .sagittariusArrowHit: "saggitarius_arrowhit"
         case .sagittariusTeleTile: "saggitarius_teletile"
@@ -206,6 +213,7 @@ enum EffectSprite: String, CaseIterable, Hashable {
         case .explosion: 28
         case .astralBloom: 16
         case .sagittariusArrow: 1
+        case .droplet: 14
         case .leoPridefulLanding, .sagittariusTeleTile: 11
         case .sagittariusArrowHit: 12
         case .leoZodiactionOne, .leoZodiactionTwo,
@@ -274,6 +282,8 @@ enum EffectSprite: String, CaseIterable, Hashable {
         // the warp square is the square itself.
         case .sagittariusArrowHit, .sagittariusTeleTile: 0
         case .sagittariusArrow: 0
+        // Water landing on a square, so it belongs to the square.
+        case .droplet: 0
         }
     }
 
@@ -439,6 +449,7 @@ enum EffectSprite: String, CaseIterable, Hashable {
         switch id {
         case .astralBlaze: .astralBlaze
         case .astralBlossom: .astralBloom
+        case .restoreTile: .droplet
         // A stand-in until the water set is filled out — see `waterSplash`.
         case .astralBrook: .waterSplash
         default: nil

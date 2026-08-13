@@ -43,8 +43,7 @@ struct GemTones {
             GemTones(dim: Palette.forest, lit: Palette.lime)
 
         case .air:
-            // Purple, provisionally — the one element whose gem has not been
-            // settled. `purple` is at least clear of the moss greens, so it will
+            // Purple, settled. It is also clear of the moss greens, so it will
             // not light up overgrowth on a stone piece the way turquoise would.
             GemTones(dim: Palette.purple, lit: Palette.magenta)
         }

@@ -268,10 +268,23 @@ struct CloudSpriteField: View {
         }
 
         if struck {
-            var lit = layer
-            lit.opacity = GameRules.cloudStrikeFlash
-            lit.blendMode = .plusLighter
-            lit.draw(image, in: box)
+            // Solid white, briefly.
+            //
+            // Additive blending was the third attempt at this and still did not
+            // read: a magenta cloud summed with a soft white is a slightly
+            // paler magenta cloud, on a plane where everything is already
+            // bright. Replacing the colour outright is unambiguous — the square
+            // is *white* for two frames and then it is not, which is the one
+            // thing that cannot be mistaken for ambient motion.
+            // Stacked additively until every channel saturates. A filter cannot
+            // brighten and a multiply cannot either — summing the same image
+            // into itself is the only thing in a `Canvas` that reaches white.
+            for _ in 0..<GameRules.cloudStrikePasses {
+                var lit = layer
+                lit.opacity = 1
+                lit.blendMode = .plusLighter
+                lit.draw(image, in: box)
+            }
         }
 
         // Flipped one way, then the other, as it wears — so a square that has

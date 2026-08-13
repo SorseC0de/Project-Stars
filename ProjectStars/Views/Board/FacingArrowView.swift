@@ -56,6 +56,7 @@ struct FacingArrowView: View {
         .offset(
             x: CGFloat(facing.unitOffset.dx) * tileSize * GameRules.facingArrowReach,
             y: CGFloat(facing.unitOffset.dy) * tileSize * GameRules.facingArrowReach
+                - GameRules.facingArrowLift * scale
         )
         // Follows the turn rather than snapping, so a change of facing is
         // something you see happen — several rules key off it and a silent swap

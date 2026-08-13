@@ -511,12 +511,15 @@ enum GameRules {
     /// for everyone else it is a rescue rather than a tool — and inheriting that
     /// meant Libra went whole sessions without seeing her own signature coin.
     ///
-    /// An Essence's rate, because it is an Essence's kind of thing: the slab is
-    /// rolled, and one in four of them arrives as a set of holes. A coin that
-    /// can hand you a two-by-two of nothing to place on your own board does not
-    /// need rationing on top — it rations itself, and the player who takes it
-    /// often is the one who has decided that is a trade worth making.
-    static let galeforceGavelWeight = 3
+    /// Three times an Essence, and unapologetically.
+    ///
+    /// An Essence's rate was the right instinct and the wrong number: the
+    /// uncommon tier holds a dozen entries, so matching one of them still meant
+    /// going most of a session without the coin the sign is built around. It
+    /// also does not need rationing — the slab is rolled, and one in four
+    /// arrives as a set of holes, so a player who takes it often has decided
+    /// that gamble is worth making. It rations itself.
+    static let galeforceGavelWeight = 9
 
     // MARK: - Rules — Leo's sun
     //
@@ -1043,7 +1046,20 @@ enum GameRules {
     /// This is the marker for damage that did not destroy the square, which on
     /// Astra is otherwise only a cloud getting slightly smaller — easy to miss,
     /// and the whole thing Libra's trenches need to say.
-    static let cloudStrikeFlash: Double = 0.75
+    /// How many additive passes it takes to blow a struck cloud out to white.
+    ///
+    /// Four. Three left the darkest tones still tinted, which on a magenta cloud
+    /// reads as "slightly brighter" — and slightly brighter is exactly what this
+    /// has failed to communicate through three previous attempts.
+    static let cloudStrikePasses = 4
+
+    static let cloudStrikeFlash: Double = 1.0
+
+    /// How long a struck cloud stays white.
+    ///
+    /// Very short. It is a flashbulb, not a state — long enough to catch the eye
+    /// and gone before it can be mistaken for the square's condition.
+    static let cloudStrikeFlashDuration: TimeInterval = 0.09
 
     /// How far the puffs of a dispersing cluster travel, in art pixels.
     static let cloudPoofSpread: CGFloat = 7
@@ -1170,6 +1186,31 @@ enum GameRules {
     static let teleportDuration: TimeInterval = 0.28
 
     /// The piece transforming into another sign.
+    /// How long Gemini takes to come apart, and to come back together.
+    static let soulSplitDuration: TimeInterval = 0.55
+
+    /// How the half that is not taking its turn is drawn.
+    ///
+    /// Faded *and* drained. Opacity alone reads as a ghost, and neither half is
+    /// a ghost — they are both real, both wear the ground and both can die.
+    /// Draining the colour says "somewhere else" rather than "not quite there".
+    static let splitWaitingOpacity: Double = 0.55
+    static let splitWaitingSaturation: Double = 0.25
+
+    /// How long a lost half's soul takes to rise and be absorbed.
+    static let soulRiseDuration: TimeInterval = 0.9
+
+    /// What rejoining is worth: the meter, outright.
+    ///
+    /// Gemini has no other charge rule — see `GeminiMirroredMandate` — so this
+    /// is the whole of it. Getting two halves onto one square across two planes
+    /// is hard enough to be the sign's entire economy.
+    static let soulRejoinCharge = 999
+
+    /// What a lost half is worth to the one that absorbs it, as a fraction of
+    /// the meter. Sibling Soul.
+    static let siblingSoulFraction: Double = 0.5
+
     static let pieceChangeDuration: TimeInterval = 0.40
 
     // ──────────────────────────────────────────────────────────────────────
@@ -1314,6 +1355,11 @@ enum GameRules {
     // 1 — whatever is left over is the ease back to rest.
 
     static let gavelGlowIntensity: Double = 1.3
+
+    /// The shadow under it, in dark magenta.
+    static let gavelShadowOpacity: Double = 0.85
+    static let gavelShadowRadius: CGFloat = 3
+    static let gavelShadowDrop: CGFloat = 3
 
     /// How long one whole swing-and-settle takes.
     static let gavelSwingPeriod: TimeInterval = 2.6
@@ -1846,6 +1892,12 @@ enum GameRules {
 
     /// How big it is drawn against a full cell.
     static let facingArrowScale: CGFloat = 0.55
+
+    /// How far off the ground it floats, in art pixels.
+    ///
+    /// It is a marker rather than a thing lying on the floor, and at ground
+    /// level it was being read as debris on the square ahead.
+    static let facingArrowLift: CGFloat = 8
 
     /// How long it takes to swing round to a new facing.
     static let facingArrowTurn: TimeInterval = 0.14

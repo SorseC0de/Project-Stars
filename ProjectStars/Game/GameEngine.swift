@@ -96,6 +96,24 @@ struct GameEngine {
     /// The player's piece.
     private(set) var piece: Piece
 
+    /// The half of Gemini that is *not* taking this turn.
+    ///
+    /// ## Why this is not an array and an index
+    ///
+    /// Because `piece` means "the piece whose turn it is", and every rule in
+    /// this game is written against that meaning — landing checks, passives,
+    /// the cursor, facing, wear. Turning it into `pieces[active]` would have
+    /// rewritten several hundred call sites to say the same thing in more
+    /// words, and each of those is a chance to change behaviour by accident.
+    ///
+    /// A split is exactly two halves alternating, so alternation is a **swap**:
+    /// at the end of a turn the two exchange places and every existing rule
+    /// carries on reading `piece` and being right. See `GameEvent.turnPassed`.
+    private(set) var otherHalf: Piece?
+
+    /// True while Gemini is in two places.
+    var isSplit: Bool { otherHalf != nil }
+
     /// The sparkling tiles currently telegraphing a pickup, if any.
     ///
     /// Non-nil only during a **sparkle phase**, which ends the moment the player
@@ -741,6 +759,35 @@ struct GameEngine {
 
         events += sim.tickForTurn()
         events += sim.ensurePentacleAvailable(previousPlane: planeBefore, after: events)
+        events += sim.passTheTurn()
+        return events
+    }
+
+
+    /// Ends a turn for a split Gemini: rejoin if the halves have met, otherwise
+    /// hand control to the other one.
+    ///
+    /// Checked in one place and appended by every planner that finishes a turn,
+    /// so a move, a Zodiaction and a lift all alternate — a rule that held for
+    /// ordinary moves alone would be a rule the player could not trust.
+    private mutating func passTheTurn() -> [GameEvent] {
+        guard isSplit, !isGameOver, let waiting = otherHalf else { return [] }
+
+        var events: [GameEvent] = []
+        func commit(_ event: GameEvent) {
+            events.append(event)
+            apply(event)
+        }
+
+        // Standing in the same place on the same plane is being one piece
+        // again. Checked before the swap, because after it the question is the
+        // same but the answer is written from the other side.
+        if waiting.plane == piece.plane, waiting.point == piece.point {
+            commit(.piecesRejoined)
+            return events
+        }
+
+        commit(.turnPassed)
         return events
     }
 
@@ -789,6 +836,7 @@ struct GameEngine {
 
         events += sim.tickForTurn()
         events += sim.ensurePentacleAvailable(previousPlane: planeBefore, after: events)
+        events += sim.passTheTurn()
         return events
     }
 
@@ -1733,6 +1781,14 @@ struct GameEngine {
             //     it. Scorpio is the only sign that can, and only twice: once by
             //     dreaming its way back up, once by shedding.
             guard let below = plane.planeBelow else {
+                // Sibling Soul. One half going through Terra's floor is not a
+                // death while the other is still standing: the soul rises, the
+                // survivor absorbs it, and the run carries on with one piece.
+                if isSplit {
+                    commit(.halfLost(at: point, plane: plane))
+                    return result
+                }
+
                 if let rescue = activePassives.survivesFatalFall(
                     at: point, from: plane, context: passiveContext
                 ) {
@@ -1742,6 +1798,16 @@ struct GameEngine {
                 commit(.gameOver(reason: .fellThroughTerra))
                 return result
             }
+            // Gemini comes apart on the way down.
+            //
+            // Emitted *before* the fall so the half left behind is recorded at
+            // the square that gave way — which is where it was standing, since
+            // only one of them fell.
+            if piece.zodiac == .gemini, plane == .astra, !isSplit,
+               piece.zodiac.passives.splitsOnDescent(context: passiveContext) {
+                commit(.pieceSplit(strandedAt: point, plane: .astra))
+            }
+
             commit(.pieceFell(from: plane, to: below, at: point))
             result.fell = true
             fellAlready = true
@@ -2781,6 +2847,38 @@ struct GameEngine {
             }
             piece.plane = toPlane
             piece.point = to
+
+        case let .pieceSplit(strandedAt, plane):
+            // The half left behind. The faller keeps control, because the fall
+            // is what just happened and is where the player is looking.
+            otherHalf = Piece(
+                zodiac: piece.zodiac,
+                plane: plane,
+                point: strandedAt,
+                facing: piece.facing
+            )
+
+        case .turnPassed:
+            guard var waiting = otherHalf else { break }
+            let acting = piece
+            piece = waiting
+            waiting = acting
+            otherHalf = waiting
+
+        case .piecesRejoined:
+            otherHalf = nil
+            zodiactionMeter = zodiactionMeterMax
+
+        case .halfLost:
+            // The survivor takes over, and takes the soul with it.
+            guard let survivor = otherHalf else { break }
+            piece = survivor
+            otherHalf = nil
+            zodiactionMeter = min(
+                zodiactionMeter
+                    + Int(Double(zodiactionMeterMax) * GameRules.siblingSoulFraction),
+                zodiactionMeterMax
+            )
 
         case let .pieceChanged(zodiac):
             // Leaving Gemini leaves the rifts. See `SignState.riftsLinger`.

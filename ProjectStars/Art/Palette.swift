@@ -461,9 +461,13 @@ enum Palette {
     /// Polaris' sparks.
     static let polarisSparkTones: [Color] = [yellow, pink, lightBlue]
 
-    /// The gavel's own light: the golds it is drawn in, plus the sky it belongs
-    /// to. Libra is an air sign and the hammer is a storm front, not a coin.
-    static let gavelGlowTones: [Color] = [white, cyan, lightBlue, gold]
+    /// The gavel's own light.
+    ///
+    /// Read off the sprite rather than chosen: `PaletteGlow` masks by exact
+    /// palette entry, so a tone that is not in the art contributes nothing and a
+    /// list of plausible-sounding colours produces no glow whatsoever. These are
+    /// the four brightest entries the gavel is actually drawn in.
+    static let gavelGlowTones: [Color] = [yellow, gold, pink, magenta]
 
     /// Rarity tints, used wherever a tier needs to read before the words do.
     static let pickupUncommon = Color(hex: 0x6FD4A8)

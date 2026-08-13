@@ -124,8 +124,13 @@ struct BoardObject: Identifiable, Equatable {
         // On the island's square you are on top of it, not beside it.
         case .piece: return point == GameRules.nexysPoint ? 5 : 3
 
-        // Just under the piece it belongs to, and over the ground it points at.
-        case .facing: return point == GameRules.nexysPoint ? 5 : 2
+        // Over the cursor.
+        //
+        // They occupy the same ground and mean different things — the cursor is
+        // where a move *would* go, the arrow is which way the piece is looking —
+        // and of the two the facing is the one that is currently true. A marker
+        // for a fact should not be hidden behind a marker for a possibility.
+        case .facing: return 7
         }
     }
 

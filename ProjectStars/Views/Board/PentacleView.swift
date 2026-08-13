@@ -235,7 +235,15 @@ struct PentacleView: View {
         let swing = gavelSwing(at: now)
 
         return PixelSprite(id: .gavel) { placeholder }
-            .frame(width: size, height: size)
+            .frame(width: size * spriteSpan, height: size * spriteSpan)
+            // Its own shadow, in the deepest tone it is drawn in. The coins get
+            // a pool of light because they glow; a hammer is a solid object and
+            // wants weight under it instead.
+            .shadow(
+                color: Palette.darkMagenta.opacity(GameRules.gavelShadowOpacity),
+                radius: GameRules.gavelShadowRadius * scale,
+                y: GameRules.gavelShadowDrop * scale
+            )
             .scaleEffect(x: swing.scale * swing.squash, y: swing.scale / swing.squash)
             .rotationEffect(.degrees(swing.angle), anchor: .bottom)
     }
@@ -323,9 +331,11 @@ struct PentacleView: View {
     /// The gold and shadow coins carry their own sparkle and need three; Polaris
     /// is a single star and supplies its motion from the view instead.
     private var spriteSpan: CGFloat {
-        appearance == .standard || appearance == .shadow
-            ? GameRules.pentacleCellSpan
-            : 1
+        switch appearance {
+        // Authored 48 across — three cells — like the coins.
+        case .standard, .shadow, .gavel: GameRules.pentacleCellSpan
+        case .radiant, .droplet: 1
+        }
     }
 
     /// The gold coin's entries paired with Shadow Work's, in order.

@@ -44,6 +44,13 @@ protocol ZodiacPassive {
 
     // MARK: Movement hooks
 
+    /// Whether falling off this plane leaves half of the piece behind.
+    ///
+    /// Gemini alone. Asked rather than hard-coded so the engine never has to
+    /// name a sign — every other rule in this file follows that, and this one
+    /// is the most tempting to break because there is exactly one answer.
+    func splitsOnDescent(context: PassiveContext) -> Bool
+
     /// Adjusts the sign's base movement before a swipe is resolved.
     ///
     /// Use for passives that add or remove hops (e.g. "may also move
@@ -423,6 +430,8 @@ struct WearProposal: Equatable {
 // MARK: - Default implementations
 
 extension ZodiacPassive {
+    func splitsOnDescent(context: PassiveContext) -> Bool { false }
+
     func adjustedMovement(base: MovementPattern, context: PassiveContext) -> MovementPattern {
         base
     }
@@ -692,6 +701,10 @@ extension Array where Element == any ZodiacPassive {
         reduce(base) { pattern, passive in
             passive.adjustedMovement(base: pattern, context: context)
         }
+    }
+
+    func splitsOnDescent(context: PassiveContext) -> Bool {
+        contains { $0.splitsOnDescent(context: context) }
     }
 
     func bonusMoves(context: PassiveContext) -> Int {

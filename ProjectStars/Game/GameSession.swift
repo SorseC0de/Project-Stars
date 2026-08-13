@@ -679,6 +679,37 @@ final class GameSession {
     }
     #endif
 
+    /// Whether this change is a whole row or column being restored.
+    ///
+    /// Axial Adjudication mends complete lines and nothing else does, so the
+    /// shape of the change is enough to recognise it — no marker on the event,
+    /// and no way for the two to fall out of step later.
+    private func isLevelledLine(_ changes: [GridPoint: TileHealth], on plane: Plane) -> Bool {
+        let points = Set(changes.keys)
+        guard points.count >= 2 else { return false }
+
+        let size = engine[plane].size
+
+        // A line is levelled when every ordinary square of some row or column is
+        // in the set. Structural squares are skipped, exactly as the passive
+        // skips them.
+        return (0..<size).contains { index in
+            let row = (0..<size).map { GridPoint($0, index) }
+            let column = (0..<size).map { GridPoint(index, $0) }
+
+            return [row, column].contains { line in
+                let ground = line.filter { engine[plane][$0].kind == .normal }
+                return !ground.isEmpty && ground.allSatisfy(points.contains)
+            }
+        }
+    }
+
+    /// The half of Gemini waiting its turn, if there is one.
+    var otherHalf: Piece? { engine.otherHalf }
+
+    /// True when Gemini is in two places.
+    var isSplit: Bool { engine.isSplit }
+
     /// True when Libra's power is in play, as the piece or as a phantom.
     var hasLibra: Bool {
         zodiac == .libra || engine.signState.retinue.contains(.libra)
@@ -902,9 +933,11 @@ final class GameSession {
         case let .tilesChanged(plane, changes):
             // Libra's scales, made visible on the ground they levelled.
             //
-            // The same diamonds the Zodiaction throws — this is the same power,
-            // and it should look like it wherever it lands.
-            if hasLibra {
+            // Only for lines the *scales* levelled. Keyed on "Libra is here and
+            // something healed" it fired for Astral Blossom too, which is not
+            // her power and does not look like it — the diamonds are a signature
+            // and a signature on somebody else's work is just noise.
+            if hasLibra, isLevelledLine(changes, on: plane) {
                 for (point, health) in changes
                 where health == .healthy && engine[plane][point].health != .healthy {
                     playEffect(.libraZodiaction, at: point, on: plane)
@@ -937,6 +970,31 @@ final class GameSession {
             }
             await sleep(event.displayDuration)
             flashingTiles.subtract(changes.keys)
+
+        case .pieceSplit:
+            // Coming apart. The rifts flare, because tearing in half is the
+            // same power that tears doorways.
+            playEffect(.libraZodiaction, at: engine.piece.point, on: engine.piece.plane)
+            withAnimation(.spring(response: 0.34, dampingFraction: 0.7)) {
+                engine.apply(event)
+            }
+            await sleep(event.displayDuration)
+
+        case .piecesRejoined:
+            shake(for: GameRules.arrowLandShake)
+            playEffect(.libraZodiaction, at: engine.piece.point, on: engine.piece.plane)
+            withAnimation(.spring(response: 0.34, dampingFraction: 0.7)) {
+                engine.apply(event)
+            }
+            await sleep(event.displayDuration)
+
+        case let .halfLost(point, plane):
+            // The soul rises from where it went through, and the survivor takes
+            // it in. Drawn on the square that was lost rather than the one that
+            // gains, because the loss is what happened.
+            playEffect(.astralBloom, at: point, on: plane)
+            engine.apply(event)
+            await sleep(event.displayDuration)
 
         case let .tileDamaged(plane, point, _):
             // A trailing effect marks each square as the water reaches it.

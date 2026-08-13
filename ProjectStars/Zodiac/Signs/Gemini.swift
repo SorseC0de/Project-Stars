@@ -160,23 +160,38 @@ struct GeminiReflectiveRifts: ZodiacPassive {
 /// Falling from Astra splits Gemini in two: half drops to Terra, half stays
 /// above, and the player controls them on alternating turns.
 ///
-/// - TODO: **Not implemented — the largest single gap in the game.** Everything
-///   from `Piece` up assumes exactly one controlled piece: one position, one
-///   plane, one facing, one cursor, one set of landing checks per move.
+/// ## How it is built
 ///
-///   What it needs, in order:
-///   1. `GameEngine.piece` becomes a small collection plus an active index, and
-///      `apply` routes every piece-affecting event through that index.
-///   2. A `.turnPassed` event so alternation is replayable like everything else.
-///   3. The board view draws the inactive half dimmed on the other plane.
-///   4. Rejoining — both halves on one square — emits full charge.
+/// Not as a collection and an index, which is what the plan said and would have
+/// meant rewriting every rule in the game to say `pieces[active]` where it now
+/// says `piece`. `piece` means *the half whose turn it is*, and that is exactly
+/// what every landing check, passive, cursor and facing rule already wants.
 ///
-///   Sub-passive **Sibling Soul** rides on the same machinery: when one half
-///   falls from Astra straight into a Terra hole, it does not die. The soul
-///   rises, is absorbed by the half still on Astra, and grants half a meter.
+/// So alternation is a **swap**: `otherHalf` holds the one waiting, and
+/// `turnPassed` exchanges them. Every existing rule carries on reading `piece`
+/// and carries on being right.
+///
+/// ## Rejoining
+///
+/// Both halves on one square, on one plane, and they are one piece again for a
+/// full meter. That is Gemini's entire charge economy — the sign has no other
+/// rule — which is why it pays so much: getting two halves that move on
+/// alternate turns onto the same square across two planes is most of a game
+/// plan, not a lucky step.
+///
+/// ## Sibling Soul
+///
+/// A half that goes through Terra's floor does not end the run while the other
+/// is still standing. The soul rises, the survivor absorbs it, and the meter
+/// gains half. Losing a half is a real cost — it was half of your board
+/// presence — but it is a setback rather than a death, which is what makes
+/// splitting worth risking in the first place.
 struct GeminiSoulSplit: ZodiacPassive {
+
     let displayName = "Soul Split"
-    let summary = "Falling from Astra splits you in two, controlled on alternating turns. (Not yet implemented.)"
+    let summary = "Astra & Terra: falling from Astra leaves half of you behind. The two halves move on alternating turns, and standing on the same square rejoins them for a full meter."
+
+    func splitsOnDescent(context: PassiveContext) -> Bool { true }
 }
 
 // MARK: - Zodiaction: Mirrored Mandate

@@ -36,9 +36,12 @@ struct ElementFX {
             ElementFX(deep: Palette.blue, mid: Palette.lightBlue, bright: Palette.cyan)
 
         case .air:
-            // Teals through lime into yellow-green — wind as something seen in
-            // the leaves it disturbs rather than in itself.
-            ElementFX(deep: Palette.teal, mid: Palette.lime, bright: Palette.yellowGreen)
+            // Purple. It was teals through lime into yellow-green, on the idea
+            // of wind as something seen in the leaves it disturbs — which is a
+            // nice thought and reads as *earth* on a board that already has a
+            // green element. Air is purple everywhere else in this game; this
+            // was the one place still arguing with that.
+            ElementFX(deep: Palette.dusk, mid: Palette.purple, bright: Palette.magenta)
 
         case .earth:
             // Green, kept clear of the darkest end: earth energy is growth, and

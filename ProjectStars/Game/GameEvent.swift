@@ -200,6 +200,25 @@ enum GameEvent: Equatable {
     /// Zodiaction charge is deliberately *not* reset — see `apply(_:)`.
     case pieceChanged(to: Zodiac)
 
+    /// Gemini comes apart: one half stays where it is, the other appears at
+    /// `strandedAt` on the plane it fell from.
+    ///
+    /// The piece taking the *next* turn is the one that fell, because a fall is
+    /// the thing that just happened and the player should be looking at it.
+    case pieceSplit(strandedAt: GridPoint, plane: Plane)
+
+    /// The two halves exchange places. Emitted at the end of every turn while
+    /// split, so alternation replays like everything else rather than being a
+    /// property of whoever happens to be asking.
+    case turnPassed
+
+    /// Both halves are standing on the same square, and are one piece again.
+    case piecesRejoined
+
+    /// One half is gone — fallen out of Terra — and its soul has gone into the
+    /// other. See Gemini's Sibling Soul.
+    case halfLost(at: GridPoint, plane: Plane)
+
     /// A Pentacle needs an answer from the player before it can resolve.
     ///
     /// Applying this parks the effect; the session collects the answer and asks
@@ -361,6 +380,12 @@ enum GameEvent: Equatable {
         case .planeRestored: GameRules.planeRestoreDuration
         case .pieceTeleported: GameRules.teleportDuration
         case .pieceChanged: GameRules.pieceChangeDuration
+        case .pieceSplit: GameRules.soulSplitDuration
+        case .piecesRejoined: GameRules.soulSplitDuration
+        case .halfLost: GameRules.soulRiseDuration
+        // Instant: the swap is bookkeeping, and the *arrival* of control is
+        // already announced by the cursor moving to the other half.
+        case .turnPassed: 0
         case .choiceRequested: 0
         case .choiceResolved: 0
         case .signStateChanged: 0

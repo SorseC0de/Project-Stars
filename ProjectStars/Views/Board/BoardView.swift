@@ -50,6 +50,7 @@ struct BoardView: View {
             sun(metrics: metrics)
             arrow(metrics: metrics)
             sparkles(metrics: metrics)
+            waitingHalf(plane: plane, metrics: metrics)
             tileChoice(metrics: metrics)
 
             // The island and the piece share a clock, so the piece can ride the
@@ -1008,6 +1009,19 @@ struct BoardView: View {
             gemTrail(metrics: metrics)
             retinue(metrics: metrics)
 
+            // Split, the active half is drawn cropped and its twin is drawn
+            // wherever it is standing — dimmed, and only when that is the plane
+            // being looked at.
+            if session.isSplit {
+                SplitHalfView(
+                    zodiac: session.zodiac,
+                    tileSize: metrics.tileSize,
+                    scale: metrics.scale,
+                    side: .left
+                )
+                .offset(y: -metrics.tileSize / 2 - GameRules.pieceLift * metrics.scale)
+            }
+
             PieceView(
             zodiac: session.zodiac,
             tileSize: metrics.tileSize,
@@ -1117,6 +1131,26 @@ struct BoardView: View {
         let linear = min(max(settled / GameRules.cloudSwayEaseIn, 0), 1)
 
         return CGFloat(linear * linear * (3 - 2 * linear))
+    }
+
+    /// Gemini's other half, standing where it was left.
+    ///
+    /// Drawn in the board's own stack rather than the piece's, because it is not
+    /// where the piece is — that is the entire point of it.
+    @ViewBuilder
+    private func waitingHalf(plane: Plane, metrics: PixelArtMetrics) -> some View {
+        if let half = session.otherHalf, half.plane == plane {
+            SplitHalfView(
+                zodiac: half.zodiac,
+                tileSize: metrics.tileSize,
+                scale: metrics.scale,
+                side: .right,
+                isWaiting: true
+            )
+            .offset(y: -metrics.tileSize / 2 - GameRules.pieceLift * metrics.scale)
+            .position(metrics.center(of: half.point))
+            .offset(y: surfaceOffset(of: half.point, bob: 0, metrics: metrics))
+        }
     }
 
     /// The phantoms following Leo.
