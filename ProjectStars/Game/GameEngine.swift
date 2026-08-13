@@ -2150,15 +2150,24 @@ struct GameEngine {
         // and the contents are spent later through Cosmic Cash-in. Z-Charge is
         // the exception the design names: charge cannot be stored as charge, so
         // it goes off like anyone else's.
-        // A full purse simply opens the coin instead of swallowing it. Nothing
-        // is wasted for being rich, which is the same reasoning behind a full
-        // meter never blocking a pickup.
         if pickup.id != .zCharge,
-           signState.purse.count < GameRules.purseCapacity(on: pickup.plane),
            activePassives.banksPickups(pickup.id, context: passiveContext) {
             var state = signState
-            state.purse.append(pickup.id)
-            commit(.signStateChanged(state))
+
+            // A full purse still swallows the coin — it simply does not keep it.
+            //
+            // The swallowing *is* Commerce. Being able to choose which effect
+            // goes off and stand where you want when it does is an enormous
+            // amount of control, and what pays for it is that every Pentacle
+            // stops being what it was: none of them go off when found, and the
+            // ones that will not fit are gone. Opening it instead would hand
+            // back the ordinary Pentacle at exactly the moment the sign is
+            // strongest, which is the wrong way round.
+            if state.purse.count < GameRules.purseCapacity(on: pickup.plane) {
+                state.purse.append(pickup.id)
+                commit(.signStateChanged(state))
+            }
+
             commit(.pickupBanked(id: pickup.id, plane: pickup.plane, point: pickup.point))
             return (true, pickup.id, events)
         }
