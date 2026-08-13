@@ -1127,12 +1127,16 @@ final class GameSession {
     ///   dozens of soft additive shapes, which is what `CloudSpriteField` and
     ///   `HealSparkleView` already use one for.
     ///
-    ///   Two things to watch. A snapshot has to be taken *before* the boards
-    ///   swap, because afterwards the view is already showing the destination.
-    ///   And `ImageRenderer` is main-actor and not free, so it wants taking once
-    ///   at the start of the transition rather than per frame — a `.drawingGroup()`
-    ///   on the live board is the cheaper fallback if the snapshot proves
-    ///   awkward to time.
+    ///   One snapshot, taken *before* the boards swap — afterwards the view is
+    ///   already showing the destination. Once, not per frame: `ImageRenderer`
+    ///   is main-actor and not free, and re-taking it would be paying for
+    ///   detail nobody can see.
+    ///
+    ///   Which is the point, and the thing not to lose. It moves fast enough
+    ///   that the colours blur together, and **that blur is the effect** — the
+    ///   scroll is not there to be read, it is there to smear. Anything done in
+    ///   the name of making it legible, slowing it down or sharpening it, works
+    ///   directly against it.
     private func animateFall(_ event: GameEvent) async {
         let departure = GameRules.fallDuration / 2
 
