@@ -101,67 +101,106 @@ struct AquariusWindWalker: ZodiacPassive {
 
 // MARK: - Passive 3: Corner Current
 
-/// Once per plane visit, landing on a corner offers a flight to another one —
-/// the diagonal opposite on Terra, any corner at all on Astra.
+/// From a corner, the wind carries Aquarius diagonally across the board.
 ///
-/// ## Why it is an offer rather than a rule
+/// ## What it is
 ///
-/// Corners are where a board dies. They are reached from two directions instead
-/// of four, so their traffic concentrates, and a sign that has to leave a corner
-/// the way it came in wears the same two squares to nothing. This is the escape
-/// hatch — but it is only an escape if it can be refused, because sometimes the
-/// corner is exactly where you meant to be.
+/// Standing on any corner opens a **diagonal slide** — the purple option on the
+/// stick, the same extra stop Virgo has — running toward the opposite corner
+/// until the board runs out. On Astra it can be used as often as the player can
+/// reach a corner. On Terra each corner offers it **once**.
 ///
-/// That is the whole reason `PickupChoice.among` exists: an offer the player can
-/// walk away from. Everything else the game asks must be answered.
+/// ## Why it stopped being a warp
 ///
-/// ## Why Astra gets all three
+/// The old version was an offer made *on arrival*, which meant a button on the
+/// upper screen — and the upper screen is a display, not a control surface. That
+/// alone was enough to retire it, but it was also the least interesting version
+/// of the idea: a free teleport with no cost either way, where the empowered
+/// plane got a choice between three destinations that never mattered because
+/// none of them cost anything.
 ///
-/// The empowered plane gets the choice; Terra gets the reflex. One diagonal
-/// flight is still an escape, but it is a *fixed* one, so on the plane where
-/// Aquarius is weak the ability plays itself rather than being played.
+/// A slide costs. It wears the corner it leaves and the square it lands on, and
+/// Quirky Caper doubles what Aquarius owes on departure — so on Terra the corners
+/// wear out under exactly the sign that keeps using them. That decay *is* the
+/// once-per-corner limit made physical, which is why the limit can be generous.
+///
+/// ## Why the corner and not the edge
+///
+/// A diagonal from anywhere is Virgo's ability. From a corner there is only one
+/// diagonal that goes anywhere at all, so it is a route rather than a choice —
+/// the corner stops being the dead end it is for everybody else, and Aquarius is
+/// the sign that treats the edges of the board as somewhere to be.
 struct AquariusCornerCurrent: ZodiacPassive {
 
-    /// Key this sign owns in `SignState.planeFlags`.
-    static let usedThisVisitKey = "aquarius.cornerCurrent"
+    /// Prefix of the keys this sign owns in `SignState.planeFlags`. One per
+    /// corner, so Terra's limit is per corner rather than per visit.
+    static let usedKeyPrefix = "aquarius.cornerCurrent."
 
-    let displayName = "Corner Current"
-    let summary = "Astra: landing on a corner offers a flight to any other corner. Terra: to the opposite corner only. Once per visit to a plane."
-
-    func offersChoice(context: PassiveContext) -> PickupChoice? {
-        guard !context.signState.planeFlags.contains(Self.usedThisVisitKey) else { return nil }
-
-        let corners = Self.corners(size: context.currentBoard.size)
-        guard corners.contains(context.piecePoint) else { return nil }
-
-        let destinations = Self.destinations(from: context.piecePoint, context: context)
-        guard !destinations.isEmpty else { return nil }
-        return .among(destinations)
+    static func usedKey(for corner: GridPoint) -> String {
+        "\(usedKeyPrefix)\(corner.x),\(corner.y)"
     }
 
-    func resolveChoice(
-        _ choice: PickupChoiceResult,
+    let displayName = "Corner Current"
+    let summary = "Astra: from any corner, ride the diagonal across the board. Terra: once per corner."
+
+    func adjustedMovement(base: MovementPattern, context: PassiveContext) -> MovementPattern {
+        guard Self.corners(size: context.currentBoard.size).contains(context.piecePoint) else {
+            return base
+        }
+        guard context.isEmpowered
+            || !context.signState.planeFlags.contains(Self.usedKey(for: context.piecePoint))
+        else { return base }
+
+        // Sorted by `MovementPattern.init`, so the diagonal lands after the
+        // ordinary step and the reach selector offers it second.
+        return MovementPattern(
+            name: base.name,
+            options: base.options + [
+                MovementPattern.MoveOption(
+                    .diagonal,
+                    distance: context.currentBoard.size,
+                    style: .slide,
+                    reachesWall: true
+                )
+            ]
+        )
+    }
+
+    /// Only the diagonal that leads *into* the board.
+    ///
+    /// Three of the four run straight off the edge, and `pathToWall` returns
+    /// nothing for those — so the illegal ones refuse themselves and the reach
+    /// selector never offers a stop that goes nowhere.
+    func allows(
+        _ option: MovementPattern.MoveOption,
+        direction: SwipeDirection,
+        path: [GridPoint],
         context: PassiveContext
-    ) -> [GameEvent] {
-        // Declining costs nothing — not the flight, and not the use. The player
-        // stayed in the corner on purpose, and charging them for the offer would
-        // make landing on a corner a thing to avoid.
-        guard case let .tile(destination) = choice else { return [] }
-        guard Self.destinations(from: context.piecePoint, context: context)
-            .contains(destination) else { return [] }
+    ) -> Bool {
+        guard option.reachesWall else { return true }
+        return !path.isEmpty
+    }
+
+    /// Terra spends the corner it just used.
+    func stateAfterMove(
+        option: MovementPattern.MoveOption,
+        direction: SwipeDirection,
+        context: PassiveContext
+    ) -> SignState? {
+        guard option.reachesWall, !direction.isCardinal else { return nil }
+        guard context.plane == .terra else { return nil }
+
+        // `piecePoint` is where the slide *ended* by the time this is asked, so
+        // the corner it started from is recovered from the direction it took.
+        let step = direction.unitOffset
+        var corner = context.piecePoint
+        while context.currentBoard.contains(corner.offset(by: GridOffset(-step.dx, -step.dy))) {
+            corner = corner.offset(by: GridOffset(-step.dx, -step.dy))
+        }
 
         var state = context.signState
-        state.planeFlags.insert(Self.usedThisVisitKey)
-
-        return [
-            .signStateChanged(state),
-            .pieceTeleported(
-                from: context.piecePoint,
-                to: destination,
-                fromPlane: context.plane,
-                toPlane: context.plane
-            ),
-        ]
+        state.planeFlags.insert(Self.usedKey(for: corner))
+        return state
     }
 
     /// The four corners of a board this size.
@@ -171,26 +210,6 @@ struct AquariusCornerCurrent: ZodiacPassive {
             GridPoint(0, 0), GridPoint(last, 0),
             GridPoint(0, last), GridPoint(last, last),
         ]
-    }
-
-    /// Where this corner may fly to, on this plane.
-    ///
-    /// Filtered to squares the piece can actually stand on. A current that
-    /// offered a hole would be a disguised suicide, and this ability is an
-    /// escape — the same reasoning behind Gone With the Gale's candidate set.
-    private static func destinations(
-        from corner: GridPoint,
-        context: PassiveContext
-    ) -> [GridPoint] {
-        let board = context.currentBoard
-        let last = board.size - 1
-        let opposite = GridPoint(last - corner.x, last - corner.y)
-
-        let candidates = context.isEmpowered
-            ? corners(size: board.size).filter { $0 != corner }
-            : [opposite]
-
-        return candidates.filter { board[$0].isSolid }
     }
 }
 
