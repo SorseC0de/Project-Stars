@@ -760,6 +760,20 @@ enum GameRules {
     static let cloudWakePush: CGFloat = 4
     static let cloudWakeDuration: TimeInterval = 0.55
 
+    /// How far a surface gives under a landing, in art pixels, and how long it
+    /// takes to come back.
+    ///
+    /// Cloud and the island only. Terra is stone: it cracks under a landing
+    /// rather than yielding to one, and a stone floor that bounced would read as
+    /// a trampoline. Up here the ground is weather and rock hanging in the air,
+    /// and both should be visibly *held up* by something.
+    ///
+    /// Short and shallow. The piece already squashes on landing; this is the
+    /// other half of that impact, and if it lasts long enough to be watched it
+    /// stops being an impact and becomes a wobble.
+    static let surfaceBounceDepth: CGFloat = 3
+    static let surfaceBounceDuration: TimeInterval = 0.26
+
     /// How far every cloud sits below the centre of its square, in art pixels.
     ///
     /// The art is drawn with its mass in the upper part of the cell, so centring

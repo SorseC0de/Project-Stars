@@ -180,6 +180,49 @@ final class GameSession {
     /// leaves, and a two-square exit lights two of them on the same beat.
     private(set) var effectBursts: [EffectBurst] = []
 
+    /// The square something has just landed on, so the surface can give under
+    /// it. See `GameRules.surfaceBounceDepth`.
+    private(set) var surfaceBounce: SurfaceBounce?
+
+    /// One landing.
+    struct SurfaceBounce: Equatable {
+        let point: GridPoint
+        let plane: Plane
+        let start: Date
+    }
+
+    /// Bounces the surface once the hop currently in flight has landed.
+    ///
+    /// A hop is drawn as an arc over `hopDuration`, and the piece is in the air
+    /// for all of it. Bouncing the ground at the moment the move is *planned*
+    /// would have the cloud give way before anything touched it.
+    private func landAfterHop(at point: GridPoint, on plane: Plane) {
+        Task { [weak self] in
+            guard let self else { return }
+            try? await Task.sleep(
+                nanoseconds: UInt64(self.hopDuration * 1_000_000_000)
+            )
+            self.bounceSurface(at: point, on: plane)
+        }
+    }
+
+    /// Presses the surface at `point` down and lets it spring back.
+    func bounceSurface(at point: GridPoint, on plane: Plane) {
+        // Cloud and the island give; stone does not.
+        guard plane == .astra || engine[plane][point].kind == .nexys else { return }
+
+        let bounce = SurfaceBounce(point: point, plane: plane, start: .now)
+        surfaceBounce = bounce
+
+        Task { [weak self] in
+            try? await Task.sleep(
+                nanoseconds: UInt64(GameRules.surfaceBounceDuration * 1_000_000_000)
+            )
+            guard self?.surfaceBounce == bounce else { return }
+            self?.surfaceBounce = nil
+        }
+    }
+
     /// The square something has just dropped through or risen out of, so the
     /// clouds around it can be pushed aside. See `CloudSpriteField`.
     private(set) var cloudWake: CloudWake?
@@ -417,6 +460,7 @@ final class GameSession {
         elementalBurst = nil
         effectBursts = []
         healSparkles = []
+        surfaceBounce = nil
         cloudWake = nil
         pressedTiles = []
         isSliding = false
@@ -890,6 +934,11 @@ final class GameSession {
             hopCount += 1
             hopStartedAt = .now
 
+            // The ground gives when the piece reaches it, not when it sets off —
+            // so the dip is scheduled for the end of the hop rather than fired
+            // here. `hopDuration` is the arc; the impact is what follows it.
+            landAfterHop(at: to, on: plane)
+
             // The crab's scuttle bubbles up on every square it crosses.
             //
             // Fired per step rather than planned up front: a sidestep is a
@@ -1109,6 +1158,7 @@ final class GameSession {
             return
         }
         fallArrivalStartedAt = nil
+        bounceSurface(at: engine.piece.point, on: engine.piece.plane)
 
         // Impact. The lion does not raise dust — it lands, and the ground
         // knows about it. Its own strip stands in for the puff entirely rather

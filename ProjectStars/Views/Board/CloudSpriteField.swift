@@ -64,6 +64,9 @@ struct CloudSpriteField: View {
     /// Something dropping through the sky, pushing the clouds around it aside.
     var wake: CloudMotion.Wake?
 
+    /// A landing pressing one square down.
+    var bounce: CloudMotion.Bounce?
+
     /// True when the sheet is present. The field draws nothing without it and
     /// the caller falls back to the generated clusters.
     static var hasArt: Bool {
@@ -177,11 +180,12 @@ struct CloudSpriteField: View {
         let centre = metrics.center(of: point)
         let wander = shift(point, now: now)
         let shove = CloudMotion.shove(point, wake: wake, now: now, scale: metrics.scale)
+        let give = CloudMotion.dip(point, bounce: bounce, now: now, scale: metrics.scale)
         let lift = isRaised ? GameRules.cloudSpriteRaiseLift * metrics.scale : 0
 
         let box = CGRect(
             x: centre.x + wander.width + shove.width - width / 2,
-            y: centre.y + wander.height + shove.height - height / 2 - lift
+            y: centre.y + wander.height + shove.height + give - height / 2 - lift
                 + GameRules.cloudSpriteDrop * metrics.scale,
             width: width,
             height: height

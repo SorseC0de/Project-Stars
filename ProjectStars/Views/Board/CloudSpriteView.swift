@@ -32,6 +32,9 @@ struct CloudSpriteView: View {
     /// A disturbance in the sky, if one is playing.
     var wake: CloudMotion.Wake?
 
+    /// A landing pressing this square down, if one is playing.
+    var bounce: CloudMotion.Bounce?
+
     /// Recolouring applied to the sprite, if any.
     var swaps: [PaletteSwap] = []
 
@@ -42,7 +45,8 @@ struct CloudSpriteView: View {
         TimelineView(.animation) { timeline in
             let now = freeze ?? timeline.date.timeIntervalSinceReferenceDate
             let motion = CloudMotion(
-                point: point, health: health, metrics: metrics, now: now, wake: wake
+                point: point, health: health, metrics: metrics,
+                now: now, wake: wake, bounce: bounce
             )
 
             let art = recoloured(
@@ -172,7 +176,8 @@ struct CloudMotion {
         health: TileHealth,
         metrics: PixelArtMetrics,
         now: TimeInterval,
-        wake: Wake? = nil
+        wake: Wake? = nil,
+        bounce: Bounce? = nil
     ) {
         let stages = health.rawValue
         let side = metrics.tileSize * CGFloat(GameRules.cloudSpritePixelSize)
@@ -195,10 +200,11 @@ struct CloudMotion {
 
         let wander = Self.shift(point, now: now, scale: metrics.scale)
         let shove = Self.shove(point, wake: wake, now: now, scale: metrics.scale)
+        let give = Self.dip(point, bounce: bounce, now: now, scale: metrics.scale)
 
         offset = CGSize(
             width: wander.width + shove.width,
-            height: wander.height + shove.height
+            height: wander.height + shove.height + give
                 + GameRules.cloudSpriteDrop * metrics.scale
         )
     }
@@ -207,6 +213,29 @@ struct CloudMotion {
     struct Wake: Equatable {
         let point: GridPoint
         let start: TimeInterval
+    }
+
+    /// Something landing on a square, and when it did.
+    struct Bounce: Equatable {
+        let point: GridPoint
+        let start: TimeInterval
+    }
+
+    /// How far the surface at `point` has given under a landing, in points.
+    ///
+    /// Down and back over the bounce's life, on one half-cycle of a sine — a
+    /// press and a release, with no overshoot. Cloud is soft and the island
+    /// hangs on nothing; neither should twang.
+    ///
+    /// Only the square landed on. Its neighbours are a separate idea — see
+    /// `shove`, which is what a fall *through* the plane does.
+    static func dip(_ point: GridPoint, bounce: Bounce?, now: TimeInterval, scale: CGFloat) -> CGFloat {
+        guard let bounce, bounce.point == point else { return 0 }
+
+        let progress = (now - bounce.start) / GameRules.surfaceBounceDuration
+        guard progress > 0, progress < 1 else { return 0 }
+
+        return GameRules.surfaceBounceDepth * scale * CGFloat(sin(progress * .pi))
     }
 
     /// How far this cloud is pushed aside by a wake, if it is near one.

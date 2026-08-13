@@ -255,6 +255,18 @@ struct BoardView: View {
         }
     }
 
+    /// The landing the surface is currently giving under, if any.
+    private var surfaceBounce: CloudMotion.Bounce? {
+        guard let bounce = session.surfaceBounce,
+              bounce.plane == session.visiblePlane
+        else { return nil }
+
+        return CloudMotion.Bounce(
+            point: bounce.point,
+            start: bounce.start.timeIntervalSinceReferenceDate
+        )
+    }
+
     /// How far the surface of `point` has wandered from its square right now.
     ///
     /// **Anything standing on a square offsets by this.** A cloud that drifts
@@ -270,10 +282,15 @@ struct BoardView: View {
     ///
     /// Zero on Terra, where the ground is stone and holds still, and zero on the
     /// island and its chasm for the same reason.
+    /// - Parameter driftScale: Damps the idle wander only. The piece uses this
+    ///   to ease its footing back in after a hop — but a landing's give and a
+    ///   fall's shove are impacts, and an impact that faded in would be no
+    ///   impact at all.
     private func surfaceSway(
         of point: GridPoint,
         at date: Date,
-        metrics: PixelArtMetrics
+        metrics: PixelArtMetrics,
+        driftScale: CGFloat = 1
     ) -> CGSize {
         guard session.visiblePlane == .astra,
               session.visibleBoard.contains(point),
@@ -285,9 +302,13 @@ struct BoardView: View {
         let shove = CloudMotion.shove(
             point, wake: cloudWake, now: now, scale: metrics.scale
         )
+        let give = CloudMotion.dip(
+            point, bounce: surfaceBounce, now: now, scale: metrics.scale
+        )
+
         return CGSize(
-            width: drift.width + shove.width,
-            height: drift.height + shove.height
+            width: drift.width * driftScale + shove.width,
+            height: drift.height * driftScale + shove.height + give
         )
     }
 
@@ -334,7 +355,8 @@ struct BoardView: View {
                         // clear of its neighbours' overlap.
                         occupied: occupiedSquares(on: plane, popped: popped),
                         freeze: session.ambientFreeze,
-                        wake: cloudWake
+                        wake: cloudWake,
+                        bounce: surfaceBounce
                     )
                 } else {
                     CloudFieldView(
@@ -726,6 +748,7 @@ struct BoardView: View {
                     metrics: metrics,
                     freeze: session.ambientFreeze,
                     wake: cloudWake,
+                    bounce: surfaceBounce,
                     swaps: CloudSpriteView.raisedSwaps,
                     glows: true
                 )
@@ -919,10 +942,12 @@ struct BoardView: View {
               !session.isFalling
         else { return .zero }
 
-        let drift = surfaceSway(of: point, at: date, metrics: metrics)
-        let amount = swayAmount(at: date)
-
-        return CGSize(width: drift.width * amount, height: drift.height * amount)
+        return surfaceSway(
+            of: point,
+            at: date,
+            metrics: metrics,
+            driftScale: swayAmount(at: date)
+        )
     }
 
     /// `0` while the piece is airborne, easing to `1` once it has settled.
@@ -1078,7 +1103,22 @@ struct BoardView: View {
     /// The island's current drift, in points. Negative is up.
     private func nexysBob(at date: Date, metrics: PixelArtMetrics) -> CGFloat {
         let phase = date.timeIntervalSinceReferenceDate / GameRules.nexysFloatPeriod
-        return CGFloat(sin(phase * 2 * .pi)) * GameRules.nexysFloatAmplitude * metrics.scale
+        let float = CGFloat(sin(phase * 2 * .pi))
+            * GameRules.nexysFloatAmplitude * metrics.scale
+
+        // The island is a rock hanging in the air, so it dips under a landing
+        // like the clouds do. Added to the bob rather than applied separately
+        // because everything riding the island already reads this one number —
+        // see `surfaceOffset(of:bob:metrics:)` — so the piece and the coin come
+        // down with it for free.
+        let give = CloudMotion.dip(
+            GameRules.nexysPoint,
+            bounce: surfaceBounce,
+            now: session.ambientFreeze ?? date.timeIntervalSinceReferenceDate,
+            scale: metrics.scale
+        )
+
+        return float + give
     }
 
     /// True while the piece stands on one of the three squares directly north
