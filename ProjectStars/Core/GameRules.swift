@@ -520,12 +520,22 @@ enum GameRules {
     /// Charge granted by Astral Tear when there is nothing left to repair.
     static let restoreTileBonusCharge = 1
 
-    /// Charge Astral Blaze pays per tile it wears.
-    static let astralBlazeChargePerDamage = 1
+    /// Charge Astral Blaze pays per tile it merely wears.
+    ///
+    /// **Nothing.** Cracking eight squares around you is what the coin does
+    /// anyway; being paid for it as well turned a 3x3 of healthy ground into
+    /// eight charge for free, and on a board with anything already worn it paid
+    /// out twice over. A full meter inside two turns.
+    static let astralBlazeChargePerDamage = 0
 
-    /// Charge Astral Blaze pays per tile it breaks outright. Worth more than
-    /// mere damage, so the effect scales with how ruined the board already is.
-    static let astralBlazeChargePerBreak = 2
+    /// Charge Astral Blaze pays per tile it breaks outright.
+    ///
+    /// One, and only for a break. The payout should track what the fire
+    /// genuinely cost the board — a hole is ground gone for good, where a crack
+    /// is ground you can still stand on. It also means the coin is worth *less*
+    /// on a fresh board and more on a ruined one, which is the right way round:
+    /// it rewards taking it when the run is already going badly.
+    static let astralBlazeChargePerBreak = 1
 
     // ──────────────────────────────────────────────────────────────────────
     // MARK: - Panel
