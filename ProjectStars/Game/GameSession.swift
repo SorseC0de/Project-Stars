@@ -421,6 +421,16 @@ final class GameSession {
     /// Sparkles flying off a Pentacle that was just opened.
     private(set) var collectBurst: ElementalBurst?
 
+    /// The element an afterimage should wear right now.
+    ///
+    /// The sign's own, except when something else is doing the moving. An Astral
+    /// Brook is water carrying you — that is the whole picture — and a trail of
+    /// fire behind a piece being swept along by a river describes the wrong
+    /// event entirely.
+    var trailElement: ZodiacElement {
+        pluming == .waterSplash ? .water : zodiac.element
+    }
+
     /// The dust currently settling, if any.
     private(set) var smoke: SmokePuff?
 

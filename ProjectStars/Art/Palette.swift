@@ -465,9 +465,13 @@ enum Palette {
     ///
     /// Read off the sprite rather than chosen: `PaletteGlow` masks by exact
     /// palette entry, so a tone that is not in the art contributes nothing and a
-    /// list of plausible-sounding colours produces no glow whatsoever. These are
-    /// the four brightest entries the gavel is actually drawn in.
-    static let gavelGlowTones: [Color] = [yellow, gold, pink, magenta]
+    /// list of plausible-sounding colours produces no glow whatsoever.
+    ///
+    /// `magenta` is deliberately left out even though the art is full of it. The
+    /// glow takes the colour of whatever it masks, so including the darker
+    /// magenta dragged the light toward the body of the hammer; the brighter
+    /// pink alone gives a magenta glow that actually reads as light.
+    static let gavelGlowTones: [Color] = [yellow, gold, pink]
 
     /// Rarity tints, used wherever a tier needs to read before the words do.
     static let pickupUncommon = Color(hex: 0x6FD4A8)

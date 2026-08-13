@@ -265,6 +265,13 @@ struct AstralBrookEffect: PickupEffect {
             point = point.offset(by: step)
         }
 
+        // Arriving at the wall is an arrival, and it should land like one.
+        //
+        // The water carries you until there is no more board, which is a stop
+        // rather than a destination — the same thing walking into a wall is, and
+        // it reads as a bug when one of them thumps and the other does not.
+        events.append(.moveBlocked(direction: heading))
+
         // The two ends. `from` is where the water finally set the piece down.
         for square in [origin, from] where board[square].canBeWorn {
             events.append(

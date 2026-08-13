@@ -1031,10 +1031,18 @@ struct BoardView: View {
                 bob: bob,
                 isFaded: pieceIsJustNorthOfNexys
             )
-            // Two poses stack: the ascent (island *and* piece, when ridden) and
-            // the island's own travel (island alone).
-            .scaleEffect(ascent.scale * travel.scale)
-            .offset(y: ascent.lift + travel.lift)
+            // Two poses stack — the ascent (island *and* piece, when ridden)
+            // and the island's own travel (island alone) — *except* while it is
+            // carrying somebody, when they are the same pose and stacking them
+            // applies the journey twice. That is why the lift outran the piece
+            // on the way up: the island climbed double the distance in the same
+            // time while the passenger climbed it once.
+            .scaleEffect(
+                session.nexysCarryingPiece ? travel.scale : ascent.scale * travel.scale
+            )
+            .offset(
+                y: session.nexysCarryingPiece ? travel.lift : ascent.lift + travel.lift
+            )
             .position(metrics.center(of: GameRules.nexysPoint))
         }
     }
@@ -1352,7 +1360,7 @@ struct BoardView: View {
 
                     AfterimageView(
                         zodiac: session.zodiac,
-                        element: starring == nil ? session.zodiac.element : elements[index],
+                        element: starring == nil ? session.trailElement : elements[index],
                         tileSize: metrics.tileSize,
                         scale: metrics.scale,
                         step: step,

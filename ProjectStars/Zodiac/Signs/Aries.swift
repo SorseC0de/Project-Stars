@@ -220,6 +220,16 @@ struct AriesBrazenBlaze: Zodiaction {
             from = square
         }
 
+        // The charge ends by running out of board, which is a collision.
+        //
+        // A ram that sprints the length of the plane and comes to a polite halt
+        // is a ram that did not arrive anywhere. The balk is the same one an
+        // ordinary step into a wall plays, for the same reason: something
+        // stopped you, and the stopping is the event.
+        if !events.isEmpty {
+            events.append(.moveBlocked(direction: context.facing))
+        }
+
         return events
     }
 

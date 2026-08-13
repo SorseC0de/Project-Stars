@@ -41,6 +41,9 @@ struct SlabPhantomView: View {
     /// Which plane it will land on, so it is drawn as ground or as sky.
     var plane: Plane = .terra
 
+    /// The square currently being aimed at.
+    var anchor: GridPoint = GameRules.nexysPoint
+
     var body: some View {
         // Squares relative to the shape's own top-left, so the drawing is
         // centred on itself rather than on wherever its anchor happens to sit.
@@ -69,6 +72,10 @@ struct SlabPhantomView: View {
             .shadow(color: Palette.coolBlack.opacity(0.55), radius: cell * 0.25, y: cell * 0.3)
             .opacity(Style.opacity)
             .offset(y: CGFloat(bob) * metrics.tileSize)
+            // Held over the square being aimed at, not parked in the middle of
+            // the board. It is a preview of a placement, and a preview that does
+            // not move with the thing it is previewing is a picture.
+            .position(metrics.center(of: anchor))
             .frame(width: metrics.boardSize, height: metrics.boardSize)
         }
         .allowsHitTesting(false)
@@ -92,13 +99,23 @@ struct SlabPhantomView: View {
                 clock: clock
             )
         } else {
-            TileView(
-                tile: Tile(kind: .normal, health: slab.health),
-                plane: .terra,
-                shade: .light,
-                size: cell,
-                point: GridPoint(0, 0)
-            )
+            ZStack {
+                // The edge under it, exactly as the board draws one — so a slab
+                // of Terra looks like a slab and not a swatch. Drawn for every
+                // square: the ones with a neighbour below have it covered, and
+                // the bottom of the shape keeps it.
+                TileEdgeView(plane: .terra, shade: .light, size: cell)
+                    .offset(y: GameRules.tileEdgeDrop
+                        * (cell / CGFloat(GameRules.tilePixelSize)))
+
+                TileView(
+                    tile: Tile(kind: .normal, health: slab.health),
+                    plane: .terra,
+                    shade: .light,
+                    size: cell,
+                    point: GridPoint(0, 0)
+                )
+            }
         }
     }
 
@@ -106,7 +123,7 @@ struct SlabPhantomView: View {
         /// Smaller than a board square, so it reads as something held above the
         /// grid rather than as part of it.
         static let scale: CGFloat = 0.62
-        static let opacity: Double = 0.9
+        static let opacity: Double = 0.66
 
         /// How far it drifts, in tiles.
         static let bob: Double = 0.05

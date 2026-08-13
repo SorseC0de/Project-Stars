@@ -232,6 +232,9 @@ enum EffectSprite: String, CaseIterable, Hashable {
         // The Essence plumes are the whole story of what a coin just did to the
         // board, and at 15fps they were over before the eye found them.
         case .astralBlaze, .astralBloom: .fps12
+        // The Tear's droplet is fourteen frames of a single splash. At the house
+        // default it was over in about a second and never seen at all.
+        case .droplet: .fps10
         // The Bastion is two layers of the same bubble, and the lower one runs
         // slower on purpose: two identical strips in lockstep read as one
         // doubled-up drawing, while a beat between them reads as depth.
