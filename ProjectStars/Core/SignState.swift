@@ -217,6 +217,11 @@ struct SignState: Equatable {
         var plane: Plane
 
         /// Committed moves left before it goes out.
+        ///
+        /// The Aten no longer runs down on its own — it is lit for exactly as
+        /// long as somebody is following, because that is what it means now. See
+        /// `SignState.tickTimers()`, which leaves it alone while the retinue is
+        /// occupied, and `LeoAttractingAten`.
         var movesRemaining: Int
     }
 
@@ -398,9 +403,11 @@ struct SignState: Equatable {
             arrow = planted.movesRemaining > 0 ? planted : nil
         }
 
-        if var burning = sun {
-            burning.movesRemaining -= 1
-            sun = burning.movesRemaining > 0 ? burning : nil
+        // The Aten burns for as long as somebody is following, and goes out
+        // with the last of them. It is the light that says a phantom is here;
+        // a light on its own timer would keep going dark while one still was.
+        if sun != nil, retinue.isEmpty {
+            sun = nil
         }
     }
 

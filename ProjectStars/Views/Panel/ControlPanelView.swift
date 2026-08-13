@@ -277,6 +277,13 @@ enum PanelStyle {
     /// A phantom's button. Short, since it sits above the real one.
     static let retinueButtonHeight: CGFloat = 40
     static let retinueSpacing: CGFloat = 8
+
+    /// How wide the borrowed-Zodiaction column is: a third of the row.
+    static let retinueColumnWidth: CGFloat = 96
+
+    /// Pip gap when the button is sharing its row. Ten pips in two thirds of the
+    /// width need to give something up, and the gap is the part nobody reads.
+    static let meterPipSpacingCompact: CGFloat = 2
     static let retinueGlyphSize: CGFloat = 15
     static let retinueLabelSize: CGFloat = 8
 
@@ -494,7 +501,6 @@ private struct PanelFrontView: View {
                 Spacer(minLength: 0)
                 movementRow
                 Spacer(minLength: 0)
-                retinueRow
                 zodiactionRow
                 #if DEBUG
                 debugZodiacRow
@@ -570,46 +576,6 @@ private struct PanelFrontView: View {
         .frame(width: PanelStyle.chromeButtonWidth, height: PanelStyle.chromeButtonHeight)
     }
 
-    // ── Row 2b: the retinue ───────────────────────────────────────────────
-
-    /// A button per phantom, firing its Zodiaction free.
-    ///
-    /// Leo's own button still summons and re-rolls; these are what the summons
-    /// are *for*. Each is in its phantom's elemental colour, matching the figure
-    /// trailing the piece, so the button and the body it belongs to are the same
-    /// thing at a glance.
-    ///
-    /// The row takes no space at all when nothing is following, so eleven signs
-    /// see the panel they have always seen.
-    @ViewBuilder
-    private var retinueRow: some View {
-        if !session.retinue.isEmpty {
-            HStack(spacing: PanelStyle.retinueSpacing) {
-                ForEach(session.retinue, id: \.self) { follower in
-                    CelButton(
-                        tint: ElementFX.ramp(for: follower.element).mid,
-                        acceptsTouch: session.acceptsInput
-                    ) {
-                        Haptics.zodiaction()
-                        session.fireRetinueZodiaction(follower)
-                    } label: {
-                        VStack(spacing: 1) {
-                            Text(follower.definition.glyph)
-                                .font(.system(size: PanelStyle.retinueGlyphSize))
-                            Text(follower.definition.zodiaction.displayName.uppercased())
-                                .font(.system(size: PanelStyle.retinueLabelSize,
-                                              weight: .heavy, design: .rounded))
-                                .lineLimit(1)
-                                .minimumScaleFactor(0.5)
-                        }
-                        .padding(.horizontal, 6)
-                    }
-                    .frame(height: PanelStyle.retinueButtonHeight)
-                }
-            }
-        }
-    }
-
     // ── Row 2: movement ───────────────────────────────────────────────────
 
     /// Both schemes get the same height, so switching between them cannot move
@@ -657,7 +623,57 @@ private struct PanelFrontView: View {
     // ── Row 3: the Zodiaction ─────────────────────────────────────────────
 
     private var zodiactionRow: some View {
-        ZodiactionButton(session: session)
+        HStack(spacing: PanelStyle.retinueSpacing) {
+            // Two thirds when there is company, all of it when there is not.
+            //
+            // The followers' buttons were a row of their own, which pushed the
+            // whole panel up and shoved the pause and info buttons out of place
+            // — the panel is a fixed square and every row in it is already
+            // spoken for. Taking a third of the Zodiaction button instead costs
+            // nothing that was not already there.
+            ZodiactionButton(session: session, isCompact: !session.retinue.isEmpty)
+                .frame(maxWidth: .infinity)
+                .layoutPriority(session.retinue.isEmpty ? 1 : 0)
+
+            if !session.retinue.isEmpty {
+                retinueColumn
+            }
+        }
+        .frame(height: PanelStyle.zodiactionButtonHeight)
+    }
+
+    /// The borrowed Zodiactions, stacked in the third beside Leo's own.
+    ///
+    /// One follower fills the height; two split it. Which means the column is
+    /// always the same size and the buttons inside it are what change — a
+    /// control that resizes its container is a control that moves everything
+    /// else, which is the mistake this replaced.
+    private var retinueColumn: some View {
+        VStack(spacing: PanelStyle.retinueSpacing) {
+            ForEach(session.retinue, id: \.self) { follower in
+                CelButton(
+                    tint: ElementFX.ramp(for: follower.element).mid,
+                    acceptsTouch: session.acceptsInput
+                ) {
+                    Haptics.zodiaction()
+                    session.fireRetinueZodiaction(follower)
+                } label: {
+                    // The sign's own mark, not an emoji.
+                    //
+                    // There is a drawn icon for all twelve and it is what the
+                    // rest of the panel uses; a system glyph here made the
+                    // borrowed supers look like they belonged to a different
+                    // game from the one that lent them.
+                    PieceIconView(
+                        zodiac: follower,
+                        size: PanelStyle.retinueGlyphSize,
+                        tint: Palette.textPrimary
+                    )
+                }
+                .frame(maxHeight: .infinity)
+            }
+        }
+        .frame(width: PanelStyle.retinueColumnWidth)
     }
 
     // ── Debug ─────────────────────────────────────────────────────────────
@@ -1244,6 +1260,13 @@ struct ZodiactionButton: View {
 
     let session: GameSession
 
+    /// True when the button is sharing its row with borrowed Zodiactions.
+    ///
+    /// It gives up a third of its width, so it gives up the things that need
+    /// width: the word ZODIACTION, which is a label for a button nobody has to
+    /// be told the purpose of by then, and the meter's generous pips.
+    var isCompact = false
+
     var body: some View {
         // Read from the session rather than reaching into the engine, so the
         // button tracks the meter however it changed — including from a debug
@@ -1283,12 +1306,14 @@ struct ZodiactionButton: View {
     /// The word, the name, and the meter.
     private func label(charged: Color) -> some View {
         VStack(spacing: PanelStyle.zodiactionStackSpacing) {
-            Text("ZODIACTION")
-                .font(.system(size: PanelStyle.zodiactionLabelSize,
-                              weight: .heavy, design: .rounded))
-                .tracking(PanelStyle.zodiactionLabelTracking)
-                .lineLimit(1)
-                .minimumScaleFactor(PanelStyle.zodiactionNameMinScale)
+            if !isCompact {
+                Text("ZODIACTION")
+                    .font(.system(size: PanelStyle.zodiactionLabelSize,
+                                  weight: .heavy, design: .rounded))
+                    .tracking(PanelStyle.zodiactionLabelTracking)
+                    .lineLimit(1)
+                    .minimumScaleFactor(PanelStyle.zodiactionNameMinScale)
+            }
 
             Text(session.zodiac.definition.zodiaction.displayName.uppercased())
                 .font(.system(size: PanelStyle.zodiactionNameSize,
@@ -1349,7 +1374,9 @@ struct ZodiactionButton: View {
             }
             .animation(.easeOut(duration: 0.18), value: filled)
         } else {
-            HStack(spacing: PanelStyle.meterPipSpacing) {
+            HStack(spacing: isCompact
+                ? PanelStyle.meterPipSpacingCompact
+                : PanelStyle.meterPipSpacing) {
                 ForEach(0..<session.zodiactionMeterMax, id: \.self) { index in
                     RoundedRectangle(cornerRadius: PanelStyle.meterPipCorner)
                         .fill(index < filled

@@ -244,9 +244,18 @@ struct LeoAttractingAten: Zodiaction {
     /// Leo's charge comes from Prideful Plant.
     func meterGain(from move: MoveSummary, context: PassiveContext) -> Int { 0 }
 
-    /// A phantom follows *Leo*, not a square, so there is nowhere it can fail to
-    /// fit and no reason it cannot be called.
-    func canActivate(context: PassiveContext) -> Bool { true }
+    /// There has to be ground behind Leo for the phantom to arrive on.
+    ///
+    /// It is summoned to the square at the lion's back, so a wall or a hole
+    /// there means there is nowhere to put it. Refusing the pop is much kinder
+    /// than spending a full meter and getting a phantom that immediately falls —
+    /// and it gives the ability a positioning decision, which is the difference
+    /// between a button and a move.
+    func canActivate(context: PassiveContext) -> Bool {
+        let behind = context.piecePoint.offset(by: context.facing.opposite.unitOffset)
+        guard context.currentBoard.contains(behind) else { return false }
+        return context.currentBoard[behind].isSolid
+    }
 
     func activate(context: PassiveContext, generator: inout SeededRandom) -> [GameEvent] {
         var state = context.signState
@@ -270,7 +279,11 @@ struct LeoAttractingAten: Zodiaction {
         state.sun = SignState.Sun(
             point: context.piecePoint,
             plane: context.plane,
-            movesRemaining: GameRules.sunMoves
+            // Not a countdown any more. The sun *is* the summon — it goes out
+            // when the last follower does, and a five-move timer running
+            // underneath that meant the light announcing a phantom kept
+            // expiring while the phantom was still there.
+            movesRemaining: .max
         )
 
         // A re-roll drops the **oldest**, not the newest, and the rest move up.

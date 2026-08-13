@@ -52,6 +52,7 @@ struct BoardView: View {
             sparkles(metrics: metrics)
             waitingHalf(plane: plane, metrics: metrics)
             shadowDouble(plane: plane, metrics: metrics)
+            retinue(plane: plane, metrics: metrics)
             tileChoice(metrics: metrics)
 
             // The island and the piece share a clock, so the piece can ride the
@@ -1027,7 +1028,6 @@ struct BoardView: View {
         return ZStack {
             afterimages(metrics: metrics, starring: starElement, at: Date())
             gemTrail(metrics: metrics)
-            retinue(metrics: metrics)
 
             // Split, the active half is drawn cropped and its twin is drawn
             // wherever it is standing — dimmed, and only when that is the plane
@@ -1200,23 +1200,72 @@ struct BoardView: View {
     /// Drawn inside the piece's own stack so they inherit its position, and
     /// given a slower spring so they arrive late — see `RetinueView`.
     @ViewBuilder
-    private func retinue(metrics: PixelArtMetrics) -> some View {
-        ForEach(Array(session.retinue.enumerated()), id: \.element) { step, follower in
-            RetinueView(
-                zodiac: follower,
-                tileSize: metrics.tileSize,
-                facing: session.engine.piece.facing,
-                scale: metrics.scale,
-                step: step
-            )
-            .animation(
-                .spring(
-                    response: GameRules.hopDuration * GameRules.retinueLag,
-                    dampingFraction: 0.7
-                ),
-                value: session.engine.piece.point
-            )
+    private func retinue(plane: Plane, metrics: PixelArtMetrics) -> some View {
+        if session.engine.piece.plane == plane {
+            ForEach(Array(session.retinue.enumerated()), id: \.element) { step, follower in
+                RetinueView(
+                    zodiac: follower,
+                    tileSize: metrics.tileSize,
+                    facing: session.engine.piece.facing,
+                    scale: metrics.scale,
+                    step: step
+                )
+                // Positioned on a square of its own rather than drawn inside the
+                // piece's stack.
+                //
+                // Inside it, a phantom was pinned to the piece and arrived at
+                // the same instant however slow a spring it was given — there
+                // was no position for the spring to act on, so the lag did
+                // nothing and the retinue never followed anything. With a
+                // position it can be behind, and it can be *late*.
+                .position(metrics.center(of: followerSquare(step: step)))
+                .offset(y: surfaceOffset(
+                    of: session.engine.piece.point, bob: 0, metrics: metrics
+                ))
+                .overlay {
+                    // Its own arrow, pointing at the lion.
+                    //
+                    // A phantom lends its *movement*, and movement in this game
+                    // is relative to a facing — so a follower whose facing you
+                    // cannot see is a borrowed move you cannot aim. It looks at
+                    // Leo, which is both where it came from and the only facing
+                    // that needs no explaining.
+                    FacingArrowView(
+                        facing: session.engine.piece.facing,
+                        tileSize: metrics.tileSize,
+                        scale: metrics.scale,
+                        clock: session.ambientClock(at:)
+                    )
+                    .position(metrics.center(of: followerSquare(step: step)))
+                    .opacity(GameRules.retinueArrowOpacity)
+                }
+                .animation(
+                    .spring(
+                        response: GameRules.hopDuration * GameRules.retinueLag
+                            * (1 + Double(step) * 0.3),
+                        dampingFraction: 0.72
+                    ),
+                    value: session.engine.piece.point
+                )
+            }
         }
+    }
+
+    /// The square a follower stands on: `step + 1` squares behind the lion.
+    ///
+    /// A real square rather than a nudge, so a phantom occupies ground the way
+    /// everything else on this board does. Clamped inside the border, because a
+    /// lion with its back to a wall still has company — they bunch up rather
+    /// than walking off the edge.
+    private func followerSquare(step: Int) -> GridPoint {
+        let piece = session.engine.piece
+        let back = piece.facing.opposite.unitOffset
+        let size = session.visibleBoard.size
+
+        return GridPoint(
+            min(max(piece.point.x + back.dx * (step + 1), 0), size - 1),
+            min(max(piece.point.y + back.dy * (step + 1), 0), size - 1)
+        )
     }
 
     /// The colours a piece drags behind it.

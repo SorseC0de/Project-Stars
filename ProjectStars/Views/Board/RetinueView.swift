@@ -63,19 +63,9 @@ struct RetinueView: View {
             // Matches `PieceView`'s figure box, so the phantom stands on the
             // ground rather than hovering over it.
             .offset(y: -tileSize / 2 - GameRules.pieceLift * scale)
-            // Behind the lion, which is a direction rather than a corner.
-            //
-            // They used to trail off to the lower right whatever was happening,
-            // so walking east put the retinue in front of the piece — a line of
-            // followers leading the thing they follow. `behind` is simply the
-            // reverse of the facing, and the whole column shifts when the lion
-            // turns.
-            .offset(
-                x: -CGFloat(facing.unitOffset.dx) * CGFloat(step + 1)
-                    * GameRules.retinueTrail * scale,
-                y: -CGFloat(facing.unitOffset.dy) * CGFloat(step + 1)
-                    * GameRules.retinueTrail * scale
-            )
+            // Placement is the board's job now — see
+            // `BoardView.followerSquare(step:)`. A phantom stands on a square
+            // behind the lion rather than being nudged away from its shoulder.
             .allowsHitTesting(false)
     }
 }

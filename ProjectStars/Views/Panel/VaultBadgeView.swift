@@ -34,7 +34,9 @@ struct VaultBadgeView: View {
     var body: some View {
         let ready = session.canVault
 
-        Image("VulcanVault")
+        // Namespaced, like every other sign asset. Without the folder the
+        // catalogue does not find it and the badge draws nothing at all.
+        Image("Signs/VulcanVault")
             .resizable()
             .renderingMode(.template)
             .aspectRatio(contentMode: .fit)

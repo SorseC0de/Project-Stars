@@ -1908,10 +1908,10 @@ enum GameRules {
     ///
     /// Short of the next square's centre on purpose: it points *at* that square,
     /// and sitting on it would read as something standing there.
-    static let facingArrowReach: CGFloat = 0.62
+    static let facingArrowReach: CGFloat = 0.66
 
     /// How big it is drawn against a full cell.
-    static let facingArrowScale: CGFloat = 0.55
+    static let facingArrowScale: CGFloat = 0.5
 
     /// How far off the ground it floats, in art pixels.
     ///
@@ -1924,19 +1924,19 @@ enum GameRules {
     /// Three. Eight was the lift's number reused without thinking, and at eight
     /// the arrow travels half a tile — which stops being a marker breathing and
     /// becomes a marker pacing about.
-    static let facingArrowNudge: CGFloat = 3
+    static let facingArrowNudge: CGFloat = 2
 
     /// How long each of the two positions is held.
     ///
     /// Slow. It is a pulse on something that sits on screen every turn of the
     /// game, and anything quick enough to notice is something you end up
-    /// noticing constantly.
-    static let facingArrowBeat: TimeInterval = 0.42
+    /// noticing constantly. Higher value is slower.
+    static let facingArrowBeat: TimeInterval = 0.5
 
     /// How long it takes to swing round to a new facing.
-    static let facingArrowTurn: TimeInterval = 0.14
+    static let facingArrowTurn: TimeInterval = 0.15
 
-    static let slidePressLinger: TimeInterval = 0.18
+    static let slidePressLinger: TimeInterval = 0.2
 
     /// How far a pressed square gives, in art pixels.
     static let slidePressDepth: CGFloat = 1.5
@@ -2012,6 +2012,13 @@ enum GameRules {
 
     /// How solid a phantom is. Present, but plainly not the piece.
     static let retinueOpacity: Double = 0.7
+
+    /// How solid a follower's own facing arrow is.
+    ///
+    /// Half. It has to be readable — a borrowed move is aimed by that facing —
+    /// without competing with the lion's, which is the one the player is
+    /// actually steering.
+    static let retinueArrowOpacity: Double = 0.5
 
     /// How far behind the piece each one trails, in art pixels, and how hard it
     /// glows in its element.
