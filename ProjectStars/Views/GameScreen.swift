@@ -105,26 +105,9 @@ struct GameScreen: View {
             // Over everything, including the pause and game-over sheets: the
             // frames that matter most are the ones being dropped while
             // something is covering the board.
-            VStack(alignment: .leading, spacing: 4) {
-                FrameRateView()
-
-                // Delete with `GameSession.debugToggleBounceDepth`.
-                if let label = session.bounceDepthLabel {
-                    Text(label)
-                        .font(.system(size: 11, weight: .heavy, design: .monospaced))
-                        .foregroundStyle(Palette.textPrimary)
-                        .padding(.horizontal, 6)
-                        .padding(.vertical, 3)
-                        .background(
-                            RoundedRectangle(cornerRadius: 4)
-                                .fill(Palette.coolBlack.opacity(0.7))
-                        )
-                        .transition(.opacity)
-                }
-            }
-            .padding(.leading, 8)
-            .padding(.top, 8)
-            .animation(.easeOut(duration: 0.15), value: session.bounceDepthLabel)
+            FrameRateView()
+                .padding(.leading, 8)
+                .padding(.top, 8)
             #endif
         }
         .background { keyboardCommands }
@@ -150,8 +133,6 @@ struct GameScreen: View {
     /// - **X** fills *and* pops it, skipping the hold (debug builds only).
     /// - **L** makes the *next* Pentacle an Astral Bolt (debug builds only).
     /// - **C** cycles the control scheme (debug builds only).
-    /// - **B** flips the landing bounce between 2px and 3px, temporarily, while
-    ///   the two are being compared (debug builds only).
     private var keyboardCommands: some View {
         ZStack {
             // Reach 0 — the nearest option. A key press carries no magnitude, so
@@ -182,10 +163,6 @@ struct GameScreen: View {
 
             Button("Cycle controls") { session.debugCycleControls() }
                 .keyboardShortcut("c", modifiers: [])
-
-            // Delete with `GameSession.debugToggleBounceDepth`.
-            Button("Toggle bounce depth") { session.debugToggleBounceDepth() }
-                .keyboardShortcut("b", modifiers: [])
 
             #endif
         }

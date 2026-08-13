@@ -576,39 +576,6 @@ final class GameSession {
         publish()
     }
 
-    /// Flips the landing bounce between two pixels and three. Debug builds only.
-    ///
-    /// ## Delete me
-    ///
-    /// This exists to answer one question — whether the give under a landing
-    /// wants to be 2px or 3px — by putting both in front of the eye a second
-    /// apart, which is the only way that question ever gets answered. Once it
-    /// is: set `GameRules.surfaceBounceDepth` to the winner, put it back to a
-    /// `let`, and remove this method, its key in `GameScreen`, and the `depth`
-    /// readout that goes with it.
-    ///
-    /// Nothing else reads the constant directly, so the cloud, the island, the
-    /// coin, the sparkle and the piece all follow it together and stay in
-    /// agreement whichever value is showing.
-    func debugToggleBounceDepth() {
-        GameRules.surfaceBounceDepth = GameRules.surfaceBounceDepth == 3 ? 2 : 3
-        bounceDepthLabel = "BOUNCE \(Int(GameRules.surfaceBounceDepth))px"
-        publish()
-
-        // Play it immediately on whatever the piece is standing on, so the
-        // change can be *seen* rather than waited for.
-        bounceSurface(at: engine.piece.point, on: engine.piece.plane)
-
-        Task { [weak self] in
-            try? await Task.sleep(nanoseconds: 1_400_000_000)
-            self?.bounceDepthLabel = nil
-        }
-    }
-
-    /// What the B key last set, shown briefly. Debug builds only; delete with
-    /// `debugToggleBounceDepth`.
-    private(set) var bounceDepthLabel: String?
-
     /// Stages the Astral Bolt as the next Pentacle. Debug builds only.
     ///
     /// Only the *next* one, and it does not disturb the coin already on the

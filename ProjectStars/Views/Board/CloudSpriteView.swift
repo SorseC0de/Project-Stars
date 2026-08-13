@@ -148,8 +148,16 @@ extension CloudSpriteView {
         // lighter than the obvious mapping. The violets sit near the dark end of
         // their own ramp; landing them on the matching end of the blues gave a
         // cloud you had to look for. A rung up puts the lifted square where it
-        // belongs, which is *brighter* than the sky around it.
-        PaletteSwap(Palette.pink, Palette.ice),
+        // belongs, which is brighter than the sky around it.
+        //
+        // The highlight stops at `cyan` rather than carrying on to `ice`. `ice`
+        // is a near-white — it is the top of the *cools*, not a blue — and a
+        // cloud whose lightest tone is white does not read as a blue cloud, it
+        // reads as a lit one. That, and not the bloom, is what kept looking like
+        // glare however far the bloom came down: the three darker rungs are
+        // still a step up, so the shape is as bright as it was asked to be
+        // without any part of it turning to light.
+        PaletteSwap(Palette.pink, Palette.cyan),
         PaletteSwap(Palette.magenta, Palette.cyan),
         PaletteSwap(Palette.darkMagenta, Palette.lightBlue),
         PaletteSwap(Palette.purple, Palette.blue),
@@ -246,8 +254,8 @@ struct CloudMotion {
     /// Diagonals are normalised, or the corners would be flung half again as far
     /// as the edges and the ring would come apart into a square.
     ///
-    /// Out and back over the wake's life: a push and a settle, which is air
-    /// moving rather than the board rearranging itself.
+    /// Out fast and back slowly — see `GameRules.cloudWakeAttack`. Both halves
+    /// are eased so the turn at full extension is a curve rather than a corner.
     static func shove(
         _ point: GridPoint,
         wake: Wake?,
@@ -263,7 +271,11 @@ struct CloudMotion {
         let progress = (now - wake.start) / GameRules.cloudWakeDuration
         guard progress > 0, progress < 1 else { return .zero }
 
-        let swell = sin(progress * .pi)
+        let attack = max(GameRules.cloudWakeAttack, 0.001)
+        let swell = progress < attack
+            ? sin(progress / attack * .pi / 2)
+            : cos((progress - attack) / (1 - attack) * .pi / 2)
+
         let length = (CGFloat(dx) * CGFloat(dx) + CGFloat(dy) * CGFloat(dy)).squareRoot()
         let push = GameRules.cloudWakePush * scale * CGFloat(swell) / length
 

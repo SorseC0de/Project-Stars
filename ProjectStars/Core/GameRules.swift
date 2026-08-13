@@ -632,12 +632,18 @@ enum GameRules {
     /// pixels.
     ///
     /// The ordinary edge pass drops each strip far enough that the row below
-    /// covers it — which is right everywhere except the last row, where there is
-    /// no row below and the board simply stopped, flat, like a decal. Four
-    /// pixels puts the sliver flush under the bottom edge and gives the whole
-    /// plane a front face, so Terra reads as a slab rather than a picture of
-    /// one.
-    static let tileFrontEdgeDrop: CGFloat = 4
+    /// covers it — right everywhere except the last row, which has no row below
+    /// and so ended flat, like a decal. This one drops a **whole cell**, which
+    /// puts the sliver immediately under the board and gives the plane a front
+    /// face.
+    ///
+    /// A full cell because the edge sprite's four pixels of art sit at the
+    /// **top** of their frame and every bit of the push is applied from outside
+    /// — `tileEdgeDrop` of 12 is what lands them at the bottom of their own
+    /// square. Anything less than 16 leaves them inside the cell, behind the
+    /// face, which is exactly where a first guess of 4 put them: drawn every
+    /// frame and never once visible.
+    static let tileFrontEdgeDrop = CGFloat(tilePixelSize)
 
     /// A tile visibly cracking.
     static let tileDamageDuration: TimeInterval = 0.16
@@ -757,8 +763,23 @@ enum GameRules {
     /// Out and back rather than a displacement that decays: the clouds are
     /// pushed and then settle, which reads as air moving rather than as the
     /// board rearranging itself.
-    static let cloudWakePush: CGFloat = 4
-    static let cloudWakeDuration: TimeInterval = 0.55
+    /// ## Why the duration is so short
+    ///
+    /// It has to finish before the board does. A fall spends
+    /// `fallDuration / 2` on Astra and then the planes swap — so at half a
+    /// second the shove was still on its way *out* when the view cut to Terra,
+    /// and the settle nobody ever saw was most of the effect. It now completes
+    /// inside the departure, with room to spare.
+    static let cloudWakePush: CGFloat = 14
+    static let cloudWakeDuration: TimeInterval = 0.3
+
+    /// How much of the wake is spent getting *out*, as a fraction of its life.
+    ///
+    /// A quarter. Something dropping through the sky displaces it at once and
+    /// the air takes its time closing back in — a symmetric curve spends half
+    /// its life drifting outward, which reads as the clouds deciding to move
+    /// rather than as being shoved.
+    static let cloudWakeAttack: Double = 0.25
 
     /// How far a surface gives under a landing, in art pixels, and how long it
     /// takes to come back.
@@ -771,11 +792,8 @@ enum GameRules {
     /// Short and shallow. The piece already squashes on landing; this is the
     /// other half of that impact, and if it lasts long enough to be watched it
     /// stops being an impact and becomes a wobble.
-    /// - Note: A `var` **only** so the debug B key can flip it between two and
-    ///   three while the two are being compared on screen. Make it a `let` again
-    ///   the moment that is settled — see `GameSession.debugToggleBounceDepth`.
-    static var surfaceBounceDepth: CGFloat = 3
-    static let surfaceBounceDuration: TimeInterval = 0.26
+    static let surfaceBounceDepth: CGFloat = 3
+    static let surfaceBounceDuration: TimeInterval = 0.19
 
     /// How far every cloud sits below the centre of its square, in art pixels.
     ///
