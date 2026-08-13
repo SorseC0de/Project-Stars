@@ -1446,13 +1446,17 @@ enum GameRules {
     static let capricornPurseAstra = 10
     static let capricornPurseTerra = 8
 
-    /// How many coins the purse holds, here.
+    /// How full Capricorn's **meter** gets, here.
     ///
-    /// A property of the **purse**, not of the meter. For Capricorn itself the
-    /// two happen to coincide, because its meter *is* the purse drawn as coins —
-    /// but Leo carrying a borrowed Capricorn keeps a ten-pip meter of its own
-    /// while the purse it is holding still only takes eight below. Pentacles are
-    /// not charge, whatever they share underneath.
+    /// Named for the purse because that is what the meter counts and how it is
+    /// drawn — but it is a charge cap, not an inventory limit. The purse itself
+    /// has no ceiling: quantities stack, so two Tears banked are one slot
+    /// reading two, and nothing is ever lost for having plenty.
+    ///
+    /// Which matters most for Leo. A borrowed Capricorn does not shrink Leo's
+    /// ten-pip meter to eight on Terra — the meter belongs to the sign being
+    /// played, and only the purse is on loan. Pentacles are not charge, whatever
+    /// they share underneath.
     static func purseCapacity(on plane: Plane) -> Int {
         plane == .terra ? capricornPurseTerra : capricornPurseAstra
     }

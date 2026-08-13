@@ -54,12 +54,16 @@ struct ShopBarView: View {
                 .tracking(Style.captionTracking)
                 .foregroundStyle(Palette.pentacle)
 
-            // Quantity is part of the purse: two Tears banked are two Tears to
-            // spend, so they are two slots, not one slot with a badge. A hotbar
-            // counts by taking up room.
+            // Stacked, the way a hotbar is.
+            //
+            // Two Tears are one slot reading two, not two slots. The purse has
+            // no ceiling — see `GameEngine.resolvePickupCollection` — so a run
+            // of the same coin would otherwise march the belt off both edges of
+            // the screen, and counting six identical discs is slower than
+            // reading the number six.
             HStack(spacing: Style.slotGap) {
-                ForEach(Array(purse.enumerated()), id: \.offset) { index, id in
-                    slot(id: id, index: index)
+                ForEach(stacks, id: \.id) { stack in
+                    slot(id: stack.id, count: stack.count)
                 }
             }
         }
@@ -77,8 +81,23 @@ struct ShopBarView: View {
         .transition(.move(edge: .bottom).combined(with: .opacity))
     }
 
-    /// One coin in the bar.
-    private func slot(id: PickupID, index: Int) -> some View {
+    /// The purse grouped by kind, in the order each kind was first banked.
+    ///
+    /// First-banked rather than sorted, so the belt does not reshuffle itself
+    /// under the player's thumb every time a coin arrives.
+    private var stacks: [(id: PickupID, count: Int)] {
+        var order: [PickupID] = []
+        var counts: [PickupID: Int] = [:]
+
+        for id in purse {
+            if counts[id] == nil { order.append(id) }
+            counts[id, default: 0] += 1
+        }
+        return order.map { ($0, counts[$0] ?? 0) }
+    }
+
+    /// One kind of coin in the bar, with how many are held.
+    private func slot(id: PickupID, count: Int) -> some View {
         let effect = PickupCatalog.effect(for: id)
         let isDown = pressed == id
 
@@ -106,6 +125,18 @@ struct ShopBarView: View {
                 .font(.system(size: Style.glyphSize))
                 .offset(y: isDown ? Style.coinDepth : 0)
         }
+        .overlay(alignment: .bottomTrailing) {
+            // Only when there is more than one. A "1" on every slot is noise on
+            // the commonest case.
+            if count > 1 {
+                Text("\(count)")
+                    .font(.system(size: Style.countSize, weight: .heavy, design: .rounded))
+                    .foregroundStyle(Palette.textPrimary)
+                    .padding(.horizontal, 3)
+                    .background(Capsule().fill(Palette.warmBlack))
+                    .offset(x: 2, y: 2)
+            }
+        }
         .frame(width: Style.coinSize, height: Style.coinSize + Style.coinDepth)
         .animation(.easeOut(duration: 0.08), value: isDown)
         .opacity(isLive ? 1 : Style.restingOpacity)
@@ -131,6 +162,7 @@ struct ShopBarView: View {
         static let coinHighlightInset: CGFloat = 3
         static let coinHighlightHeight: CGFloat = 9
         static let glyphSize: CGFloat = 17
+        static let countSize: CGFloat = 10
         static let slotGap: CGFloat = 6
 
         static let barInset: CGFloat = 12
@@ -151,7 +183,7 @@ struct ShopBarView: View {
     ZStack {
         Palette.background
         ShopBarView(
-            purse: [.restoreTile, .restoreTile, .astralBlaze, .polaris],
+            purse: [.restoreTile, .restoreTile, .restoreTile, .astralBlaze, .polaris],
             accent: Zodiac.capricorn.definition.accentColor,
             onBuy: { _ in }
         )

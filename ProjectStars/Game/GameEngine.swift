@@ -2152,22 +2152,19 @@ struct GameEngine {
         // it goes off like anyone else's.
         if pickup.id != .zCharge,
            activePassives.banksPickups(pickup.id, context: passiveContext) {
-            var state = signState
-
-            // A full purse still swallows the coin — it simply does not keep it.
+            // Kept, always. The purse does not fill up.
             //
-            // The swallowing *is* Commerce. Being able to choose which effect
-            // goes off and stand where you want when it does is an enormous
-            // amount of control, and what pays for it is that every Pentacle
-            // stops being what it was: none of them go off when found, and the
-            // ones that will not fit are gone. Opening it instead would hand
-            // back the ordinary Pentacle at exactly the moment the sign is
-            // strongest, which is the wrong way round.
-            if state.purse.count < GameRules.purseCapacity(on: pickup.plane) {
-                state.purse.append(pickup.id)
-                commit(.signStateChanged(state))
-            }
-
+            // Quantities stack — two Tears banked are one slot reading two — so
+            // there is no ceiling to bump against and nothing is ever lost for
+            // being rich. The only Pentacle that never reaches the purse is
+            // Z-Charge, which cannot be stored as charge and so goes off where
+            // it stands.
+            //
+            // The ten and eight are the *meter's* size, not the purse's. See
+            // `GameRules.purseCapacity(on:)`.
+            var state = signState
+            state.purse.append(pickup.id)
+            commit(.signStateChanged(state))
             commit(.pickupBanked(id: pickup.id, plane: pickup.plane, point: pickup.point))
             return (true, pickup.id, events)
         }

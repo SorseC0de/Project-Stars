@@ -108,6 +108,15 @@ struct CapricornHeavenlyHooves: ZodiacPassive {
 /// Z-Charge is the one exception: charge cannot be stored as charge, so it is
 /// simply gained.
 ///
+/// ## Why a hoard is not a problem
+///
+/// Seven Astral Tears in the purse is a perfectly reachable state and it is
+/// fine, because the meter is the rate limit rather than the purse. Every one of
+/// those Tears was a Pentacle walked to, and each one *spent* costs a full meter
+/// — eight or ten more Pentacles, and all the ground it takes to reach them.
+/// Capricorn pays for its stockpile in the only currency this game has, which is
+/// board.
+///
 /// ## Why the cap is lower below
 ///
 /// Ten on Astra, eight on Terra. Capricorn is an earth sign and belongs down
