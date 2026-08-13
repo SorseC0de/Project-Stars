@@ -121,6 +121,7 @@ struct PentacleView: View {
         case .standard: Palette.white
         case .shadow: Palette.midnight
         case .radiant: Palette.lightBlue
+        case .droplet: Palette.cyan
         }
     }
 
@@ -152,6 +153,41 @@ struct PentacleView: View {
                 sprite
             }
             .rotationEffect(.degrees(spin(at: phase)))
+
+        case .droplet:
+            // Drawn rather than sprited, and drawn as *not a coin*: the whole
+            // point of a boon is that it is not part of the hunt, and a player
+            // who has to look twice to tell it from a Pentacle has been misled
+            // about what is on the board.
+            droplet
+        }
+    }
+
+    /// A bead of water: a teardrop of colour with a highlight on its shoulder.
+    private var droplet: some View {
+        ZStack {
+            Circle()
+                .fill(Palette.blue)
+                .frame(width: size * 0.44, height: size * 0.44)
+
+            Circle()
+                .fill(Palette.lightBlue)
+                .frame(width: size * 0.30, height: size * 0.30)
+                .offset(y: size * 0.02)
+
+            Circle()
+                .fill(Palette.ice)
+                .frame(width: size * 0.10, height: size * 0.10)
+                .offset(x: -size * 0.07, y: -size * 0.09)
+        }
+        // The same additive bloom the coins carry, so it sits in the same light
+        // as everything else hovering over the board.
+        .background {
+            Circle()
+                .fill(Palette.cyan)
+                .frame(width: size * 0.5, height: size * 0.5)
+                .blur(radius: GameRules.pentacleGlowRadius * scale)
+                .blendMode(.plusLighter)
         }
     }
 
@@ -167,7 +203,9 @@ struct PentacleView: View {
     /// The gold and shadow coins carry their own sparkle and need three; Polaris
     /// is a single star and supplies its motion from the view instead.
     private var spriteSpan: CGFloat {
-        appearance == .radiant ? 1 : GameRules.pentacleCellSpan
+        appearance == .standard || appearance == .shadow
+            ? GameRules.pentacleCellSpan
+            : 1
     }
 
     /// The gold coin's entries paired with Shadow Work's, in order.
@@ -206,6 +244,7 @@ struct PentacleView: View {
         case .standard: Palette.pentacle
         case .shadow: Palette.pentacleShadow
         case .radiant: Palette.pentacleRadiant
+        case .droplet: Palette.lightBlue
         }
     }
 
@@ -214,6 +253,7 @@ struct PentacleView: View {
         case .standard: Palette.pentacleEdge
         case .shadow: Palette.pentacleShadowEdge
         case .radiant: Palette.lightBlue
+        case .droplet: Palette.cyan
         }
     }
 }

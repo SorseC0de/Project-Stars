@@ -57,6 +57,39 @@ enum PentacleAppearance: String, CaseIterable, Codable {
 
     /// Bright and starlit. Polaris only.
     case radiant
+
+    /// A bead of water. Gaia droplets only, and the one appearance that is not
+    /// a coin at all — see `PickupClass.boon`.
+    case droplet
+}
+
+// MARK: - PickupClass
+
+/// What sort of thing this is, structurally.
+///
+/// ## Why the distinction exists
+///
+/// The board's whole economy is built around **one** Pentacle at a time: the
+/// sparkle phase waits for the board to be clear, taking one shatters the other,
+/// and `GameEngine.ensurePentacleAvailable` sweeps up anything stranded so the
+/// hunt can never stall. Every one of those rules is correct for a Pentacle and
+/// wrong for anything else.
+///
+/// Pisces' droplets are not part of that economy. They are put on the board by
+/// an ability, they are meant to sit there, and the hunt should carry on around
+/// them — so they share the pickup machinery (reveal, collect, run an effect)
+/// and are excluded from every rule that governs the hunt.
+///
+/// Sibling classes rather than one class with exceptions: an exception has to be
+/// remembered at each of a dozen call sites, where a class is asked.
+enum PickupClass: String, Codable {
+
+    /// The hunt. One at a time, and the sparkle phase waits on it.
+    case pentacle
+
+    /// Something an ability left lying on the board. Persists, ignores the
+    /// hunt's rules, and the hunt ignores it.
+    case boon
 }
 
 // MARK: - PickupChoice
@@ -222,6 +255,10 @@ protocol PickupEffect {
     /// sparkle set actually covers that square, and the reveal is forced there.
     var requiredSpawnPoint: GridPoint? { get }
 
+    /// Whether this belongs to the Pentacle hunt or is something an ability left
+    /// on the board. See `PickupClass`.
+    var pickupClass: PickupClass { get }
+
     /// Input this effect needs from the player before it can resolve.
     ///
     /// A *description* of the question, and therefore static. An effect whose
@@ -269,6 +306,7 @@ extension PickupEffect {
     var requiredSpawnPoint: GridPoint? { nil }
     var choice: PickupChoice { .none }
     var arrivalWearsTile: Bool { true }
+    var pickupClass: PickupClass { .pentacle }
 
     func rolledChoice(using generator: inout SeededRandom) -> PickupChoice { choice }
 }

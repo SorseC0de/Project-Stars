@@ -901,6 +901,12 @@ struct GaiaDropletEffect: PickupEffect {
     let summary = "Gain \(GameRules.gaiaDropletCharge) Zodiaction charge."
     let glyph = "💧"
     let element: ZodiacElement? = .water
+    let appearance: PentacleAppearance = .droplet
+
+    /// Not part of the hunt — see `PickupClass`. Droplets are put on the board
+    /// deliberately and are meant to stay there, so the sparkle phase carries on
+    /// around them and taking a Pentacle does not shatter them.
+    let pickupClass: PickupClass = .boon
 
     /// The droplet mended its square when it appeared; landing on it must not
     /// then wear the square it just repaired.

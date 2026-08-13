@@ -102,6 +102,17 @@ struct GameEngine {
     /// taking either shatters the other, so it is never more than briefly two.
     private(set) var revealedPickups: [RevealedPickup] = []
 
+    /// Just the ones the hunt is about.
+    ///
+    /// Every rule governing the Pentacle economy — the sparkle phase waiting for
+    /// a clear board, a coin over a hole being destroyed, a stranded coin
+    /// forcing a re-roll — is written against this rather than against
+    /// `revealedPickups`, because a boon left lying about by an ability is not
+    /// part of that economy and must not stall it. See `PickupClass`.
+    var revealedPentacles: [RevealedPickup] {
+        revealedPickups.filter { PickupCatalog.effect(for: $0.id).pickupClass == .pentacle }
+    }
+
     #if DEBUG
     /// Forces the next Pentacle to be this one, whatever the roll says.
     ///
@@ -764,28 +775,26 @@ struct GameEngine {
     /// handled by asking, at the end of every planner, whether each pool is
     /// still standing where the current piece can see it.
     ///
-    /// ## Why these evaporations leave nothing behind
+    /// ## The water is not lost, only the pool
     ///
-    /// A pool burned off by fire leaves a droplet, because the player is
-    /// standing there to take it — see `evaporatePools(at:)`. A pool left behind
-    /// by a change of plane or of sign leaves nothing, because a Pentacle
-    /// stranded on a plane the piece is not on is exactly what
-    /// `ensurePentacleAvailable` exists to sweep up: it would be destroyed on
-    /// the same turn it was created, which is a worse story than the water
-    /// simply having dried.
+    /// Every evaporation leaves a droplet where the pool was, whether it dried
+    /// because the fish left or because something burned it off. A droplet is a
+    /// `PickupClass.boon`, so it sits there indefinitely and the Pentacle hunt
+    /// carries on around it — which means one left on a plane Pisces has walked
+    /// away from is still there when she comes back, rather than being swept up
+    /// as a stranded coin.
     private mutating func evaporateStalePools() -> [GameEvent] {
         let stillOwned = piece.zodiac == .pisces
-        var events: [GameEvent] = []
+        var stale: [Plane: [GridPoint]] = [:]
 
         for plane in Plane.allCases {
             for point in self[plane].allPoints where self[plane][point].kind == .pool {
                 if stillOwned, plane == piece.plane { continue }
-                let event = GameEvent.poolEvaporated(plane: plane, point: point)
-                events.append(event)
-                apply(event)
+                stale[plane, default: []].append(point)
             }
         }
-        return events
+
+        return stale.flatMap { plane, points in dryUp(points, on: plane) }
     }
 
     /// Boils off any pool that something just tried to damage.
@@ -820,16 +829,22 @@ struct GameEngine {
             }
         }
 
+        return struck.flatMap { plane, points in dryUp(Array(points), on: plane) }
+    }
+
+    /// Turns pools into droplets, one for one.
+    ///
+    /// The single place a pool ever becomes anything else, so the water can
+    /// never be lost by one path and preserved by another.
+    private mutating func dryUp(_ points: [GridPoint], on plane: Plane) -> [GameEvent] {
         var produced: [GameEvent] = []
-        for (plane, points) in struck {
-            for point in points where self[plane][point].kind == .pool {
-                for event in [
-                    GameEvent.poolEvaporated(plane: plane, point: point),
-                    GameEvent.pickupRevealed(id: .gaiaDroplet, plane: plane, point: point),
-                ] {
-                    produced.append(event)
-                    apply(event)
-                }
+        for point in points where self[plane][point].kind == .pool {
+            for event in [
+                GameEvent.poolEvaporated(plane: plane, point: point),
+                GameEvent.pickupRevealed(id: .gaiaDroplet, plane: plane, point: point),
+            ] {
+                produced.append(event)
+                apply(event)
             }
         }
         return produced
@@ -979,7 +994,7 @@ struct GameEngine {
     /// Tiles that are no longer legal hosts are skipped, so the pickup always
     /// lands somewhere the piece can stand.
     private mutating func rollPickupReveal(destination: GridPoint) -> [GameEvent] {
-        guard revealedPickups.isEmpty,
+        guard revealedPentacles.isEmpty,
               let sparkles,
               let pickup = pendingPickup
         else { return [] }
@@ -1487,7 +1502,9 @@ struct GameEngine {
     ) -> [GameEvent] {
         var events: [GameEvent] = []
 
-        for coin in revealedPickups where coin.plane == plane {
+        // Coins only: a droplet is water lying on a square, not something a
+        // sun can reel in.
+        for coin in revealedPentacles where coin.plane == plane {
             var from = coin.point
 
             for _ in 0..<steps {
@@ -1739,10 +1756,14 @@ struct GameEngine {
             commit(event)
         }
 
-        // Taking one shatters any other. Two coins are a choice, not a haul —
-        // and the destruction is the ordinary event, so the tile it was on
-        // stays raised to be stamped flat like any other.
-        for other in revealedPickups where other.id != pickup.id || other.point != pickup.point {
+        // Taking one shatters the others **of its own kind**. Two coins are a
+        // choice, not a haul, and so are eight droplets — but a coin and a
+        // droplet are two different offers, and taking one has never been a
+        // reason to lose the other.
+        let taken = PickupCatalog.effect(for: pickup.id).pickupClass
+        for other in revealedPickups
+        where (other.id != pickup.id || other.point != pickup.point)
+            && PickupCatalog.effect(for: other.id).pickupClass == taken {
             commit(.pickupDestroyed(id: other.id, plane: other.plane, point: other.point))
         }
 
@@ -2031,7 +2052,7 @@ struct GameEngine {
         // Checked here rather than at each place a tile can break: this is
         // already the one function every planner ends with, and every one of
         // them can break a tile.
-        for pickup in revealedPickups
+        for pickup in revealedPentacles
         where pickup.plane == piece.plane && !self[pickup.plane][pickup.point].isSolid {
             let destroyed = GameEvent.pickupDestroyed(
                 id: pickup.id,
@@ -2043,9 +2064,9 @@ struct GameEngine {
         }
 
         let changedPlane = piece.plane != previousPlane && GameRules.relocatePickupOnPlaneChange
-        let stranded = !revealedPickups.isEmpty
-            && revealedPickups.allSatisfy { $0.plane != piece.plane }
-        let nothingAvailable = sparkles == nil && revealedPickups.isEmpty
+        let stranded = !revealedPentacles.isEmpty
+            && revealedPentacles.allSatisfy { $0.plane != piece.plane }
+        let nothingAvailable = sparkles == nil && revealedPentacles.isEmpty
 
         guard changedPlane || stranded || nothingAvailable else { return events }
 
@@ -2221,6 +2242,7 @@ struct GameEngine {
             revealedPickups.append(
                 RevealedPickup(id: id, plane: plane, point: point, serial: pickupSerial)
             )
+            guard PickupCatalog.effect(for: id).pickupClass == .pentacle else { break }
             // The tile pops up under it, and from here on the two are separate.
             raisedTiles.append(
                 RevealedPickup(id: id, plane: plane, point: point, serial: pickupSerial)
@@ -2311,7 +2333,7 @@ struct GameEngine {
             raisedTiles.removeAll { $0.plane == plane && $0.point == point }
             revealedPickups.removeAll { $0.plane == plane && $0.point == point }
             // The hunt only restarts once the board is empty of coins.
-            if revealedPickups.isEmpty {
+            if revealedPentacles.isEmpty {
                 pendingPickup = nil
                 sparkles = nil
             }
@@ -2338,7 +2360,7 @@ struct GameEngine {
         case let .pickupCollected(_, plane, point):
             raisedTiles.removeAll { $0.plane == plane && $0.point == point }
             revealedPickups.removeAll { $0.plane == plane && $0.point == point }
-            if revealedPickups.isEmpty {
+            if revealedPentacles.isEmpty {
                 pendingPickup = nil
                 sparkles = nil
             }
@@ -2382,9 +2404,12 @@ struct GameEngine {
         case let .sparklesSpawned(set, pickup):
             sparkles = set
             pendingPickup = pickup
-            revealedPickups = []
-            // A fresh hunt clears the last one's leftovers: a raised square with
-            // no coin on it is stampable, not permanent.
+            // Only the hunt's own leftovers. A boon is somewhere an ability put
+            // it and stays there across any number of hunts.
+            revealedPickups.removeAll {
+                PickupCatalog.effect(for: $0.id).pickupClass == .pentacle
+            }
+            // A raised square with no coin on it is stampable, not permanent.
             raisedTiles = []
 
         case let .nexysMoved(destination, carryingPiece):

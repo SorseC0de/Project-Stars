@@ -204,6 +204,7 @@ private extension PentacleAppearance {
         case .standard: "Gold"
         case .shadow: "Shadow"
         case .radiant: "Polaris"
+        case .droplet: "Droplet"
         }
     }
 
@@ -216,6 +217,8 @@ private extension PentacleAppearance {
             "Shadow Work only. Spawns in place of an ordinary Pentacle."
         case .radiant:
             "Polaris only. Spawns from a sparkle on the north-middle tile."
+        case .droplet:
+            "Pisces' Gaia Geyser, and a pool boiling off. Not a Pentacle at all — see PickupClass."
         }
     }
 }
