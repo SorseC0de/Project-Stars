@@ -479,12 +479,19 @@ struct BoardView: View {
         }
     }
 
-    /// Gemini's mirrors, on Astra only.
+    /// Gemini's mirrors.
+    ///
+    /// Astra always, and Terra once the Zodiaction has torn them open down there
+    /// — `SignState.terraRifts`. They were gated to Astra alone, so popping the
+    /// super on Terra set the flag, opened the doorways, and drew nothing at
+    /// all: the ability worked and was invisible, which is indistinguishable
+    /// from it not working.
     @ViewBuilder
     private func mirrors(plane: Plane, metrics: PixelArtMetrics) -> some View {
+        let torn = plane == .astra || session.engine.signState.terraRifts
+
         // Drawn for Gemini, and for whoever inherits the rifts afterwards.
-        if session.zodiac == .gemini || session.engine.signState.riftsLinger,
-           plane == .astra {
+        if session.zodiac == .gemini || session.engine.signState.riftsLinger, torn {
             ReflectiveRiftsView(metrics: metrics, accent: session.zodiac.definition.accentColor)
                 .frame(width: metrics.boardSize, height: metrics.boardSize)
         }

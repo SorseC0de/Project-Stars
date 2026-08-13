@@ -293,8 +293,11 @@ struct ReflectiveRiftsView: View {
         // Ovals lie across the edge they hang off: wide on the horizontal edges,
         // tall on the vertical ones.
         let isVerticalEdge = edge == .up || edge == .down
-        let width = isVerticalEdge ? tile * 0.72 : tile * 0.34
-        let height = isVerticalEdge ? tile * 0.34 : tile * 0.72
+        // Half again as long and appreciably thicker. A doorway you have to
+        // look for is a doorway players walk past — and these are the whole of
+        // how Gemini crosses the board.
+        let width = isVerticalEdge ? tile * 1.05 : tile * 0.48
+        let height = isVerticalEdge ? tile * 0.48 : tile * 1.05
 
         // The rifts hang off the four board edges, so only the cardinals ever
         // reach here.

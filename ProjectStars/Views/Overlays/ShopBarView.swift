@@ -35,6 +35,13 @@ struct ShopBarView: View {
     /// The sign's accent, for the strip's own edge.
     let accent: Color
 
+    /// True while the shop is open and a coin can actually be bought.
+    ///
+    /// The belt is on screen at all times so the player can see what they are
+    /// carrying; it only becomes a *control* when the Zodiaction has been
+    /// popped and paid for.
+    var isLive: Bool = true
+
     let onBuy: (PickupID) -> Void
 
     /// What is being pressed, so the coin can dip under the finger.
@@ -42,7 +49,7 @@ struct ShopBarView: View {
 
     var body: some View {
         VStack(spacing: Style.captionGap) {
-            Text("COSMIC CASH-IN")
+            Text(isLive ? "COSMIC CASH-IN" : "PURSE")
                 .font(.system(size: Style.captionSize, weight: .heavy, design: .rounded))
                 .tracking(Style.captionTracking)
                 .foregroundStyle(Palette.pentacle)
@@ -101,8 +108,9 @@ struct ShopBarView: View {
         }
         .frame(width: Style.coinSize, height: Style.coinSize + Style.coinDepth)
         .animation(.easeOut(duration: 0.08), value: isDown)
+        .opacity(isLive ? 1 : Style.restingOpacity)
         .contentShape(Circle())
-        .onTapGesture { onBuy(id) }
+        .onTapGesture { if isLive { onBuy(id) } }
         .simultaneousGesture(
             DragGesture(minimumDistance: 0)
                 .onChanged { _ in pressed = id }
@@ -131,6 +139,9 @@ struct ShopBarView: View {
         static let barEdge: CGFloat = 2
         static let barOpacity: Double = 0.82
         static let barEdgeOpacity: Double = 0.6
+
+        /// How the belt sits when it is only being read, not spent.
+        static let restingOpacity: Double = 0.72
     }
 }
 

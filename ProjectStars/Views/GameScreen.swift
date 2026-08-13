@@ -55,10 +55,18 @@ struct GameScreen: View {
                     // The shop takes the same slot, and outranks it: the strip
                     // is waiting on an answer, the banner is only telling you
                     // something. Neither ever covers the board.
-                    if session.isChoosingShop {
+                    // Capricorn's belt is always out.
+                    //
+                    // A hotbar you cannot see is a hotbar you forget you have —
+                    // and the purse is the sign's whole resource, so hiding it
+                    // until the moment of spending meant the player could not
+                    // plan around what they were carrying. Popping the super
+                    // does not summon it, it makes it *live*.
+                    if session.isChoosingShop || !session.purse.isEmpty {
                         ShopBarView(
                             purse: session.purse,
-                            accent: session.zodiac.definition.accentColor
+                            accent: session.zodiac.definition.accentColor,
+                            isLive: session.isChoosingShop
                         ) { id in
                             session.resolvePickupChoice(.item(id))
                         }
@@ -116,6 +124,7 @@ struct GameScreen: View {
         .animation(.easeInOut(duration: 0.2), value: session.isPaused)
         .animation(.spring(response: 0.35, dampingFraction: 0.85), value: session.pentacleBanner)
         .animation(.spring(response: 0.32, dampingFraction: 0.82), value: session.isChoosingShop)
+        .animation(.spring(response: 0.32, dampingFraction: 0.82), value: session.purse)
         .statusBarHidden()
     }
 
