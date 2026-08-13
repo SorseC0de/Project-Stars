@@ -1066,9 +1066,12 @@ struct GameEngine {
     /// nothing. Cash-in was worse than nothing: with no coins to buy, the shop
     /// opened on an empty belt and the game could not be advanced.
     ///
-    /// The context is rebuilt as the *follower*, because that is whose rules
-    /// these are. Asked as Leo, Virgo's ring would be checked against Leo's
-    /// movement and answer a different question.
+    /// The context is **Leo's**, which is what `passiveContext` already is.
+    /// Leo is the one acting: the ring is dealt around where Leo is standing,
+    /// the shop is opened by Leo, and the phantom is the source of the ability
+    /// rather than the thing performing it. Rebuilding the context as the
+    /// follower would ask where a piece that is only a projection happens to be
+    /// standing, which decides nothing.
     func canFireRetinueZodiaction(_ follower: Zodiac) -> Bool {
         guard signState.retinue.contains(follower) else { return false }
         return follower.definition.zodiaction.canActivate(context: passiveContext)
