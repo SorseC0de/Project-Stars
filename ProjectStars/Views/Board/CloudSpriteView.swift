@@ -58,7 +58,10 @@ struct CloudSpriteView: View {
 
             art
                 .background { if glows { bloom(art, at: now) } }
-                .opacity(motion.opacity)
+                // Desaturate first, then darken — the other way round darkens
+                // and then washes the darkening out.
+                .saturation(motion.saturation)
+                .colorMultiply(Color(white: motion.luminance))
                 .offset(x: motion.offset.width, y: motion.offset.height)
         }
         .allowsHitTesting(false)
@@ -178,7 +181,11 @@ struct CloudMotion {
     let frame: Int
     let size: CGSize
     let offset: CGSize
-    let opacity: Double
+    /// How much colour is left in it, and how lit it is. See
+    /// `GameRules.cloudWear`.
+    let saturation: Double
+    let luminance: Double
+
     let isFlipped: Bool
 
     init(
@@ -197,7 +204,9 @@ struct CloudMotion {
 
         frame = Self.pingPong(at: now)
         isFlipped = !stages.isMultiple(of: 2)
-        opacity = GameRules.cloudOpacity(health)
+        let worn = GameRules.cloudWear(health)
+        saturation = worn.saturation
+        luminance = worn.luminance
 
         size = CGSize(
             width: side * wear * Self.stretch(

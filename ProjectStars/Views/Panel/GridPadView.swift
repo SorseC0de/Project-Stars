@@ -190,7 +190,7 @@ struct GridPadView: View {
     private func tap(_ point: GridPoint, reach: Reach) {
         // A question outranks the phase: `acceptsInput` is false while one is
         // outstanding, and the pad is where it is being answered.
-        guard session.isChoosingTile || session.acceptsInput else { return }
+        guard session.isChoosingTile || session.acceptsGesture else { return }
 
         guard isLegal(point, reach: reach) else {
             // A tap on an unreachable square clears the aim rather than being

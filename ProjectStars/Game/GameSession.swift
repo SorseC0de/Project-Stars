@@ -899,7 +899,12 @@ final class GameSession {
 
             // Landing on a raised tile is a heavier arrival than an ordinary
             // hop: the tile slams flat, dust kicks up, and the coin bursts.
-            kickUpDust(at: point, on: plane, magnitude: GameRules.smokeCollectMagnitude)
+            kickUpDust(
+                at: point, on: plane,
+                magnitude: GameRules.smokeCollectMagnitude,
+                // This *is* the pop-down: the coin's tile slamming back flat.
+                fromRaisedTile: true
+            )
             collectBurst = ElementalBurst(element: .air, center: point, plane: plane, start: .now)
 
             clearCollectBurstLater()
@@ -1974,6 +1979,17 @@ extension GameSession {
 
     var acceptsInput: Bool {
         phase == .awaitingInput && pentacleIntro == nil && pendingPickupChoice == nil && !isPaused
+    }
+
+    /// Whether a control should still *report* what the player did, even though
+    /// the move itself will not be played.
+    ///
+    /// The splash is dismissed by reaching for the controls — so the controls
+    /// have to be live enough to notice. Gating them on `acceptsInput`, which is
+    /// false precisely *because* the splash is up, left it on screen with no way
+    /// to put it away.
+    var acceptsGesture: Bool {
+        acceptsInput || pentacleIntro != nil
     }
 
     /// True while the player is being asked to pick a square on the board.

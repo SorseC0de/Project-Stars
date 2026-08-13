@@ -1827,7 +1827,13 @@ struct GameEngine {
             return (true, pickup.id, events)
         }
 
-        events += applyEffect(effect, choice: nil)
+        // Passed through. It was not, and that was the two-stage fall: opening
+        // a coin from inside `settle` ran the effect with its *own* settle still
+        // switched on, so a tile that broke underfoot was resolved twice — once
+        // by the effect's landing, which dropped the piece and wore the square
+        // it arrived on, and again by the loop out here, which found the piece
+        // somewhere new and charged it for arriving a second time.
+        events += applyEffect(effect, choice: nil, settleAfter: settleAfterEffect)
         return (true, pickup.id, events)
     }
 

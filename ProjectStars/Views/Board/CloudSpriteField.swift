@@ -193,10 +193,16 @@ struct CloudSpriteField: View {
         )
 
         var layer = context
-        // Each stage of wear takes ten percent off. The shrink alone was not
-        // reading as damage to anyone who had not been told — see
-        // `GameRules.cloudSpriteWearFade`.
-        layer.opacity = GameRules.cloudOpacity(tile.health)
+        // Wear drains the colour out of a cloud rather than fading it — see
+        // `GameRules.cloudWear`. Order matters: desaturate first, then darken,
+        // or the darkening is what gets desaturated.
+        let worn = GameRules.cloudWear(tile.health)
+        if worn.saturation < 1 {
+            layer.addFilter(.saturation(worn.saturation))
+        }
+        if worn.luminance < 1 {
+            layer.addFilter(.colorMultiply(Color(white: worn.luminance)))
+        }
 
         if flashing.contains(point) {
             layer.addFilter(.colorMultiply(Palette.white))

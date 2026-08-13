@@ -449,7 +449,7 @@ private struct PanelFrontView: View {
             // its ancestor — see `SwipeInputSurface` for why that matters.
             if GameRules.controlScheme == .joystick {
                 SwipeInputSurface(
-                    isEnabled: session.acceptsInput,
+                    isEnabled: session.acceptsGesture,
                     includingDiagonals: session.movesDiagonally,
                     liveDirection: $liveDirection,
                     onCommit: {
@@ -1069,12 +1069,15 @@ struct DirectionPad: View {
             // The hold is registered first, so a press that becomes a hold does
             // not also fire the tap when it lifts.
             .onLongPressGesture(minimumDuration: PanelStyle.padHoldDuration) {
-                guard session.acceptsInput, let reach = special else { return }
+                // `acceptsGesture`, like the tap beside it: holding an arrow
+                // is reaching for a control, and reaching for a control is how
+                // the splash is dismissed. `submit` spends it doing that.
+                guard session.acceptsGesture, let reach = special else { return }
                 Haptics.longer()
                 session.submit(direction, reach: reach)
             }
             .onTapGesture {
-                guard session.acceptsInput else { return }
+                guard session.acceptsGesture else { return }
                 Haptics.step()
                 session.submit(direction, reach: 0)
             }

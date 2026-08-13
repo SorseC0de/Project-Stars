@@ -743,24 +743,36 @@ enum GameRules {
     static let cloudSpriteStretchPeriodH: TimeInterval = 6.1
     static let cloudSpriteStretchPeriodV: TimeInterval = 7.9
 
-    /// How solid a cloud is at each stage of wear.
+    /// How a cloud is drained of colour as it wears.
     ///
     /// The shrink alone was not reading as damage — the first outside tester did
-    /// not realise Astra decayed at all, and could not tell why he was falling.
-    /// Fading is the second, blunter signal: a square you can see through is a
-    /// square about to go.
+    /// not realise Astra decayed at all, and could not work out why he kept
+    /// falling. This is the second signal.
     ///
-    /// A table rather than a fade *per stage*, because the two steps are not
-    /// worth the same. Cracked is a warning and badly cracked is a last one, so
-    /// the second drop is larger than the first — a straight multiplier spaces
-    /// them evenly and makes the state that actually matters look like the
-    /// halfway point of a slope.
-    static func cloudOpacity(_ health: TileHealth) -> Double {
+    /// ## Why not opacity
+    ///
+    /// Because a faded cloud is a cloud you can see the sky through, and Astra's
+    /// sky is nearly black — so fading reads as *dimming the lights*, and the
+    /// square goes quiet exactly when it should be shouting. Draining the colour
+    /// out of it says something different and much closer to the truth: the
+    /// square is losing what it is made of. A grey cloud in a magenta field is
+    /// conspicuous rather than faint.
+    ///
+    /// Luminance comes down alongside it so the two steps do not both land on
+    /// "grey" — one is washed out, the next is washed out *and* in shadow.
+    ///
+    /// ## The cost
+    ///
+    /// Desaturating leaves the fixed palette. That is the one place in this
+    /// project where that is worth doing: these are two states out of four, they
+    /// are meant to look wrong, and the alternative is authoring a second and
+    /// third cloud by hand for something a filter says exactly.
+    static func cloudWear(_ health: TileHealth) -> (saturation: Double, luminance: Double) {
         switch health {
-        case .healthy: 1.00
-        case .cracked: 0.80
-        case .badlyCracked: 0.67
-        case .hole: 0
+        case .healthy: (1.00, 1.00)
+        case .cracked: (0.55, 0.88)
+        case .badlyCracked: (0.20, 0.70)
+        case .hole: (0, 0)
         }
     }
 
