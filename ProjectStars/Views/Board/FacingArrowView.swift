@@ -48,22 +48,58 @@ struct FacingArrowView: View {
     let scale: CGFloat
 
     var body: some View {
-        PixelSprite(id: .directionArrow(facing)) {
-            placeholder
+        TimelineView(.animation) { timeline in
+            let out = nudge(at: clock(timeline.date.timeIntervalSinceReferenceDate))
+
+            PixelSprite(id: .directionArrow(facing)) {
+                placeholder
+            }
+            .frame(width: tileSize, height: tileSize)
+            .scaleEffect(GameRules.facingArrowScale)
+            .offset(
+                x: CGFloat(facing.unitOffset.dx)
+                    * (tileSize * GameRules.facingArrowReach + out),
+                y: CGFloat(facing.unitOffset.dy)
+                    * (tileSize * GameRules.facingArrowReach + out)
+                    - GameRules.facingArrowLift * scale
+            )
+            // Follows the turn rather than snapping, so a change of facing is
+            // something you see happen — several rules key off it and a silent
+            // swap is the sort of thing a player only notices by losing to it.
+            .animation(.easeOut(duration: GameRules.facingArrowTurn), value: facing)
         }
-        .frame(width: tileSize, height: tileSize)
-        .scaleEffect(GameRules.facingArrowScale)
-        .offset(
-            x: CGFloat(facing.unitOffset.dx) * tileSize * GameRules.facingArrowReach,
-            y: CGFloat(facing.unitOffset.dy) * tileSize * GameRules.facingArrowReach
-                - GameRules.facingArrowLift * scale
-        )
-        // Follows the turn rather than snapping, so a change of facing is
-        // something you see happen — several rules key off it and a silent swap
-        // is the sort of thing a player only notices by losing to it.
-        .animation(.easeOut(duration: GameRules.facingArrowTurn), value: facing)
         .allowsHitTesting(false)
     }
+
+    /// How far out along its own axis the arrow currently sits.
+    ///
+    /// ## Two positions, not a wobble
+    ///
+    /// It snaps between them and holds — this is a two-frame sprite animation
+    /// that happens to be written as maths, and easing between the stops would
+    /// make it a floating icon rather than a drawn one. Everything else on this
+    /// board moves in whole pixels on a held beat and so does this.
+    ///
+    /// ## Why north is the odd one
+    ///
+    /// The four arrows were authored so that up already sits at its *far*
+    /// position and the other three sit at their near one. Rather than nudge the
+    /// art, north swings inward — `[-8, 0]` where the others run `[0, +8]`. The
+    /// pair is the same eight pixels along the same axis in every case; only
+    /// which end is home differs.
+    private func nudge(at now: TimeInterval) -> CGFloat {
+        let beat = Int(now / GameRules.facingArrowBeat) % 2 == 0
+        let step = GameRules.facingArrowNudge * scale
+
+        if facing == .up {
+            return beat ? -step : 0
+        }
+        return beat ? 0 : step
+    }
+
+    /// The ambient clock, so it holds still with everything else while the game
+    /// waits on the player.
+    var clock: (TimeInterval) -> TimeInterval = { $0 }
 
     /// Drawn only while the sprite is missing: a plain triangle, rotated.
     private var placeholder: some View {

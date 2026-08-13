@@ -1919,6 +1919,16 @@ enum GameRules {
     /// level it was being read as debris on the square ahead.
     static let facingArrowLift: CGFloat = 8
 
+    /// How far it steps between its two positions, in art pixels.
+    static let facingArrowNudge: CGFloat = 8
+
+    /// How long each of the two positions is held.
+    ///
+    /// A few frames — long enough to read as two drawings rather than as
+    /// movement, which is what every other two-frame animation in this game
+    /// does.
+    static let facingArrowBeat: TimeInterval = 0.18
+
     /// How long it takes to swing round to a new facing.
     static let facingArrowTurn: TimeInterval = 0.14
 

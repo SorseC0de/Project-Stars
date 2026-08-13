@@ -472,6 +472,16 @@ struct GameEngine {
         self.luckAlt = sim.luckAlt
 
         guard let move = sim.resolvedMove(for: direction, reach: reach) else {
+            // A direction the sign can *never* go is not a refused move, it is
+            // not a move at all.
+            //
+            // `moveBlocked` plays a balk — the piece leans at the wall and comes
+            // back — which says "you tried that and the board said no". For a
+            // cardinal into a wall that is exactly right. For a diagonal on a
+            // sign that has no diagonals it is a lie: it implies the direction
+            // is ordinarily available and merely obstructed here, and every
+            // non-Virgo piece was nodding at corners it can never use.
+            guard sim.canEverMove(direction) else { return [] }
             return [.moveBlocked(direction: direction)]
         }
 
@@ -972,6 +982,20 @@ struct GameEngine {
         events += sim.ensurePentacleAvailable(previousPlane: planeBefore, after: events)
         events += sim.passTheTurn()
         return events
+    }
+
+    /// Whether this sign has *any* move in this direction, board aside.
+    ///
+    /// Asked of the pattern rather than of the position, because the question is
+    /// about the piece's repertoire and not about what is in the way. Virgo can
+    /// always go diagonally, even when a diagonal happens to be blocked; nobody
+    /// else ever can.
+    func canEverMove(_ direction: SwipeDirection) -> Bool {
+        let movement = activePassives.adjustedMovement(
+            base: piece.zodiac.movement,
+            context: passiveContext
+        )
+        return !movement.options(for: direction, facing: piece.facing).isEmpty
     }
 
     /// The largest reach currently legal this way, or `0` if only a step is.

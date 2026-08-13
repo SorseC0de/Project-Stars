@@ -813,7 +813,8 @@ struct BoardView: View {
                     FacingArrowView(
                         facing: session.engine.piece.facing,
                         tileSize: metrics.tileSize,
-                        scale: metrics.scale
+                        scale: metrics.scale,
+                        clock: session.ambientClock(at:)
                     )
                     .position(metrics.center(of: session.engine.piece.point))
                     .offset(y: surfaceOffset(
