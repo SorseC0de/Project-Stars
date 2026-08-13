@@ -327,6 +327,15 @@ final class GameSession {
     /// than just the pacing.
     private(set) var pendingPickupChoice: (source: ChoiceSource, kind: PickupChoice)?
 
+    /// The square being aimed at while a question about a square is open.
+    ///
+    /// Held here rather than inside the pad because two views need it: the pad
+    /// is where it is *chosen*, and the board is where it is *shown*. A cursor
+    /// that stayed on the movement projection while the player was picking a
+    /// warp destination was pointing at the wrong question entirely.
+    private(set) var targetAim: GridPoint?
+
+
     // MARK: - Lifecycle
 
     /// - Parameters:
@@ -1256,6 +1265,7 @@ final class GameSession {
         source: ChoiceSource,
         kind: PickupChoice
     ) async -> PickupChoiceResult {
+        targetAim = nil
         pendingPickupChoice = (source, kind)
         return await withCheckedContinuation { continuation in
             choiceContinuation = continuation
@@ -1266,6 +1276,7 @@ final class GameSession {
     func resolvePickupChoice(_ result: PickupChoiceResult) {
         guard pendingPickupChoice != nil else { return }
         pendingPickupChoice = nil
+        targetAim = nil
         choiceContinuation?.resume(returning: result)
         choiceContinuation = nil
     }
@@ -1747,6 +1758,29 @@ extension GameSession {
         case .tile, .among, .place: true
         default: false
         }
+    }
+
+    /// Whether this square is an answer the outstanding question would accept.
+    ///
+    /// One definition, asked by both the pad that collects the answer and the
+    /// cursor that reports it. Two would drift, and the drift would show as a
+    /// green bracket over a square the pad then refused.
+    func isLegalTarget(_ point: GridPoint) -> Bool {
+        if let slab = placingSlab {
+            return slab.canBePlaced(anchoredAt: point, on: engine.currentBoard)
+        }
+        if let allowed = choosableTiles {
+            return allowed.contains(point)
+        }
+        // A free tile question takes anything, holes included — that is the
+        // whole of Astral Breeze.
+        return isChoosingTile
+    }
+
+    /// Moves the aim. Ignored when nothing is being asked.
+    func aimTarget(_ point: GridPoint?) {
+        guard pendingPickupChoice != nil else { return }
+        targetAim = point
     }
 
     /// The slab Libra is being asked to place, if that is the outstanding

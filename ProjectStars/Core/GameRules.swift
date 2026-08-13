@@ -628,6 +628,17 @@ enum GameRules {
     /// edge.
     static let tileEdgeDrop: CGFloat = 12
 
+    /// How far the *front* of the board's bottom row hangs below it, in art
+    /// pixels.
+    ///
+    /// The ordinary edge pass drops each strip far enough that the row below
+    /// covers it — which is right everywhere except the last row, where there is
+    /// no row below and the board simply stopped, flat, like a decal. Four
+    /// pixels puts the sliver flush under the bottom edge and gives the whole
+    /// plane a front face, so Terra reads as a slab rather than a picture of
+    /// one.
+    static let tileFrontEdgeDrop: CGFloat = 4
+
     /// A tile visibly cracking.
     static let tileDamageDuration: TimeInterval = 0.16
 

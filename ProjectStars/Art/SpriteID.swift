@@ -47,6 +47,10 @@ enum CursorTint: String, CaseIterable, Hashable {
     case yellow
     case orange
     case red
+
+    /// Drawn only while the player is choosing a square rather than a move.
+    /// Its brackets have been on the sheet all along — see `SpriteAtlas`.
+    case green
 }
 
 // MARK: - SpriteID

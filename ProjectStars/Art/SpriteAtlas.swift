@@ -256,11 +256,11 @@ enum SpriteAtlas {
         // ── Cursor ───────────────────────────────────────────────────────
         // One 16x16 cell per colour, holding all four brackets. Cut into 8x8
         // quarters so each can be pushed outward as the cursor flares.
+        // Column 5's green set is the "you may choose this" bracket, used while
+        // a Pentacle or an ability is asking which square.
         let cursorColumn: [CursorTint: Int] = [
-            .red: 2, .yellow: 3, .orange: 4, .white: 6,
+            .red: 2, .yellow: 3, .orange: 4, .green: 5, .white: 6,
         ]
-        // Column 5 is a green set, held back for a "confirm" state that does not
-        // exist yet.
         for (tint, column) in cursorColumn {
             for corner in CursorCorner.allCases {
                 let origin = corner.originInCell

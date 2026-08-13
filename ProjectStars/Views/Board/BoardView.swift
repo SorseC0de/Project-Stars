@@ -225,6 +225,19 @@ struct BoardView: View {
                     .position(metrics.center(of: point))
                     .offset(y: GameRules.tileEdgeDrop * metrics.scale)
             }
+
+            // The front face of the board itself.
+            //
+            // Every other row's edge is hidden by the row in front of it and
+            // only shows when a tile lifts. The last row has nothing in front of
+            // it, so its side was never drawn at all and the plane ended in a
+            // flat line — a picture of a slab rather than a slab. This is the
+            // same strip, dropped just far enough to sit flush underneath.
+            ForEach(board.allPoints.filter { $0.y == board.size - 1 }, id: \.self) { point in
+                TileEdgeView(plane: plane, shade: .at(point), size: metrics.tileSize)
+                    .position(metrics.center(of: point))
+                    .offset(y: GameRules.tileFrontEdgeDrop * metrics.scale)
+            }
         }
     }
 
@@ -455,8 +468,21 @@ struct BoardView: View {
     }
 
     /// Where the cursor currently points, and what it is sitting on.
+    ///
+    /// While a question about a square is open the cursor stops projecting a
+    /// move and starts reporting the answer being aimed at — anywhere on the
+    /// board, green where the question would accept it and red where it would
+    /// not. Those are different questions and the cursor can only answer one of
+    /// them at a time.
     private var projectedCursor: GameEngine.Cursor {
-        session.engine.cursor(
+        if session.isChoosingTile {
+            let aim = session.targetAim ?? session.engine.piece.point
+            return GameEngine.Cursor(
+                point: aim,
+                status: .targeting(legal: session.isLegalTarget(aim))
+            )
+        }
+        return session.engine.cursor(
             direction: session.previewDirection,
             reach: session.previewReach
         )

@@ -40,7 +40,11 @@ struct TileChoiceOverlay: View {
     /// grid whichever scheme is running, because it is a thing in the world —
     /// and still offers the way to decline. What moves down to the pad is the
     /// aiming, which is the part that wants a thumb.
-    private var answeredBelow: Bool { GameRules.controlScheme == .grid }
+    ///
+    /// Always, now. It was briefly conditional on the third control scheme being
+    /// active, which left the other two answering on the board — the exact
+    /// arrangement the change was meant to replace.
+    private var answeredBelow: Bool { true }
 
     var body: some View {
         let allowed = session.choosableTiles

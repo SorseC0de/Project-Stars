@@ -530,6 +530,19 @@ private struct PanelFrontView: View {
 
     @ViewBuilder
     private var movementControl: some View {
+        // A question about a square is answered on the pad whatever the control
+        // scheme is. Aiming a warp with a joystick means projecting a *move*,
+        // which is the one thing a free choice of square is not — and the board
+        // is at the top of the screen where the answer is hardest to reach.
+        if session.isChoosingTile {
+            GridPadView(session: session, side: PanelStyle.movementRowHeight)
+        } else {
+            movementScheme
+        }
+    }
+
+    @ViewBuilder
+    private var movementScheme: some View {
         switch GameRules.controlScheme {
         case .joystick:
             Joystick(

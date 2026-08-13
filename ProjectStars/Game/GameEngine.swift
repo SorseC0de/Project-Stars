@@ -911,6 +911,16 @@ struct GameEngine {
         case open
         /// Off the board. The move cannot be made.
         case impossible
+
+        /// Aimed at an answer rather than at a move.
+        ///
+        /// Its own state because it means something different from all of the
+        /// others: those report what the ground *is*, and this reports whether
+        /// the square is an answer the question will accept. A warp onto a hole
+        /// is a real play — green — where a slab hanging off the board is not,
+        /// and colouring the first of those by its wear would be the cursor
+        /// arguing with a decision it has no stake in.
+        case targeting(legal: Bool)
     }
 
     /// Where the piece is aimed, and what is there.

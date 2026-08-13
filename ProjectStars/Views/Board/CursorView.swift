@@ -133,6 +133,7 @@ struct CursorView: View {
     private var tint: CursorTint {
         switch status {
         case .clear, .impossible: .white
+        case let .targeting(legal): legal ? .green : .red
         case .damaged: .yellow
         case .badlyDamaged: .orange
         case .open: .red
@@ -146,6 +147,7 @@ struct CursorView: View {
         case .badlyDamaged: Palette.cursorBadlyDamaged
         case .open: Palette.cursorOpen
         case .impossible: Palette.cursorImpossible
+        case let .targeting(legal): legal ? Palette.jade : Palette.red
         }
     }
 }

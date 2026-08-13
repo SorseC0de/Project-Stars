@@ -46,8 +46,24 @@ struct GridPadView: View {
     /// Edge length of the whole pad, in points.
     let side: CGFloat
 
-    /// The square currently aimed at, if any.
-    @State private var aim: GridPoint?
+    /// The square currently aimed at while choosing a move.
+    ///
+    /// A question's aim lives on the session instead — the board has to draw it,
+    /// and a `@State` here would be invisible to it. See `GameSession.targetAim`.
+    @State private var moveAim: GridPoint?
+
+    /// Whichever aim is in play.
+    private var aim: GridPoint? {
+        session.isChoosingTile ? session.targetAim : moveAim
+    }
+
+    private func setAim(_ point: GridPoint?) {
+        if session.isChoosingTile {
+            session.aimTarget(point)
+        } else {
+            moveAim = point
+        }
+    }
 
     var body: some View {
         let board = session.visibleBoard
@@ -69,7 +85,7 @@ struct GridPadView: View {
         // A question about a square is a different question from "where do you
         // want to move", so an aim taken under one must not survive into the
         // other.
-        .onChange(of: session.isChoosingTile) { _, _ in aim = nil }
+        .onChange(of: session.isChoosingTile) { _, _ in moveAim = nil }
     }
 
     // MARK: - The grid
@@ -161,20 +177,14 @@ struct GridPadView: View {
     /// Where the piece can go, and the swipe that gets it there.
     typealias Reach = [GridPoint: (direction: SwipeDirection, reach: Int)]
 
-    /// Whether this square is something the current question accepts.
+    /// Whether this square is something the pad will accept right now.
+    ///
+    /// A question's answer is the session's rule, so the cursor and the pad
+    /// cannot disagree; a move's is this pad's own business.
     private func isLegal(_ point: GridPoint, reach: Reach) -> Bool {
-        if let slab = session.placingSlab {
-            return slab.canBePlaced(anchoredAt: point, on: session.engine.currentBoard)
-        }
-        if let allowed = session.choosableTiles {
-            return allowed.contains(point)
-        }
-        if session.isChoosingTile {
-            // A free tile question takes anything, holes included — that is the
-            // whole of Astral Breeze.
-            return true
-        }
-        return reach.keys.contains(point)
+        session.isChoosingTile
+            ? session.isLegalTarget(point)
+            : reach.keys.contains(point)
     }
 
     private func tap(_ point: GridPoint, reach: Reach) {
@@ -186,14 +196,14 @@ struct GridPadView: View {
             // A tap on an unreachable square clears the aim rather than being
             // ignored, so the pad never leaves a stale cursor behind after a
             // change of mind.
-            aim = nil
+            setAim(nil)
             return
         }
 
         if aim == point {
             commit(reach: reach)
         } else {
-            aim = point
+            setAim(point)
             Haptics.step()
             previewAim(point, reach: reach)
         }
@@ -201,7 +211,7 @@ struct GridPadView: View {
 
     private func commit(reach: Reach) {
         guard let target = aim, isLegal(target, reach: reach) else { return }
-        aim = nil
+        setAim(nil)
 
         if let slab = session.placingSlab {
             session.resolvePickupChoice(.place(slab, target))
