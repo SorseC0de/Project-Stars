@@ -241,6 +241,56 @@ struct BoardView: View {
         }
     }
 
+    /// The disturbance the sky is currently reacting to, if any.
+    ///
+    /// Converted here rather than kept in the session's own terms because the
+    /// drawing works in elapsed seconds off one clock, and a `Date` would have
+    /// to be differenced against it on every cloud, every frame.
+    private var cloudWake: CloudMotion.Wake? {
+        session.cloudWake.map {
+            CloudMotion.Wake(
+                point: $0.point,
+                start: $0.start.timeIntervalSinceReferenceDate
+            )
+        }
+    }
+
+    /// How far the surface of `point` has wandered from its square right now.
+    ///
+    /// **Anything standing on a square offsets by this.** A cloud that drifts
+    /// out from under the sparkle marking it, or the coin sitting on it, or the
+    /// piece, reads as the board coming apart — a square and the things on it
+    /// have to move as one object.
+    ///
+    /// Reads `CloudMotion`, which is the same description the cloud is drawn
+    /// from. That is the whole point: a second copy of this maths drifts apart
+    /// the first time either is retuned, which is exactly what had happened —
+    /// the piece was still swaying on the generated cluster's old curve while
+    /// the sprites moved on a new one, and nothing else swayed at all.
+    ///
+    /// Zero on Terra, where the ground is stone and holds still, and zero on the
+    /// island and its chasm for the same reason.
+    private func surfaceSway(
+        of point: GridPoint,
+        at date: Date,
+        metrics: PixelArtMetrics
+    ) -> CGSize {
+        guard session.visiblePlane == .astra,
+              session.visibleBoard.contains(point),
+              session.visibleBoard[point].kind == .normal
+        else { return .zero }
+
+        let now = session.ambientFreeze ?? date.timeIntervalSinceReferenceDate
+        let drift = CloudMotion.shift(point, now: now, scale: metrics.scale)
+        let shove = CloudMotion.shove(
+            point, wake: cloudWake, now: now, scale: metrics.scale
+        )
+        return CGSize(
+            width: drift.width + shove.width,
+            height: drift.height + shove.height
+        )
+    }
+
     /// Squares whose cloud must not be lapped over by its row neighbours.
     ///
     /// The piece's own square above all: standing on ground you cannot see is
@@ -283,7 +333,8 @@ struct BoardView: View {
                         // Whatever is being stood on or hovered over has to stay
                         // clear of its neighbours' overlap.
                         occupied: occupiedSquares(on: plane, popped: popped),
-                        freeze: session.ambientFreeze
+                        freeze: session.ambientFreeze,
+                        wake: cloudWake
                     )
                 } else {
                     CloudFieldView(
@@ -451,16 +502,22 @@ struct BoardView: View {
     @ViewBuilder
     private func sparkles(metrics: PixelArtMetrics) -> some View {
         if let set = session.visibleSparkles {
-            ForEach(Array(set.points.enumerated()), id: \.element) { index, point in
-                SparkleView(
-                    size: metrics.tileSize,
-                    plane: session.visiblePlane,
-                    index: index,
-                    // Virgo's ring, which plays by different rules and says so.
-                    tint: set.pattern == .ring ? Palette.pink : nil
-                )
-                    .position(metrics.center(of: point))
-                    .offset(GameRules.sparkleNudge)
+            // Its own clock, because a sparkle marks a *square* and the square
+            // moves. Without this the shimmer stayed nailed to the grid while
+            // the cloud it was marking wandered out from under it.
+            TimelineView(.animation) { timeline in
+                ForEach(Array(set.points.enumerated()), id: \.element) { index, point in
+                    SparkleView(
+                        size: metrics.tileSize,
+                        plane: session.visiblePlane,
+                        index: index,
+                        // Virgo's ring, which plays by different rules and says so.
+                        tint: set.pattern == .ring ? Palette.pink : nil
+                    )
+                        .position(metrics.center(of: point))
+                        .offset(GameRules.sparkleNudge)
+                        .offset(surfaceSway(of: point, at: timeline.date, metrics: metrics))
+                }
             }
             .transition(.opacity)
         }
@@ -665,6 +722,7 @@ struct BoardView: View {
                     health: board[point].health,
                     metrics: metrics,
                     freeze: session.ambientFreeze,
+                    wake: cloudWake,
                     swaps: CloudSpriteView.raisedSwaps,
                     glows: true
                 )
@@ -709,6 +767,8 @@ struct BoardView: View {
             )
             .offset(y: lifted ? -GameRules.tilePopLift * metrics.scale : 0)
             .position(metrics.center(of: point))
+            // Hovering over a cloud that is drifting means drifting with it.
+            .offset(surfaceSway(of: point, at: Date(), metrics: metrics))
             .transition(.scale(scale: 0.2).combined(with: .opacity))
         }
     }
@@ -843,8 +903,8 @@ struct BoardView: View {
     /// `cloudSwayEaseIn` once it lands rather than switching on at the
     /// moment of contact.
     ///
-    /// Reads the very same `CloudCluster.drift` the square itself is drawn with
-    /// — a second copy of that maths would drift apart the first time either was
+    /// Reads `surfaceSway`, the same description the square itself is drawn
+    /// from — a second copy of that maths drifts apart the first time either is
     /// retuned, and a piece sliding off its own footing is worse than no sway.
     private func cloudSway(at date: Date, metrics: PixelArtMetrics) -> CGSize {
         let plane = session.visiblePlane
@@ -856,11 +916,7 @@ struct BoardView: View {
               !session.isFalling
         else { return .zero }
 
-        let drift = CloudCluster.drift(
-            at: point,
-            time: date.timeIntervalSinceReferenceDate,
-            scale: metrics.scale
-        )
+        let drift = surfaceSway(of: point, at: date, metrics: metrics)
         let amount = swayAmount(at: date)
 
         return CGSize(width: drift.width * amount, height: drift.height * amount)

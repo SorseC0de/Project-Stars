@@ -180,6 +180,30 @@ final class GameSession {
     /// leaves, and a two-square exit lights two of them on the same beat.
     private(set) var effectBursts: [EffectBurst] = []
 
+    /// The square something has just dropped through or risen out of, so the
+    /// clouds around it can be pushed aside. See `CloudSpriteField`.
+    private(set) var cloudWake: CloudWake?
+
+    /// One disturbance in the sky.
+    struct CloudWake: Equatable {
+        let point: GridPoint
+        let start: Date
+    }
+
+    /// Shoves the sky around `point`.
+    private func disturbClouds(at point: GridPoint) {
+        let wake = CloudWake(point: point, start: .now)
+        cloudWake = wake
+
+        Task { [weak self] in
+            try? await Task.sleep(
+                nanoseconds: UInt64(GameRules.cloudWakeDuration * 1_000_000_000)
+            )
+            guard self?.cloudWake == wake else { return }
+            self?.cloudWake = nil
+        }
+    }
+
     /// Squares the piece is passing over right now, pressed down under it.
     ///
     /// Only a slide fills this. A slide crosses ground without landing on it —
@@ -393,6 +417,7 @@ final class GameSession {
         elementalBurst = nil
         effectBursts = []
         healSparkles = []
+        cloudWake = nil
         pressedTiles = []
         isSliding = false
         isCharging = false
@@ -1049,6 +1074,13 @@ final class GameSession {
         }()
         let tumble = controlled ? 0 : GameRules.fallSpinDegrees / 2
 
+        // Going down through the sky pushes it aside. Only leaving Astra: a fall
+        // out of Terra is a fall out of the world and there is no cloud there to
+        // move.
+        if case let .pieceFell(from, _, at) = event, from == .astra {
+            disturbClouds(at: at)
+        }
+
         // Spin and shrink together, and *animated* — incrementing the angle
         // outside `withAnimation` snapped the sprite round instead of turning it.
         withAnimation(.easeIn(duration: departure)) {
@@ -1156,6 +1188,10 @@ final class GameSession {
     /// Input is already locked for the duration — the whole replay runs in
     /// `resolvingMove`, and `acceptsInput` is false throughout.
     private func animateAscent(_ event: GameEvent) async {
+        // The island is a great deal bigger than a piece, and it goes through
+        // the same hole.
+        disturbClouds(at: GameRules.nexysPoint)
+
         ascentRiseStartedAt = .now
         withAnimation(.easeIn(duration: GameRules.ascentRiseDuration)) {
             ascentFlash = GameRules.ascentFlashOpacity
@@ -1188,6 +1224,10 @@ final class GameSession {
     /// away and drifts the way it is headed, then swells back in on the far side,
     /// and the board never whites out because the player has not gone anywhere.
     private func animateNexysTravel(_ event: GameEvent, goingUp: Bool) async {
+        // The island is a great deal bigger than a piece, and it goes through
+        // the same hole.
+        disturbClouds(at: GameRules.nexysPoint)
+
         nexysTravellingUp = goingUp
         nexysDepartStartedAt = .now
         // Climbing away takes as long as carrying the player would; shrinking

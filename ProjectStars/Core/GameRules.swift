@@ -745,6 +745,21 @@ enum GameRules {
     /// through is a square about to go.
     static let cloudSpriteWearFade: Double = 0.10
 
+    /// How far a cloud is shoved aside when something falls past it, in art
+    /// pixels, and how long the shove takes to play out.
+    ///
+    /// Cloud is the one material on the board that should *react*. Terra's tiles
+    /// are stone and stay where they are put; a hole in the sky with a piece
+    /// dropping through it, or the whole island rising up out of it, ought to
+    /// push the sky around. It is the cheapest possible way to say the planes
+    /// are made of different stuff.
+    ///
+    /// Out and back rather than a displacement that decays: the clouds are
+    /// pushed and then settle, which reads as air moving rather than as the
+    /// board rearranging itself.
+    static let cloudWakePush: CGFloat = 4
+    static let cloudWakeDuration: TimeInterval = 0.55
+
     /// How far every cloud sits below the centre of its square, in art pixels.
     ///
     /// The art is drawn with its mass in the upper part of the cell, so centring

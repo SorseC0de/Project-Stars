@@ -29,6 +29,9 @@ struct CloudSpriteView: View {
     /// A stopped clock, while a move plays out.
     var freeze: TimeInterval?
 
+    /// A disturbance in the sky, if one is playing.
+    var wake: CloudMotion.Wake?
+
     /// Recolouring applied to the sprite, if any.
     var swaps: [PaletteSwap] = []
 
@@ -38,7 +41,9 @@ struct CloudSpriteView: View {
     var body: some View {
         TimelineView(.animation) { timeline in
             let now = freeze ?? timeline.date.timeIntervalSinceReferenceDate
-            let motion = CloudMotion(point: point, health: health, metrics: metrics, now: now)
+            let motion = CloudMotion(
+                point: point, health: health, metrics: metrics, now: now, wake: wake
+            )
 
             let art = recoloured(
                 PixelSprite(id: .astraCloud(.at(point)), frame: motion.frame) { EmptyView() }
@@ -124,11 +129,15 @@ extension CloudSpriteView {
         // Stars: light blue becomes the magenta the body used to be.
         PaletteSwap(Palette.lightBlue, Palette.magenta),
 
-        // Body: the four violets become four blues, in order.
-        PaletteSwap(Palette.pink, Palette.cyan),
-        PaletteSwap(Palette.magenta, Palette.lightBlue),
-        PaletteSwap(Palette.darkMagenta, Palette.blue),
-        PaletteSwap(Palette.purple, Palette.darkBlue),
+        // Body: the four violets become four blues, in order — and a tint
+        // lighter than the obvious mapping. The violets sit near the dark end of
+        // their own ramp; landing them on the matching end of the blues gave a
+        // cloud you had to look for. A rung up puts the lifted square where it
+        // belongs, which is *brighter* than the sky around it.
+        PaletteSwap(Palette.pink, Palette.ice),
+        PaletteSwap(Palette.magenta, Palette.cyan),
+        PaletteSwap(Palette.darkMagenta, Palette.lightBlue),
+        PaletteSwap(Palette.purple, Palette.blue),
     ]
 }
 
@@ -148,7 +157,13 @@ struct CloudMotion {
     let opacity: Double
     let isFlipped: Bool
 
-    init(point: GridPoint, health: TileHealth, metrics: PixelArtMetrics, now: TimeInterval) {
+    init(
+        point: GridPoint,
+        health: TileHealth,
+        metrics: PixelArtMetrics,
+        now: TimeInterval,
+        wake: Wake? = nil
+    ) {
         let stages = health.rawValue
         let side = metrics.tileSize * CGFloat(GameRules.cloudSpritePixelSize)
             / CGFloat(GameRules.tilePixelSize)
@@ -169,10 +184,50 @@ struct CloudMotion {
         )
 
         let wander = Self.shift(point, now: now, scale: metrics.scale)
+        let shove = Self.shove(point, wake: wake, now: now, scale: metrics.scale)
+
         offset = CGSize(
-            width: wander.width,
-            height: wander.height + GameRules.cloudSpriteDrop * metrics.scale
+            width: wander.width + shove.width,
+            height: wander.height + shove.height
+                + GameRules.cloudSpriteDrop * metrics.scale
         )
+    }
+
+    /// Something dropping through the sky, and when it started.
+    struct Wake: Equatable {
+        let point: GridPoint
+        let start: TimeInterval
+    }
+
+    /// How far this cloud is pushed aside by a wake, if it is near one.
+    ///
+    /// Only the eight squares touching the hole move, and each moves directly
+    /// away from it — so the ring opens outward rather than sliding as a block.
+    /// Diagonals are normalised, or the corners would be flung half again as far
+    /// as the edges and the ring would come apart into a square.
+    ///
+    /// Out and back over the wake's life: a push and a settle, which is air
+    /// moving rather than the board rearranging itself.
+    static func shove(
+        _ point: GridPoint,
+        wake: Wake?,
+        now: TimeInterval,
+        scale: CGFloat
+    ) -> CGSize {
+        guard let wake else { return .zero }
+
+        let dx = point.x - wake.point.x
+        let dy = point.y - wake.point.y
+        guard dx != 0 || dy != 0, abs(dx) <= 1, abs(dy) <= 1 else { return .zero }
+
+        let progress = (now - wake.start) / GameRules.cloudWakeDuration
+        guard progress > 0, progress < 1 else { return .zero }
+
+        let swell = sin(progress * .pi)
+        let length = (CGFloat(dx) * CGFloat(dx) + CGFloat(dy) * CGFloat(dy)).squareRoot()
+        let push = GameRules.cloudWakePush * scale * CGFloat(swell) / length
+
+        return CGSize(width: CGFloat(dx) * push, height: CGFloat(dy) * push)
     }
 
     /// Which frame of the strip is showing.
