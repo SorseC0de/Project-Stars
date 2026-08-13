@@ -140,8 +140,12 @@ struct GameEngine {
     /// Order matters: the piece's own come first, so where a hook takes the
     /// *first* answer rather than combining them, the sign being played wins.
     var activePassives: [any ZodiacPassive] {
-        guard !signState.retinue.isEmpty else { return activePassives }
-        return activePassives + signState.retinue.flatMap(\.passives)
+        // `piece.zodiac.passives`, spelled out. A rename swept the whole file
+        // and rewrote this getter into a call to itself — which builds, warns,
+        // and hangs the moment anything asks a passive a question.
+        let own = piece.zodiac.passives
+        guard !signState.retinue.isEmpty else { return own }
+        return own + signState.retinue.flatMap(\.passives)
     }
 
     /// The piece's movement plus anything its retinue lends it.
@@ -1912,13 +1916,20 @@ struct GameEngine {
         guard signState.sanctuary != nil || signState.arrow != nil else { return event }
 
         switch event {
-        case let .tilesWorn(plane, changes, _):
+        // The cause is carried across. Rebuilding the event without it silently
+        // demotes a charge or a hoof to an ordinary landing, and the damage then
+        // draws itself wrong for the rest of its life.
+        case let .tilesWorn(plane, changes, cause):
             let kept = permitted(changes, on: plane)
-            return kept.isEmpty ? nil : .tilesWorn(plane: plane, changes: kept)
+            return kept.isEmpty
+                ? nil
+                : .tilesWorn(plane: plane, changes: kept, cause: cause)
 
         case let .tilesWornOnExit(plane, changes, cause):
             let kept = permitted(changes, on: plane)
-            return kept.isEmpty ? nil : .tilesWornOnExit(plane: plane, changes: kept)
+            return kept.isEmpty
+                ? nil
+                : .tilesWornOnExit(plane: plane, changes: kept, cause: cause)
 
         case let .tilesChanged(plane, changes):
             let kept = permitted(changes, on: plane)

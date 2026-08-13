@@ -1740,8 +1740,9 @@ extension GameSession {
         }
 
         switch event {
-        case let .tilesWorn(plane, changes, _): report("worn", plane, changes)
-        case let .tilesWornOnExit(plane, changes, cause): report("exit", plane, changes)
+        case let .tilesWorn(plane, changes, cause): report("worn \(cause)", plane, changes)
+        case let .tilesWornOnExit(plane, changes, cause):
+            report("exit \(cause)", plane, changes)
         case let .tileDamaged(plane, point, to): report("damaged", plane, [point: to])
         case let .tilesChanged(plane, changes): report("changed", plane, changes)
         case let .pieceFell(from, to, at): print("[wear] fell \(from)->\(to) at \(at)")
