@@ -139,6 +139,10 @@ struct CloudSpriteField: View {
         for point in order {
             let tile = board[point]
             guard tile.kind == .normal, !tile.health.isHole else { continue }
+            // The lifted square is drawn by `CloudSpriteView` instead, which is
+            // a real view and can therefore run the palette shader. A `Canvas`
+            // cannot, and that square is the only one that needs it.
+            guard !raised.contains(point) else { continue }
             guard let image = resolved[.at(point)] else { continue }
 
             drawCloud(&context, image: image, at: point, tile: tile, now: now)

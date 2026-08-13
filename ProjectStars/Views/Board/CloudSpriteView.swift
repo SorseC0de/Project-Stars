@@ -1,0 +1,215 @@
+//
+//  CloudSpriteView.swift
+//  Project Stars
+//
+//  One cloud, as a view rather than as a canvas stamp.
+//
+
+import SwiftUI
+
+/// A single Astra cloud, drawn as a view so it can be recoloured.
+///
+/// ## Why this exists alongside the field
+///
+/// `CloudSpriteField` stamps every square into one `Canvas`, which is what makes
+/// Astra affordable — but a `Canvas` cannot run the palette shader, and a
+/// `GraphicsContext` filter cannot express "these four colours become those four
+/// colours". Exactly one square ever needs that: the one a Pentacle is sitting
+/// on. One extra view for one square is nothing, and it buys the recolour.
+///
+/// It shares the field's motion — the same frame, drift and stretch, off the
+/// same clock — so the lifted cloud belongs to the sky it came out of rather
+/// than looking like a different object placed on top of it.
+struct CloudSpriteView: View {
+
+    let point: GridPoint
+    let health: TileHealth
+    let metrics: PixelArtMetrics
+
+    /// A stopped clock, while a move plays out.
+    var freeze: TimeInterval?
+
+    /// Recolouring applied to the sprite, if any.
+    var swaps: [PaletteSwap] = []
+
+    /// Whether this cloud carries the lifted square's bloom.
+    var glows: Bool = false
+
+    var body: some View {
+        TimelineView(.animation) { timeline in
+            let now = freeze ?? timeline.date.timeIntervalSinceReferenceDate
+            let motion = CloudMotion(point: point, health: health, metrics: metrics, now: now)
+
+            let art = recoloured(
+                PixelSprite(id: .astraCloud(.at(point)), frame: motion.frame) { EmptyView() }
+                    .frame(width: motion.size.width, height: motion.size.height)
+                    .scaleEffect(x: motion.isFlipped ? -1 : 1, y: 1)
+            )
+
+            art
+                .background { if glows { bloom(art, at: now) } }
+                .opacity(motion.opacity)
+                .offset(x: motion.offset.width, y: motion.offset.height)
+        }
+        .allowsHitTesting(false)
+    }
+
+    /// The light a lifted cloud throws, under the cloud itself.
+    ///
+    /// Copies of the same art, each blurred wider than the last and summed.
+    /// Additive blending saturates towards white rather than clipping, so
+    /// stacking a soft glow is how it gets *bright* instead of merely opaque —
+    /// the same way `PaletteGlow` lights the coins.
+    ///
+    /// It is the recoloured art that blooms, not the original, so the blue cloud
+    /// glows blue.
+    private func bloom(_ art: some View, at now: TimeInterval) -> some View {
+        ZStack {
+            ForEach(0..<GameRules.cloudSpriteGlowPasses, id: \.self) { pass in
+                art
+                    .blur(
+                        radius: GameRules.cloudSpriteGlowRadius
+                            * metrics.scale
+                            * (1 + CGFloat(pass) * 0.8)
+                    )
+            }
+        }
+        .opacity(breath(at: now))
+        .blendMode(.plusLighter)
+        .allowsHitTesting(false)
+    }
+
+    /// How hard the bloom is breathing.
+    private func breath(at now: TimeInterval) -> Double {
+        let phase = now / GameRules.cloudSpriteGlowPeriod * 2 * .pi
+        let swell = (sin(phase) + 1) / 2
+        return GameRules.cloudSpriteGlowMin
+            + (GameRules.cloudSpriteGlowMax - GameRules.cloudSpriteGlowMin) * swell
+    }
+
+    @ViewBuilder
+    private func recoloured(_ art: some View) -> some View {
+        if swaps.isEmpty {
+            art
+        } else {
+            art.paletteSwap(swaps)
+        }
+    }
+}
+
+// MARK: - Recolourings
+
+extension CloudSpriteView {
+
+    /// The lifted cloud: cloudstuff turned to blue, and its stars to magenta.
+    ///
+    /// ## Why swap rather than draw a second sheet
+    ///
+    /// Because the palette is fixed and the shader is already here. A blue
+    /// variant of the cloud is the same drawing in different entries — asking
+    /// for it in art would be paying twice for something the ramp already
+    /// describes, and it would drift the moment either version was retouched.
+    ///
+    /// ## Why the stars go the other way
+    ///
+    /// The stars are the one part of the cloud that is *not* cloudstuff, and
+    /// they read as light rather than as material. Send them to blue along with
+    /// everything else and they vanish into it. Sending them where the body came
+    /// from keeps the contrast exactly as strong as it was, with the two halves
+    /// swapped — so the lifted square is unmistakably the same cloud, inverted.
+    ///
+    /// Lightest to lightest and darkest to darkest throughout: a ramp swapped
+    /// out of order turns a rounded shape inside out.
+    static let raisedSwaps: [PaletteSwap] = [
+        // Stars: light blue becomes the magenta the body used to be.
+        PaletteSwap(Palette.lightBlue, Palette.magenta),
+
+        // Body: the four violets become four blues, in order.
+        PaletteSwap(Palette.pink, Palette.cyan),
+        PaletteSwap(Palette.magenta, Palette.lightBlue),
+        PaletteSwap(Palette.darkMagenta, Palette.blue),
+        PaletteSwap(Palette.purple, Palette.darkBlue),
+    ]
+}
+
+// MARK: - CloudMotion
+
+/// Where a cloud is, how big, which frame, and which way round.
+///
+/// Pulled out of `CloudSpriteField` so the field and the single-cloud view
+/// cannot drift apart: the lifted square has to breathe on exactly the same
+/// clock as its neighbours or it reads as a separate object sitting on the
+/// board. One description, two renderers.
+struct CloudMotion {
+
+    let frame: Int
+    let size: CGSize
+    let offset: CGSize
+    let opacity: Double
+    let isFlipped: Bool
+
+    init(point: GridPoint, health: TileHealth, metrics: PixelArtMetrics, now: TimeInterval) {
+        let stages = health.rawValue
+        let side = metrics.tileSize * CGFloat(GameRules.cloudSpritePixelSize)
+            / CGFloat(GameRules.tilePixelSize)
+            * GameRules.cloudSpriteScale
+        let wear = GameRules.cloudScale(health)
+
+        frame = Self.pingPong(at: now)
+        isFlipped = !stages.isMultiple(of: 2)
+        opacity = max(0, 1 - Double(stages) * GameRules.cloudSpriteWearFade)
+
+        size = CGSize(
+            width: side * wear * Self.stretch(
+                point, now: now, salt: 0, period: GameRules.cloudSpriteStretchPeriodH
+            ),
+            height: side * wear * Self.stretch(
+                point, now: now, salt: 97, period: GameRules.cloudSpriteStretchPeriodV
+            )
+        )
+
+        let wander = Self.shift(point, now: now, scale: metrics.scale)
+        offset = CGSize(
+            width: wander.width,
+            height: wander.height + GameRules.cloudSpriteDrop * metrics.scale
+        )
+    }
+
+    /// Which frame of the strip is showing.
+    ///
+    /// Ping-pong rather than a loop: three frames cycling forwards jump from the
+    /// last back to the first, which on a shape this soft reads as a stutter.
+    /// Out and back has no seam — `0, 1, 2, 1` and round again.
+    static func pingPong(at now: TimeInterval) -> Int {
+        let frames = GameRules.cloudSpriteFrames
+        guard frames > 1 else { return 0 }
+
+        let span = frames * 2 - 2
+        let tick = Int(now / GameRules.cloudSpriteRate.frameDuration) % span
+        return tick < frames ? tick : span - tick
+    }
+
+    /// This cloud's wander from its square, in points.
+    static func shift(_ point: GridPoint, now: TimeInterval, scale: CGFloat) -> CGSize {
+        let amount = GameRules.cloudSpriteShift * scale
+        let clock = now / GameRules.cloudSpriteShiftPeriod * 2 * .pi
+        let phase = CloudCluster.phase(at: point)
+
+        return CGSize(
+            width: CGFloat(sin(clock + phase)) * amount,
+            height: CGFloat(cos(clock * 0.8 + phase)) * amount * 0.6
+        )
+    }
+
+    /// This cloud's stretch on one axis, as a multiplier around `1`.
+    static func stretch(
+        _ point: GridPoint,
+        now: TimeInterval,
+        salt: Int,
+        period: TimeInterval
+    ) -> CGFloat {
+        let phase = CloudCluster.hash(point, salt: salt) * 2 * .pi
+        let wave = sin(now / period * 2 * .pi + phase)
+        return 1 + CGFloat(wave) * GameRules.cloudSpriteStretch
+    }
+}

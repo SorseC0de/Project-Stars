@@ -654,8 +654,24 @@ struct BoardView: View {
         // cursor. That is the right trade: the field already promotes occupied
         // squares past their neighbours, and the coin above it is a board object
         // of its own and still sorts.
+        // Astra's lifted square is the one cloud that is recoloured, so it is a
+        // view rather than a stamp in the field's canvas — see
+        // `CloudSpriteView`. Same clock, same drift, same frame: it is the cloud
+        // that was already there, turned blue.
         if plane == .astra, CloudSpriteField.hasArt {
-            return AnyView(Color.clear)
+            return AnyView(
+                CloudSpriteView(
+                    point: point,
+                    health: board[point].health,
+                    metrics: metrics,
+                    freeze: session.ambientFreeze,
+                    swaps: CloudSpriteView.raisedSwaps,
+                    glows: true
+                )
+                .offset(y: -GameRules.cloudSpriteRaiseLift * metrics.scale)
+                .position(metrics.center(of: point))
+                .transition(.opacity)
+            )
         }
 
         return AnyView(

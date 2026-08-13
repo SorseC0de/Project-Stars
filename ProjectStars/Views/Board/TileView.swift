@@ -66,13 +66,15 @@ struct TileView: View {
 
     private var content: some View {
         ZStack {
-            if plane == .astra, tile.kind == .chasm {
+            if plane == .astra, tile.kind != .normal {
                 // Nothing at all.
                 //
-                // Terra's chasm is a hole *in* something and needs drawing.
-                // Astra's is the gap the island leaves in open sky — there is no
-                // surface for it to be a hole in, and rendering it as one put a
-                // black square in the middle of the clouds.
+                // Terra's structural squares are holes *in* something and need
+                // drawing: the chasm is a gap in the ground, and the square
+                // under the island is the shaft it floats above. Astra has no
+                // ground for either to be a hole in — it is open sky — so both
+                // rendered as a black square, one in the middle of the clouds
+                // and one directly beneath the island.
                 Color.clear
             } else
             if drawnByField, plane == .astra, tile.kind == .normal, !hasDrawnCloud {
