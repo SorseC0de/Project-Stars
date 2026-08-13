@@ -116,6 +116,35 @@ struct GameEngine {
     /// taking either shatters the other, so it is never more than briefly two.
     private(set) var revealedPickups: [RevealedPickup] = []
 
+    /// Settles Astra's outstanding repair when the sign suppressing it leaves.
+    ///
+    /// ## The bug this exists for
+    ///
+    /// Astra repairs when you *descend* — that is the mechanism that makes long
+    /// runs possible — and Libra suppresses it, because keeping two boards is
+    /// the whole of that sign. But the repair only ever had one moment to
+    /// happen in. Wreck Astra as Libra, go down, swap to somebody else, ride
+    /// back up, and the sky is still in ruins: the descent that would have
+    /// mended it happened while it was suppressed, and no later descent is
+    /// coming, because you are already down here.
+    ///
+    /// So the suppression is a *debt* rather than a veto. When the sign holding
+    /// it stops being the sign, the repair it was withholding falls due.
+    ///
+    /// Only from Terra. Standing on Astra means you have not left it, and
+    /// mending the ground under your own feet is the one thing this rule has
+    /// never done for anybody.
+    private mutating func settleAstraRepair() -> GameEvent? {
+        guard piece.plane == .terra,
+              activePassives.restoresPlaneOnDescent(context: passiveContext),
+              self[.astra].allPoints.contains(where: {
+                  self[.astra][$0].kind == .normal && self[.astra][$0].health != .healthy
+              })
+        else { return nil }
+
+        return .planeRestored(plane: .astra)
+    }
+
     /// Pays back whatever a change of plane is about to cost in phantoms.
     ///
     /// Applied directly rather than as an event, because it happens *inside*
@@ -2290,6 +2319,10 @@ struct GameEngine {
            !events.contains(.planeRestored(plane: .astra)) {
             commit(.planeRestored(plane: .astra))
         }
+
+        // A sign that was holding Astra's repair back has just stopped being the
+        // sign. See `settleAstraRepair`.
+        if let owed = settleAstraRepair() { commit(owed) }
 
         // An Essence opened by its own element pays a little charge on top.
         // Applied here rather than in the four effects: it is a rule about the
