@@ -48,6 +48,9 @@ enum PanelStyle {
 
     /// Breathing room inside the panel, and between its rows.
     static let padding: CGFloat = 14
+
+    /// How far down the vault badge sits, clear of the sign row above it.
+    static let vaultBadgeTop: CGFloat = 62
     static let rowSpacing: CGFloat = 12
 
     /// How long the panel takes to turn over, and how much perspective the turn
@@ -496,6 +499,14 @@ private struct PanelFrontView: View {
             // system takes the first touch of.
             //.padding(.bottom, PanelStyle.padding + safeArea)
             .padding(.bottom, PanelStyle.padding)
+        }
+        .overlay(alignment: .topLeading) {
+            // North-west of the stick, where nothing else sits.
+            if session.showsVault {
+                VaultBadgeView(session: session)
+                    .padding(.leading, PanelStyle.padding)
+                    .padding(.top, PanelStyle.vaultBadgeTop)
+            }
         }
         .overlay(alignment: .bottomLeading) {
             // An overlay, so it costs the layout nothing.

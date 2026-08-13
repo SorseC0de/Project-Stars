@@ -303,7 +303,7 @@ struct MovementPattern: Equatable {
     /// which meant the archer's own direction was the one it could not safely
     /// travel far in — it wore two tiles to go two squares. Leaping it costs the
     /// ground nothing, and the price is paid instead by
-    /// `SagittariusVariableVoyager`, which will not let it be taken twice
+    /// `SagittariusVulcanVault`, which will not let it be taken twice
     /// running.
     static let archer = MovementPattern(
         name: "Archer",

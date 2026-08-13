@@ -763,6 +763,18 @@ struct GameEngine {
         return events
     }
 
+    /// The largest reach currently legal this way, or `0` if only a step is.
+    ///
+    /// Asked of the engine so it goes through `moveOptions(for:)` and therefore
+    /// through every passive that can refuse — the vault's own cooldown above
+    /// all. A badge that lit whenever the *pattern* had a long move would be
+    /// lying about the one thing it exists to report.
+    func longestReach(for direction: SwipeDirection) -> Int {
+        let options = moveOptions(for: direction)
+        guard let longest = options.map(\.distance).max(), longest > 1 else { return 0 }
+        return longest - 1
+    }
+
     /// Whether the lift will answer right now.
     var canCallNexys: Bool {
         guard !isGameOver else { return false }

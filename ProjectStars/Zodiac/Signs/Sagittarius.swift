@@ -29,7 +29,7 @@ extension ZodiacCatalog {
 
         passives: [
             SagittariusFortunateFind(),
-            SagittariusVariableVoyager(),
+            SagittariusVulcanVault(),
             SagittariusLuckyLanding(),
         ],
         zodiaction: SagittariusAstralArrow(),
@@ -80,7 +80,7 @@ struct SagittariusFortunateFind: ZodiacPassive {
 ///
 /// Rolls against `context.luck`, drawn once per move by the engine, so the hook
 /// stays a pure function and a seeded run stays reproducible.
-struct SagittariusVariableVoyager: ZodiacPassive {
+struct SagittariusVulcanVault: ZodiacPassive {
 
     /// Chance of triggering, in `0..<1`.
     ///
@@ -90,8 +90,11 @@ struct SagittariusVariableVoyager: ZodiacPassive {
     /// Key this sign owns in `SignState.cooldowns`.
     static let strideKey = "sagittarius.stride"
 
-    let displayName = "Variable Voyager"
-    let summary = "Small chance a badly cracked tile does not break; on Terra it mends a stage instead. A long forward move cannot be taken twice in a row."
+    /// Set for the duration of a vault, so the wear lands on the launch square.
+    static let vaultingKey = "sagittarius.vaulting"
+
+    let displayName = "Vulcan Vault"
+    let summary = "Astra & Terra: leap two squares in any direction, wearing the tile you push off from. Not twice in a row, and a landing sometimes spares a badly cracked tile."
 
     /// The archer draws before it looses.
     ///
@@ -123,14 +126,39 @@ struct SagittariusVariableVoyager: ZodiacPassive {
     ) -> SignState? {
         guard option.distance > 1 else { return nil }
         var state = context.signState
+        // Marks the move as a vault while it resolves, which is what moves the
+        // wear to the square being pushed off. One move long: it is a property
+        // of this leap, not a stance.
+        state.startBuff(Self.vaultingKey, moves: 1)
         // Two, because timers tick down at the end of the move that set them:
         // one would be spent before the next move is even offered.
         state.startCooldown(Self.strideKey, moves: 2)
         return state
     }
 
+    /// The vault charges the tile it pushes off from.
+    ///
+    /// A leap that costs nothing is free distance, and free distance in a game
+    /// about spending ground is not a move, it is an exemption. Charging the
+    /// launch square rather than the landing keeps the *shape* of the ability —
+    /// you still cross two squares without touching the one between — while
+    /// making it cost exactly what a step costs. Which is also how it reads:
+    /// something has to be pushed against, hard, to go that far.
+    func wearTiming(context: PassiveContext) -> WearTiming {
+        context.signState.isActive(Self.vaultingKey) ? .onExit : .onEntry
+    }
+
+    /// The luck now applies to **landing**, not to standing.
+    ///
+    /// It used to fire wherever the archer happened to be taking damage, which
+    /// made it a passive about wear in general and left the vault filed under a
+    /// rule it had nothing to do with. Tied to arrivals it says something about
+    /// the sign: this is a piece that throws itself across the board and
+    /// sometimes gets away with the landing.
     func modifyWear(_ proposal: WearProposal, context: PassiveContext) -> WearProposal {
-        guard proposal.tile.health == .badlyCracked,
+        guard !proposal.arrivedByFalling,
+              proposal.cause == .landing,
+              proposal.tile.health == .badlyCracked,
               proposal.wouldBreak,
               context.luck < Self.chance
         else { return proposal }
