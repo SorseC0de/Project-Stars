@@ -558,11 +558,25 @@ struct GameEngine {
         // 5a. Some options cost something to have taken — Capricorn's climb puts
         //     itself on cooldown. Asked after the move so a climb that never
         //     happened is never charged for.
-        if let spent = sim.activePassives.stateAfterMove(
-            option: move.option,
-            direction: direction,
-            context: sim.passiveContext
-        ), spent != sim.signState {
+        // Asked of each in turn, not of the array.
+        //
+        // The array's own combinator takes the **first** non-nil answer, which
+        // was correct while only one sign was ever in play and silently wrong
+        // the moment Leo could carry two more. Two passives that each want to
+        // record something — a phantom Sagittarius' stride cooldown and a
+        // phantom Aquarius' spent corner — would have had one of them dropped,
+        // and the dropped one is a limit that then never applies.
+        //
+        // Committing between them is what makes it safe: each is handed a
+        // context built from the state the last one left, so they amend rather
+        // than overwrite.
+        for passive in sim.activePassives {
+            guard let spent = passive.stateAfterMove(
+                option: move.option,
+                direction: direction,
+                context: sim.passiveContext
+            ), spent != sim.signState else { continue }
+
             commit(.signStateChanged(spent))
         }
 
@@ -2136,7 +2150,11 @@ struct GameEngine {
         // and the contents are spent later through Cosmic Cash-in. Z-Charge is
         // the exception the design names: charge cannot be stored as charge, so
         // it goes off like anyone else's.
+        // A full purse simply opens the coin instead of swallowing it. Nothing
+        // is wasted for being rich, which is the same reasoning behind a full
+        // meter never blocking a pickup.
         if pickup.id != .zCharge,
+           signState.purse.count < GameRules.purseCapacity(on: pickup.plane),
            activePassives.banksPickups(pickup.id, context: passiveContext) {
             var state = signState
             state.purse.append(pickup.id)

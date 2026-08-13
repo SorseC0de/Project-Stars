@@ -157,9 +157,14 @@ struct CapricornCosmicCashIn: Zodiaction {
     /// The purse fills from Celestial Commerce.
     func meterGain(from move: MoveSummary, context: PassiveContext) -> Int { 0 }
 
-    /// Ten coins on Astra, eight on Terra. See `GameRules.capricornPurseAstra`.
+    /// Ten coins on Astra, eight on Terra.
+    ///
+    /// Capricorn's meter and its purse are the same thing seen twice, so this
+    /// reads the purse's capacity rather than keeping a second copy of the
+    /// numbers. A sign that merely *borrows* Commerce keeps its own meter and
+    /// only inherits the purse — see `GameRules.purseCapacity(on:)`.
     func meterMax(on plane: Plane) -> Int {
-        plane == .terra ? GameRules.capricornPurseTerra : GameRules.capricornPurseAstra
+        GameRules.purseCapacity(on: plane)
     }
 
     /// Nothing to spend it on is not a Zodiaction that can fire.

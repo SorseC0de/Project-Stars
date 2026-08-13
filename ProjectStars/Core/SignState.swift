@@ -286,8 +286,31 @@ struct SignState: Equatable {
     // MARK: - Queries
 
     /// True when a keyed ability is off cooldown.
+    /// True while the Astral Bolt's star is running.
+    ///
+    /// Its own name because a great deal keys off it, and `starMoves > 0` read
+    /// at a dozen call sites is a fact stated a dozen times.
+    var isSuperStar: Bool { starMoves > 0 }
+
     func isReady(_ key: String) -> Bool {
-        (cooldowns[key] ?? 0) <= 0
+        // The star ignores cooldowns outright.
+        //
+        // It already suspends wear, falling and the cost of moving; leaving the
+        // once-every-few-turns limits standing was the one place the
+        // invulnerability stopped short, and it stopped short at exactly the
+        // abilities a player most wants to chain while they are untouchable.
+        //
+        // Safe as a blanket rule, which is why it is one. No cooldown in the
+        // game is load-bearing enough to break if it comes up every turn —
+        // Sagittarius' stride, Capricorn's climb, Virgo's old scruple — and the
+        // star is itself a countdown, so chaining them is paid for in the only
+        // currency it has.
+        //
+        // Here rather than at each cooldown's own site, so a limit written next
+        // year inherits it: every cooldown in the game goes through this one
+        // question. See `GameRules.starMoves`.
+        if isSuperStar { return true }
+        return (cooldowns[key] ?? 0) <= 0
     }
 
     /// Moves left on a keyed buff. Zero when inactive.

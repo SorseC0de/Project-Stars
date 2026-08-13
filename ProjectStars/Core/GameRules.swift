@@ -1446,6 +1446,17 @@ enum GameRules {
     static let capricornPurseAstra = 10
     static let capricornPurseTerra = 8
 
+    /// How many coins the purse holds, here.
+    ///
+    /// A property of the **purse**, not of the meter. For Capricorn itself the
+    /// two happen to coincide, because its meter *is* the purse drawn as coins —
+    /// but Leo carrying a borrowed Capricorn keeps a ten-pip meter of its own
+    /// while the purse it is holding still only takes eight below. Pentacles are
+    /// not charge, whatever they share underneath.
+    static func purseCapacity(on plane: Plane) -> Int {
+        plane == .terra ? capricornPurseTerra : capricornPurseAstra
+    }
+
     // ──────────────────────────────────────────────────────────────────────
     // MARK: - Sparkles
     //
