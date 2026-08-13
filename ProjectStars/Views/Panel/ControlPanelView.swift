@@ -479,7 +479,6 @@ private struct PanelFrontView: View {
                 movementRow
                 Spacer(minLength: 0)
                 retinueRow
-                liftRow
                 zodiactionRow
                 #if DEBUG
                 debugZodiacRow
@@ -491,6 +490,22 @@ private struct PanelFrontView: View {
             // system takes the first touch of.
             //.padding(.bottom, PanelStyle.padding + safeArea)
             .padding(.bottom, PanelStyle.padding)
+        }
+        .overlay(alignment: .bottomLeading) {
+            // An overlay, so it costs the layout nothing.
+            //
+            // As a row in the stack it pushed the whole panel up and shoved the
+            // bottom of it off the screen — the panel is a fixed square and
+            // every row in it is already spoken for. Lifted clear of the
+            // Zodiaction button by that button's own height, so it sits above it
+            // rather than on it.
+            if session.showsNexysCall {
+                NexysCallView(session: session)
+                    .padding(.leading, PanelStyle.padding)
+                    .padding(.bottom, PanelStyle.zodiactionButtonHeight
+                        + PanelStyle.rowSpacing
+                        + PanelStyle.padding)
+            }
         }
         .overlay(alignment: .trailing) {
             #if DEBUG
@@ -523,23 +538,6 @@ private struct PanelFrontView: View {
                 .font(.system(size: PanelStyle.chromeGlyphSize, weight: .black))
         }
         .frame(width: PanelStyle.chromeButtonWidth, height: PanelStyle.chromeButtonHeight)
-    }
-
-    // ── Row 2c: the lift ──────────────────────────────────────────────────
-
-    /// Libra's call buttons, in the space left of the Zodiaction button.
-    ///
-    /// In the layout rather than floating over it. An overlay in the corner sat
-    /// on top of whatever happened to be there, which is fine until something
-    /// is — and the row costs nothing for the eleven signs that never show it.
-    @ViewBuilder
-    private var liftRow: some View {
-        if session.showsNexysCall {
-            HStack(spacing: 0) {
-                NexysCallView(session: session)
-                Spacer(minLength: 0)
-            }
-        }
     }
 
     // ── Row 2b: the retinue ───────────────────────────────────────────────

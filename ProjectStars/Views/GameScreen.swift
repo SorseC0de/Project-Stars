@@ -122,21 +122,6 @@ struct GameScreen: View {
                 .padding(.top, 8)
             #endif
         }
-        .overlay {
-            // The whole screen, not the board.
-            //
-            // What is paused is the *game*, not one square of it — the controls
-            // are as inert as the board while a question is open, and dimming
-            // only the upper half implied the lower half was still live. It sits
-            // under the splash and the menus, which are things to read rather
-            // than things being waited on.
-            Rectangle()
-                .fill(Palette.midnight)
-                .opacity(session.isChoosingTile ? GameRules.choiceDim : 0)
-                .animation(.easeOut(duration: 0.18), value: session.isChoosingTile)
-                .allowsHitTesting(false)
-                .ignoresSafeArea()
-        }
         .background { keyboardCommands }
         .animation(.easeInOut(duration: 0.3), value: session.phase)
         .animation(.easeInOut(duration: 0.25), value: session.pentacleIntro)

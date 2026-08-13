@@ -1017,11 +1017,20 @@ enum GameRules {
     ///
     /// A square giving way is a bigger event than a footfall and has a whole
     /// cell to vacate, so it wants more smoke than a landing does.
-    /// A dispersing cloud's smoke is drawn two cells across, like any other
-    /// puff. It was half again bigger, which on Astra — where Libra opens two
-    /// squares a move — put three-tile smoke clouds over a third of the board at
-    /// once and hid what had actually happened.
-    static let cloudPoofMagnitude: CGFloat = 1.0
+    /// A dispersing cloud's smoke, in cells across the standard two.
+    ///
+    /// It was half again bigger, which on Astra — where Libra opens two squares
+    /// a move — put three-tile clouds over a third of the board and hid what had
+    /// happened. A shade over standard: a square coming apart *should* be the
+    /// biggest puff on the board, it simply should not be the only thing on it.
+    static let cloudPoofMagnitude: CGFloat = 1.15
+
+    /// How hard a struck cloud flares. See `CloudSpriteField.drawCloud`.
+    ///
+    /// This is the marker for damage that did not destroy the square, which on
+    /// Astra is otherwise only a cloud getting slightly smaller — easy to miss,
+    /// and the whole thing Libra's trenches need to say.
+    static let cloudStrikeFlash: Double = 0.75
 
     /// How far the puffs of a dispersing cluster travel, in art pixels.
     static let cloudPoofSpread: CGFloat = 7

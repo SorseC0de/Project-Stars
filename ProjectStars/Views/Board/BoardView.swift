@@ -42,6 +42,7 @@ struct BoardView: View {
             // Over the ground, under everything that moves: the piece, the
             // coins and the move's own effects all sit above this and stay lit.
             actionDim(metrics: metrics)
+            choiceDim(metrics: metrics)
 
             pools(board: board, plane: plane, metrics: metrics)
             shedSkin(plane: plane, metrics: metrics)
@@ -280,6 +281,33 @@ struct BoardView: View {
             )
             .frame(width: metrics.boardSize, height: metrics.boardSize)
         }
+    }
+
+    /// The wash that says the game is waiting on an answer.
+    ///
+    /// ## Where it sits
+    ///
+    /// Over the whole upper square, sky and letterboxing included — the pause is
+    /// about the *view*, not about the grid — but under the piece and the
+    /// cursor, which are the two things the player is still working with. Dimmed
+    /// ground with a bright cursor over it says exactly what is true: the board
+    /// is on hold and the thing you are moving is not.
+    ///
+    /// Sized past the board and reported back at board size, so it can cover the
+    /// sky without growing the stack it lives in and shifting everything that
+    /// positions itself inside — the same arrangement `CloudSpriteField` needs,
+    /// and for the same reason.
+    ///
+    /// Deeper than the action wash, and a different colour, because it means
+    /// something different: an action is over in a moment, and this is not over
+    /// until the player does something.
+    private func choiceDim(metrics: PixelArtMetrics) -> some View {
+        Rectangle().fill(Palette.midnight)
+            .frame(width: availableSide, height: availableSide)
+            .opacity(session.isChoosingTile ? GameRules.choiceDim : 0)
+            .animation(.easeOut(duration: 0.18), value: session.isChoosingTile)
+            .allowsHitTesting(false)
+            .frame(width: metrics.boardSize, height: metrics.boardSize)
     }
 
     /// The wash that says the board is mid-move.

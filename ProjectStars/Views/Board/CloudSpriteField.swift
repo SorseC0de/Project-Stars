@@ -226,9 +226,17 @@ struct CloudSpriteField: View {
             layer.addFilter(.colorMultiply(Color(white: worn.luminance)))
         }
 
-        if flashing.contains(point) {
-            layer.addFilter(.colorMultiply(Palette.white))
-        }
+        // The struck-square flash, drawn additively.
+        //
+        // It was a `colorMultiply` by white, which is the identity — so every
+        // square Libra's trenches opened on Astra changed silently, and the only
+        // thing marking them was the smoke of the ones that broke outright. That
+        // is why shrinking the smoke lost the indicator: the smoke *was* the
+        // indicator, standing in for a flash that had never worked.
+        //
+        // Drawn after the cloud rather than as a filter on it, since a filter
+        // cannot brighten.
+        let struck = flashing.contains(point)
 
         // Kept for the day something other than a Pentacle lifts a square. The
         // Pentacle's own lifted cloud is skipped above and drawn by
@@ -257,6 +265,13 @@ struct CloudSpriteField: View {
                     bloom.draw(image, in: box)
                 }
             }
+        }
+
+        if struck {
+            var lit = layer
+            lit.opacity = GameRules.cloudStrikeFlash
+            lit.blendMode = .plusLighter
+            lit.draw(image, in: box)
         }
 
         // Flipped one way, then the other, as it wears — so a square that has
