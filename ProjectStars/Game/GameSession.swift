@@ -970,6 +970,22 @@ final class GameSession {
             leaveAfterimage(at: from, on: plane)
             isSliding = true
             pressedTiles.insert(to)
+
+            // The crab's scuttle bubbles up on every square it crosses.
+            //
+            // It lives here rather than with the hops because the scuttle *is* a
+            // slide — and when the crab walk became one, this was left behind in
+            // the branch for stepping and stopped firing altogether. A sideways
+            // move is one where the piece travels perpendicular to the way it is
+            // looking, which only happens when the facing was kept.
+            if let drawn = EffectSprite.sidestep(for: zodiac),
+               engine.piece.facing.perpendicular.contains(stepDirection(from: from, to: to)) {
+                if crabWalkOrigin == nil {
+                    crabWalkOrigin = from
+                    playEffect(drawn, at: from, on: plane)
+                }
+                playEffect(drawn, at: to, on: plane, delay: GameRules.crabWalkStagger)
+            }
             // No hop pose, no dust, no beat to speak of. The animation runs
             // *longer* than the beat it waits — see `GameRules.slideOverlap` —
             // so each square is still moving when the next starts and the whole

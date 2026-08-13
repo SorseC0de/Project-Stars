@@ -128,16 +128,28 @@ struct BoardView: View {
     @ViewBuilder
     private func shedSkin(plane: Plane, metrics: PixelArtMetrics) -> some View {
         if let skin = session.engine.signState.shedSkin, skin.plane == plane {
-            PixelSprite(id: .piece(.scorpio)) { Color.clear }
-                .frame(width: metrics.tileSize, height: metrics.tileSize * 2)
-                .offset(y: -metrics.tileSize / 2 - GameRules.pieceLift * metrics.scale)
-                .opacity(GameRules.shedSkinOpacity)
-                // Washed towards the water it belongs to, so the husk is
-                // unmistakably *not* the piece even at a glance.
-                .colorMultiply(Palette.lightBlue)
-                .position(metrics.center(of: skin.point))
-                .allowsHitTesting(false)
-                .transition(.opacity)
+            TimelineView(.animation) { timeline in
+                let phase = timeline.date.timeIntervalSinceReferenceDate
+                    / GameRules.shedSkinFloatPeriod * 2 * .pi
+                let drift = CGFloat(sin(phase))
+                    * GameRules.shedSkinFloat * metrics.scale
+
+                PixelSprite(id: .piece(.scorpio)) { Color.clear }
+                    .frame(width: metrics.tileSize, height: metrics.tileSize * 2)
+                    .offset(
+                        y: -metrics.tileSize / 2
+                            - GameRules.pieceLift * metrics.scale
+                            + drift
+                    )
+                    .opacity(GameRules.shedSkinOpacity)
+                    // Washed towards the water it belongs to, so the husk is
+                    // unmistakably *not* the piece even at a glance.
+                    .colorMultiply(Palette.lightBlue)
+            }
+            .frame(width: metrics.tileSize, height: metrics.tileSize * 2)
+            .position(metrics.center(of: skin.point))
+            .allowsHitTesting(false)
+            .transition(.opacity)
         }
     }
 
@@ -1028,7 +1040,10 @@ struct BoardView: View {
     ) -> some View {
         let charged = session.engine.isZodiactionReady
 
-        if starring != nil || charged, !session.isFalling {
+        // Also while sliding. A sweep is the one move fast enough to leave a
+        // trail, and the trail is drawn in the sign's own element — which is how
+        // the crab's scuttle gets its blue without anything knowing it is a crab.
+        if starring != nil || charged || session.isSliding, !session.isFalling {
             let elements = ZodiacElement.allCases
             let cycle = date.timeIntervalSinceReferenceDate / GameRules.starCyclePeriod
             let current = Int(cycle * Double(elements.count))

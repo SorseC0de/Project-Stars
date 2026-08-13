@@ -1401,7 +1401,20 @@ enum GameRules {
     static let shedPauseDuration: TimeInterval = 0.75
 
     /// How translucent the abandoned skin is, once it settles.
-    static let shedSkinOpacity: Double = 0.28
+    /// How translucent the abandoned skin is.
+    ///
+    /// It is a receipt, and a receipt you cannot read is not one — at a quarter
+    /// it was invisible against Terra. Ghostly, not absent.
+    static let shedSkinOpacity: Double = 0.62
+
+    /// How far the husk drifts, in art pixels, and how long one breath takes.
+    ///
+    /// It hangs over the hole rather than lying in it. Scorpio did not leave a
+    /// body on the ground; it left the *shape* of itself where it stopped being
+    /// there, and a shape that holds perfectly still reads as a sprite somebody
+    /// forgot to clear.
+    static let shedSkinFloat: CGFloat = 1.5
+    static let shedSkinFloatPeriod: TimeInterval = 2.8
 
     /// How long the strike is on screen, out and back.
     static let stingDuration: TimeInterval = 0.34
@@ -1746,7 +1759,13 @@ enum GameRules {
 
     /// How many squares a hop must cover to count as a leap worth drawing —
     /// Sagittarius' full bound rather than any long step.
-    static let longJumpDistance = 3
+    /// How far a move has to carry to count as a *bound* and throw its strip.
+    ///
+    /// Two, not three. The archer's leap is two squares and it had no fire on it
+    /// at all — the test was written when the only bound in the game was the
+    /// three-square shot, and a leap that clears a hole in silence looks like a
+    /// step that teleported.
+    static let longJumpDistance = 2
 
     /// The bloom thrown by a drawn effect: blur radius in art pixels, and how
     /// bright the additive copy is.

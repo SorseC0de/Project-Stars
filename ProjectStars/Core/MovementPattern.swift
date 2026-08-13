@@ -299,7 +299,12 @@ struct MovementPattern: Equatable {
         name: "Archer",
         options: [
             MoveOption(.any, distance: 1, style: .slide),
-            MoveOption(.relative(.forward), distance: 2, style: .jump),
+            // The leap goes anywhere. Forward-only was the archer's whole
+            // problem: the one direction it could cover ground in was the one
+            // direction it was already looking, so it never had a reason to turn
+            // — and the every-other-turn cooldown had already paid for the reach
+            // twice over.
+            MoveOption(.any, distance: 2, style: .jump),
             MoveOption(.relative(.forward), distance: 3, style: .jump),
         ]
     )
