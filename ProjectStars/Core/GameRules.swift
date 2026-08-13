@@ -1920,14 +1920,18 @@ enum GameRules {
     static let facingArrowLift: CGFloat = 8
 
     /// How far it steps between its two positions, in art pixels.
-    static let facingArrowNudge: CGFloat = 8
+    ///
+    /// Three. Eight was the lift's number reused without thinking, and at eight
+    /// the arrow travels half a tile — which stops being a marker breathing and
+    /// becomes a marker pacing about.
+    static let facingArrowNudge: CGFloat = 3
 
     /// How long each of the two positions is held.
     ///
-    /// A few frames — long enough to read as two drawings rather than as
-    /// movement, which is what every other two-frame animation in this game
-    /// does.
-    static let facingArrowBeat: TimeInterval = 0.18
+    /// Slow. It is a pulse on something that sits on screen every turn of the
+    /// game, and anything quick enough to notice is something you end up
+    /// noticing constantly.
+    static let facingArrowBeat: TimeInterval = 0.42
 
     /// How long it takes to swing round to a new facing.
     static let facingArrowTurn: TimeInterval = 0.14
