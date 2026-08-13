@@ -73,6 +73,17 @@ struct CloudSpriteView: View {
     /// It is the recoloured art that blooms, not the original, so the blue cloud
     /// glows blue.
     private func bloom(_ art: some View, at now: TimeInterval) -> some View {
+        // Each pass is its own dim additive draw, which is exactly what this was
+        // in the `Canvas` it came from: three `drawLayer` calls, each at the
+        // breath's opacity, each summed onto the board.
+        //
+        // Both of the obvious translations are wrong and were tried. Blending
+        // the *stack* additively at full opacity per copy lights each pass with
+        // the ones under it before it ever reaches the board. Flattening it
+        // first with `compositingGroup` fixes that and replaces it with a single
+        // near-opaque blob added in one go — brighter still, and flat with it.
+        // Dimming each copy and letting them sum is the only arrangement that
+        // gives back the numbers that were tuned.
         ZStack {
             ForEach(0..<GameRules.cloudSpriteGlowPasses, id: \.self) { pass in
                 art
@@ -81,20 +92,10 @@ struct CloudSpriteView: View {
                             * metrics.scale
                             * (1 + CGFloat(pass) * 0.8)
                     )
+                    .opacity(breath(at: now))
+                    .blendMode(.plusLighter)
             }
         }
-        // Flattened before it blends.
-        //
-        // In the `Canvas` this came from, each pass was one additive draw into a
-        // bounded layer. As plain views, `.plusLighter` applies to each copy
-        // *and* to everything already on the board behind them, so the three
-        // passes lit each other and then lit the sky — the same numbers came out
-        // several times hotter than they went into the canvas. Grouping sums the
-        // passes among themselves first and composites the result once, which is
-        // what the canvas was doing.
-        .compositingGroup()
-        .opacity(breath(at: now))
-        .blendMode(.plusLighter)
         .allowsHitTesting(false)
     }
 

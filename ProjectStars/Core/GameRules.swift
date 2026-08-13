@@ -771,7 +771,10 @@ enum GameRules {
     /// Short and shallow. The piece already squashes on landing; this is the
     /// other half of that impact, and if it lasts long enough to be watched it
     /// stops being an impact and becomes a wobble.
-    static let surfaceBounceDepth: CGFloat = 3
+    /// - Note: A `var` **only** so the debug B key can flip it between two and
+    ///   three while the two are being compared on screen. Make it a `let` again
+    ///   the moment that is settled — see `GameSession.debugToggleBounceDepth`.
+    static var surfaceBounceDepth: CGFloat = 3
     static let surfaceBounceDuration: TimeInterval = 0.26
 
     /// How far every cloud sits below the centre of its square, in art pixels.
@@ -783,22 +786,26 @@ enum GameRules {
 
     /// How high the cloud under a Pentacle floats, in art pixels, and how hard
     /// its glow breathes.
-    /// The glow is the only thing marking the square a Pentacle is on, now that
-    /// the cloud there is the same cloud as everywhere else — so it has to carry
-    /// on its own, and it is drawn several times over to do it. See
-    /// `CloudSpriteField.drawCloud`.
+    /// Deliberately faint.
+    ///
+    /// The lifted cloud is recoloured to blue outright — see
+    /// `CloudSpriteView.raisedSwaps` — and an entirely different colour in a
+    /// field of magenta is already unmissable. The glow was pushed hard back
+    /// when the plan was for that square to look like every other one, and it
+    /// never came back down after the recolour took over the job. All it has to
+    /// do now is say the square is *lit from within*, which is a suggestion, not
+    /// an announcement.
     static let cloudSpriteRaiseLift: CGFloat = 3
     static let cloudSpriteGlowPeriod: TimeInterval = 1.5
-    static let cloudSpriteGlowMin: Double = 0.45
-    static let cloudSpriteGlowMax: Double = 1.0
-    static let cloudSpriteGlowRadius: CGFloat = 4
+    static let cloudSpriteGlowMin: Double = 0.10
+    static let cloudSpriteGlowMax: Double = 0.24
+    static let cloudSpriteGlowRadius: CGFloat = 3
 
     /// How many times the bloom is stacked.
     ///
-    /// Additive blending saturates towards white rather than clipping, so
-    /// repeating a soft glow at widening radii is how it gets *bright* instead
-    /// of merely opaque — the same trick `PaletteGlow` uses for the coins.
-    static let cloudSpriteGlowPasses = 3
+    /// Two: a tight core and one soft halo. A third pass is how you make a light
+    /// *bright*, which is no longer what this is for.
+    static let cloudSpriteGlowPasses = 2
 
     /// Puffs in one cluster.
     static let cloudPuffCount = 13
