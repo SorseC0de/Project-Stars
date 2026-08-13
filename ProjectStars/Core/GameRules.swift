@@ -1771,6 +1771,31 @@ enum GameRules {
     /// step that teleported.
     static let longJumpDistance = 2
 
+    // ──────────────────────────────────────────────────────────────────────
+    // MARK: - Big leaps
+    //
+    // Taurus' Flowering Flop and Pisces' dive. See `HopPose.leap(progress:)`.
+
+    /// How far off the board a deliberate leap carries, in art pixels.
+    ///
+    /// Far higher than a hop's arc. The point is that the piece leaves — a leap
+    /// that clears the same height as a step is a step.
+    static let leapHeight: CGFloat = 30
+
+    /// The crouch before it.
+    static let leapSquashX: CGFloat = 1.25
+    static let leapSquashY: CGFloat = 0.75
+
+    /// How much bigger it gets at the top, which reads as *nearer*.
+    static let leapRiseScale: CGFloat = 1.5
+
+    /// And how flat it lands. Twice as wide as it stands.
+    static let leapPancakeX: CGFloat = 2.0
+    static let leapPancakeY: CGFloat = 0.45
+
+    /// How long the whole thing takes.
+    static let leapDuration: TimeInterval = 0.62
+
     /// The bloom thrown by a drawn effect: blur radius in art pixels, and how
     /// bright the additive copy is.
     ///

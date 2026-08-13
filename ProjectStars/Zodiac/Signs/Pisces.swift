@@ -73,14 +73,28 @@ struct PiscesStarstreamSurfer: ZodiacPassive {
     let displayName = "Starstream Surfer"
     let summary = "Astra: surf to the far wall on any turn, and charge \(GameRules.starstreamCharge) for doing it — ordinary steps give nothing. Terra: −1 charge for every square you leave."
 
+    /// Terra has no current to ride.
+    ///
+    /// Arid Aquanaut *replaces* this below — that is the whole shape of the
+    /// sign, rich and mobile up top and stranded down here — so the surf has to
+    /// actually be gone rather than merely unrewarded. It was still offered on
+    /// Terra, which handed the fish its best move on the plane it is supposed to
+    /// be desperate to leave.
+    func adjustedMovement(base: MovementPattern, context: PassiveContext) -> MovementPattern {
+        guard context.plane == .terra else { return base }
+        return MovementPattern(
+            name: base.name,
+            options: base.options.filter { !$0.reachesWall }
+        )
+    }
+
     func meterBonus(from move: MoveSummary, context: PassiveContext) -> Int {
         // Standing water pays whoever is standing in it, on either plane. Only
         // Pisces can be — pools evaporate the moment the sign changes — but the
         // rule is written where it can be *read* rather than left implied by
         // that.
-        let pool = context.currentBoard[move.restingPoint].kind == .pool
-            ? GameRules.poolCharge
-            : 0
+        let inPool = context.currentBoard[move.restingPoint].kind == .pool
+        let pool = inPool ? GameRules.poolCharge : 0
 
         if move.endingPlane == .astra {
             // A surf is any move that covered more ground than a step. Nothing
@@ -89,7 +103,15 @@ struct PiscesStarstreamSurfer: ZodiacPassive {
             return pool + (surfed ? GameRules.starstreamCharge : 0)
         }
 
-        return pool + (move.startingPlane == .terra ? -1 : 0)
+        // The drain does not apply to a move that ends in water.
+        //
+        // Otherwise the pool pays one and the plane takes it straight back, and
+        // a foothold that nets zero is not a foothold — it is a square that
+        // *isn't costing you*, which nobody walks across a dry board for. The
+        // spec is 0 to 1: the pool is worth a pip after the toll, not instead
+        // of a pip.
+        if inPool { return pool }
+        return move.startingPlane == .terra ? -1 : 0
     }
 }
 

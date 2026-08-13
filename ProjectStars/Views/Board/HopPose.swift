@@ -29,6 +29,41 @@ struct HopPose: Equatable {
 
     static let rest = HopPose(scaleX: 1, scaleY: 1, lift: 0)
 
+    // MARK: - Big leaps
+
+    /// The pose of a piece that has thrown itself into the air on purpose.
+    ///
+    /// Used by moves that are *about* the leap rather than moves that happen to
+    /// cover ground: Taurus' Flowering Flop and Pisces' dive. Both go far higher
+    /// than a hop, swell on the way up, and come down flattened — a hop is a
+    /// step with an arc on it, and these are a decision to leave the board.
+    ///
+    /// - Parameter progress: `0` at the crouch, `1` back at rest.
+    static func leap(progress: Double) -> HopPose {
+        guard progress > 0, progress < 1 else { return .rest }
+
+        return interpolate(leapStops, at: progress)
+    }
+
+    /// Up big, down flat.
+    ///
+    /// The landing stop is the point of the whole thing — twice as wide as it is
+    /// anything else — so it holds a beat before settling rather than passing
+    /// through on the way to rest.
+    private static var leapStops: [Stop] {
+        [
+            Stop(t: 0.00, scaleX: 1, scaleY: 1, lift: 0),
+            Stop(t: 0.10, scaleX: GameRules.leapSquashX, scaleY: GameRules.leapSquashY, lift: 0),
+            Stop(t: 0.45, scaleX: GameRules.leapRiseScale, scaleY: GameRules.leapRiseScale,
+                 lift: GameRules.leapHeight),
+            Stop(t: 0.62, scaleX: GameRules.leapRiseScale, scaleY: GameRules.leapRiseScale,
+                 lift: GameRules.leapHeight * 0.92),
+            Stop(t: 0.80, scaleX: GameRules.leapPancakeX, scaleY: GameRules.leapPancakeY, lift: 0),
+            Stop(t: 0.92, scaleX: GameRules.leapPancakeX, scaleY: GameRules.leapPancakeY, lift: 0),
+            Stop(t: 1.00, scaleX: 1, scaleY: 1, lift: 0),
+        ]
+    }
+
     // MARK: - Curve
 
     /// One stop on the hop's timeline.
@@ -74,9 +109,13 @@ struct HopPose: Equatable {
     }
 
     private static func at(progress: Double) -> HopPose {
+        interpolate(stops, at: progress)
+    }
+
+    /// Walks a table of stops and smoothsteps between the two either side.
+    private static func interpolate(_ table: [Stop], at progress: Double) -> HopPose {
         guard progress > 0, progress < 1 else { return .rest }
 
-        let table = stops
         guard let next = table.firstIndex(where: { $0.t >= progress }), next > 0 else {
             return .rest
         }

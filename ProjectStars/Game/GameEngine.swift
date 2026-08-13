@@ -681,6 +681,16 @@ struct GameEngine {
             commit(.zodiactionMeterChanged(to: 0))
         }
 
+        // Passives that react to what just happened get to see a Zodiaction
+        // too. They only ever saw ordinary moves, which is why Pisces' geyser
+        // fired on a fall it *walked* into and not on the one its own super
+        // caused — the dive emits exactly the same `pieceFell`, and nothing was
+        // listening.
+        let reactions = sim.piece.zodiac.passives.amend(events, context: sim.passiveContext)
+        for reaction in reactions {
+            if let allowed = sim.sheltered(reaction) { commit(allowed) }
+        }
+
         events += sim.tickForTurn()
 
         // A Zodiaction can change plane too — Taurus flops through Astra, Pisces
@@ -973,11 +983,23 @@ struct GameEngine {
         // Project even when the pattern has no move that way, so the cursor
         // still has somewhere to sit.
         let step = heading.unitOffset
-        let distance = movement.option(for: heading, facing: piece.facing, reach: reach)?.distance ?? 1
-        let point = GridPoint(
-            piece.point.x + step.dx * distance,
-            piece.point.y + step.dy * distance
-        )
+        let option = movement.option(for: heading, facing: piece.facing, reach: reach)
+
+        // A wall-runner's `distance` is a sort key, not a distance — it is the
+        // width of the whole board — so projecting it landed the cursor several
+        // squares off the edge and reported the move as impossible. Where it
+        // actually stops is where the ground runs out.
+        let point: GridPoint = {
+            if option?.reachesWall == true,
+               let wall = pathToWall(from: piece.point, direction: heading).last {
+                return wall
+            }
+            let distance = option?.distance ?? 1
+            return GridPoint(
+                piece.point.x + step.dx * distance,
+                piece.point.y + step.dy * distance
+            )
+        }()
 
         guard currentBoard.contains(point) else {
             return Cursor(point: point, status: .impossible)

@@ -472,6 +472,19 @@ enum EffectSprite: String, CaseIterable, Hashable {
         }
     }
 
+    /// The strip a sign lays down on every square of a **slide**.
+    ///
+    /// Pisces' surf used to be half of a Zodiaction and drew its water from
+    /// `zodiactionTrail`. Making the surf ordinary movement left the water
+    /// behind with the super it came from, so the sign's signature move became a
+    /// silent glide. It is a property of the *movement*, so it lives here.
+    static func slideTrail(for zodiac: Zodiac, on plane: Plane) -> EffectSprite? {
+        switch (zodiac, plane) {
+        case (.pisces, .astra): .waterSplash
+        default: nil
+        }
+    }
+
     static func zodiaction(for zodiac: Zodiac) -> [EffectSprite] {
         switch zodiac {
         // Aries has two: this is the flare of Brazen Blaze catching, while

@@ -272,6 +272,19 @@ final class GameSession {
     /// it, or it reads as having been missed.
     private(set) var isSliding = false
 
+    /// When a deliberate leap began, or `nil` when none is playing.
+    ///
+    /// Taurus' Flowering Flop and Pisces' dive. Distinct from `hopStartedAt`
+    /// because it is a different pose entirely — see `HopPose.leap(progress:)`.
+    private(set) var leapStartedAt: Date?
+
+    /// Throws the piece into the air and waits out the arc.
+    func playLeap() async {
+        leapStartedAt = .now
+        await sleep(GameRules.leapDuration)
+        leapStartedAt = nil
+    }
+
     /// True while Aries is mid-charge, so the piece burns for the length of the
     /// run rather than for a fixed number of turns afterwards.
     private(set) var isCharging = false
@@ -501,6 +514,7 @@ final class GameSession {
         elementalBurst = nil
         effectBursts = []
         healSparkles = []
+        leapStartedAt = nil
         surfaceBounce = nil
         cloudWake = nil
         pressedTiles = []
@@ -976,6 +990,12 @@ final class GameSession {
             isSliding = true
             pressedTiles.insert(to)
 
+            // Water on every square the surf crosses. A slide is the one move
+            // long enough to leave a wake, and for the fish it *is* the wake.
+            if let trail = EffectSprite.slideTrail(for: zodiac, on: plane) {
+                playEffect(trail, at: to, on: plane)
+            }
+
             // The crab's scuttle bubbles up on every square it crosses.
             //
             // It lives here rather than with the hops because the scuttle *is* a
@@ -1076,6 +1096,17 @@ final class GameSession {
                 engine.apply(event)
             }
             await sleep(event.displayDuration)
+
+        case let .zodiactionFired(zodiac, plane) where zodiac == .pisces && plane == .astra:
+            // The dive. Up, and the fall that follows is the event after this
+            // one — so the leap is played out here in full and the descent takes
+            // over from the top of it.
+            summonConstellation(zodiac, on: plane)
+            for layer in EffectSprite.zodiaction(for: zodiac) {
+                playEffect(layer, at: engine.piece.point, on: plane)
+            }
+            engine.apply(event)
+            await playLeap()
 
         case let .zodiactionFired(zodiac, plane):
             // The ram burns for the length of its run. Lit here and put out when

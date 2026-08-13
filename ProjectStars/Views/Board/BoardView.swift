@@ -1128,6 +1128,12 @@ struct BoardView: View {
 
     /// How the piece is deformed mid-hop.
     private func hopPose(at date: Date) -> HopPose {
+        // A deliberate leap outranks a hop: it is a different shape, and the two
+        // are never wanted at once.
+        if let leapt = session.leapStartedAt {
+            return .leap(progress: date.timeIntervalSince(leapt) / GameRules.leapDuration)
+        }
+
         guard let started = session.hopStartedAt else { return .rest }
         return .at(
             progress: date.timeIntervalSince(started) / session.hopDuration,
