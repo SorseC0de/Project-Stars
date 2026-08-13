@@ -252,19 +252,24 @@ struct AstralBrookEffect: PickupEffect {
         var from = origin
         var point = from.offset(by: step)
 
-        // Walk to the border. Damage is computed against the board as the effect
-        // finds it, tile by tile, because the same square is never crossed twice
-        // in a straight line.
+        // Walk to the border, wearing **nothing on the way**.
+        //
+        // A slide touches its two ends and crosses everything between them —
+        // `GameRules.slideWearsEndsOnly`, the same rule the engine's own
+        // `travel` follows. This function is the one slide the engine does not
+        // drive, so it has to keep that rule by hand or the Brook is the one
+        // move in the game that still ploughs a furrow.
         while board.contains(point) {
             events.append(.pieceSlid(from: from, to: point, plane: plane))
-
-            let tile = board[point]
-            if tile.canBeWorn {
-                events.append(.tileDamaged(plane: plane, point: point, to: tile.health.damaged))
-            }
-
             from = point
             point = point.offset(by: step)
+        }
+
+        // The two ends. `from` is where the water finally set the piece down.
+        for square in [origin, from] where board[square].canBeWorn {
+            events.append(
+                .tileDamaged(plane: plane, point: square, to: board[square].health.damaged)
+            )
         }
 
         return events

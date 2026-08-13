@@ -454,6 +454,14 @@ struct GameEngine {
                 landing.collectedPickup = landing.collectedPickup ?? gathered.pickup
             }
 
+            // 4c. Anything still riding the piece opens now.
+            //
+            //     A slide opens what it swept as it stops, but a coin can also
+            //     be gathered by an effect that ran mid-move, and nothing else
+            //     in an ordinary move ever emptied the pouch — so one picked up
+            //     that way hung over the piece's head for the rest of the run.
+            events += sim.openCarriedPickups()
+
             // 5. Keep a Pentacle reachable. See `ensurePentacleAvailable`.
             events += sim.ensurePentacleAvailable(previousPlane: startingPlane, after: events)
         }
@@ -1174,7 +1182,26 @@ struct GameEngine {
                 result.events.append(step)
                 result.covered.append(square)
                 apply(step)
+
+                // Swept up *as it is passed*, not tallied for afterwards.
+                //
+                // The sweep used to happen back in `plan`, once the move was
+                // over — which meant a slide that ended by breaking through the
+                // floor never collected anything, because the piece was already
+                // falling and that whole step was skipped. A coin crossed on the
+                // way is exactly the coin that might have saved the run.
+                for gathered in gatherIfCrossed(step) { result.events.append(gathered) }
             }
+
+            // Opened **before** the landing is resolved.
+            //
+            // The piece has already arrived — every `pieceSlid` was applied — so
+            // this is "once it has stopped" in every sense that matters, and it
+            // is the last moment a coin can do anything about what the landing
+            // is going to do. A Breeze swept up on the way is exactly the coin
+            // that saves a slide into a badly cracked tile, and opening it after
+            // the fall meant it never got the chance.
+            result.events += openCarriedPickups()
 
             result.absorb(settle(arrivedByFalling: false))
         }
