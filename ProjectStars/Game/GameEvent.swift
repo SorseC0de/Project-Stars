@@ -200,6 +200,19 @@ enum GameEvent: Equatable {
     /// Zodiaction charge is deliberately *not* reset — see `apply(_:)`.
     case pieceChanged(to: Zodiac)
 
+    /// Shadow Work opens and the double appears.
+    case shadowSpawned(at: GridPoint, plane: Plane, onShadowNexys: Bool)
+
+    /// The double mirrors a move.
+    case shadowStepped(from: GridPoint, to: GridPoint, plane: Plane)
+
+    /// The double is gone, and what it paid.
+    ///
+    /// `caught` is a collision — the player walked into it, or it into them —
+    /// which is worth the whole meter. Anything else is having driven it
+    /// somewhere fatal, which is worth half.
+    case shadowDestroyed(at: GridPoint, plane: Plane, caught: Bool)
+
     /// Gemini comes apart: one half stays where it is, the other appears at
     /// `strandedAt` on the plane it fell from.
     ///
@@ -380,6 +393,9 @@ enum GameEvent: Equatable {
         case .planeRestored: GameRules.planeRestoreDuration
         case .pieceTeleported: GameRules.teleportDuration
         case .pieceChanged: GameRules.pieceChangeDuration
+        case .shadowSpawned: GameRules.soulSplitDuration
+        case .shadowStepped: GameRules.hopDuration
+        case .shadowDestroyed: GameRules.soulRiseDuration
         case .pieceSplit: GameRules.soulSplitDuration
         case .piecesRejoined: GameRules.soulSplitDuration
         case .halfLost: GameRules.soulRiseDuration

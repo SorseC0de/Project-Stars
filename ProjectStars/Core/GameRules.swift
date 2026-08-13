@@ -1187,6 +1187,26 @@ enum GameRules {
 
     /// The piece transforming into another sign.
     /// How long Gemini takes to come apart, and to come back together.
+    /// What driving the shadow into something fatal is worth, as a fraction of
+    /// the meter. Catching it outright is worth all of it.
+    ///
+    /// Catching costs a move spent walking into the thing that is doubling your
+    /// wear; driving it somewhere is something you were doing anyway. The gap
+    /// between them is the difference between a plan and an opportunity.
+    /// How often Shadow Work turns up.
+    ///
+    /// Legendary, alongside Polaris. It is the one coin in the game that makes
+    /// the board actively worse, so it wants to be a *event* rather than a
+    /// recurring tax — and the disposal rules only read as clever if you meet
+    /// them rarely enough to have to think each time.
+    static let shadowWorkWeight = 1
+
+    /// How solid the double looks. Dark enough to be a shadow, present enough to
+    /// be a thing you have to deal with.
+    static let shadowOpacity: Double = 0.75
+
+    static let shadowDriveOffFraction: Double = 0.5
+
     static let soulSplitDuration: TimeInterval = 0.55
 
     /// How the half that is not taking its turn is drawn.

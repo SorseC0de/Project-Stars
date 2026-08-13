@@ -114,6 +114,23 @@ struct GameEngine {
     /// True while Gemini is in two places.
     var isSplit: Bool { otherHalf != nil }
 
+    /// The mirrored double Shadow Work leaves on the board, if one is out.
+    private(set) var shadow: Shadow?
+
+    /// A shadow of the player's piece, moving opposite to it.
+    struct Shadow: Equatable {
+        var point: GridPoint
+        var plane: Plane
+
+        /// True when it spawned on a *shadow* island — the real Nexys was on the
+        /// other plane, so a phantom one was drawn for it to stand on.
+        ///
+        /// Which is why the centre chasm cannot be used to dispose of it: the
+        /// chasm is a guaranteed hole on every board, and one guaranteed hole
+        /// would make getting rid of the shadow a formality rather than a plan.
+        var onShadowNexys: Bool
+    }
+
     /// The sparkling tiles currently telegraphing a pickup, if any.
     ///
     /// Non-nil only during a **sparkle phase**, which ends the moment the player
@@ -690,6 +707,21 @@ struct GameEngine {
         )
         events += sim.chargeSuper(for: summary)
 
+        // The double answers the move, and then the unopened coin closes in.
+        //
+        // After the charge rather than before it: what the shadow wrecks is not
+        // the player's doing, and a sign that pays for broken ground would
+        // otherwise be paid for damage it did not cause.
+        events += sim.moveShadow(mirroring: (
+            dx: sim.piece.point.x - origin.x,
+            dy: sim.piece.point.y - origin.y
+        ))
+        events += sim.advanceShadowCoin()
+
+        // And the halves change over. Last, so everything above resolved for the
+        // half that actually took the turn.
+        events += sim.passTheTurn()
+
         // TODO: `ZodiacPassive.bonusMoves` and the forced-movement pickups both
         // need a follow-up move appended here. Deferred until those designs are
         // specified — the hook exists but nothing returns a non-zero value yet.
@@ -758,11 +790,113 @@ struct GameEngine {
         }
 
         events += sim.tickForTurn()
+
+        // The double answers the move, then the unopened coin closes in. Both
+        // after the player has settled, so they react to where the player
+        // actually ended up rather than where the move was aimed.
+        events += sim.moveShadow(mirroring: (
+            dx: sim.piece.point.x - pointBefore.x,
+            dy: sim.piece.point.y - pointBefore.y
+        ))
+        events += sim.advanceShadowCoin()
+
         events += sim.ensurePentacleAvailable(previousPlane: planeBefore, after: events)
         events += sim.passTheTurn()
         return events
     }
 
+
+    /// Moves the shadow opposite to the move just taken, and resolves what it
+    /// ran into.
+    ///
+    /// Called after the player's own travel has settled, so the shadow reacts to
+    /// where they actually ended up rather than to where they aimed.
+    ///
+    /// ## Order of the checks
+    ///
+    /// Collision first, because walking into the shadow is a *choice* and has to
+    /// beat everything else — including the case where both would be standing on
+    /// a hole. Then the ground it landed on. Then a Pentacle, which it destroys
+    /// by arriving on.
+    private mutating func moveShadow(mirroring offset: (dx: Int, dy: Int)) -> [GameEvent] {
+        guard let current = shadow, !isGameOver else { return [] }
+
+        var events: [GameEvent] = []
+        func commit(_ event: GameEvent) {
+            events.append(event)
+            apply(event)
+        }
+
+        // Mirrored: the player went one way, it goes the other.
+        let target = GridPoint(current.point.x - offset.dx, current.point.y - offset.dy)
+
+        // Into a wall is simply nowhere. It stays put and the turn passes — a
+        // shadow that could be parked against an edge for ever would be a
+        // shadow you never had to deal with.
+        guard self[current.plane].contains(target) else { return events }
+
+        commit(.shadowStepped(from: current.point, to: target, plane: current.plane))
+
+        // Caught: standing where the player is standing.
+        if current.plane == piece.plane, target == piece.point {
+            commit(.shadowDestroyed(at: target, plane: current.plane, caught: true))
+            return events
+        }
+
+        // Onto a coin, which it snuffs out by arriving.
+        if revealedPickups.contains(where: { $0.plane == current.plane && $0.point == target }) {
+            for coin in revealedPickups
+            where coin.plane == current.plane && coin.point == target {
+                commit(.pickupDestroyed(id: coin.id, plane: coin.plane, point: coin.point))
+            }
+            commit(.shadowDestroyed(at: target, plane: current.plane, caught: false))
+            return events
+        }
+
+        let tile = self[current.plane][target]
+
+        // Its own island holds it up. See `Shadow.onShadowNexys`.
+        let sheltered = current.onShadowNexys && target == GameRules.nexysPoint
+
+        if !tile.isSolid, !sheltered {
+            commit(.shadowDestroyed(at: target, plane: current.plane, caught: false))
+            return events
+        }
+
+        // It wears the ground exactly as the player does, which is the whole
+        // cost of leaving it alive.
+        if tile.canBeWorn {
+            commit(.tileDamaged(
+                plane: current.plane, point: target, to: tile.health.damaged
+            ))
+        }
+
+        return events
+    }
+
+    /// Walks an unopened Shadow Work coin one square toward the player.
+    ///
+    /// The only Pentacle in the game that comes to you. Diagonals included, so
+    /// it closes on the shortest path rather than tracing the grid — being
+    /// chased by something that has to turn corners is not being chased.
+    private mutating func advanceShadowCoin() -> [GameEvent] {
+        guard let coin = revealedPickups.first(where: { $0.id == .shadowWork }),
+              coin.plane == piece.plane,
+              !isGameOver
+        else { return [] }
+
+        let step = GridPoint(
+            coin.point.x + (piece.point.x - coin.point.x).signum(),
+            coin.point.y + (piece.point.y - coin.point.y).signum()
+        )
+        guard step != coin.point, self[coin.plane].contains(step) else { return [] }
+
+        let moved = GameEvent.pickupMoved(
+            id: coin.id, plane: coin.plane, from: coin.point, to: step
+        )
+        apply(moved)
+        return [moved]
+    }
 
     /// Ends a turn for a split Gemini: rejoin if the halves have met, otherwise
     /// hand control to the other one.
@@ -1755,6 +1889,18 @@ struct GameEngine {
                 }
 
                 return result
+            }
+
+            // 3b. Walked into the double, which is a kill and worth the meter.
+            //
+            //     Checked here rather than in `moveShadow` because the player
+            //     arriving at the shadow and the shadow arriving at the player
+            //     are the same event with two authors, and only one of them
+            //     happens before the ground is tested. Catching it must beat
+            //     falling: a square that gives way under both of you is still a
+            //     square where you caught it.
+            if let double = shadow, double.plane == plane, double.point == point {
+                commit(.shadowDestroyed(at: point, plane: plane, caught: true))
             }
 
             // 4. The phantoms go first.
@@ -2847,6 +2993,23 @@ struct GameEngine {
             }
             piece.plane = toPlane
             piece.point = to
+
+        case let .shadowSpawned(at, plane, onShadowNexys):
+            shadow = Shadow(point: at, plane: plane, onShadowNexys: onShadowNexys)
+
+        case let .shadowStepped(_, to, plane):
+            shadow?.point = to
+            shadow?.plane = plane
+            // Off its island the moment it steps away from it, so the chasm
+            // exception cannot be carried around the board.
+            if to != GameRules.nexysPoint { shadow?.onShadowNexys = false }
+
+        case let .shadowDestroyed(_, _, caught):
+            shadow = nil
+            let reward = caught
+                ? zodiactionMeterMax
+                : Int(Double(zodiactionMeterMax) * GameRules.shadowDriveOffFraction)
+            zodiactionMeter = min(zodiactionMeter + reward, zodiactionMeterMax)
 
         case let .pieceSplit(strandedAt, plane):
             // The half left behind. The faller keeps control, because the fall

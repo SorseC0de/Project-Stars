@@ -704,6 +704,9 @@ final class GameSession {
         }
     }
 
+    /// The mirrored double, if one is on the board.
+    var shadow: GameEngine.Shadow? { engine.shadow }
+
     /// The half of Gemini waiting its turn, if there is one.
     var otherHalf: Piece? { engine.otherHalf }
 
@@ -970,6 +973,27 @@ final class GameSession {
             }
             await sleep(event.displayDuration)
             flashingTiles.subtract(changes.keys)
+
+        case let .shadowSpawned(point, plane, _):
+            playEffect(.astralBloom, at: point, on: plane)
+            withAnimation(.spring(response: 0.34, dampingFraction: 0.7)) {
+                engine.apply(event)
+            }
+            await sleep(event.displayDuration)
+
+        case .shadowStepped:
+            withAnimation(.spring(response: hopDuration * 1.4, dampingFraction: 0.75)) {
+                engine.apply(event)
+            }
+            await sleep(event.displayDuration)
+
+        case let .shadowDestroyed(point, plane, caught):
+            // Caught is worth the whole meter and should sound like it.
+            shake(for: caught ? GameRules.arrowLandShake : GameRules.taurusStepShake)
+            playEffect(caught ? .explosion : .astralBloom, at: point, on: plane)
+            kickUpDust(at: point, on: plane, magnitude: 1)
+            engine.apply(event)
+            await sleep(event.displayDuration)
 
         case .pieceSplit:
             // Coming apart. The rifts flare, because tearing in half is the

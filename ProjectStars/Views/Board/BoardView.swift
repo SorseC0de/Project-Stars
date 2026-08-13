@@ -51,6 +51,7 @@ struct BoardView: View {
             arrow(metrics: metrics)
             sparkles(metrics: metrics)
             waitingHalf(plane: plane, metrics: metrics)
+            shadowDouble(plane: plane, metrics: metrics)
             tileChoice(metrics: metrics)
 
             // The island and the piece share a clock, so the piece can ride the
@@ -1131,6 +1132,28 @@ struct BoardView: View {
         let linear = min(max(settled / GameRules.cloudSwayEaseIn, 0), 1)
 
         return CGFloat(linear * linear * (3 - 2 * linear))
+    }
+
+    /// Shadow Work's double, wherever it currently is.
+    ///
+    /// Drawn in the board's stack rather than depth-sorted with the piece: it is
+    /// a hazard on the ground, and having it occasionally occlude the player
+    /// would be the board hiding the thing the player most needs to see.
+    @ViewBuilder
+    private func shadowDouble(plane: Plane, metrics: PixelArtMetrics) -> some View {
+        if let shadow = session.shadow, shadow.plane == plane {
+            ShadowPieceView(
+                zodiac: session.zodiac,
+                tileSize: metrics.tileSize,
+                scale: metrics.scale
+            )
+            .position(metrics.center(of: shadow.point))
+            .offset(y: surfaceOffset(of: shadow.point, bob: 0, metrics: metrics))
+            .animation(
+                .spring(response: GameRules.hopDuration * 1.4, dampingFraction: 0.75),
+                value: shadow.point
+            )
+        }
     }
 
     /// Gemini's other half, standing where it was left.

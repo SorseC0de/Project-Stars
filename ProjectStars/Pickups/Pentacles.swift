@@ -738,11 +738,10 @@ struct PolarisEffect: PickupEffect {
 
 /// Shadow Work — spawns a mirrored double of your piece.
 ///
-/// - TODO: **Scaffolded, not implemented.** `weight` is `0`, so it cannot spawn
-///   and the game stays coherent without it. Unlike every other effect in the
-///   catalogue this one is not a single burst of events — it introduces a
-///   second entity that persists and acts every turn, which the engine has no
-///   concept of yet. The full spec is recorded below so none of it is lost.
+/// Unlike every other effect in the catalogue this one is not a single burst of
+/// events: it introduces a second entity that persists and acts every turn. The
+/// engine carries it as `GameEngine.shadow`, moves it from `plan` once the
+/// player has settled, and resolves what it ran into there.
 ///
 /// ## The Pentacle itself
 ///
@@ -797,15 +796,29 @@ struct ShadowWorkEffect: PickupEffect {
     /// Desaturated and dark, so it is recognisable on sight.
     let appearance: PentacleAppearance = .shadow
 
-    /// Out of rotation until the shadow entity exists.
-    let weight = 0
+    /// As rare as Polaris. It is the other legendary, and the only coin in the
+    /// game that makes the board *worse* on purpose.
+    let weight = GameRules.shadowWorkWeight
 
     func plan(
         context: PickupContext,
         choice: PickupChoiceResult?,
         generator: inout SeededRandom
     ) -> [GameEvent] {
-        []
+        // It arrives on the island — or on a phantom of one, if the real island
+        // is on the other plane.
+        //
+        // The phantom is not somewhere the player can stand. It exists so the
+        // shadow has a floor of its own at the centre, which is what makes the
+        // chasm useless for disposing of it: a guaranteed hole on every board
+        // would turn "get rid of the shadow" into a formality.
+        let onShadowNexys = context.nexysPlane != context.plane
+
+        return [.shadowSpawned(
+            at: GameRules.nexysPoint,
+            plane: context.plane,
+            onShadowNexys: onShadowNexys
+        )]
     }
 }
 
