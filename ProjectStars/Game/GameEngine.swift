@@ -1651,22 +1651,20 @@ struct GameEngine {
                 // Coming to rest on the island while it sits on Terra rides it
                 // back up. Checked here — at rest — rather than on entering the
                 // square, so a slide that merely crosses the island keeps going.
+                // A sign with a call button is never carried off by simply
+                // standing somewhere. The island is Libra's lift, and a lift
+                // that departs the moment you step in — in whichever direction
+                // it feels like — is a trapdoor again. Everyone else still gets
+                // the free ride home.
                 if GameRules.nexysAscendsFromTerra,
                    plane == .terra,
                    self[plane][point].kind == .nexys,
+                   !activePassives.ridesNexysDown(context: passiveContext),
                    !activePassives.blocksAscent(context: passiveContext) {
                     commit(.nexysMoved(to: .astra, carryingPiece: true))
                     result.ascended = true
                 }
 
-                // And the other way, for a sign that treats the island as an
-                // elevator rather than as a rescue. Sent as an ordinary descent
-                // so everything watching for an arrival on Terra sees one.
-                if plane == .astra,
-                   self[plane][point].kind == .nexys,
-                   activePassives.ridesNexysDown(context: passiveContext) {
-                    commit(.nexysMoved(to: .terra, carryingPiece: true))
-                }
                 return result
             }
 

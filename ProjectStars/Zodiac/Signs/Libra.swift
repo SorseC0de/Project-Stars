@@ -184,15 +184,18 @@ struct LibraJudicatorElevator: ZodiacPassive {
 
     /// The Nexys Shift becomes the Galeforce Gavel in her hands.
     ///
-    /// A straight trade of weights rather than an extra entry, so the uncommon
-    /// tier's odds are exactly what they are for everyone else. The Shift itself
-    /// is worth nothing to Libra — it moves the island to her plane, and she can
-    /// already go to the island — so this is not a bonus so much as the slot
-    /// being spent on something she can use.
+    /// A trade rather than an extra entry: the Shift is worth nothing to Libra —
+    /// it moves the island to her plane, and she can call it herself — so its
+    /// slot is spent on something she can use.
+    ///
+    /// The Gavel does **not** inherit the Shift's rate. The Shift is the rarest
+    /// thing in its tier because for everyone else it is a rescue; the Gavel is
+    /// the tool this sign is built around, and at the Shift's weight of one it
+    /// went whole sessions without appearing.
     func pickupWeight(_ base: Int, for id: PickupID, context: PassiveContext) -> Int {
         switch id {
         case .nexysShift: 0
-        case .galeforceGavel: PickupCatalog.effect(for: .nexysShift).weight
+        case .galeforceGavel: GameRules.galeforceGavelWeight
         default: base
         }
     }

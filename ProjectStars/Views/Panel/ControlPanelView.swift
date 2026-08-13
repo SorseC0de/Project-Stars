@@ -479,6 +479,7 @@ private struct PanelFrontView: View {
                 movementRow
                 Spacer(minLength: 0)
                 retinueRow
+                liftRow
                 zodiactionRow
                 #if DEBUG
                 debugZodiacRow
@@ -490,17 +491,6 @@ private struct PanelFrontView: View {
             // system takes the first touch of.
             //.padding(.bottom, PanelStyle.padding + safeArea)
             .padding(.bottom, PanelStyle.padding)
-        }
-        .overlay(alignment: .bottomLeading) {
-            // The bottom-left corner, which is otherwise empty.
-            //
-            // A lift panel belongs on a wall, not stacked over the sign's name —
-            // and this is the one part of the control area nothing else wants.
-            // It is also where a left thumb already rests.
-            if session.showsNexysCall {
-                NexysCallView(session: session)
-                    .padding(PanelStyle.padding)
-            }
         }
         .overlay(alignment: .trailing) {
             #if DEBUG
@@ -533,6 +523,23 @@ private struct PanelFrontView: View {
                 .font(.system(size: PanelStyle.chromeGlyphSize, weight: .black))
         }
         .frame(width: PanelStyle.chromeButtonWidth, height: PanelStyle.chromeButtonHeight)
+    }
+
+    // ── Row 2c: the lift ──────────────────────────────────────────────────
+
+    /// Libra's call buttons, in the space left of the Zodiaction button.
+    ///
+    /// In the layout rather than floating over it. An overlay in the corner sat
+    /// on top of whatever happened to be there, which is fine until something
+    /// is — and the row costs nothing for the eleven signs that never show it.
+    @ViewBuilder
+    private var liftRow: some View {
+        if session.showsNexysCall {
+            HStack(spacing: 0) {
+                NexysCallView(session: session)
+                Spacer(minLength: 0)
+            }
+        }
     }
 
     // ── Row 2b: the retinue ───────────────────────────────────────────────

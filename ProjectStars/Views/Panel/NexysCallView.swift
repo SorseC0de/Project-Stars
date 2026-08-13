@@ -47,6 +47,11 @@ struct NexysCallView: View {
 
         // Up above down, because that is what up and down mean. Side by side
         // they are two buttons; stacked they are a lift.
+        //
+        // Wide enough to be a panel rather than two loose discs: it sits beside
+        // the Zodiaction button, which is the biggest thing on the screen, and a
+        // control that small next to a control that large reads as an
+        // afterthought.
         VStack(spacing: Style.gap) {
             lamp(.astra, isLit: enabled && going == .astra)
             lamp(.terra, isLit: enabled && going == .terra)

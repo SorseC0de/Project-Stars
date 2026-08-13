@@ -491,6 +491,20 @@ enum GameRules {
     /// Essence would otherwise need a sentence about eleven other signs.
     static let elementAffinityCharge = 3
 
+    /// How often the Galeforce Gavel turns up for Libra.
+    ///
+    /// Its own number rather than the Nexys Shift's, which it replaces. The
+    /// Shift is weighted **1** — the rarest thing in the uncommon tier, because
+    /// for everyone else it is a rescue rather than a tool — and inheriting that
+    /// meant Libra went whole sessions without seeing her own signature coin.
+    ///
+    /// An Essence's rate, because it is an Essence's kind of thing: the slab is
+    /// rolled, and one in four of them arrives as a set of holes. A coin that
+    /// can hand you a two-by-two of nothing to place on your own board does not
+    /// need rationing on top — it rations itself, and the player who takes it
+    /// often is the one who has decided that is a trade worth making.
+    static let galeforceGavelWeight = 3
+
     // MARK: - Rules — Leo's sun
     //
     // See `SignState.Sun` and `LeoSolarPull`.
@@ -1003,7 +1017,11 @@ enum GameRules {
     ///
     /// A square giving way is a bigger event than a footfall and has a whole
     /// cell to vacate, so it wants more smoke than a landing does.
-    static let cloudPoofMagnitude: CGFloat = 1.5
+    /// A dispersing cloud's smoke is drawn two cells across, like any other
+    /// puff. It was half again bigger, which on Astra — where Libra opens two
+    /// squares a move — put three-tile smoke clouds over a third of the board at
+    /// once and hid what had actually happened.
+    static let cloudPoofMagnitude: CGFloat = 1.0
 
     /// How far the puffs of a dispersing cluster travel, in art pixels.
     static let cloudPoofSpread: CGFloat = 7
