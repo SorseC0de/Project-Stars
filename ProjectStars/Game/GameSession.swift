@@ -435,6 +435,9 @@ final class GameSession {
     /// A coin knows what it looks like; only its events know what it touched.
     private var pluming: EffectSprite?
 
+    /// The strip a repair is owed, held until one happens. See `PickupShape`.
+    private var mending: EffectSprite?
+
     /// Sparkles flying off a Pentacle that was just opened.
     private(set) var collectBurst: ElementalBurst?
 
@@ -901,6 +904,7 @@ final class GameSession {
         // Per-move presentation bookkeeping, cleared before anything is drawn.
         crabWalkOrigin = nil
         pluming = nil
+        mending = nil
 
         for event in events {
             guard !Task.isCancelled else { return }
@@ -1063,7 +1067,12 @@ final class GameSession {
             await sleep(event.displayDuration)
             flashingTiles.remove(point)
 
-        case .tileHealed(_, let point, _):
+        case let .tileHealed(plane, point, _):
+            // Whatever the coin owed this repair, paid where the repair is.
+            if let drawn = mending {
+                playEffect(drawn, at: point, on: plane)
+                mending = nil
+            }
             flashingTiles.insert(point)
             withAnimation(.easeOut(duration: event.displayDuration)) {
                 engine.apply(event)
@@ -1181,6 +1190,13 @@ final class GameSession {
                     where engine[plane].contains(square) {
                         playEffect(drawn, at: square, on: plane)
                     }
+
+                case .mending:
+                    // Held until something is actually healed. The Tear's coin
+                    // is opened where the piece is standing and its repair
+                    // happens somewhere else entirely, so playing it at the
+                    // collection point drew water over the wrong square.
+                    mending = drawn
 
                 case .trailing:
                     // Held, and spent square by square as the slide reaches
