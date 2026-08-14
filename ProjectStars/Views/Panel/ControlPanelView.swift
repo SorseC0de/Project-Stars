@@ -285,8 +285,9 @@ enum PanelStyle {
     /// Pip gap when the button is sharing its row. Ten pips in two thirds of the
     /// width need to give something up, and the gap is the part nobody reads.
     static let meterPipSpacingCompact: CGFloat = 2
-    static let retinueGlyphSize: CGFloat = 30
-    static let retinueLabelSize: CGFloat = 11
+    static let retinueGlyphSize: CGFloat = 58
+    static let retinueGlyphOpacity: Double = 0.5
+    static let retinueLabelSize: CGFloat = 13
 
     /// The bow, for Sagittarius' recall.
     static let zodiactionRecallGlyphSize: CGFloat = 34
@@ -669,26 +670,28 @@ private struct PanelFrontView: View {
                     // rest of the panel uses; a system glyph here made the
                     // borrowed supers look like they belonged to a different
                     // game from the one that lent them.
-                    VStack(spacing: PanelStyle.retinueGlyphGap) {
-                        // In the button's own dark shade, so the mark reads as
-                        // stamped into the face rather than sitting on it.
+                    ZStack {
+                        // The mark, filling the face and half faded.
+                        //
+                        // Beside the text it had to be small enough to leave
+                        // room, which made it decoration nobody could read.
+                        // Behind the text it can be as large as the button and
+                        // still not compete: the sign is what the button *is*,
+                        // and the name is what it does.
                         PieceIconView(
                             zodiac: follower,
                             size: PanelStyle.retinueGlyphSize,
                             tint: ElementFX.ramp(for: follower.element).deep
                         )
+                        .opacity(PanelStyle.retinueGlyphOpacity)
 
-                        // The name is the whole point of the button: which
-                        // borrowed super is this. Dropping it left two coloured
-                        // squares that had to be memorised.
                         Text(follower.definition.zodiaction.displayName.uppercased())
                             .font(.system(size: PanelStyle.retinueLabelSize,
                                           weight: .heavy, design: .rounded))
-                            .lineLimit(2)
                             .multilineTextAlignment(.center)
-                            .minimumScaleFactor(0.6)
+                            .minimumScaleFactor(0.7)
+                            .padding(.horizontal, 4)
                     }
-                    .padding(.horizontal, 4)
                 }
                 .frame(maxHeight: .infinity)
             }

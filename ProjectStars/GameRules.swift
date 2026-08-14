@@ -1967,7 +1967,7 @@ enum GameRules {
     /// against a rose three tiles across; halving the rose and keeping the gap
     /// leaves it stranded off the corner it is supposed to sit in — padding
     /// belongs to the thing it surrounds, not to the board.
-    static let compassInset: CGFloat = 0.05
+    static let compassInset: CGFloat = -0.5
 
     /// How far it steps between its two positions, in art pixels.
     ///
@@ -2083,7 +2083,12 @@ enum GameRules {
     static let retinueLag: Double = 1.9
 
     /// How much further behind each phantom is than the one in front.
-    static let retinueStagger: Double = 0.45
+    /// How long after Leo each phantom takes its own hop.
+    ///
+    /// One beat per place in the line, so the second follower goes after the
+    /// first. Short: long enough to read as separate jumps, brief enough that
+    /// the line is not still arriving when you have made your next move.
+    static let retinueBeat: TimeInterval = 0.12
 
     /// The shadow under a phantom, and how far below it sits.
     /// How far a shadowed figure is lifted back up after being multiplied down.

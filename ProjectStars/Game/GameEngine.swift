@@ -2681,7 +2681,14 @@ struct GameEngine {
             // moment the purchase is confirmed rather than the moment the shop
             // opened, so a phantom is never dismissed for a decision the player
             // has not made yet.
-            if !sim.signState.purse.isEmpty, !sim.signState.retinue.contains(.capricorn) {
+            // Asked of the *piece*, not of the retinue.
+            //
+            // The phantom is already gone by now — it is spent before its super
+            // runs — so "is Capricorn still following" is false for a borrowed
+            // purse and for a real one alike. It wiped the goat's own savings
+            // after every purchase and left Leo's borrowed coins lying about,
+            // which is both directions of the same wrong question.
+            if !sim.signState.purse.isEmpty, sim.piece.zodiac != .capricorn {
                 var emptied = sim.signState
                 emptied.purse = []
                 commit(.signStateChanged(emptied))

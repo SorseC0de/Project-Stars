@@ -1293,6 +1293,7 @@ struct BoardView: View {
             // square, exactly as the piece does about its.
             let ownSway = surfaceSway(of: point, at: Date(), metrics: metrics)
             let ownGround = surfaceOffset(of: point, bob: bob, metrics: metrics)
+            let ownPose = followerPose(step: step, at: Date())
 
             ZStack {
                 // Shadow first, so it stands *on* something — and over a hole
@@ -1313,25 +1314,41 @@ struct BoardView: View {
                     hovering: isHole(point)
                 )
             }
-            .scaleEffect(x: pose.scaleX, y: pose.scaleY, anchor: .bottom)
-            .offset(y: -pose.lift * metrics.scale)
+            // Its own hop, started late — see `followerPose(step:at:)`.
+            .scaleEffect(x: ownPose.scaleX, y: ownPose.scaleY, anchor: .bottom)
+            .offset(y: -ownPose.lift * metrics.scale)
             .position(metrics.center(of: point))
             .offset(y: ownGround)
             .offset(ownSway)
-            // Staggered, and further back the longer the line.
+            // The *same* hop as Leo's, delayed. Not a slower one.
             //
-            // In lockstep with Leo they read as one animation playing twice —
-            // the eye reads simultaneous movement as a single object. A beat
-            // between them is what makes them separate bodies following one.
+            // A longer spring is a stiffer body being dragged along; what was
+            // wanted is the de-synchronised Ice Climbers — the same jump, a beat
+            // apart, so the second one lands on the square the first has just
+            // left. Delaying an identical animation is that, exactly, and it
+            // needs no lag constant at all.
             .animation(
-                .spring(
-                    response: GameRules.hopDuration * GameRules.retinueLag
-                        * (1 + Double(step) * GameRules.retinueStagger),
-                    dampingFraction: 0.72
-                ),
+                .spring(response: GameRules.hopDuration * 1.6, dampingFraction: 0.72)
+                    .delay(GameRules.retinueBeat * Double(step + 1)),
                 value: session.engine.piece.point
             )
         }
+    }
+
+    /// A phantom's hop, which is Leo's hop started a beat later.
+    ///
+    /// Read from the same clock and the same curve — it is the identical jump,
+    /// simply begun late. Before the delay is up it is at rest, which is what
+    /// makes the pair read as two bodies rather than one drawing shown twice:
+    /// Leo leaves the ground, lands, and only then does the phantom crouch.
+    private func followerPose(step: Int, at date: Date) -> HopPose {
+        guard let started = session.hopStartedAt else { return .rest }
+
+        let late = date.timeIntervalSince(started)
+            - GameRules.retinueBeat * Double(step + 1)
+        guard late > 0 else { return .rest }
+
+        return .at(progress: late / session.hopDuration, distance: session.hopDistance)
     }
 
     /// Whether that square is open air.
