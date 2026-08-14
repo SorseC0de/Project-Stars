@@ -199,14 +199,14 @@ struct LibraPieceView: View {
 private struct LibraBench: View {
 
     @State private var facing: SwipeDirection = .down
-    @State private var liftNS = GameRules.libraArmLiftNS
-    @State private var liftEW = GameRules.libraArmLiftEW
+    // Only what is still unsettled.
+    //
+    // Every number that has been decided is gone from here — a bench that keeps
+    // its solved controls grows until the unsolved ones are off the bottom of
+    // the screen, which is exactly what happened. The rest live in `GameRules`
+    // and this reads them.
     @State private var liftEWBack = GameRules.libraArmLiftEWBack
-    @State private var insetNS = GameRules.libraArmInsetNS
-    @State private var gapNS = GameRules.libraScalesGapNS
-    @State private var gapEW = GameRules.libraScalesGapEW
     @State private var gapEWBack = GameRules.libraScalesGapEWBack
-    @State private var scalesX = GameRules.libraScalesInsetX
     @State private var sway = false
     @State private var zoom: CGFloat = 6
 
@@ -248,14 +248,8 @@ private struct LibraBench: View {
                 }
                 .pickerStyle(.segmented)
 
-                slider("Arm lift N/S", $liftNS, 0...24)
-                slider("Arm lift E/W near", $liftEW, 0...24)
                 slider("Arm lift E/W far", $liftEWBack, 0...40)
-                slider("Arm inset N/S", $insetNS, -12...12)
-                slider("Scales gap N/S", $gapNS, -8...24)
-                slider("Scales gap E/W near", $gapEW, -8...24)
                 slider("Scales gap E/W far", $gapEWBack, -8...24)
-                slider("Scales x", $scalesX, -16...16)
                 slider("Zoom", $zoom, 2...12, unit: "x")
 
                 Toggle("Animate", isOn: $sway)
@@ -268,27 +262,15 @@ private struct LibraBench: View {
         // Written straight back into the constants the game reads, so the board
         // in another preview pane shows the same thing — there is one set of
         // numbers and this is a window onto it, not a copy.
-        .onChange(of: liftNS) { _, new in GameRules.libraArmLiftNS = new }
-        .onChange(of: liftEW) { _, new in GameRules.libraArmLiftEW = new }
         .onChange(of: liftEWBack) { _, new in GameRules.libraArmLiftEWBack = new }
-        .onChange(of: insetNS) { _, new in GameRules.libraArmInsetNS = new }
-        .onChange(of: gapNS) { _, new in GameRules.libraScalesGapNS = new }
-        .onChange(of: gapEW) { _, new in GameRules.libraScalesGapEW = new }
         .onChange(of: gapEWBack) { _, new in GameRules.libraScalesGapEWBack = new }
-        .onChange(of: scalesX) { _, new in GameRules.libraScalesInsetX = new }
     }
 
     /// Every value, written as the constants they set.
     private var summary: String {
         """
-        libraArmLiftNS      = \(Int(liftNS))
-        libraArmLiftEW      = \(Int(liftEW))
         libraArmLiftEWBack  = \(Int(liftEWBack))
-        libraArmInsetNS     = \(Int(insetNS))
-        libraScalesGapNS    = \(Int(gapNS))
-        libraScalesGapEW    = \(Int(gapEW))
         libraScalesGapEWBack= \(Int(gapEWBack))
-        libraScalesInsetX   = \(Int(scalesX))
         """
     }
 
