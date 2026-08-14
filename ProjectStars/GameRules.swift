@@ -1219,27 +1219,32 @@ enum GameRules {
     // aligns the drawings and every number below is a deliberate departure from
     // that. See `LibraPieceView`.
 
+    /// - Note: These five are `var` so the assembly bench in
+    ///   `LibraPieceView.swift` can drive them from sliders. Nothing in the game
+    ///   writes to them, and they should go back to `let` once the numbers are
+    ///   settled and the bench is deleted.
+    ///
     /// How far above Libra's feet an arm hangs, facing toward or away.
-    static let libraArmLiftNS: CGFloat = 12
+    static var libraArmLiftNS: CGFloat = 12
 
     /// And in profile, where the near arm sits much lower.
-    static let libraArmLiftEW: CGFloat = 3
+    static var libraArmLiftEW: CGFloat = 3
 
     /// How far the far arm sits from the near one, in profile.
     ///
     /// Nothing, for now: the art is a vertical flip of the near arm and the
     /// depth reads from the z-order rather than from a height difference. A
     /// number here is the first thing to try if the two read as flat.
-    static let libraArmLiftEWBack: CGFloat = 3
+    static var libraArmLiftEWBack: CGFloat = 3
 
     /// How far in from centre each arm sits when facing toward or away.
     ///
     /// In profile they are centred on the body instead, since one is simply
     /// behind the other.
-    static let libraArmInsetNS: CGFloat = 6
+    static var libraArmInsetNS: CGFloat = 6
 
     /// The gap between an arm's lowest pixel and the top of its pans.
-    static let libraScalesGap: CGFloat = 2
+    static var libraScalesGap: CGFloat = 2
 
     /// Where an arm's lowest pixel sits inside its own cell, from the top.
     ///
