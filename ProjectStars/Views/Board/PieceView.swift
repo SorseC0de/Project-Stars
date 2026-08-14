@@ -217,15 +217,14 @@ struct PieceView: View {
                 scale: scale,
                 isCharged: isGilded
             )
-            // Flattened before anything downstream shades it.
+            // Deliberately *not* flattened.
             //
-            // The moss and the stone swap are `colorEffect`s, and a shader over
-            // a stack is applied to each layer in its own coordinate space — so
-            // the arms and pans were being mossed as though each sat at the
-            // origin, ignoring every offset that puts them where they belong.
-            // One layer in, one shader over it, and the overgrowth lands on the
-            // figure as drawn.
-            .drawingGroup()
+            // `drawingGroup()` rasterises into the view's layout bounds, and
+            // Libra's arms and pans are drawn outside hers on purpose — so
+            // flattening cut them off at the body's edge. It was an attempt to
+            // give the moss shader one layer to work on; the fix for that has to
+            // be one that does not clip, since the whole assembly is defined by
+            // reaching past its own frame.
         } else {
             PixelSprite(id: .piece(zodiac)) {
                 placeholder
