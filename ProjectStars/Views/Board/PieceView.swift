@@ -35,6 +35,14 @@ struct PieceView: View {
     /// True when the Zodiaction is charged or firing, which lights the gem.
     var isCharged: Bool = false
 
+    /// True while Gemini is in two places, so this half draws alone.
+    var isSplit = false
+
+    /// Which drawing this piece is right now.
+    private var spriteID: SpriteID {
+        zodiac == .gemini && isSplit ? .geminiHalf(.gold) : .piece(zodiac)
+    }
+
     /// The movement playing out, if any. See `GameSession.Movement`.
     var movement: GameSession.Movement?
 
@@ -260,7 +268,12 @@ struct PieceView: View {
             // be one that does not clip, since the whole assembly is defined by
             // reaching past its own frame.
         } else {
-            PixelSprite(id: .piece(zodiac)) {
+            // Gemini has three drawings: the pair, and each of them alone.
+            //
+            // Split, the piece is only one of the two — drawing the pair would
+            // put both twins on the square while the other one is standing
+            // somewhere else on the board.
+            PixelSprite(id: spriteID) {
                 placeholder
             }
         }
@@ -269,7 +282,19 @@ struct PieceView: View {
     private var gem: GemTones { .forElement(zodiac.element) }
 
     private var stoneSwaps: [PaletteSwap] {
-        zip(Palette.pieceGoldTones, Palette.pieceStoneTones).map(PaletteSwap.init)
+        // Gemini's silver half is already most of the way to stone, so the gold
+        // ramp alone leaves it untouched on Terra — one twin turns to rock and
+        // the other stays bright, which reads as the recolour failing rather
+        // than as two materials.
+        //
+        // It gets its own ramp down: the silvers step to the same stone tones,
+        // one rung darker than the golds land on, so the pair still tell each
+        // other apart down there without either of them staying metallic.
+        let silver = zip(Palette.pieceSilverTones, Palette.pieceSilverStoneTones)
+            .map(PaletteSwap.init)
+
+        return zip(Palette.pieceGoldTones, Palette.pieceStoneTones).map(PaletteSwap.init)
+            + (zodiac == .gemini ? silver : [])
     }
 
     /// How much the shadow shrinks at this point in the hop.

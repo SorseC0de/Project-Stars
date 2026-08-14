@@ -386,6 +386,22 @@ enum Palette {
     /// the one piece that was drawn both ways.
     static let pieceStoneTones: [Color] = [slate, stone, iron, warmBlack]
 
+    /// Gemini's silver twin, lightest first.
+    ///
+    /// Sampled from the sheet. The silver half is already most of the way to
+    /// stone, so the gold ramp does not touch it — one twin turns to rock on
+    /// Terra and the other stays bright, which reads as the recolour having
+    /// failed rather than as two materials.
+    static let pieceSilverTones: [Color] = [lightGray, gray, steel, iron]
+
+    /// Where it lands, a rung darker than the golds do.
+    ///
+    /// Darker on purpose: the two halves have to stay tellable apart down there,
+    /// and if both ramps ended in the same place the pair would merge into one
+    /// grey figure at exactly the moment Soul Split makes knowing which is which
+    /// matter most.
+    static let pieceSilverStoneTones: [Color] = [stone, iron, warmBlack, warmBlack]
+
     /// The piece redrawn in an element's own colours.
     ///
     /// ## Why a swap and not a blend

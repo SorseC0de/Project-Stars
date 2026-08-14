@@ -39,13 +39,22 @@ struct SplitHalfView: View {
     /// Which side of the figure survives the crop.
     let side: Side
 
+    /// Which drawing this half is.
+    ///
+    /// Gemini has one of its own — the twin that stays behind — so it is drawn
+    /// rather than cut out of the pair. Every other sign that ever splits falls
+    /// back to being masked in half, which is what this view was built for.
+    private var spriteID: SpriteID {
+        zodiac == .gemini ? .geminiHalf(.silver) : .piece(zodiac)
+    }
+
     /// Dimmed, for the half that is not taking this turn.
     var isWaiting = false
 
     enum Side { case left, right }
 
     var body: some View {
-        PixelSprite(id: .piece(zodiac)) { Color.clear }
+        PixelSprite(id: spriteID) { Color.clear }
             .frame(width: tileSize, height: tileSize * 2)
             .mask(alignment: side == .left ? .leading : .trailing) {
                 Rectangle().frame(width: tileSize / 2)

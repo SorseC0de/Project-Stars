@@ -1196,6 +1196,7 @@ struct BoardView: View {
             scale: metrics.scale,
             plane: session.visiblePlane,
             isCharged: session.engine.isZodiactionReady,
+            isSplit: session.engine.isSplit,
             movement: session.movement,
             facing: session.engine.piece.facing,
             isFalling: session.isFalling,

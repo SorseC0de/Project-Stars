@@ -311,8 +311,15 @@ struct ReflectiveRiftsView: View {
         // Half again as long and appreciably thicker. A doorway you have to
         // look for is a doorway players walk past — and these are the whole of
         // how Gemini crosses the board.
-        let width = isVerticalEdge ? tile * 1.05 : tile * 0.48
-        let height = isVerticalEdge ? tile * 0.48 : tile * 1.05
+        // Thicker, not longer.
+        //
+        // "Bigger" was read as the long axis, which stretched each doorway along
+        // the edge it sits on until it ran into its neighbours — the run of them
+        // read as one band rather than as several openings. It is the *depth*
+        // that was too slight to see, so the long axis goes back to where it was
+        // and the short one grows.
+        let width = isVerticalEdge ? tile * 0.72 : tile * 0.62
+        let height = isVerticalEdge ? tile * 0.62 : tile * 0.72
 
         // The rifts hang off the four board edges, so only the cardinals ever
         // reach here.
