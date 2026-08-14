@@ -54,9 +54,9 @@ struct CloudSpriteView: View {
                 now: now, impulseNow: wall, wake: wake, bounce: bounce
             )
 
-            let art = flashed(recoloured(
+            let art = flashed((
                 PixelSprite(id: .astraCloud(.at(point)), frame: motion.frame) { EmptyView() }
-                .paletteSwap(GameRules.cloudWearSwaps(health, shade: .at(point)))
+                    .paletteSwap(bodySwaps)
                     .frame(width: motion.size.width, height: motion.size.height)
                     .scaleEffect(x: motion.isFlipped ? -1 : 1, y: 1)
             ))
@@ -142,13 +142,27 @@ struct CloudSpriteView: View {
         }
     }
 
-    @ViewBuilder
-    private func recoloured(_ art: some View) -> some View {
-        if swaps.isEmpty {
-            art
-        } else {
-            art.paletteSwap(swaps)
-        }
+    /// The one swap set this cloud is drawn through.
+    ///
+    /// ## Why they cannot stack
+    ///
+    /// A swap maps *from* a specific palette entry. The wear swaps replace the
+    /// violets with browns or purples, so a raised swap applied afterwards goes
+    /// looking for violets that are no longer there and finds only whichever
+    /// tones wear happened to leave alone — half the ramp moves and half does
+    /// not, which is a cloud with its shading torn in two. That is the pop-up
+    /// square's bug.
+    ///
+    /// So it is one or the other, and lifted wins. A raised square is saying
+    /// *there is a Pentacle here*, which is the more urgent of the two facts;
+    /// the wear is still legible from the size, and the coin is about to take
+    /// the square away regardless.
+    /// A heal flash is the third claimant and outranks both. It maps from the
+    /// violets as well, so the body has to still be wearing them — and a square
+    /// being mended has no business advertising how worn it was a moment ago.
+    private var bodySwaps: [PaletteSwap] {
+        if healFlash != nil { return [] }
+        return swaps.isEmpty ? GameRules.cloudWearSwaps(health, shade: .at(point)) : swaps
     }
 }
 
@@ -175,6 +189,9 @@ extension CloudSpriteView {
     ///
     /// Lightest to lightest and darkest to darkest throughout: a ramp swapped
     /// out of order turns a rounded shape inside out.
+    ///
+    /// These **replace** the wear colours rather than stacking on them — see
+    /// `bodySwaps`.
     static let raisedSwaps: [PaletteSwap] = [
         // Stars: light blue becomes white.
         PaletteSwap(Palette.lightBlue, Palette.white),
