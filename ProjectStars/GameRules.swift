@@ -1232,10 +1232,14 @@ enum GameRules {
 
     /// How far the far arm sits from the near one, in profile.
     ///
-    /// Nothing, for now: the art is a vertical flip of the near arm and the
-    /// depth reads from the z-order rather than from a height difference. A
-    /// number here is the first thing to try if the two read as flat.
-    static var libraArmLiftEWBack: CGFloat = 3
+    /// Far higher than the near one, and not for depth's sake.
+    ///
+    /// The pans have to land on the squares the scales actually damage, and in
+    /// profile those are the tiles ahead of and behind Libra — a whole tile
+    /// apart up the screen. So the far arm is lifted most of a tile above the
+    /// near one, which is what puts its pan over the right ground rather than
+    /// hovering above her shoulder.
+    static var libraArmLiftEWBack: CGFloat = 24
 
     /// How far each arm sits from centre when facing toward or away.
     ///
@@ -1253,10 +1257,19 @@ enum GameRules {
     /// Its own number because the two are not rigidly joined: an arm reaches
     /// out and the pan hangs *plumb* from its end, so the horizontal that suits
     /// the arm is not necessarily the one that suits what dangles off it.
-    static var libraScalesInsetX: CGFloat = 0
+    static var libraScalesInsetX: CGFloat = -6
 
     /// The gap between an arm's lowest pixel and the top of its pans.
-    static var libraScalesGap: CGFloat = 2
+    ///
+    /// One per pose, because the pans are aiming at something: Equitable Impact
+    /// trenches the two squares *flanking* Libra, and the art was drawn so the
+    /// pans sit over the middle of those squares. A single gap can put them on
+    /// the right tiles from one angle only — in profile the far pan is a whole
+    /// tile further up the screen than the near one, and it has to be, because
+    /// the tile it belongs to is.
+    static var libraScalesGapNS: CGFloat = 0
+    static var libraScalesGapEW: CGFloat = 3
+    static var libraScalesGapEWBack: CGFloat = 3
 
     /// Where an arm's lowest pixel sits inside its own cell, from the top.
     ///

@@ -131,7 +131,7 @@ struct LibraPieceView: View {
             .offset(
                 x: armInset(side) + scalesInset(side),
                 y: armLift(side) + sway * scale
-                    + (GameRules.libraArmFootInCell + GameRules.libraScalesGap) * scale
+                    + (GameRules.libraArmFootInCell + scalesGap(side)) * scale
             )
     }
 
@@ -156,6 +156,16 @@ struct LibraPieceView: View {
     private func armInset(_ side: Side) -> CGFloat {
         guard !isProfile else { return 0 }
         return (side == .left ? 1 : -1) * GameRules.libraArmInsetNS * scale
+    }
+
+    /// How far this pan hangs below its arm.
+    ///
+    /// Per pose, since the pans are aiming at the squares the scales damage and
+    /// those are in different places from each angle — see
+    /// `GameRules.libraScalesGapNS`.
+    private func scalesGap(_ side: Side) -> CGFloat {
+        guard isProfile else { return GameRules.libraScalesGapNS }
+        return side == .far ? GameRules.libraScalesGapEWBack : GameRules.libraScalesGapEW
     }
 
     /// The pans' own horizontal, on top of the arm's.
@@ -193,7 +203,9 @@ private struct LibraBench: View {
     @State private var liftEW = GameRules.libraArmLiftEW
     @State private var liftEWBack = GameRules.libraArmLiftEWBack
     @State private var insetNS = GameRules.libraArmInsetNS
-    @State private var gap = GameRules.libraScalesGap
+    @State private var gapNS = GameRules.libraScalesGapNS
+    @State private var gapEW = GameRules.libraScalesGapEW
+    @State private var gapEWBack = GameRules.libraScalesGapEWBack
     @State private var scalesX = GameRules.libraScalesInsetX
     @State private var sway = false
     @State private var zoom: CGFloat = 6
@@ -238,10 +250,12 @@ private struct LibraBench: View {
 
                 slider("Arm lift N/S", $liftNS, 0...24)
                 slider("Arm lift E/W near", $liftEW, 0...24)
-                slider("Arm lift E/W far", $liftEWBack, 0...24)
+                slider("Arm lift E/W far", $liftEWBack, 0...40)
                 slider("Arm inset N/S", $insetNS, -12...12)
-                slider("Scales gap", $gap, -8...16)
-                slider("Scales x", $scalesX, -12...12)
+                slider("Scales gap N/S", $gapNS, -8...24)
+                slider("Scales gap E/W near", $gapEW, -8...24)
+                slider("Scales gap E/W far", $gapEWBack, -8...24)
+                slider("Scales x", $scalesX, -16...16)
                 slider("Zoom", $zoom, 2...12, unit: "x")
 
                 Toggle("Animate", isOn: $sway)
@@ -258,7 +272,9 @@ private struct LibraBench: View {
         .onChange(of: liftEW) { _, new in GameRules.libraArmLiftEW = new }
         .onChange(of: liftEWBack) { _, new in GameRules.libraArmLiftEWBack = new }
         .onChange(of: insetNS) { _, new in GameRules.libraArmInsetNS = new }
-        .onChange(of: gap) { _, new in GameRules.libraScalesGap = new }
+        .onChange(of: gapNS) { _, new in GameRules.libraScalesGapNS = new }
+        .onChange(of: gapEW) { _, new in GameRules.libraScalesGapEW = new }
+        .onChange(of: gapEWBack) { _, new in GameRules.libraScalesGapEWBack = new }
         .onChange(of: scalesX) { _, new in GameRules.libraScalesInsetX = new }
     }
 
@@ -269,7 +285,9 @@ private struct LibraBench: View {
         libraArmLiftEW      = \(Int(liftEW))
         libraArmLiftEWBack  = \(Int(liftEWBack))
         libraArmInsetNS     = \(Int(insetNS))
-        libraScalesGap      = \(Int(gap))
+        libraScalesGapNS    = \(Int(gapNS))
+        libraScalesGapEW    = \(Int(gapEW))
+        libraScalesGapEWBack= \(Int(gapEWBack))
         libraScalesInsetX   = \(Int(scalesX))
         """
     }
