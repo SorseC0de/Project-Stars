@@ -46,6 +46,22 @@ struct LibraPieceView: View {
     /// True while the meter is full, which is the only time the strings are lit.
     var isCharged = false
 
+    /// The body's hop, so the hanging parts can decline it.
+    var pose: HopPose = .rest
+
+    /// Stone and moss, applied to one part at a time.
+    ///
+    /// Handed in rather than applied over the finished assembly, because the
+    /// moss shader maps screen position onto art pixels — over a stack of
+    /// offset parts it shades each as though it sat at the origin, so the
+    /// overgrowth ignored every offset that puts an arm where it belongs.
+    /// Flattening the stack first would fix the coordinates and clip the arms
+    /// off, since they are drawn outside the body's frame on purpose.
+    ///
+    /// Each part shaded in its own space is both correct and what the shader was
+    /// designed for: it is a per-sprite effect, and these are five sprites.
+    var stone: ((AnyView, CGFloat) -> AnyView)?
+
     @Environment(\.ambientClock) private var ambientClock
 
     var body: some View {
@@ -69,8 +85,11 @@ struct LibraPieceView: View {
                     arm(side: .right, sway: sway)
                 }
 
-                PixelSprite(id: .piece(.libra)) { Color.clear }
-                    .frame(width: tileSize, height: tileSize * 2)
+                shaded(
+                    PixelSprite(id: .piece(.libra)) { Color.clear }
+                        .frame(width: tileSize, height: tileSize * 2),
+                    cells: 2
+                )
 
                 // In front of the body.
                 if isProfile {
@@ -116,8 +135,11 @@ struct LibraPieceView: View {
 
     /// One arm.
     private func arm(side: Side, sway: CGFloat) -> some View {
-        PixelSprite(id: .libraArm(isProfile ? .eastWest : .northSouth)) { Color.clear }
-            .frame(width: tileSize, height: tileSize)
+        shaded(
+            PixelSprite(id: .libraArm(isProfile ? .eastWest : .northSouth)) { Color.clear }
+                .frame(width: tileSize, height: tileSize),
+            cells: 1
+        )
             // Mirrored for the left arm facing toward or away; turned over for
             // the far arm in profile. Both are the same drawing seen from
             // somewhere else.
@@ -125,13 +147,22 @@ struct LibraPieceView: View {
                 x: side == .left ? -1 : 1,
                 y: side == .far ? -1 : 1
             )
+            .modifier(Unsquashed(pose: pose))
             .offset(x: armInset(side), y: armLift(side) + sway * scale)
     }
 
     /// The pans hanging off it.
     private func pans(side: Side, sway: CGFloat) -> some View {
-        strung(PixelSprite(id: .libraScales) { Color.clear })
-            .frame(width: tileSize, height: tileSize)
+        // Pinned to one frame unless charged.
+        //
+        // Recolouring the strands to a single purple was not enough: the frames
+        // move the cords as well as tint them, so it still shimmered. Uncharged
+        // is one still drawing.
+        shaded(
+            strung(PixelSprite(id: .libraScales, frame: isCharged ? nil : 0) { Color.clear })
+                .frame(width: tileSize, height: tileSize),
+            cells: 1
+        )
             .scaleEffect(x: side == .left ? -1 : 1, y: 1)
             // Hung from the arm's lowest *pixel*, not from its cell.
             //
@@ -140,11 +171,22 @@ struct LibraPieceView: View {
             // whole cell would be six pixels too far — the arm's foot is not at
             // its cell's edge, it is five pixels clear of it, the same as
             // Libra's own.
+            .modifier(Unsquashed(pose: pose))
             .offset(
                 x: armInset(side) + scalesInset(side),
                 y: armLift(side) + sway * scale
                     + (GameRules.libraArmFootInCell + scalesGap(side)) * scale
             )
+    }
+
+    /// One part, put through whatever treatment the piece is wearing.
+    @ViewBuilder
+    private func shaded(_ art: some View, cells: CGFloat) -> some View {
+        if let stone {
+            stone(AnyView(art), cells)
+        } else {
+            art
+        }
     }
 
     /// The strings, dimmed unless the meter is full.
@@ -216,5 +258,31 @@ struct LibraPieceView: View {
     private func scalesInset(_ side: Side) -> CGFloat {
         guard !isProfile else { return 0 }
         return (side == .left ? 1 : -1) * GameRules.libraScalesInsetX * scale
+    }
+}
+
+/// Cancels the body's squash and stretch for the parts that hang off it.
+///
+/// ## Why the scales do not pancake
+///
+/// A hop flattens and stretches the *piece*, which is right for a body pushing
+/// off the ground and wrong for something dangling from it: a pan is a rigid
+/// dish on a string, and squashing it with the shoulders it hangs from reads as
+/// the whole figure being made of rubber.
+///
+/// The arms and pans are drawn inside the piece, so they inherit that transform
+/// whether they want it or not. Inverting it here is cheaper and more honest
+/// than lifting them out of the piece, which would cost them everything else the
+/// piece carries — its position, its shadow, its charge glow.
+private struct Unsquashed: ViewModifier {
+
+    let pose: HopPose
+
+    func body(content: Content) -> some View {
+        content.scaleEffect(
+            x: pose.scaleX == 0 ? 1 : 1 / pose.scaleX,
+            y: pose.scaleY == 0 ? 1 : 1 / pose.scaleY,
+            anchor: .top
+        )
     }
 }

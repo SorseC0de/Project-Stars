@@ -149,23 +149,34 @@ struct PieceView: View {
             recoloured(sprite)
 
         case .terra:
-            sprite
-                .paletteSwap(stoneSwaps)
-                .paletteMoss(
-                    colors: Palette.mossTones,
-                    // The gem survives the overgrowth: it is the one pixel that
-                    // has to stay readable.
-                    keeping: [gem.dim, gem.lit],
-                    viewSize: CGSize(width: tileSize, height: tileSize * 2),
-                    artSize: CGSize(
-                        width: GameRules.tilePixelSize,
-                        height: GameRules.tilePixelSize * 2
-                    ),
-                    // Seeded per sign, so no two are overgrown alike.
-                    seed: Float(abs(zodiac.rawValue.hashValue % 10_000)),
-                    coverage: GameRules.pieceMossCoverage
-                )
+            stoned(sprite, cells: 2)
         }
+    }
+
+    /// Stone and overgrowth, over one sprite.
+    ///
+    /// Takes the sprite's own height in cells because the moss shader maps
+    /// screen position onto art pixels: hand it the wrong size and the
+    /// overgrowth is scattered on a grid that does not line up with the drawing.
+    /// A piece is two cells tall and Libra's arms and pans are one each, which
+    /// is why this is a parameter rather than a constant.
+    func stoned(_ art: some View, cells: CGFloat) -> some View {
+        art
+            .paletteSwap(stoneSwaps)
+            .paletteMoss(
+                colors: Palette.mossTones,
+                // The gem survives the overgrowth: it is the one pixel that
+                // has to stay readable.
+                keeping: [gem.dim, gem.lit],
+                viewSize: CGSize(width: tileSize, height: tileSize * cells),
+                artSize: CGSize(
+                    width: CGFloat(GameRules.tilePixelSize),
+                    height: CGFloat(GameRules.tilePixelSize) * cells
+                ),
+                // Seeded per sign, so no two are overgrown alike.
+                seed: Float(abs(zodiac.rawValue.hashValue % 10_000)),
+                coverage: GameRules.pieceMossCoverage
+            )
     }
 
     /// The sprite redrawn in whichever element it is currently wearing.
@@ -215,7 +226,11 @@ struct PieceView: View {
                 facing: facing,
                 tileSize: tileSize,
                 scale: scale,
-                isCharged: isGilded
+                isCharged: isGilded,
+                pose: pose,
+                stone: (isGilded ? .astra : plane) == .terra
+                    ? { AnyView(stoned($0, cells: $1)) }
+                    : nil
             )
             // Deliberately *not* flattened.
             //
