@@ -213,9 +213,12 @@ struct LibraPieceView: View {
     }
 
     /// The colours the cords are drawn in, across the three frames.
+    ///
+    /// Sampled from the sheet, not guessed. The guess had cyan, sakura and
+    /// yellowGreen — none of which are in the art — and missed magenta, which is
+    /// most of what was still showing through.
     private static let stringTones: [Color] = [
-        Palette.cyan, Palette.lightBlue, Palette.pink,
-        Palette.sakura, Palette.yellow, Palette.yellowGreen,
+        Palette.lightBlue, Palette.magenta, Palette.pink, Palette.yellow,
     ]
 
     // MARK: - Placement
@@ -279,10 +282,15 @@ private struct Unsquashed: ViewModifier {
     let pose: HopPose
 
     func body(content: Content) -> some View {
+        // `.bottom`, matching the anchor the piece squashes from.
+        //
+        // An inverse taken about a different point is not an inverse: it undoes
+        // the scale and leaves a translation behind, so the parts came out the
+        // right shape in the wrong place — which reads as still scaling.
         content.scaleEffect(
             x: pose.scaleX == 0 ? 1 : 1 / pose.scaleX,
             y: pose.scaleY == 0 ? 1 : 1 / pose.scaleY,
-            anchor: .top
+            anchor: .bottom
         )
     }
 }

@@ -141,15 +141,26 @@ struct PieceView: View {
     /// Gold in the sky, mossy stone on the ground.
     @ViewBuilder
     private var material: some View {
-        // Colour burns the stone off: gold on both planes for as long as it
-        // lasts, which is most of how you can tell at a glance that something is
-        // up — and the gold is then swapped for whichever element is being worn.
-        switch isGilded ? .astra : plane {
-        case .astra:
-            recoloured(sprite)
+        // Libra shades her own five parts and must not be shaded again here.
+        //
+        // Doing both is what kept the moss off her arms: the per-part pass put
+        // it where it belonged and this one then laid a second, whole-figure
+        // coat over the top in the composite's coordinate space — which is the
+        // misaligned one, and the one on screen.
+        if zodiac == .libra {
+            sprite
+        } else {
+            // Colour burns the stone off: gold on both planes for as long as it
+            // lasts, which is most of how you can tell at a glance that
+            // something is up — and the gold is then swapped for whichever
+            // element is being worn.
+            switch isGilded ? .astra : plane {
+            case .astra:
+                recoloured(sprite)
 
-        case .terra:
-            stoned(sprite, cells: 2)
+            case .terra:
+                stoned(sprite, cells: 2)
+            }
         }
     }
 
@@ -228,9 +239,13 @@ struct PieceView: View {
                 scale: scale,
                 isCharged: isGilded,
                 pose: pose,
+                // Whatever this piece is made of right now, applied one part at
+                // a time. Gold in the sky, mossy stone on the ground — the same
+                // choice `material` makes for everyone else, handed down instead
+                // of applied over the top.
                 stone: (isGilded ? .astra : plane) == .terra
                     ? { AnyView(stoned($0, cells: $1)) }
-                    : nil
+                    : { part, _ in AnyView(recoloured(part)) }
             )
             // Deliberately *not* flattened.
             //
