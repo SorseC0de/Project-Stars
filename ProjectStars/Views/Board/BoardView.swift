@@ -1371,11 +1371,13 @@ struct BoardView: View {
         // The square Leo stood on `step + 1` turns ago. They are walking his
         // route, not orbiting him — see `SignState.trail`.
         if step + 1 < trail.count { return trail[step + 1] }
-        if let last = trail.last { return last }
 
-        // Only before the queue has anything in it, which is the turn the
-        // phantom is summoned. Behind the facing is the right answer for exactly
-        // that one moment.
+        // Not `trail.last`, which is where Leo is standing right now.
+        //
+        // The queue is one entry short on the turn a phantom is summoned and on
+        // the turn after it, and falling back to the newest entry put the
+        // phantom directly on top of the lion until the queue caught up. Behind
+        // the facing is the right answer for exactly those turns.
         let back = piece.facing.opposite.unitOffset
         let size = session.visibleBoard.size
         return GridPoint(
