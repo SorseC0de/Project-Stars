@@ -26,7 +26,7 @@ extension Color {
 // MARK: - Palette swap
 
 /// One entry replaced by another.
-struct PaletteSwap {
+struct PaletteSwap: Hashable {
     let from: Color
     let to: Color
 

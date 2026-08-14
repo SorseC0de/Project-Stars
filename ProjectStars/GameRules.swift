@@ -853,15 +853,53 @@ enum GameRules {
     /// third cloud by hand for something a filter says exactly.
     static func cloudWear(
         _ health: TileHealth
-    ) -> (hue: Double, saturation: Double, luminance: Double) {
+    ) -> (saturation: Double, luminance: Double) {
         switch health {
-        case .healthy: (0, 1.00, 1.00)
-        // Orange: warm, obviously not the sky's colour, still healthy-looking
-        // enough to be a warning rather than a verdict.
-        case .cracked: (80, 0.95, 0.95)
-        // Red, which needs no explaining to anybody.
-        case .badlyCracked: (50, 1.10, 0.80)
-        case .hole: (0, 0, 0)
+        case .healthy: (1.00, 1.00)
+        // Nothing at all. The colour is doing the work — see `cloudWearSwaps`.
+        case .cracked: (1.00, 1.00)
+        // A shade further down on both, so the last warning is dimmer as well
+        // as differently coloured.
+        case .badlyCracked: (0.85, 0.85)
+        case .hole: (0, 0)
+        }
+    }
+
+    /// The palette entries a worn cloud is repainted in.
+    ///
+    /// ## Why a swap and not a filter
+    ///
+    /// Orange was legible and read as a different *object* — a cloud on fire
+    /// rather than a cloud wearing out. The problem with a hue rotation is that
+    /// it does not know what the palette contains: it moves everything by an
+    /// angle and lands wherever that is, which for a magenta sky is somewhere no
+    /// other art in this game has ever been.
+    ///
+    /// The palette already has the answer. Its lower rows are naturally
+    /// desaturated purples — the same family as the sky, drained of life — which
+    /// is what a cloud coming apart should look like, and they are on-palette by
+    /// construction rather than by luck.
+    ///
+    /// Badly cracked keeps its red, because the last warning before a hole
+    /// should not be subtle.
+    static func cloudWearSwaps(_ health: TileHealth) -> [PaletteSwap] {
+        switch health {
+        case .cracked:
+            [
+                PaletteSwap(Palette.pink, Palette.lavender),
+                PaletteSwap(Palette.magenta, Palette.dusk),
+                PaletteSwap(Palette.darkMagenta, Palette.navy),
+                PaletteSwap(Palette.purple, Palette.midnight),
+            ]
+        case .badlyCracked:
+            [
+                PaletteSwap(Palette.pink, Palette.blush),
+                PaletteSwap(Palette.magenta, Palette.red),
+                PaletteSwap(Palette.darkMagenta, Palette.darkRed),
+                PaletteSwap(Palette.purple, Palette.maroon),
+            ]
+        default:
+            []
         }
     }
 

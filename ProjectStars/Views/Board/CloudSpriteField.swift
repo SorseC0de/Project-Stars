@@ -120,6 +120,13 @@ struct CloudSpriteField: View {
             * GameRules.cloudSpriteScale
     }
 
+    /// A cloud's drawn identity: which square of the chequerboard it is, and
+    /// how worn.
+    private struct Look: Hashable {
+        let shade: Palette.TileShade
+        let health: TileHealth
+    }
+
     /// How far a cloud may hang past the board and still be drawn.
     ///
     /// One whole cloud's width, which is more than any of them needs — the
@@ -138,13 +145,22 @@ struct CloudSpriteField: View {
         // expensive half of drawing an image, and there are only ever six
         // distinct ones however many squares are on the board.
         let frame = pingPong(at: now)
-        var resolved: [Palette.TileShade: GraphicsContext.ResolvedImage] = [:]
+        var resolved: [Look: GraphicsContext.ResolvedImage] = [:]
 
+        // One resolved image per shade *and* wear state. Still a handful —
+        // two shades by four states — and each is built once for the life of
+        // the process. See `PaletteRecolour`.
         for shade in [Palette.TileShade.light, .dark] {
-            guard let art = SpriteSheetLoader.image(for: .astraCloud(shade), frame: frame) else {
-                continue
+            for health in TileHealth.allCases {
+                guard let art = PaletteRecolour.image(
+                    .astraCloud(shade),
+                    frame: frame,
+                    swaps: GameRules.cloudWearSwaps(health)
+                ) else { continue }
+
+                resolved[Look(shade: shade, health: health)] =
+                    context.resolve(Image(uiImage: art))
             }
-            resolved[shade] = context.resolve(Image(uiImage: art))
         }
         guard !resolved.isEmpty else { return }
 
@@ -164,7 +180,9 @@ struct CloudSpriteField: View {
             // cannot, and that square is the only one that needs it.
             guard !raised.contains(point) else { continue }
             guard !mending.contains(point) else { continue }
-            guard let image = resolved[.at(point)] else { continue }
+            guard let image = resolved[
+                Look(shade: .at(point), health: tile.health)
+            ] else { continue }
 
             drawCloud(
                 &context, image: image, at: point, tile: tile,
@@ -219,9 +237,6 @@ struct CloudSpriteField: View {
         // `GameRules.cloudWear`. Order matters: desaturate first, then darken,
         // or the darkening is what gets desaturated.
         let worn = GameRules.cloudWear(tile.health)
-        if worn.hue != 0 {
-            layer.addFilter(.hueRotation(.degrees(worn.hue)))
-        }
         if worn.saturation != 1 {
             layer.addFilter(.saturation(worn.saturation))
         }

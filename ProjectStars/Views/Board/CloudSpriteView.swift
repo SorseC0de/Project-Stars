@@ -56,6 +56,7 @@ struct CloudSpriteView: View {
 
             let art = flashed(recoloured(
                 PixelSprite(id: .astraCloud(.at(point)), frame: motion.frame) { EmptyView() }
+                .paletteSwap(GameRules.cloudWearSwaps(health))
                     .frame(width: motion.size.width, height: motion.size.height)
                     .scaleEffect(x: motion.isFlipped ? -1 : 1, y: 1)
             ))
@@ -66,10 +67,6 @@ struct CloudSpriteView: View {
                 // "this square is failing" and the flash says "this square was
                 // just saved" — showing both at once is the board contradicting
                 // itself, and the flash is the newer news.
-                // Skipped entirely during a heal flash, which paints the
-                // cloud white — turning the hue of white is nothing, but
-                // saturating it is, and the two together made the flash tint.
-                .hueRotation(.degrees(healFlash == nil ? motion.hue : 0))
                 .saturation(healFlash == nil ? motion.saturation : 1)
                 .colorMultiply(Color(white: healFlash == nil ? motion.luminance : 1))
                 .offset(x: motion.offset.width, y: motion.offset.height)
@@ -215,9 +212,8 @@ struct CloudMotion {
     let frame: Int
     let size: CGSize
     let offset: CGSize
-    /// How far its colour is turned toward the warm end, how much of it is
-    /// left, and how lit it is. See `GameRules.cloudWear`.
-    let hue: Double
+    /// How much colour is left in it and how lit it is. See
+    /// `GameRules.cloudWear`.
     let saturation: Double
     let luminance: Double
 
@@ -247,7 +243,6 @@ struct CloudMotion {
         frame = Self.pingPong(at: now)
         isFlipped = !stages.isMultiple(of: 2)
         let worn = GameRules.cloudWear(health)
-        hue = worn.hue
         saturation = worn.saturation
         luminance = worn.luminance
 
