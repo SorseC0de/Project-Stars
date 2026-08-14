@@ -199,6 +199,16 @@ private struct LibraBench: View {
     @State private var zoom: CGFloat = 6
 
     var body: some View {
+        // Scrollable, because the stage grows with the zoom and a control you
+        // cannot reach is a control you do not have.
+        ScrollView {
+            content
+        }
+        .background(Palette.background)
+        .preferredColorScheme(.dark)
+    }
+
+    private var content: some View {
         VStack(spacing: 18) {
             stage
 
@@ -238,9 +248,9 @@ private struct LibraBench: View {
             }
             .padding(.horizontal)
         }
-        .padding(.vertical)
-        .background(Palette.background)
-        .preferredColorScheme(.dark)
+        .padding(.top)
+        // Clear of the home indicator, and of the canvas' own bottom edge.
+        .padding(.bottom, 48)
         // Written straight back into the constants the game reads, so the board
         // in another preview pane shows the same thing — there is one set of
         // numbers and this is a window onto it, not a copy.
@@ -298,7 +308,14 @@ private struct LibraBench: View {
         }
         .frame(width: CGFloat(tile) * 3, height: CGFloat(tile) * 4)
         .scaleEffect(zoom)
-        .frame(height: CGFloat(tile) * 4 * 12)
+        // Room for the figure and no more.
+        //
+        // It used to claim a fixed height sized for the largest zoom, which on a
+        // canvas the size of a phone pushed the controls off the bottom — the
+        // sliders were there, below the screen, which reads as them not existing.
+        // The stage takes what the zoom actually needs and the controls keep the
+        // rest.
+        .frame(maxHeight: CGFloat(tile) * 4 * zoom)
     }
 
     private func slider(
