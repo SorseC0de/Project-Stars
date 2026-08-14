@@ -27,14 +27,71 @@ enum MovementStyle: String, CaseIterable, Codable {
 
     /// The piece leaves the ground and lands, wearing **only the destination**.
     /// Whatever it passes over is untouched, including holes.
-    case jump
+    ///
+    /// The ordinary short arc — one square, or a sign's own two or three.
+    case hop
+
+    /// A hop that is *about* leaving the ground: far higher, far slower, and
+    /// pancaked on the way down.
+    ///
+    /// Identical to `hop` in what it touches, and different in everything the
+    /// player sees — Taurus' Flowering Flop, Pisces' dive, Sagittarius going
+    /// after his own arrow. It is a separate case rather than a flag on `hop`
+    /// because the distinction is not "how far": a three-square stride is still
+    /// a hop, and a leap that lands where it started is still a leap.
+    case leap
+
+    /// The piece runs, standing on **every square on the way** and charging each
+    /// one as it leaves it — one turn however far it goes.
+    ///
+    /// Between the other two rather than a variant of either. A slide is carried
+    /// and touches only its ends; a jump is airborne and touches only where it
+    /// lands; a charge is *walked*, so every square is both stood on and left,
+    /// and the damage is charged on the way out.
+    ///
+    /// Aries' Brazen Blaze is the only thing that moves this way today, and it
+    /// was built as a pile of hand-written events inside the sign — which is why
+    /// nothing else could reuse it, and why its wear, its balk and its effects
+    /// each had to be special-cased somewhere else. Naming the *style* puts it
+    /// where `travel` can drive it like the other two.
+    case charge
+
+    /// The piece is somewhere else, without having been anywhere in between.
+    ///
+    /// Astral Breeze, Aquarius' corners, Sagittarius recalling his arrow, the
+    /// island carrying its passenger. It touches its destination and nothing
+    /// else — not even the square it left, since it did not push off from it.
+    ///
+    /// Named here because half the game already asks the question and each place
+    /// answered it its own way: the retinue restarts its queue for one, the
+    /// cursor projects differently for another, the wake fires for a third. One
+    /// case they can all read is the point.
+    case warp
 
     var displayName: String {
         switch self {
         case .slide: "Slide"
-        case .jump: "Jump"
+        case .hop: "Hop"
+        case .leap: "Leap"
+        case .charge: "Charge"
+        case .warp: "Warp"
         }
     }
+
+    /// Whether the squares between the ends are stood on.
+    ///
+    /// The question `travel` actually asks, rather than a list of cases at each
+    /// site that has to be kept in step with this one.
+    var touchesEverySquare: Bool { self == .charge }
+
+    /// Whether this leaves the ground, and so touches nothing it passes over.
+    var isAirborne: Bool { self == .hop || self == .leap }
+
+    /// Whether the squares between the ends were crossed at all.
+    ///
+    /// False for a warp, which is the distinction the retinue, the wake and the
+    /// cursor were each making for themselves.
+    var travelsTheGround: Bool { self == .slide || self == .charge }
 }
 
 // MARK: - MovementPattern
@@ -245,7 +302,7 @@ struct MovementPattern: Equatable {
     static let cardinalGlide = MovementPattern(name: "Glide", distance: 2, style: .slide)
 
     /// Two squares orthogonally, leaving the square in between untouched.
-    static let cardinalLeap = MovementPattern(name: "Leap", distance: 2, style: .jump)
+    static let cardinalLeap = MovementPattern(name: "Leap", distance: 2, style: .hop)
 
     // MARK: Per-sign patterns
 
@@ -268,7 +325,7 @@ struct MovementPattern: Equatable {
         name: "Vault",
         options: [
             MoveOption(.any, distance: 1, style: .slide),
-            MoveOption(.any, distance: 2, style: .jump),
+            MoveOption(.any, distance: 2, style: .hop),
         ]
     )
 
@@ -314,8 +371,8 @@ struct MovementPattern: Equatable {
             // direction it was already looking, so it never had a reason to turn
             // — and the every-other-turn cooldown had already paid for the reach
             // twice over.
-            MoveOption(.any, distance: 2, style: .jump),
-            MoveOption(.relative(.forward), distance: 3, style: .jump),
+            MoveOption(.any, distance: 2, style: .hop),
+            MoveOption(.relative(.forward), distance: 3, style: .hop),
         ]
     )
 
@@ -326,7 +383,7 @@ struct MovementPattern: Equatable {
         name: "Climber",
         options: [
             MoveOption(.any, distance: 1, style: .slide),
-            MoveOption(.absolute(.up), distance: 2, style: .jump),
+            MoveOption(.absolute(.up), distance: 2, style: .hop),
         ]
     )
 }

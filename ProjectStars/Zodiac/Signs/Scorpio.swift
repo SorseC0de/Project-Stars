@@ -93,7 +93,7 @@ struct ScorpioVoidCulling: ZodiacPassive {
         path: [GridPoint],
         context: PassiveContext
     ) -> Bool {
-        guard option.style == .jump, option.distance > 1 else { return true }
+        guard option.style == .hop, option.distance > 1 else { return true }
 
         // Derived from the origin rather than read off `path`, because a jump's
         // path is its destination alone — the squares it flies over are exactly

@@ -371,7 +371,7 @@ struct GameEngine {
         let base = piece.zodiac.movement
         let borrowed = signState.retinue.flatMap { follower in
             follower.movement.options
-                .filter { $0.distance > 1 || $0.style == .jump || $0.reachesWall }
+                .filter { $0.distance > 1 || $0.style == .hop || $0.reachesWall }
                 .map { option -> MovementPattern.MoveOption in
                     var lent = option
                     lent.owner = follower
@@ -838,7 +838,7 @@ struct GameEngine {
         // A jump flies over the squares between origin and destination; any of
         // those that were open are holes it cleared. A slide settles on every
         // square it crosses, so it can never clear one.
-        if move.style == .jump, !landing.fell {
+        if move.style == .hop, !landing.fell {
             landing.holesJumped = Self.squaresBetween(origin, move.destination)
                 // The Nexys' chasm is not a hole anybody made and not one that
                 // can ever be mended, so clearing it is not an achievement —
@@ -1478,8 +1478,8 @@ struct GameEngine {
                wrapped.allSatisfy({ currentBoard.contains($0) }) {
                 var through = ResolvedMove(
                     path: wrapped,
-                    style: .jump,
-                    option: MovementPattern.MoveOption(.any, distance: 1, style: .jump),
+                    style: .hop,
+                    option: MovementPattern.MoveOption(.any, distance: 1, style: .hop),
                     origin: piece.point
                 )
                 through.usedRift = true
@@ -1883,11 +1883,29 @@ struct GameEngine {
         // that is true of a move with no middle. Left alone, every ordinary step
         // in the game charged its exit tile, pressed the ground, and swept
         // coins over the piece's head.
-        let effective: MovementStyle = path.count > 1 ? style : .jump
+        let effective: MovementStyle = path.count > 1 ? style : .hop
 
         switch effective {
-        case .jump:
-            // A leap touches only where it lands.
+        case .charge:
+            // Every square, and each one charged as it is left — the difference
+            // between running across ground and being carried over it.
+            for square in path {
+                let departure = departCurrentTile(force: true, cause: .brazenBlaze)
+                result.absorb(departure)
+
+                let step = GameEvent.pieceStepped(
+                    from: piece.point, to: square, plane: piece.plane
+                )
+                result.events.append(step)
+                result.covered.append(square)
+                apply(step)
+
+                if isGameOver { return result }
+            }
+            result.absorb(settle(arrivedByFalling: false))
+
+        case .hop, .leap:
+            // Airborne: touches only where it lands.
             guard let destination = path.last else { return result }
 
             let hop = GameEvent.pieceStepped(
@@ -1899,6 +1917,19 @@ struct GameEngine {
             result.covered.append(destination)
             apply(hop)
 
+            result.absorb(settle(arrivedByFalling: false))
+
+        case .warp:
+            // Arrives, and that is all. No push-off, nothing crossed.
+            guard let destination = path.last else { return result }
+
+            let jump = GameEvent.pieceTeleported(
+                from: piece.point, to: destination,
+                fromPlane: piece.plane, toPlane: piece.plane
+            )
+            result.events.append(jump)
+            result.covered.append(destination)
+            apply(jump)
             result.absorb(settle(arrivedByFalling: false))
 
         case .slide:
@@ -2486,7 +2517,8 @@ struct GameEngine {
         to point: GridPoint,
         on plane: Plane,
         arrivedByFalling: Bool,
-        onExit: Bool = false
+        onExit: Bool = false,
+        cause: WearCause = .landing
     ) -> LandingResult {
         var result = LandingResult()
         func commit(_ event: GameEvent) {
@@ -2501,10 +2533,12 @@ struct GameEngine {
             point: point,
             plane: plane,
             arrivedByFalling: arrivedByFalling,
-            stages: GameRules.wearPerLanding,
+            stages: cause.stages(on: plane),
             signState: signState
         )
-        let final = activePassives.modifyWear(proposal, context: passiveContext)
+        var seeded = proposal
+        seeded.cause = cause
+        let final = activePassives.modifyWear(seeded, context: passiveContext)
 
         if final.signState != signState {
             commit(.signStateChanged(final.signState))
@@ -2585,7 +2619,13 @@ struct GameEngine {
     /// - Parameter force: True when the move charges its start tile whatever the
     ///   sign's timing says — which a slide always does, since the two ends are
     ///   the only ground it touches.
-    private mutating func departCurrentTile(force: Bool = false) -> LandingResult {
+    /// - Parameter cause: What is charging the tile, for anything that wears
+    ///   differently or draws differently — a charge burns twice as deep and
+    ///   leaves fire. See `WearCause`.
+    private mutating func departCurrentTile(
+        force: Bool = false,
+        cause: WearCause = .landing
+    ) -> LandingResult {
         guard force || activePassives.wearTiming(context: passiveContext) == .onExit else {
             return LandingResult()
         }
@@ -2595,7 +2635,10 @@ struct GameEngine {
             on: self[plane][point], at: point, plane: plane, context: passiveContext
         ) else { return LandingResult() }
 
-        return applyWear(to: point, on: plane, arrivedByFalling: false, onExit: true)
+        return applyWear(
+            to: point, on: plane,
+            arrivedByFalling: false, onExit: true, cause: cause
+        )
     }
 
     /// Collects the revealed Pentacle if the piece came to rest on it.
