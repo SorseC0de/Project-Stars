@@ -43,6 +43,9 @@ struct LibraPieceView: View {
     /// Whole-pixel scale, for art-pixel offsets.
     let scale: CGFloat
 
+    /// True while the meter is full, which is the only time the strings are lit.
+    var isCharged = false
+
     @Environment(\.ambientClock) private var ambientClock
 
     var body: some View {
@@ -127,7 +130,7 @@ struct LibraPieceView: View {
 
     /// The pans hanging off it.
     private func pans(side: Side, sway: CGFloat) -> some View {
-        PixelSprite(id: .libraScales) { Color.clear }
+        strung(PixelSprite(id: .libraScales) { Color.clear })
             .frame(width: tileSize, height: tileSize)
             .scaleEffect(x: side == .left ? -1 : 1, y: 1)
             // Hung from the arm's lowest *pixel*, not from its cell.
@@ -143,6 +146,35 @@ struct LibraPieceView: View {
                     + (GameRules.libraArmFootInCell + scalesGap(side)) * scale
             )
     }
+
+    /// The strings, dimmed unless the meter is full.
+    ///
+    /// They are drawn as three bright cords and cycle colour across the three
+    /// frames, which is a lot of light for something that is on screen every
+    /// turn — next to a piece whose own gem is a single dim pixel until it is
+    /// charged, the scales looked lit the whole time.
+    ///
+    /// So they take the gem's own unlit purple by default and are left alone
+    /// when the meter is full. The animation is still running underneath; with
+    /// every strand mapped to one colour there is simply nothing to see, which
+    /// makes the charged version read as the strings *coming on* rather than as
+    /// a different drawing.
+    @ViewBuilder
+    private func strung(_ art: some View) -> some View {
+        if isCharged {
+            art
+        } else {
+            art.paletteSwap(
+                Self.stringTones.map { PaletteSwap($0, GemTones.forElement(.air).dim) }
+            )
+        }
+    }
+
+    /// The colours the cords are drawn in, across the three frames.
+    private static let stringTones: [Color] = [
+        Palette.cyan, Palette.lightBlue, Palette.pink,
+        Palette.sakura, Palette.yellow, Palette.yellowGreen,
+    ]
 
     // MARK: - Placement
 

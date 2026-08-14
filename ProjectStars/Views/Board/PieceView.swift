@@ -211,7 +211,21 @@ struct PieceView: View {
             // Assembled rather than drawn — see `LibraPieceView`. It goes here
             // so everything wrapped around a piece sprite still applies: the
             // gold swap, the charge glow, the hop's squash, the fall's spin.
-            LibraPieceView(facing: facing, tileSize: tileSize, scale: scale)
+            LibraPieceView(
+                facing: facing,
+                tileSize: tileSize,
+                scale: scale,
+                isCharged: isGilded
+            )
+            // Flattened before anything downstream shades it.
+            //
+            // The moss and the stone swap are `colorEffect`s, and a shader over
+            // a stack is applied to each layer in its own coordinate space — so
+            // the arms and pans were being mossed as though each sat at the
+            // origin, ignoring every offset that puts them where they belong.
+            // One layer in, one shader over it, and the overgrowth lands on the
+            // figure as drawn.
+            .drawingGroup()
         } else {
             PixelSprite(id: .piece(zodiac)) {
                 placeholder
