@@ -626,17 +626,18 @@ enum GameRules {
     ///
     /// Deliberately generous: mistaking a two-square vault for a one-square step
     /// is a much worse error than having to drag a little further.
-    /// How much further you drag to ask for each longer option.
+    /// How long a drag must be held before it asks for anything beyond a step.
     ///
-    /// Sagittarius has three: a step, a two-square leap, and the three-square
-    /// Vault. At seventy-eight the Vault wanted a hundred and eighty points of
-    /// drag, which is taller than the surface it is drawn on — the longest move
-    /// the archer has was not merely hard to ask for, it was unaskable.
+    /// Reach is a matter of *time* rather than distance. The panel is not tall
+    /// enough to express three options as three lengths of drag, and asking the
+    /// same finger to carry both the aim and the magnitude made both worse.
     ///
-    /// Sized so every option a sign owns fits inside the panel with room left
-    /// over, since a control you have to reach the edge of the screen to use is
-    /// a control that gets used by accident.
-    static let swipeReachStep: CGFloat = 44
+    /// This first stretch is dead: a quick flick is a step, and without a delay
+    /// every flick would collect a longer move on its way past.
+    static let swipeReachDelay: TimeInterval = 0.25
+
+    /// And how much longer for each option after that.
+    static let swipeReachHold: TimeInterval = 0.3
 
     // ──────────────────────────────────────────────────────────────────────
     // MARK: - Sprite frame rates

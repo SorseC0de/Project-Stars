@@ -130,22 +130,6 @@ enum SwipeDirection: String, CaseIterable, Identifiable {
         }
     }
 
-    /// How many distance-steps past the commit threshold a drag ran.
-    ///
-    /// This is the whole variable-distance control scheme: a short flick is
-    /// reach `0` and takes the nearest option, each further
-    /// `GameRules.swipeReachStep` points adds one. Patterns with a single option
-    /// per direction ignore it entirely, so it costs nothing for the signs that
-    /// do not use it.
-    static func reach(for translation: CGSize) -> Int {
-        // Measured along the dominant axis, not the diagonal: a drag that wanders
-        // sideways should not quietly buy a longer move than the player aimed
-        // for.
-        let along = max(abs(translation.width), abs(translation.height))
-        let past = along - GameRules.minimumSwipeDistance
-        guard past > 0 else { return 0 }
-        return Int(past / GameRules.swipeReachStep)
-    }
 
     /// Resolves a drag translation into a direction.
     ///

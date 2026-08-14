@@ -51,63 +51,97 @@ struct SwipeInputSurface: View {
     /// lot of thumb for no decision. Aiming still needs the drag.
     let onStepForward: () -> Void
 
+    /// When the current drag began, or `nil` when nothing is held.
+    @State private var heldSince: Date?
+
+    /// Ticks while a drag is held, so the reach can grow without the finger
+    /// having to move.
+    private let pulse = Timer.publish(
+        every: 1 / 30, on: .main, in: .common
+    ).autoconnect()
+
     var body: some View {
         Color.clear
             // Makes the whole area draggable despite being fully transparent.
             .contentShape(Rectangle())
             .gesture(dragGesture)
+            .onReceive(pulse) { _ in
+                // Held still, the reach still climbs. Without this the preview
+                // only updated when the finger moved, so a player holding
+                // perfectly still — which is what you do while waiting for a
+                // longer move — saw nothing happen.
+                guard let held = heldSince, let direction = liveDirection else { return }
+                onPreview(direction, Self.reach(heldFor: Date().timeIntervalSince(held)))
+            }
     }
 
     /// One gesture decides everything.
     ///
-    /// ## Why the tap is not its own gesture any more
+    /// ## Direction from the drag, distance from the *hold*
     ///
-    /// It used to be a `TapGesture` running simultaneously, and that produced a
-    /// bug which looked like the stick misreading directions. The preview lit at
-    /// **half** the commit threshold, so any drag that finished between the two
-    /// lit an arrow, failed the commit test, and then let the tap through — and
-    /// the tap steps *forward*. Nudge the stick west while facing north and you
-    /// watch the west arrow light up and then walk north.
+    /// Reach used to come from how far you dragged, which is the wrong axis on a
+    /// surface this short. Sagittarius' three-square Vault wanted a hundred and
+    /// eighty points of travel — further than the panel is tall — so the
+    /// archer's longest move was not merely hard to ask for, it could not be
+    /// asked for at all. Every sign with a choice of distance had the same
+    /// problem in milder form: aiming and reaching fought over the same finger.
     ///
-    /// It is worst with a mouse, where a deliberate short drag is the natural
-    /// gesture and twenty-four points is a long way.
+    /// Holding separates them. The drag says *where*, the hold says *how far*,
+    /// and neither interferes with the other — which is also how the arrow
+    /// buttons already work, so the panel now has one idiom instead of two.
     ///
-    /// Two gestures with two thresholds cannot be kept in agreement. One gesture
-    /// with one rule can: **whatever the drag last showed is what the drag
-    /// does**, and a drag that showed nothing at all is a tap.
+    /// ## Why the tap survives
+    ///
+    /// A drag that never showed a direction is a tap: step forward. That is
+    /// unchanged, and it is why there is one gesture here rather than two with
+    /// thresholds that have to be kept in agreement.
     private var dragGesture: some Gesture {
-        // Zero, because this gesture is the tap as well now. The surface sits
+        // Zero, because this gesture is the tap as well. The surface sits
         // *behind* the panel's content as a sibling, so it only ever sees
-        // touches that missed a control — see the note on `SwipeInputSurface`.
+        // touches that missed a control.
         DragGesture(minimumDistance: 0)
             .onChanged { value in
-                // The preview threshold, and now the only threshold there is.
+                if heldSince == nil { heldSince = Date() }
+
                 let direction = SwipeDirection.from(
                     translation: value.translation,
                     minimumDistance: GameRules.minimumSwipeDistance * 0.5,
                     includingDiagonals: includingDiagonals
                 )
                 liveDirection = direction
-                // Distance is part of the aim for signs that offer several, so
-                // it has to be previewed, not just committed.
-                onPreview(direction, SwipeDirection.reach(for: value.translation))
+
+                let held = heldSince.map { Date().timeIntervalSince($0) } ?? 0
+                onPreview(direction, Self.reach(heldFor: held))
             }
             .onEnded { value in
-                // Read before it is cleared: this is the arrow the player was
-                // looking at when they let go.
+                // Read before they are cleared: this is the arrow the player was
+                // looking at, and the reach they had waited for.
                 let aimed = liveDirection
+                let held = heldSince.map { Date().timeIntervalSince($0) } ?? 0
 
                 liveDirection = nil
+                heldSince = nil
                 onPreview(nil, 0)
                 guard isEnabled else { return }
 
                 if let aimed {
-                    onCommit(aimed, SwipeDirection.reach(for: value.translation))
+                    onCommit(aimed, Self.reach(heldFor: held))
                 } else {
                     // Never showed a direction, so it was a tap: step the way
                     // the piece is already looking.
                     onStepForward()
                 }
             }
+    }
+
+    /// How many options past the shortest a hold of this length is asking for.
+    ///
+    /// The first stretch is dead on purpose — an ordinary step is a quick flick,
+    /// and every one of those would otherwise pick up a longer move on the way
+    /// past.
+    static func reach(heldFor seconds: TimeInterval) -> Int {
+        let past = seconds - GameRules.swipeReachDelay
+        guard past > 0 else { return 0 }
+        return Int(past / GameRules.swipeReachHold) + 1
     }
 }
