@@ -308,14 +308,17 @@ private struct LibraBench: View {
         }
         .frame(width: CGFloat(tile) * 3, height: CGFloat(tile) * 4)
         .scaleEffect(zoom)
-        // Room for the figure and no more.
+        .frame(
+            width: CGFloat(tile) * 3 * zoom,
+            height: CGFloat(tile) * 4 * zoom
+        )
+        // Reserves its own room rather than borrowing the controls'.
         //
-        // It used to claim a fixed height sized for the largest zoom, which on a
-        // canvas the size of a phone pushed the controls off the bottom — the
-        // sliders were there, below the screen, which reads as them not existing.
-        // The stage takes what the zoom actually needs and the controls keep the
-        // rest.
-        .frame(maxHeight: CGFloat(tile) * 4 * zoom)
+        // `scaleEffect` does not change a view's layout size — the figure grows
+        // visually and the box it sits in does not, so at any real zoom it drew
+        // straight over whatever came next. A `maxHeight` made that worse by
+        // letting the box shrink. The frame has to be the *scaled* size, so the
+        // stack below it starts where the drawing actually ends.
     }
 
     private func slider(
