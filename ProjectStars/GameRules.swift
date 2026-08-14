@@ -826,8 +826,24 @@ enum GameRules {
     /// square is losing what it is made of. A grey cloud in a magenta field is
     /// conspicuous rather than faint.
     ///
-    /// Luminance comes down alongside it so the two steps do not both land on
-    /// "grey" — one is washed out, the next is washed out *and* in shadow.
+    /// ## Why hue and not only saturation
+    ///
+    /// Draining the colour made both damaged states grey, and greys are hard to
+    /// rank: cracked and badly cracked looked like each other, and a cracked
+    /// cloud looked like one of the dark healthy ones on the chequerboard. Three
+    /// states were being told apart by *how much* of one thing, which is the
+    /// hardest comparison to make at a glance and the easiest to get wrong when
+    /// the neighbouring square is a different shade to begin with.
+    ///
+    /// Warm hues make it a comparison between *different* things instead. The
+    /// sky is magenta, so nothing healthy is ever orange, and red reads as worse
+    /// than orange without anybody being taught. Saturation goes back up because
+    /// a washed-out orange is a brown — the colour has to be vivid to be the
+    /// signal.
+    ///
+    /// Luminance still drops on the last step, so badly cracked is darker as
+    /// well as redder. Two signals agreeing is what makes the state before the
+    /// hole unmistakable.
     ///
     /// ## The cost
     ///
@@ -835,12 +851,17 @@ enum GameRules {
     /// project where that is worth doing: these are two states out of four, they
     /// are meant to look wrong, and the alternative is authoring a second and
     /// third cloud by hand for something a filter says exactly.
-    static func cloudWear(_ health: TileHealth) -> (saturation: Double, luminance: Double) {
+    static func cloudWear(
+        _ health: TileHealth
+    ) -> (hue: Double, saturation: Double, luminance: Double) {
         switch health {
-        case .healthy: (1.00, 1.00)
-        case .cracked: (0.55, 0.88)
-        case .badlyCracked: (0.20, 0.70)
-        case .hole: (0, 0)
+        case .healthy: (0, 1.00, 1.00)
+        // Orange: warm, obviously not the sky's colour, still healthy-looking
+        // enough to be a warning rather than a verdict.
+        case .cracked: (80, 0.95, 0.95)
+        // Red, which needs no explaining to anybody.
+        case .badlyCracked: (50, 1.10, 0.80)
+        case .hole: (0, 0, 0)
         }
     }
 

@@ -205,11 +205,12 @@ final class GameSession {
     /// A hop is drawn as an arc over `hopDuration`, and the piece is in the air
     /// for all of it. Bouncing the ground at the moment the move is *planned*
     /// would have the cloud give way before anything touched it.
-    private func landAfterHop(at point: GridPoint, on plane: Plane) {
+    /// - Parameter after: An extra wait, for the followers who jump late.
+    private func landAfterHop(at point: GridPoint, on plane: Plane, after delay: TimeInterval = 0) {
         Task { [weak self] in
             guard let self else { return }
             try? await Task.sleep(
-                nanoseconds: UInt64(self.hopDuration * 1_000_000_000)
+                nanoseconds: UInt64((self.hopDuration + delay) * 1_000_000_000)
             )
             self.bounceSurface(at: point, on: plane)
         }
@@ -1246,6 +1247,20 @@ final class GameSession {
             // so the dip is scheduled for the end of the hop rather than fired
             // here. `hopDuration` is the arc; the impact is what follows it.
             landAfterHop(at: to, on: plane)
+
+            // And every phantom lands too, a beat later each.
+            //
+            // They are bodies with weight — that is the whole reason they wear
+            // the ground — so the cloud has to give under them as it does under
+            // the lion. Scheduled off the same hop, offset by each one's beat,
+            // so the dips arrive in the order the jumps do.
+            for (step, _) in engine.signState.retinue.enumerated() {
+                landAfterHop(
+                    at: engine.retinueSquare(step: step),
+                    on: plane,
+                    after: GameRules.retinueBeat * Double(step + 1)
+                )
+            }
 
             // The crab's scuttle bubbles up on every square it crosses.
             //

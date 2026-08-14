@@ -219,7 +219,10 @@ struct CloudSpriteField: View {
         // `GameRules.cloudWear`. Order matters: desaturate first, then darken,
         // or the darkening is what gets desaturated.
         let worn = GameRules.cloudWear(tile.health)
-        if worn.saturation < 1 {
+        if worn.hue != 0 {
+            layer.addFilter(.hueRotation(.degrees(worn.hue)))
+        }
+        if worn.saturation != 1 {
             layer.addFilter(.saturation(worn.saturation))
         }
         if worn.luminance < 1 {
