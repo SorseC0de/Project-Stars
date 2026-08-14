@@ -59,19 +59,21 @@ struct ArrowView: View {
                     clock: clock
                 )
 
-                // Stacked at widening radii, like every other light in this
-                // game: additive copies saturate toward white rather than
-                // clipping, which is how a bloom gets bright instead of merely
-                // wide.
-                ForEach(0..<GameRules.arrowGlowPasses, id: \.self) { pass in
+                // `PaletteGlow`, not a blur of the whole sprite.
+                //
+                // Blurring the shaft entire is what produced an outline of light
+                // around a dark arrow: every pixel contributes, dark ones
+                // included, so the bloom is the *silhouette* smeared outward.
+                // `PaletteGlow` masks to the pixels bright enough to be a light
+                // source and blooms those, which puts the glow inside the arrow
+                // where the highlights actually are.
+                PaletteGlow(
+                    radius: GameRules.arrowGlowRadius * scale,
+                    intensity: (0.5 + 0.5 * pulse) * GameRules.arrowGlowIntensity,
+                    trail: GameRules.arrowGlowPasses - 1
+                ) {
                     shaft
-                        .blur(radius: GameRules.arrowGlowRadius * scale
-                            * (1 + CGFloat(pass) * 0.8))
-                        .opacity((0.5 + 0.5 * pulse) * GameRules.arrowGlowIntensity)
-                        .blendMode(.plusLighter)
                 }
-
-                shaft
             }
         }
         .allowsHitTesting(false)

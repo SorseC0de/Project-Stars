@@ -410,7 +410,7 @@ enum EffectSprite: String, CaseIterable, Hashable {
         case .sagittariusTeleTile: CGSize(width: 1, height: 0)
         // The strike is authored high in its cell, so it landed above the
         // square it is supposed to have hit.
-        case .sagittariusArrowHit: CGSize(width: 0, height: 4)
+        case .sagittariusArrowHit: CGSize(width: 0, height: 2)
         default: .zero
         }
     }

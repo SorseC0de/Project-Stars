@@ -1463,8 +1463,13 @@ final class GameSession {
                 engine.apply(event)
             }
 
-        case let .pieceTeleported(from, _, fromPlane, _)
-            where zodiac == .sagittarius && engine.signState.arrow != nil:
+        // Not gated on the arrow still being there.
+        //
+        // The recall *consumes* it, and the `signStateChanged` that clears it is
+        // applied before this event — so by the time the teleport is presented
+        // the arrow is already gone and the guard never passed. The archer has
+        // exactly one way to teleport, so the sign is the whole condition.
+        case let .pieceTeleported(from, _, fromPlane, _) where zodiac == .sagittarius:
             // The archer does not warp to the arrow, he *jumps* to it.
             //
             // A beam is the right picture for Astral Breeze, where the board
