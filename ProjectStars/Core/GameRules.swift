@@ -1952,10 +1952,14 @@ enum GameRules {
 
     /// How big it is drawn, in board tiles.
     ///
-    /// Three, because the art is 48px against a 16px tile — drawn at its native
-    /// size, so the pixels line up with the board's rather than being resampled
-    /// to something in between.
-    static let compassSpan: CGFloat = 3
+    /// The art is 48px against a 16px tile, so its *native* size is three tiles
+    /// — nearly half the width of the board, which is what it came out as. A
+    /// compass is a label in the corner, not a feature of the world.
+    ///
+    /// One and a quarter tiles is a clean 20px, so the sampling still lands on
+    /// whole art pixels at the usual board scales rather than smearing the
+    /// letters.
+    static let compassSpan: CGFloat = 1.25
 
     /// How far it is inset from the board's bottom-left corner, in tiles.
     static let compassInset: CGFloat = 0.1
