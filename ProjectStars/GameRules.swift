@@ -855,12 +855,14 @@ enum GameRules {
         _ health: TileHealth
     ) -> (saturation: Double, luminance: Double) {
         switch health {
-        case .healthy: (1.00, 1.00)
-        // Nothing at all. The colour is doing the work — see `cloudWearSwaps`.
-        case .cracked: (1.00, 1.00)
-        // A shade further down on both, so the last warning is dimmer as well
-        // as differently coloured.
-        case .badlyCracked: (0.85, 0.85)
+        // Nothing, at any wear state. The colour is doing all of it — see
+        // `cloudWearSwaps`.
+        //
+        // Kept as a function rather than deleted because a hole still needs to
+        // be nothing, and because the *shrink* is a separate rule that has not
+        // changed. Filters on top of a palette swap would only push the result
+        // back off the palette the swap was chosen to stay on.
+        case .healthy, .cracked, .badlyCracked: (1.00, 1.00)
         case .hole: (0, 0)
         }
     }
@@ -886,7 +888,9 @@ enum GameRules {
     /// turns a rounded puff inside out — the note on `SmokeSpriteView.cloudSwaps`
     /// says the same thing, and this is the second time it has had to be learned.
     static func cloudWearSwaps(_ health: TileHealth, shade: Palette.TileShade) -> [PaletteSwap] {
-        // The three body tones of each row, darkest first.
+        // The three body tones of each row, outline → shadow → highlight.
+        // Confirmed against the art rather than inferred: the perimeter pixels
+        // really are the darkest tone on both rows.
         let source: [Color] = shade == .light
             ? [Palette.darkMagenta, Palette.magenta, Palette.pink]
             : [Palette.purple, Palette.darkMagenta, Palette.magenta]
@@ -894,17 +898,24 @@ enum GameRules {
         let target: [Color]
         switch health {
         case .cracked:
-            // Drained toward the blue end of the palette: the same sky with the
-            // life gone out of it, rather than a different object.
+            // Warm and earthy, and the *shadow is left alone* on both rows.
+            //
+            // That is the part I would not have arrived at. Changing all three
+            // tones makes a different cloud; holding the middle one and moving
+            // the outline and the highlight makes the same cloud going bad —
+            // there is still magenta in there, so the eye reads it as the sky
+            // souring rather than as a new object.
             target = shade == .light
-                ? [Palette.midnight, Palette.blue, Palette.lavender]
-                : [Palette.dusk, Palette.midnight, Palette.navy]
+                ? [Palette.maroon, Palette.magenta, Palette.brown]
+                : [Palette.dusk, Palette.darkMagenta, Palette.darkBrown]
 
         case .badlyCracked:
-            // Red, because the last warning before a hole should not be subtle.
+            // *Now* the colour drains out, which is the right way round: the
+            // last state before a hole is the one with nothing left in it, and
+            // it reads as worse precisely because the warm stage came first.
             target = shade == .light
-                ? [Palette.maroon, Palette.darkRed, Palette.red]
-                : [Palette.plum, Palette.maroon, Palette.darkRed]
+                ? [Palette.dusk, Palette.navy, Palette.lavender]
+                : [Palette.mocha, Palette.dusk, Palette.navy]
 
         default:
             return []
