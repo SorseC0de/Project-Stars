@@ -287,6 +287,9 @@ enum PanelStyle {
     static let meterPipSpacingCompact: CGFloat = 2
     static let retinueGlyphSize: CGFloat = 58
     static let retinueGlyphOpacity: Double = 0.5
+
+    /// How far the mark is held off the button's edge.
+    static let retinueGlyphInset: CGFloat = 4
     static let retinueLabelSize: CGFloat = 13
 
     /// The bow, for Sagittarius' recall.
@@ -678,11 +681,21 @@ private struct PanelFrontView: View {
                         // Behind the text it can be as large as the button and
                         // still not compete: the sign is what the button *is*,
                         // and the name is what it does.
+                        // Sized to the button rather than to a number.
+                        //
+                        // A fixed point size cannot fill a face whose height
+                        // depends on how many phantoms are sharing the column —
+                        // one follower gets the whole row, two get half each —
+                        // so it was too small in the tall case and would have
+                        // overflowed the short one.
                         PieceIconView(
                             zodiac: follower,
                             size: PanelStyle.retinueGlyphSize,
                             tint: ElementFX.ramp(for: follower.element).deep
                         )
+                        .scaledToFit()
+                        .frame(maxWidth: .infinity, maxHeight: .infinity)
+                        .padding(PanelStyle.retinueGlyphInset)
                         .opacity(PanelStyle.retinueGlyphOpacity)
 
                         Text(follower.definition.zodiaction.displayName.uppercased())
