@@ -1956,13 +1956,18 @@ enum GameRules {
     /// — nearly half the width of the board, which is what it came out as. A
     /// compass is a label in the corner, not a feature of the world.
     ///
-    /// One and a quarter tiles is a clean 20px, so the sampling still lands on
+    /// One and a half tiles is a clean 24px, so the sampling still lands on
     /// whole art pixels at the usual board scales rather than smearing the
     /// letters.
-    static let compassSpan: CGFloat = 1.25
+    static let compassSpan: CGFloat = 1.5
 
     /// How far it is inset from the board's bottom-left corner, in tiles.
-    static let compassInset: CGFloat = 0.1
+    ///
+    /// Scaled with the compass rather than left where it was. The inset was set
+    /// against a rose three tiles across; halving the rose and keeping the gap
+    /// leaves it stranded off the corner it is supposed to sit in — padding
+    /// belongs to the thing it surrounds, not to the board.
+    static let compassInset: CGFloat = 0.05
 
     /// How far it steps between its two positions, in art pixels.
     ///
