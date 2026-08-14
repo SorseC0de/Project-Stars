@@ -129,7 +129,7 @@ struct LibraPieceView: View {
             // its cell's edge, it is five pixels clear of it, the same as
             // Libra's own.
             .offset(
-                x: armInset(side),
+                x: armInset(side) + scalesInset(side),
                 y: armLift(side) + sway * scale
                     + (GameRules.libraArmFootInCell + GameRules.libraScalesGap) * scale
             )
@@ -152,10 +152,19 @@ struct LibraPieceView: View {
         return CGFloat(GameRules.tilePixelSize) / 2 * scale - pixels * scale
     }
 
-    /// And how far in from the middle.
+    /// And how far from the middle.
     private func armInset(_ side: Side) -> CGFloat {
         guard !isProfile else { return 0 }
         return (side == .left ? 1 : -1) * GameRules.libraArmInsetNS * scale
+    }
+
+    /// The pans' own horizontal, on top of the arm's.
+    ///
+    /// Separate because a pan hangs plumb from the end of an arm rather than
+    /// being welded to its middle — see `GameRules.libraScalesInsetX`.
+    private func scalesInset(_ side: Side) -> CGFloat {
+        guard !isProfile else { return 0 }
+        return (side == .left ? 1 : -1) * GameRules.libraScalesInsetX * scale
     }
 }
 
@@ -185,6 +194,7 @@ private struct LibraBench: View {
     @State private var liftEWBack = GameRules.libraArmLiftEWBack
     @State private var insetNS = GameRules.libraArmInsetNS
     @State private var gap = GameRules.libraScalesGap
+    @State private var scalesX = GameRules.libraScalesInsetX
     @State private var sway = false
     @State private var zoom: CGFloat = 6
 
@@ -221,6 +231,7 @@ private struct LibraBench: View {
                 slider("Arm lift E/W far", $liftEWBack, 0...24)
                 slider("Arm inset N/S", $insetNS, -12...12)
                 slider("Scales gap", $gap, -8...16)
+                slider("Scales x", $scalesX, -12...12)
                 slider("Zoom", $zoom, 2...12, unit: "x")
 
                 Toggle("Animate", isOn: $sway)
@@ -238,6 +249,7 @@ private struct LibraBench: View {
         .onChange(of: liftEWBack) { _, new in GameRules.libraArmLiftEWBack = new }
         .onChange(of: insetNS) { _, new in GameRules.libraArmInsetNS = new }
         .onChange(of: gap) { _, new in GameRules.libraScalesGap = new }
+        .onChange(of: scalesX) { _, new in GameRules.libraScalesInsetX = new }
     }
 
     /// Every value, written as the constants they set.
@@ -248,6 +260,7 @@ private struct LibraBench: View {
         libraArmLiftEWBack  = \(Int(liftEWBack))
         libraArmInsetNS     = \(Int(insetNS))
         libraScalesGap      = \(Int(gap))
+        libraScalesInsetX   = \(Int(scalesX))
         """
     }
 
@@ -256,13 +269,25 @@ private struct LibraBench: View {
         let tile = GameRules.tilePixelSize
 
         return ZStack {
-            // A square the size of a board cell, so the feet have something to
-            // be judged against — every offset here is measured from the bottom
-            // of the body, and the body stands on this.
-            Rectangle()
-                .fill(Palette.tileFace(.healthy, on: .terra, shade: .light))
-                .frame(width: CGFloat(tile), height: CGFloat(tile))
-                .offset(y: CGFloat(tile) / 2)
+            // Three squares of board, not one.
+            //
+            // The parts that hang highest and lowest — the far arm above, the
+            // pans below — leave the square she is standing on entirely, and
+            // against a single tile there is nothing to say whether that is
+            // correct or merely far. Neighbours give the overhang something to
+            // be measured in.
+            VStack(spacing: 0) {
+                ForEach(0..<3, id: \.self) { row in
+                    Rectangle()
+                        .fill(Palette.tileFace(
+                            .healthy,
+                            on: .terra,
+                            shade: row == 1 ? .light : .dark
+                        ))
+                        .frame(width: CGFloat(tile), height: CGFloat(tile))
+                }
+            }
+            .offset(y: CGFloat(tile) / 2)
 
             LibraPieceView(
                 facing: facing,
@@ -271,9 +296,9 @@ private struct LibraBench: View {
             )
             .environment(\.ambientClock, sway ? { $0 } : { _ in 0 })
         }
-        .frame(width: CGFloat(tile) * 3, height: CGFloat(tile) * 3)
+        .frame(width: CGFloat(tile) * 3, height: CGFloat(tile) * 4)
         .scaleEffect(zoom)
-        .frame(height: CGFloat(tile) * 3 * 12)
+        .frame(height: CGFloat(tile) * 4 * 12)
     }
 
     private func slider(

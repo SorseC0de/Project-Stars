@@ -1225,7 +1225,7 @@ enum GameRules {
     ///   settled and the bench is deleted.
     ///
     /// How far above Libra's feet an arm hangs, facing toward or away.
-    static var libraArmLiftNS: CGFloat = 12
+    static var libraArmLiftNS: CGFloat = 16
 
     /// And in profile, where the near arm sits much lower.
     static var libraArmLiftEW: CGFloat = 3
@@ -1237,11 +1237,23 @@ enum GameRules {
     /// number here is the first thing to try if the two read as flat.
     static var libraArmLiftEWBack: CGFloat = 3
 
-    /// How far in from centre each arm sits when facing toward or away.
+    /// How far each arm sits from centre when facing toward or away.
+    ///
+    /// **Negative is outward**, which is where they actually go — I read "in
+    /// toward Libra" as the arms tucking against the body and had the pair
+    /// mirrored, so they crossed over each other. They hang wide of her, which
+    /// is what holding a balance looks like.
     ///
     /// In profile they are centred on the body instead, since one is simply
     /// behind the other.
-    static var libraArmInsetNS: CGFloat = 6
+    static var libraArmInsetNS: CGFloat = -10
+
+    /// And how far the pans sit from centre, independently of the arm.
+    ///
+    /// Its own number because the two are not rigidly joined: an arm reaches
+    /// out and the pan hangs *plumb* from its end, so the horizontal that suits
+    /// the arm is not necessarily the one that suits what dangles off it.
+    static var libraScalesInsetX: CGFloat = 0
 
     /// The gap between an arm's lowest pixel and the top of its pans.
     static var libraScalesGap: CGFloat = 2
