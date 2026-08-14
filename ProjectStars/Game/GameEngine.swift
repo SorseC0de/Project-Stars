@@ -3255,6 +3255,11 @@ struct GameEngine {
             piece.point = to
             restartTrail(at: to)
 
+        case .retinueChanged:
+            // Presentation only. The swap itself rides on the `signStateChanged`
+            // emitted beside it, so the state has one owner.
+            break
+
         case let .shadowSpawned(at, plane, onShadowNexys):
             shadow = Shadow(point: at, plane: plane, onShadowNexys: onShadowNexys)
 

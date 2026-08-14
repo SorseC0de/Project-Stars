@@ -2093,7 +2093,7 @@ enum GameRules {
     /// At an eighth of a second the two hops overlapped so heavily that they
     /// read as one animation with a soft edge. The gap wants to be visible: Leo
     /// lands, and *then* the phantom goes.
-    static let retinueBeat: TimeInterval = 0.26
+    static let retinueBeat: TimeInterval = 0.14
 
     /// The shadow under a phantom, and how far below it sits.
     /// How far a shadowed figure is lifted back up after being multiplied down.

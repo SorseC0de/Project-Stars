@@ -623,14 +623,39 @@ struct ForcedFateEffect: PickupEffect {
     /// two, because it is luck rather than a decision.
     let weight = 3
     let displayName = "Forced Fate"
-    let summary = "Your sign changes at random. You do not get a say."
+    let summary = "Your sign changes at random. You do not get a say. With a phantom out, it changes the phantom instead."
     let glyph = "✦"
 
+    /// ## Why company takes the hit
+    ///
+    /// Fate goes for the *newest* thing about you. A lion with somebody
+    /// following has just made an arrangement, and this coin is the one that
+    /// unmakes arrangements — taking Leo instead would dismiss the whole
+    /// retinue as a side effect of changing sign, which is a far larger event
+    /// than "your sign changes at random" describes.
+    ///
+    /// It re-rolls the **oldest** phantom, which is the one already nearest to
+    /// being replaced by the next summon. That keeps the line a queue: things
+    /// leave it from the front, whatever removes them.
+    ///
+    /// Alignment stays a Leo swapper. One of the two coins should still be able
+    /// to take the lion himself, and Alignment is the one that lets you choose —
+    /// changing sign on purpose is worth losing your company for.
     func plan(
         context: PickupContext,
         choice: PickupChoiceResult?,
         generator: inout SeededRandom
     ) -> [GameEvent] {
+        if let oldest = context.signState.retinue.first {
+            let taken = Set(context.signState.retinue)
+            let pool = Zodiac.allCases.filter { $0 != context.zodiac && !taken.contains($0) }
+            guard let replacement = pool.randomElement(using: &generator) else { return [] }
+
+            var state = context.signState
+            state.retinue[0] = replacement
+            return [.signStateChanged(state), .retinueChanged(from: oldest, to: replacement)]
+        }
+
         let others = Zodiac.allCases.filter { $0 != context.zodiac }
         guard let replacement = others.randomElement(using: &generator) else { return [] }
         return [.pieceChanged(to: replacement)]

@@ -1327,10 +1327,19 @@ struct BoardView: View {
             // apart, so the second one lands on the square the first has just
             // left. Delaying an identical animation is that, exactly, and it
             // needs no lag constant at all.
+            // Keyed to the phantom's **own** square, not Leo's.
+            //
+            // This is what made the hop and the travel disagree. The trail is
+            // updated on the turn stamp, which lands a render before the piece
+            // moves — so the follower's square changed at one moment and the
+            // value the animation watched changed at another, and it slid
+            // whenever it happened to notice rather than when it jumped. The
+            // arc and the journey were running off two different clocks, which
+            // is exactly the dubbing.
             .animation(
                 .spring(response: GameRules.hopDuration * 1.6, dampingFraction: 0.72)
                     .delay(GameRules.retinueBeat * Double(step + 1)),
-                value: session.engine.piece.point
+                value: point
             )
         }
     }

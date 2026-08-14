@@ -200,6 +200,10 @@ enum GameEvent: Equatable {
     /// Zodiaction charge is deliberately *not* reset — see `apply(_:)`.
     case pieceChanged(to: Zodiac)
 
+    /// One phantom is swapped for another, in place. Presentation only — the
+    /// swap itself rides on the `signStateChanged` beside it.
+    case retinueChanged(from: Zodiac, to: Zodiac)
+
     /// Shadow Work opens and the double appears.
     case shadowSpawned(at: GridPoint, plane: Plane, onShadowNexys: Bool)
 
@@ -393,6 +397,7 @@ enum GameEvent: Equatable {
         case .planeRestored: GameRules.planeRestoreDuration
         case .pieceTeleported: GameRules.teleportDuration
         case .pieceChanged: GameRules.pieceChangeDuration
+        case .retinueChanged: GameRules.soulSplitDuration
         case .shadowSpawned: GameRules.soulSplitDuration
         case .shadowStepped: GameRules.hopDuration
         case .shadowDestroyed: GameRules.soulRiseDuration
