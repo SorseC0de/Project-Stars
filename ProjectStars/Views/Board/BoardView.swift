@@ -118,7 +118,11 @@ struct BoardView: View {
         // A heavy landing jolts the board. Only the upper square shakes — the
         // panel below is under the player's thumb, and shaking a control surface
         // reads as a fault rather than as impact.
-        .screenShake(startedAt: session.shakeStartedAt, scale: metrics.scale)
+        .screenShake(
+            startedAt: session.shakeStartedAt,
+            scale: metrics.scale,
+            strength: session.shakeStrength
+        )
         // An illegal swipe shoves the board a few points and springs back.
         .offset(nudgeOffset)
         .animation(.spring(response: 0.22, dampingFraction: 0.35), value: session.blockedNudge)
@@ -1221,11 +1225,41 @@ struct BoardView: View {
     @ViewBuilder
     private func shadowDouble(plane: Plane, metrics: PixelArtMetrics) -> some View {
         if let shadow = session.shadow, shadow.plane == plane {
-            ShadowPieceView(
-                zodiac: session.zodiac,
-                tileSize: metrics.tileSize,
-                scale: metrics.scale
-            )
+            ZStack {
+                // Its floor, when the real island is on the other plane.
+                //
+                // Without this the shadow appeared to be standing on the open
+                // chasm — so walking it into the middle of the board looked like
+                // a free disposal, and the engine quietly refusing was
+                // indistinguishable from a bug. The rule was there; the thing
+                // the rule is about was not drawn.
+                if shadow.onShadowNexys, shadow.point == GameRules.nexysPoint {
+                    NexysView(
+                        tileSize: metrics.tileSize,
+                        scale: metrics.scale,
+                        bob: 0,
+                        isFaded: false
+                    )
+                        .saturation(0)
+                        .colorMultiply(Palette.midnight)
+                        .brightness(GameRules.shadowRampUp)
+                        .opacity(GameRules.shadowNexysOpacity)
+                        .allowsHitTesting(false)
+                }
+
+                // Its own shadow, like anything else standing on the board.
+                PieceShadowView(
+                    tileSize: metrics.tileSize,
+                    opacity: GameRules.retinueShadowOpacity
+                )
+                .offset(y: metrics.tileSize * GameRules.retinueShadowDrop)
+
+                ShadowPieceView(
+                    zodiac: session.zodiac,
+                    tileSize: metrics.tileSize,
+                    scale: metrics.scale
+                )
+            }
             .position(metrics.center(of: shadow.point))
             .offset(y: surfaceOffset(of: shadow.point, bob: 0, metrics: metrics))
             .animation(

@@ -2135,6 +2135,9 @@ enum GameRules {
     /// longer would be a board that never stops moving.
     static let taurusStepShake: TimeInterval = 0.12
 
+    /// How hard, against a landing's knock.
+    static let taurusStepShakeStrength: CGFloat = 0.3
+
     // ──────────────────────────────────────────────────────────────────────
     // MARK: - Leo's retinue
     //
@@ -2181,6 +2184,12 @@ enum GameRules {
     /// Shared by Leo's phantoms and Shadow Work's double, because they are the
     /// same treatment and should not drift apart.
     static let shadowRampUp: Double = 0.18
+
+    /// How solid the phantom island under Shadow Work's double looks.
+    ///
+    /// Faint: it is not ground anybody can use, and a player who tried to stand
+    /// on it because it looked real would rightly be annoyed.
+    static let shadowNexysOpacity: Double = 0.5
 
     static let retinueShadowOpacity: Double = 0.35
     static let retinueShadowDrop: CGFloat = 0.08

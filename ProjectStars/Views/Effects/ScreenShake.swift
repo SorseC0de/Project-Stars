@@ -24,6 +24,9 @@ struct ScreenShake: ViewModifier {
     /// When the current shake began, or `nil` for none.
     let startedAt: Date?
 
+    /// How hard, against the usual amplitude.
+    var strength: CGFloat = 1
+
     /// Whole-pixel scale, for art-pixel amplitude.
     let scale: CGFloat
 
@@ -44,7 +47,7 @@ struct ScreenShake: ViewModifier {
         // Linear decay to zero, so the shake ends flat rather than being cut off
         // mid-swing.
         let decay = 1 - elapsed / GameRules.shakeDuration
-        let amplitude = GameRules.shakeAmplitude * scale * CGFloat(decay)
+        let amplitude = GameRules.shakeAmplitude * scale * CGFloat(decay) * strength
 
         let phase = elapsed * GameRules.shakeFrequency * 2 * .pi
         return CGSize(
@@ -56,7 +59,10 @@ struct ScreenShake: ViewModifier {
 
 extension View {
     /// Jolts this view when `startedAt` changes to a fresh timestamp.
-    func screenShake(startedAt: Date?, scale: CGFloat) -> some View {
-        modifier(ScreenShake(startedAt: startedAt, scale: scale))
+    /// - Parameter strength: A multiplier on the usual amplitude. A fall is
+    ///   `1`; things that happen constantly want far less, or the board never
+    ///   holds still.
+    func screenShake(startedAt: Date?, scale: CGFloat, strength: CGFloat = 1) -> some View {
+        modifier(ScreenShake(startedAt: startedAt, strength: strength, scale: scale))
     }
 }

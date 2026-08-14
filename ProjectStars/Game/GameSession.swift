@@ -111,6 +111,9 @@ final class GameSession {
     /// When the current screen shake began, or `nil` for none.
     private(set) var shakeStartedAt: Date?
 
+    /// How hard the current shake is, against the usual amplitude.
+    private(set) var shakeStrength: CGFloat = 1
+
     /// When the piece began falling in onto the lower plane, or `nil` when it is
     /// not arriving. Drives the drop from off-screen and the growing shadow.
     private(set) var fallArrivalStartedAt: Date?
@@ -1993,8 +1996,12 @@ extension GameSession {
     /// The heavy-landing shake already existed but was only ever fired by the
     /// engine's own events; this is the same thing on request, for a sign whose
     /// *ordinary steps* are supposed to land like that.
-    func shake(for duration: TimeInterval) {
+    /// - Parameter strength: A multiplier on the usual amplitude, for knocks
+    ///   that happen often enough that a full one would never let the board
+    ///   settle.
+    func shake(for duration: TimeInterval, strength: CGFloat = 1) {
         shakeStartedAt = .now
+        shakeStrength = strength
 
         Task { [weak self] in
             try? await Task.sleep(nanoseconds: UInt64(duration * 1_000_000_000))
