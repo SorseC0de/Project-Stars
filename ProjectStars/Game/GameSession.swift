@@ -114,6 +114,20 @@ final class GameSession {
     /// How hard the current shake is, against the usual amplitude.
     private(set) var shakeStrength: CGFloat = 1
 
+    /// The slab's squares while they light up on arrival.
+    private(set) var slabLanding: SlabLanding?
+
+    /// One slab settling into the board.
+    struct SlabLanding: Equatable {
+        let points: Set<GridPoint>
+        let plane: Plane
+        let start: Date
+    }
+
+    /// Set when a slab placement is confirmed, so the `tilesChanged` it causes
+    /// can be told apart from every other one.
+    private var placedSlab: GavelSlab?
+
     /// When the piece began falling in onto the lower plane, or `nil` when it is
     /// not arriving. Drives the drop from off-screen and the growing shadow.
     private(set) var fallArrivalStartedAt: Date?
@@ -969,6 +983,25 @@ final class GameSession {
                 engine.apply(event)
             }
             await sleep(GameRules.planeRestoreDuration)
+
+        case let .tilesChanged(plane, changes) where placedSlab != nil:
+            // The Gavel's slab arriving.
+            //
+            // A preview that simply becomes ground on the next frame throws away
+            // the one moment the ability is *about* — so it falls the last of
+            // the way in and the squares it took light up, which is the same
+            // white outline Libra's own moves use.
+            slabLanding = SlabLanding(points: Set(changes.keys), plane: plane, start: .now)
+            placedSlab = nil
+
+            withAnimation(.easeIn(duration: GameRules.slabDropDuration)) {
+                engine.apply(event)
+            }
+            await sleep(GameRules.slabDropDuration)
+
+            disperseClouds(in: changes, on: plane)
+            await sleep(GameRules.slabFlashDuration)
+            slabLanding = nil
 
         case let .tilesChanged(plane, changes):
             // Libra's scales, made visible on the ground they levelled.
@@ -2489,6 +2522,9 @@ extension GameSession {
         default: false
         }
     }
+
+    /// Records that a slab is on its way in, so its arrival can be drawn.
+    func notePlacedSlab(_ slab: GavelSlab) { placedSlab = slab }
 
     /// Whether this square is an answer the outstanding question would accept.
     ///

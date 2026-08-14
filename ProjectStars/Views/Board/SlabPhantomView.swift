@@ -104,8 +104,15 @@ struct SlabPhantomView: View {
                 // of Terra looks like a slab and not a swatch. Drawn for every
                 // square: the ones with a neighbour below have it covered, and
                 // the bottom of the shape keeps it.
+                // `tileFrontEdgeDrop`, not `tileEdgeDrop`.
+                //
+                // The board's usual drop assumes the row in front will cover the
+                // gap, so used alone it hangs the edge well below the tile with
+                // daylight between — which reads as no edge at all rather than
+                // as a wrong one. A slab has nothing in front of it, so it wants
+                // the value the board's own front row uses.
                 TileEdgeView(plane: .terra, shade: .light, size: cell)
-                    .offset(y: GameRules.tileEdgeDrop
+                    .offset(y: GameRules.tileFrontEdgeDrop
                         * (cell / CGFloat(GameRules.tilePixelSize)))
 
                 TileView(
@@ -120,9 +127,15 @@ struct SlabPhantomView: View {
     }
 
     private enum Style {
-        /// Smaller than a board square, so it reads as something held above the
-        /// grid rather than as part of it.
-        static let scale: CGFloat = 0.62
+        /// The size of the squares it is about to become.
+        ///
+        /// It was two-thirds, on the reasoning that something held above the
+        /// board should look smaller than the board. That is true of a coin and
+        /// false of this: the slab is a *preview*, and a preview drawn at a
+        /// different size to the thing it previews is asking the player to
+        /// imagine the difference. It reads as held because it floats and
+        /// because you can see through it, which is enough.
+        static let scale: CGFloat = 1
         static let opacity: Double = 0.66
 
         /// How far it drifts, in tiles.

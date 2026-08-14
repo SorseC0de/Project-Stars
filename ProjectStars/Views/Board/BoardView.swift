@@ -52,7 +52,6 @@ struct BoardView: View {
             sparkles(metrics: metrics)
             waitingHalf(plane: plane, metrics: metrics)
             shadowDouble(plane: plane, metrics: metrics)
-            tileChoice(metrics: metrics)
 
             // The island and the piece share a clock, so the piece can ride the
             // island's drift while standing on it.
@@ -95,6 +94,15 @@ struct BoardView: View {
             loosedArrow(metrics: metrics)
             reeledCoin(metrics: metrics)
             bankArc(metrics: metrics)
+            slabLanding(metrics: metrics)
+
+            // Above the cursor, and above the pieces.
+            //
+            // The slab is the thing being decided about, so nothing on the board
+            // should draw across it — and the cursor especially, since the two
+            // are always on the same square by definition and the brackets were
+            // cutting the preview in half.
+            tileChoice(metrics: metrics)
 
             // Hides the instant the planes swap during an ascent.
             Rectangle()
@@ -487,6 +495,28 @@ struct BoardView: View {
             width: drift.width * driftScale + shove.width,
             height: drift.height * driftScale + shove.height + give
         )
+    }
+
+    /// The squares a slab has just landed on, outlined while they settle.
+    ///
+    /// The same white the rest of Libra's work is marked in. A slab that simply
+    /// became ground on the next frame threw away the one moment the ability is
+    /// about — this says *these squares, just now, because of you*.
+    @ViewBuilder
+    private func slabLanding(metrics: PixelArtMetrics) -> some View {
+        if let landing = session.slabLanding, landing.plane == session.visiblePlane {
+            ZStack {
+                ForEach(Array(landing.points), id: \.self) { point in
+                    Rectangle()
+                        .strokeBorder(Palette.white, lineWidth: GameRules.slabOutline)
+                        .frame(width: metrics.tileSize, height: metrics.tileSize)
+                        .position(metrics.center(of: point))
+                }
+            }
+            .frame(width: metrics.boardSize, height: metrics.boardSize)
+            .transition(.opacity)
+            .allowsHitTesting(false)
+        }
     }
 
     /// The direction guide, in the board's bottom-left corner.

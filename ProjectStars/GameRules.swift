@@ -2091,6 +2091,14 @@ enum GameRules {
     /// How far the compass fades when the piece is standing on its square.
     static let compassFaded: Double = 0.5
 
+    /// How long the Gavel's slab takes to drop the last of the way in, and how
+    /// long its squares stay outlined afterwards.
+    static let slabDropDuration: TimeInterval = 0.18
+    static let slabFlashDuration: TimeInterval = 0.28
+
+    /// How heavy the outline on a freshly placed slab is.
+    static let slabOutline: CGFloat = 2
+
     /// How far it steps between its two positions, in art pixels.
     ///
     /// Three. Eight was the lift's number reused without thinking, and at eight

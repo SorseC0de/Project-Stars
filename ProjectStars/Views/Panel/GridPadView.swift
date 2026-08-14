@@ -203,8 +203,11 @@ struct GridPadView: View {
                 } else {
                     // The edge under it, exactly as the board draws one, so a
                     // Terra slab reads as something with thickness.
+                    // The front row's drop — nothing sits in front of a token
+                    // to hide the usual gap. See `SlabPhantomView`.
                     TileEdgeView(plane: .terra, shade: .light, size: side)
-                        .offset(y: GameRules.tileEdgeDrop * (side / CGFloat(GameRules.tilePixelSize)))
+                        .offset(y: GameRules.tileFrontEdgeDrop
+                            * (side / CGFloat(GameRules.tilePixelSize)))
 
                     TileView(
                         tile: Tile(kind: .normal, health: slab.health),
@@ -237,6 +240,12 @@ struct GridPadView: View {
     /// to drop here" is read rather than remembered. Red overrides all of it
     /// when the shape will not fit: an illegal placement is not a worse tile, it
     /// is not a placement.
+    /// Red is reserved for *off the board*.
+    ///
+    /// A hole is a perfectly good place to drop a slab — overwriting them is
+    /// most of what the Gavel is for — so colouring one red said "you cannot do
+    /// this" about the play the ability exists to make. The only thing that is
+    /// actually refused is a shape hanging over the edge.
     private func slabColour(_ slab: GavelSlab, legal: Bool) -> Color {
         guard legal else { return Palette.red }
 
@@ -342,6 +351,7 @@ struct GridPadView: View {
         setAim(nil)
 
         if let slab = session.placingSlab {
+            session.notePlacedSlab(slab)
             session.resolvePickupChoice(.place(slab, target))
             return
         }
