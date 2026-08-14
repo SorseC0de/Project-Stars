@@ -258,10 +258,20 @@ struct SagittariusAstralArrow: Zodiaction {
         if plane == .terra,
            target == GameRules.nexysPoint,
            context.nexysPlane == .astra {
-            return [
-                .nexysMoved(to: .terra, carryingPiece: false),
-                .arrowPlanted(plane: plane, point: target),
-            ]
+            // The shot is spent bringing the island down, and does not stay in
+            // the ground.
+            //
+            // Calling the Nexys home is worth a whole Zodiaction on its own —
+            // Libra has a button for it and pays a turn — so leaving the arrow
+            // planted afterwards handed the archer two supers for one pop: the
+            // island *and* a free warp back to it whenever he liked. Spending
+            // the arrow is the price, and it is the one the ability was already
+            // charging everywhere else.
+            //
+            // Ordered as it reads, too: the island arrives first and the shot
+            // ends there, rather than an arrow being planted into a square that
+            // is in the middle of being replaced.
+            return [.nexysMoved(to: .terra, carryingPiece: false)]
         }
 
         // Fired from Terra the arrow has gone up over Astra to get here, and it

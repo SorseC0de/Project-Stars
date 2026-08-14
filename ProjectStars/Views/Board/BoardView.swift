@@ -44,19 +44,6 @@ struct BoardView: View {
             actionDim(metrics: metrics)
             choiceDim(metrics: metrics)
 
-            // Bottom-left of the board, over the ground and under everything
-            // that stands on it — it is a label on the world rather than a thing
-            // in it, but it must not draw across the piece.
-            CompassView(facing: session.engine.piece.facing, tileSize: metrics.tileSize)
-                .frame(
-                    width: metrics.boardSize,
-                    height: metrics.boardSize,
-                    alignment: .bottomLeading
-                )
-                .offset(
-                    x: metrics.tileSize * GameRules.compassInset,
-                    y: -metrics.tileSize * GameRules.compassInset
-                )
 
             pools(board: board, plane: plane, metrics: metrics)
             shedSkin(plane: plane, metrics: metrics)
@@ -114,6 +101,15 @@ struct BoardView: View {
                 .fill(Palette.white)
                 .opacity(session.ascentFlash)
                 .allowsHitTesting(false)
+        }
+        .overlay(alignment: .bottomLeading) {
+            // With the HUD, above everything on the board.
+            //
+            // It is a label on the world rather than a thing in it, so being
+            // overlapped by a piece standing in front of it read as a drawing
+            // mistake. Above and faded when the piece is under it says what is
+            // true: this is chrome, and it will move aside for you.
+            compass(metrics: metrics)
         }
         .frame(width: metrics.boardSize, height: metrics.boardSize)
         // A heavy landing jolts the board. Only the upper square shakes — the
@@ -491,6 +487,30 @@ struct BoardView: View {
             width: drift.width * driftScale + shove.width,
             height: drift.height * driftScale + shove.height + give
         )
+    }
+
+    /// The direction guide, in the board's bottom-left corner.
+    private func compass(metrics: PixelArtMetrics) -> some View {
+        CompassView(facing: session.engine.piece.facing, tileSize: metrics.tileSize)
+            // Faded when the piece is standing under it.
+            //
+            // It only overlaps on one square, and the honest answer is neither
+            // to hide it nor to let it sit on top of the player: it is a label,
+            // so it gets out of the way of the thing it is labelling.
+            .opacity(session.engine.piece.point == compassCorner
+                ? GameRules.compassFaded
+                : 1)
+            .animation(.easeOut(duration: 0.2), value: session.engine.piece.point)
+            .offset(
+                x: metrics.tileSize * GameRules.compassInset,
+                y: -metrics.tileSize * GameRules.compassInset
+            )
+            .allowsHitTesting(false)
+    }
+
+    /// The square the compass sits over: bottom-left of the board.
+    private var compassCorner: GridPoint {
+        GridPoint(0, session.visibleBoard.size - 1)
     }
 
     /// Squares whose cloud must not be lapped over by its row neighbours.

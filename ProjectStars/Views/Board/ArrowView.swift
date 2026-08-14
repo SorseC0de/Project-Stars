@@ -68,6 +68,14 @@ struct ArrowView: View {
                 // source and blooms those, which puts the glow inside the arrow
                 // where the highlights actually are.
                 PaletteGlow(
+                    // Lower than the house threshold on purpose.
+                    //
+                    // The arrow is drawn in violets and a dull gold, and none of
+                    // it clears the level that counts as "bright" across the
+                    // rest of the game — so the mask kept everything and the
+                    // glow came out as nothing at all. The setting exists for
+                    // exactly this: a sprite whose own highlights are dark.
+                    threshold: GameRules.arrowGlowThreshold,
                     radius: GameRules.arrowGlowRadius * scale,
                     intensity: (0.5 + 0.5 * pulse) * GameRules.arrowGlowIntensity,
                     trail: GameRules.arrowGlowPasses - 1

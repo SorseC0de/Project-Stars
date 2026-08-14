@@ -111,6 +111,12 @@ enum EffectSprite: String, CaseIterable, Hashable {
     /// element and lives in its own folder — see `folder`.
     var element: ZodiacElement? {
         if Self.lightning.contains(self) { return nil }
+        // The Tear belongs to no sign either — the comment on its case said so
+        // and the code answered `.water` anyway, which sent the loader to
+        // `Water/droplet` while the art sits in `Astral/`. A strip that resolves
+        // to a folder it is not in simply does not draw, and says nothing about
+        // why.
+        if self == .droplet { return nil }
         return elementalFamily
     }
 

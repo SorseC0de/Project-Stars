@@ -383,6 +383,12 @@ enum GameRules {
     /// wider blur only makes a dim thing larger.
     static let arrowGlowRadius: CGFloat = 1.6
     static let arrowGlowIntensity: Double = 1.6
+
+    /// How bright a pixel of the arrow has to be to glow.
+    ///
+    /// Well under `glowLuminanceThreshold`, because the arrow's own highlights
+    /// are darker than most sprites' shadows.
+    static let arrowGlowThreshold: Double = 0.22
     static let arrowGlowPasses = 3
     static let arrowPulsePeriod: TimeInterval = 1.4
 
@@ -2081,6 +2087,9 @@ enum GameRules {
     /// leaves it stranded off the corner it is supposed to sit in — padding
     /// belongs to the thing it surrounds, not to the board.
     static let compassInset: CGFloat = -0.5
+
+    /// How far the compass fades when the piece is standing on its square.
+    static let compassFaded: Double = 0.5
 
     /// How far it steps between its two positions, in art pixels.
     ///
