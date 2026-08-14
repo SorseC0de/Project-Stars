@@ -126,7 +126,6 @@ struct PieceView: View {
             // gem: a charged piece should look lit from inside rather than
             // wearing two bright pixels.
             PaletteGlow(
-                colors: [Palette.gold, gem.lit],
                 radius: GameRules.gemGlowRadius * scale,
                 trail: GameRules.gemGlowTrail
             ) {

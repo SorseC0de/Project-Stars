@@ -33,6 +33,11 @@ struct FlyingArrowView: View {
     var body: some View {
         PixelSprite(id: .effect(.sagittariusArrow)) { EmptyView() }
             .frame(width: tileSize * 2, height: tileSize * 2)
+            // The art is drawn **horizontal**, pointing right. Every use of it
+            // here is vertical, so the rotation belongs in one place rather than
+            // being assumed at each site — which is what happened, and the
+            // assumption was that the sprite already pointed the way it flies.
+            .rotationEffect(.degrees(GameRules.arrowArtRotation))
             .allowsHitTesting(false)
     }
 }

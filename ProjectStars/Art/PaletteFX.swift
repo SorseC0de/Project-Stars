@@ -64,8 +64,11 @@ extension View {
 ///   content twice, and a `ViewModifier` only receives it once.
 struct PaletteGlow<Content: View>: View {
 
-    /// Entries that glow. Everything else is drawn but does not bloom.
-    let colors: [Color]
+    /// How bright a pixel has to be before it glows, `0`…`1`.
+    ///
+    /// Defaulted, and almost never worth setting — see `luminanceGlowMask` for
+    /// why there is no longer a list of colours here.
+    var threshold: Double = GameRules.glowLuminanceThreshold
 
     /// How far the light spreads, in points.
     var radius: CGFloat = 4
@@ -125,9 +128,8 @@ struct PaletteGlow<Content: View>: View {
     /// Rasterised before it is used, so the shader runs once for the whole trail
     /// rather than once per step.
     private var mask: some View {
-        let flat = colors.flatMap(\.shaderComponents)
-        return content()
-            .colorEffect(ShaderLibrary.paletteGlowMask(.floatArray(flat)))
+        content()
+            .colorEffect(ShaderLibrary.luminanceGlowMask(.float(Float(threshold))))
             .drawingGroup()
     }
 }

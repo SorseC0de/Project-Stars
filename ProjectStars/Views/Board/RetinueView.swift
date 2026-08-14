@@ -57,6 +57,14 @@ struct RetinueView: View {
             // would be claiming the opposite.
             .saturation(0)
             .colorMultiply(Palette.midnight)
+            // Brightened back up afterwards.
+            //
+            // Multiplying by a dark colour is the whole look, and it lands the
+            // figure so far down the ramp that it disappears into an unlit board
+            // — the silhouette was there and none of the drawing inside it was.
+            // A ramp back up keeps the *shape* dark while letting the detail
+            // read, which is what a shadow of something actually looks like.
+            .brightness(GameRules.shadowRampUp)
             // Full strength. It is the same treatment Shadow Work's double
             // wears, and both of them want to be looked at properly before
             // either gets toned down.

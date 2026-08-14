@@ -285,8 +285,8 @@ enum PanelStyle {
     /// Pip gap when the button is sharing its row. Ten pips in two thirds of the
     /// width need to give something up, and the gap is the part nobody reads.
     static let meterPipSpacingCompact: CGFloat = 2
-    static let retinueGlyphSize: CGFloat = 22
-    static let retinueLabelSize: CGFloat = 8
+    static let retinueGlyphSize: CGFloat = 30
+    static let retinueLabelSize: CGFloat = 11
 
     /// The bow, for Sagittarius' recall.
     static let zodiactionRecallGlyphSize: CGFloat = 34
@@ -669,7 +669,7 @@ private struct PanelFrontView: View {
                     // rest of the panel uses; a system glyph here made the
                     // borrowed supers look like they belonged to a different
                     // game from the one that lent them.
-                    HStack(spacing: PanelStyle.retinueGlyphGap) {
+                    VStack(spacing: PanelStyle.retinueGlyphGap) {
                         // In the button's own dark shade, so the mark reads as
                         // stamped into the face rather than sitting on it.
                         PieceIconView(
@@ -685,10 +685,10 @@ private struct PanelFrontView: View {
                             .font(.system(size: PanelStyle.retinueLabelSize,
                                           weight: .heavy, design: .rounded))
                             .lineLimit(2)
-                            .multilineTextAlignment(.leading)
-                            .minimumScaleFactor(0.5)
+                            .multilineTextAlignment(.center)
+                            .minimumScaleFactor(0.6)
                     }
-                    .padding(.horizontal, 6)
+                    .padding(.horizontal, 4)
                 }
                 .frame(maxHeight: .infinity)
             }

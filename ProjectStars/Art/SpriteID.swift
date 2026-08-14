@@ -74,6 +74,10 @@ enum SpriteID: Hashable {
     ///     Used for the tile a Pentacle is sitting on.
     case tileFace(Plane, Palette.TileShade, popped: Bool)
 
+    /// The compass in the corner of the board. Four cells, N S E W, lit one at
+    /// a time to show which way the piece is looking.
+    case directionGuide(SwipeDirection)
+
     /// Libra's gavel, drawn as its own Pentacle.
     case gavel
 
@@ -152,6 +156,8 @@ enum SpriteID: Hashable {
         switch self {
         case let .tileFace(plane, shade, popped):
             "tile_\(plane.rawValue)_\(shade.assetSuffix)\(popped ? "_popped" : "")"
+        case .directionGuide:
+            "direction_guide"
         case .gavel:
             "Air/libra_gavel"
         case let .astraCloud(shade):

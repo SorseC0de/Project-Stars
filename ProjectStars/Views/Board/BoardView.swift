@@ -44,6 +44,20 @@ struct BoardView: View {
             actionDim(metrics: metrics)
             choiceDim(metrics: metrics)
 
+            // Bottom-left of the board, over the ground and under everything
+            // that stands on it — it is a label on the world rather than a thing
+            // in it, but it must not draw across the piece.
+            CompassView(facing: session.engine.piece.facing, tileSize: metrics.tileSize)
+                .frame(
+                    width: metrics.boardSize,
+                    height: metrics.boardSize,
+                    alignment: .bottomLeading
+                )
+                .offset(
+                    x: metrics.tileSize * GameRules.compassInset,
+                    y: -metrics.tileSize * GameRules.compassInset
+                )
+
             pools(board: board, plane: plane, metrics: metrics)
             shedSkin(plane: plane, metrics: metrics)
             sanctuary(plane: plane, metrics: metrics)
@@ -1335,9 +1349,18 @@ struct BoardView: View {
     /// than walking off the edge.
     private func followerSquare(step: Int) -> GridPoint {
         let piece = session.engine.piece
+        let trail = session.engine.signState.trail
+
+        // The square Leo stood on `step + 1` turns ago. They are walking his
+        // route, not orbiting him — see `SignState.trail`.
+        if step + 1 < trail.count { return trail[step + 1] }
+        if let last = trail.last { return last }
+
+        // Only before the queue has anything in it, which is the turn the
+        // phantom is summoned. Behind the facing is the right answer for exactly
+        // that one moment.
         let back = piece.facing.opposite.unitOffset
         let size = session.visibleBoard.size
-
         return GridPoint(
             min(max(piece.point.x + back.dx * (step + 1), 0), size - 1),
             min(max(piece.point.y + back.dy * (step + 1), 0), size - 1)

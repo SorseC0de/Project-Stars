@@ -273,6 +273,20 @@ enum SpriteAtlas {
             )
         }
 
+        // ── Direction guide ──────────────────────────────────────────────
+        // One 48x48 cell per cardinal, in the order they were drawn: N S E W.
+        // Its own sheet rather than the master, because it is HUD rather than
+        // board art and is authored at the board's tile size.
+        let guideOrder: [SwipeDirection] = [.up, .down, .right, .left]
+        for (column, direction) in guideOrder.enumerated() {
+            map[.directionGuide(direction)] = SpriteSlice(
+                sheet: "direction_guide",
+                x: column * GameRules.compassPixelSize, y: 0,
+                width: GameRules.compassPixelSize,
+                height: GameRules.compassPixelSize
+            )
+        }
+
         // ── Cursor ───────────────────────────────────────────────────────
         // One 16x16 cell per colour, holding all four brackets. Cut into 8x8
         // quarters so each can be pushed outward as the cursor flares.

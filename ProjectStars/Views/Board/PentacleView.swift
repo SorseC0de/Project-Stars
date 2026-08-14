@@ -142,8 +142,7 @@ struct PentacleView: View {
     private func coin(phase: TimeInterval) -> some View {
         switch appearance {
         case .standard:
-            PaletteGlow(colors: Palette.pentacleGlowTones,
-                        radius: GameRules.pentacleGlowRadius * scale,
+            PaletteGlow(radius: GameRules.pentacleGlowRadius * scale,
                         intensity: GameRules.pentacleGlowIntensity) {
                 sprite
             }
@@ -157,8 +156,7 @@ struct PentacleView: View {
             // Polaris turns as well as drifting, and turns the other way — the
             // orbit is clockwise, so a counter-clockwise spin keeps the two
             // motions from reading as one.
-            PaletteGlow(colors: Palette.polarisSparkTones,
-                        radius: GameRules.pentacleGlowRadius * scale,
+            PaletteGlow(radius: GameRules.pentacleGlowRadius * scale,
                         intensity: GameRules.polarisGlowIntensity) {
                 sprite
             }
@@ -166,8 +164,7 @@ struct PentacleView: View {
 
         case .gavel:
             // Lit hard, and swung. See `gavelSwing(at:)`.
-            PaletteGlow(colors: Palette.gavelGlowTones,
-                        radius: GameRules.pentacleGlowRadius * scale,
+            PaletteGlow(radius: GameRules.pentacleGlowRadius * scale,
                         intensity: GameRules.gavelGlowIntensity) {
                 gavelSprite(at: phase)
             }

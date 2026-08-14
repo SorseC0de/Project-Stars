@@ -348,6 +348,13 @@ enum GameRules {
     /// The art is a whole arrow, because the same drawing is the thing that
     /// flies. What stands afterwards is masked rather than drawn separately, so
     /// there is one arrow in this game and not two that have to agree.
+    /// How far the arrow art has to be turned to point the way it flies.
+    ///
+    /// The sprite is drawn horizontal, pointing right. The shot is vertical, so
+    /// everything that draws it turns it — in one place, because two places
+    /// disagreed the moment one of them was written from memory.
+    static let arrowArtRotation: Double = -90
+
     static let arrowBuriedFraction: CGFloat = 0.72
 
     /// How long the board shudders when the arrow lands.
@@ -619,7 +626,17 @@ enum GameRules {
     ///
     /// Deliberately generous: mistaking a two-square vault for a one-square step
     /// is a much worse error than having to drag a little further.
-    static let swipeReachStep: CGFloat = 78
+    /// How much further you drag to ask for each longer option.
+    ///
+    /// Sagittarius has three: a step, a two-square leap, and the three-square
+    /// Vault. At seventy-eight the Vault wanted a hundred and eighty points of
+    /// drag, which is taller than the surface it is drawn on — the longest move
+    /// the archer has was not merely hard to ask for, it was unaskable.
+    ///
+    /// Sized so every option a sign owns fits inside the panel with room left
+    /// over, since a control you have to reach the edge of the screen to use is
+    /// a control that gets used by accident.
+    static let swipeReachStep: CGFloat = 44
 
     // ──────────────────────────────────────────────────────────────────────
     // MARK: - Sprite frame rates
@@ -1929,6 +1946,19 @@ enum GameRules {
     /// level it was being read as debris on the square ahead.
     static let facingArrowLift: CGFloat = 8
 
+    /// Edge length of one cell of the direction guide, in art pixels.
+    static let compassPixelSize = 48
+
+    /// How big it is drawn, in board tiles.
+    ///
+    /// Three, because the art is 48px against a 16px tile — drawn at its native
+    /// size, so the pixels line up with the board's rather than being resampled
+    /// to something in between.
+    static let compassSpan: CGFloat = 3
+
+    /// How far it is inset from the board's bottom-left corner, in tiles.
+    static let compassInset: CGFloat = 0.1
+
     /// How far it steps between its two positions, in art pixels.
     ///
     /// Three. Eight was the lift's number reused without thinking, and at eight
@@ -2046,8 +2076,14 @@ enum GameRules {
     static let retinueStagger: Double = 0.45
 
     /// The shadow under a phantom, and how far below it sits.
+    /// How far a shadowed figure is lifted back up after being multiplied down.
+    ///
+    /// Shared by Leo's phantoms and Shadow Work's double, because they are the
+    /// same treatment and should not drift apart.
+    static let shadowRampUp: Double = 0.18
+
     static let retinueShadowOpacity: Double = 0.35
-    static let retinueShadowDrop: CGFloat = 0.32
+    static let retinueShadowDrop: CGFloat = 0.08
 
     /// Its bob over a hole, where there is nothing to stand on.
     static let retinueFloatPeriod: TimeInterval = 1.6
@@ -2073,6 +2109,16 @@ enum GameRules {
     /// Fire needs considerably more than water does — see
     /// `EffectSprite.glowIntensity`.
     static let effectGlowFireIntensity: Double = 1.35
+
+    /// How bright a pixel must be before it contributes to a glow, `0`…`1`.
+    ///
+    /// Low enough that mid-tones tint the bloom, high enough that a sprite's
+    /// shadows do not smear a grey halo around it. One number for the whole
+    /// game: "which of my colours are the light ones" is not a question each
+    /// sprite should answer separately, and that was the old arrangement — it
+    /// produced a steady trickle of glows in the wrong hue, and glows that did
+    /// not appear at all because the list named a colour the art did not use.
+    static let glowLuminanceThreshold: Double = 0.45
 
     /// For strips that have to read as an event rather than as decoration.
     ///

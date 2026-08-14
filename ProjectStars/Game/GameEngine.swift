@@ -3030,6 +3030,17 @@ struct GameEngine {
             pendingPickup = nil
 
         case let .moveCommitted(direction):
+            // The queue the retinue walks. Pushed on the turn stamp, so it
+            // advances exactly once per turn however the piece got where it is —
+            // a step, a fall, a warp, a ride.
+            if !signState.retinue.isEmpty || !signState.trail.isEmpty {
+                signState.trail.insert(piece.point, at: 0)
+                let keep = SignState.retinueLimit(on: piece.plane) + 1
+                if signState.trail.count > keep {
+                    signState.trail.removeLast(signState.trail.count - keep)
+                }
+            }
+
             // The Aten travels with the lion.
             //
             // Kept here rather than in the passive because it is not a decision,

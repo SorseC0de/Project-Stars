@@ -88,7 +88,8 @@ struct ArrowView: View {
                 Rectangle()
                     .frame(height: tileSize * 2 * GameRules.arrowBuriedFraction)
             }
-            .rotationEffect(.degrees(GameRules.arrowLean))
+            // The art's own rotation first, then the lean it landed at.
+            .rotationEffect(.degrees(GameRules.arrowArtRotation + GameRules.arrowLean))
             // Its point is in the ground, so it stands *above* the square it
             // marks rather than centred on it.
             .offset(y: -GameRules.arrowRise * scale)

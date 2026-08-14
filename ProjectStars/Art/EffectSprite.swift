@@ -232,6 +232,9 @@ enum EffectSprite: String, CaseIterable, Hashable {
         // The Essence plumes are the whole story of what a coin just did to the
         // board, and at 15fps they were over before the eye found them.
         case .astralBlaze, .astralBloom: .fps12
+        // Prideful Plant, one stage down. Eleven frames of fire went past too
+        // quickly to read as a landing.
+        case .leoPridefulLanding: .fps10
         // The Tear's droplet is fourteen frames of a single splash. At the house
         // default it was over in about a second and never seen at all.
         case .droplet: .fps10

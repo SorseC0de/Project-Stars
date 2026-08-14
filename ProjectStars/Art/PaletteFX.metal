@@ -82,6 +82,44 @@ half4 paletteGlowMask(
     return half4(0.0h);
 }
 
+/// Keeps only the pixels bright enough to be a light source, in their own
+/// colours.
+///
+/// ## Why this replaced the colour-list mask
+///
+/// `paletteGlowMask` above takes a list of palette entries and keeps exactly
+/// those. It is precise and it was the wrong tool: every glowing thing in the
+/// game had to be handed a list of the colours *it happened to be drawn in*, so
+/// a list that was slightly wrong produced a glow of the wrong hue, and a list
+/// naming a colour the art did not contain produced no glow at all. Both
+/// happened repeatedly, and neither is visible in the code — you have to run it
+/// and look.
+///
+/// Brightness needs no list. A sprite's own bright pixels are what would emit
+/// light if the thing were real, and they are already the right colour, so the
+/// glow of anything is simply *itself, thresholded*. Gold coins bloom gold and
+/// blue clouds bloom blue without anybody choosing.
+///
+/// Perceptual luminance rather than a flat average: at equal numbers a green
+/// reads far brighter than a blue, and a mask that disagrees with the eye about
+/// what is bright is a mask that has to be argued with per sprite — which is the
+/// problem being removed.
+[[ stitchable ]]
+half4 luminanceGlowMask(float2 position, half4 color, float threshold) {
+    if (color.a < 0.004h) { return half4(0.0h); }
+
+    float3 rgb = straightColor(color);
+    float luma = dot(rgb, float3(0.2126, 0.7152, 0.0722));
+
+    if (luma < threshold) { return half4(0.0h); }
+
+    // Weighted by how far past the threshold it is, so the brightest pixels
+    // carry the glow and the merely light ones only tint it. A hard cut makes
+    // every lit pixel equal and the bloom comes out as a flat silhouette.
+    float weight = (luma - threshold) / max(1.0 - threshold, 0.001);
+    return half4(color.rgb * half(weight), color.a * half(weight));
+}
+
 /// Sprinkles moss over a sprite, on whole art pixels, deterministically.
 ///
 /// `args` is self-describing so one array carries two lists: the first float is

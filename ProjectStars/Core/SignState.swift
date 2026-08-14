@@ -119,6 +119,21 @@ struct SignState: Equatable {
     /// lose.
     var retinue: [Zodiac] = []
 
+    /// The squares Leo has stood on, most recent first.
+    ///
+    /// ## Why a queue and not an offset
+    ///
+    /// A follower drawn one square behind the *facing* stands where the lion
+    /// would be if it walked backwards — which is not where it came from, and
+    /// turning on the spot teleported the whole line around you. Springing them
+    /// into place from there only made a stiff thing lag.
+    ///
+    /// This is the behaviour itself rather than an impression of it: Leo steps,
+    /// and each phantom takes the square in front of it in the queue. They walk
+    /// the route he walked, single file, one turn apart — which is what
+    /// following *is*.
+    var trail: [GridPoint] = []
+
     /// How many phantoms may follow at once, on this plane.
     ///
     /// Two below, one above. Terra is where the lion is strong and where the
