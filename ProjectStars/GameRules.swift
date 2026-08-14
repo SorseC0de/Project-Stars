@@ -1209,6 +1209,61 @@ enum GameRules {
     /// tile. Positive is up.
     static let pieceLift: CGFloat = 1
 
+    // ──────────────────────────────────────────────────────────────────────
+    // MARK: - Libra's scales
+    //
+    // The only piece assembled from parts rather than drawn as one sprite. All
+    // of these are in **art pixels**, measured from the body's own bottom edge,
+    // because that is how the art was authored: an arm's lowest pixel sits at
+    // the same height in its cell as Libra's does in his, so aligning the cells
+    // aligns the drawings and every number below is a deliberate departure from
+    // that. See `LibraPieceView`.
+
+    /// How far above Libra's feet an arm hangs, facing toward or away.
+    static let libraArmLiftNS: CGFloat = 12
+
+    /// And in profile, where the near arm sits much lower.
+    static let libraArmLiftEW: CGFloat = 3
+
+    /// How far the far arm sits from the near one, in profile.
+    ///
+    /// Nothing, for now: the art is a vertical flip of the near arm and the
+    /// depth reads from the z-order rather than from a height difference. A
+    /// number here is the first thing to try if the two read as flat.
+    static let libraArmLiftEWBack: CGFloat = 3
+
+    /// How far in from centre each arm sits when facing toward or away.
+    ///
+    /// In profile they are centred on the body instead, since one is simply
+    /// behind the other.
+    static let libraArmInsetNS: CGFloat = 6
+
+    /// The gap between an arm's lowest pixel and the top of its pans.
+    static let libraScalesGap: CGFloat = 2
+
+    /// Where an arm's lowest pixel sits inside its own cell, from the top.
+    ///
+    /// Measured off the sheet rather than assumed. Both arm cells put their
+    /// foot at ten, five pixels clear of the cell's bottom edge — which is
+    /// exactly where Libra's own foot sits in his, and is what makes "line the
+    /// cells up by their bottoms" the right way to attach them.
+    ///
+    /// It matters for the pans, which hang from that pixel rather than from the
+    /// cell: hanging them a whole cell down put them six pixels too low.
+    static let libraArmFootInCell: CGFloat = 10
+
+    /// How far the arms rise and fall while Libra is standing still, and how
+    /// long a full breath takes.
+    ///
+    /// Opposed: one arm is at the top of its travel while the other is at the
+    /// bottom, which is what a balance does and what makes the pair read as one
+    /// object rather than two decorations.
+    static let libraArmSway: CGFloat = 3
+    static let libraArmSwayPeriod: TimeInterval = 2.4
+
+    /// How fast the pans cycle.
+    static let libraScalesRate = SpriteRate.fps7_5
+
     /// How far the shadow sits below a piece's own centre.
     ///
     /// At `0` it lands dead centre of the tile, where the sprite covers it

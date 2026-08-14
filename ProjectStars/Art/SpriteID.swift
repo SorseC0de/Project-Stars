@@ -42,6 +42,15 @@ enum CursorCorner: String, CaseIterable, Hashable {
 /// The sheet carries one bracket set per colour. The game's palette is fixed by
 /// design, so these are the only tints that exist — a status without its own
 /// colour reuses `white` at reduced opacity rather than inventing one.
+/// Which pair of Libra's arms is being drawn.
+///
+/// Two drawings rather than four: north is south seen from behind and the
+/// left arm is the right one flipped, so the sheet carries one of each axis.
+enum LibraArmSet: String, Hashable {
+    case northSouth
+    case eastWest
+}
+
 enum CursorTint: String, CaseIterable, Hashable {
     case white
     case yellow
@@ -77,6 +86,19 @@ enum SpriteID: Hashable {
     /// The compass in the corner of the board. Four cells, N S E W, lit one at
     /// a time to show which way the piece is looking.
     case directionGuide(SwipeDirection)
+
+    /// One of Libra's arms. The sheet holds the north-facing and east-facing
+    /// versions; the other two are those flipped — see `LibraPieceView`.
+    case libraArm(LibraArmSet)
+
+    /// The pans hanging off an arm. Three frames, looped.
+    case libraScales
+
+    /// A stand-in hole for Astra, where there are no tiles to make one out of.
+    case astraHole
+
+    /// The coin a piece carries over its head.
+    case carriedCoin
 
     /// Libra's gavel, drawn as its own Pentacle.
     case gavel
@@ -158,6 +180,14 @@ enum SpriteID: Hashable {
             "tile_\(plane.rawValue)_\(shade.assetSuffix)\(popped ? "_popped" : "")"
         case .directionGuide:
             "direction_guide"
+        case let .libraArm(set):
+            "libra_arm_\(set.rawValue)"
+        case .libraScales:
+            "libra_scales"
+        case .astraHole:
+            "astra_hole"
+        case .carriedCoin:
+            "carried_coin"
         case .gavel:
             "Air/libra_gavel"
         case let .astraCloud(shade):

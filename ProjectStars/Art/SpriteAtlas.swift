@@ -200,17 +200,53 @@ enum SpriteAtlas {
         // ── Nexys ────────────────────────────────────────────────────────
         // 48x48. Its middle cell is the tile it stands on; the overhang is the
         // island's rim and the greenery spilling off it.
-        map[.nexys] = .cells(column: 10, row: 0, width: 3, height: 3)
+        map[.nexys] = .cells(column: 14, row: 0, width: 3, height: 3)
 
         // ── Pieces ───────────────────────────────────────────────────────
         // 16x32 — a piece is twice a tile's height.
         //
         // TODO: Every sign currently points at Pisces. Give each its own column
         // as the art arrives; this is the only line that needs to change.
+        // Every sign still falls back to Pisces; the ones that are drawn say so
+        // here. This is the only line each needs when its art arrives.
         let piscesColumn = 6
+        let drawn: [Zodiac: Int] = [
+            .pisces: piscesColumn,
+            .aries: piscesColumn - 1,
+            .libra: 8,
+        ]
         for sign in Zodiac.allCases {
-            map[.piece(sign)] = .cells(column: piscesColumn, row: 1, height: 2)
+            map[.piece(sign)] = .cells(
+                column: drawn[sign] ?? piscesColumn,
+                row: 1,
+                height: 2
+            )
         }
+
+        // ── Libra's loose parts ──────────────────────────────────────────
+        // The scales are carried, not worn: two arms and two pans that sit at
+        // their own depths around the body. See `LibraPieceView`.
+        map[.libraArm(.northSouth)] = .cells(column: 10, row: 1)
+        map[.libraArm(.eastWest)] = .cells(column: 10, row: 2)
+        map[.libraScales] = SpriteSlice(
+            sheet: masterSheet,
+            x: 11 * GameRules.tilePixelSize,
+            y: 1 * GameRules.tilePixelSize,
+            width: GameRules.tilePixelSize,
+            height: GameRules.tilePixelSize,
+            frames: 3,
+            frameDuration: GameRules.libraScalesRate.frameDuration
+        )
+
+        // The hole a Gavel slab carries onto Astra.
+        //
+        // Astra has no tiles, so a slab of holes placed there drew nothing at
+        // all — the shape was invisible until it landed. This is a cloud-side
+        // stand-in for one.
+        map[.astraHole] = .cells(column: 0, row: 8)
+
+        // The coin a piece carries over its head.
+        map[.carriedCoin] = .cells(column: TileColumn.hole + 2, row: terraTileRow)
 
         // ── Pentacle ─────────────────────────────────────────────────────
         // Eight 48x48 frames laid out left to right. The coin itself is the

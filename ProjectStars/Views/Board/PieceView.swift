@@ -205,9 +205,17 @@ struct PieceView: View {
     /// Both a full meter and the star burn the stone off, on both planes.
     private var isGilded: Bool { isCharged || starElement != nil }
 
+    @ViewBuilder
     private var sprite: some View {
-        PixelSprite(id: .piece(zodiac)) {
-            placeholder
+        if zodiac == .libra {
+            // Assembled rather than drawn — see `LibraPieceView`. It goes here
+            // so everything wrapped around a piece sprite still applies: the
+            // gold swap, the charge glow, the hop's squash, the fall's spin.
+            LibraPieceView(facing: facing, tileSize: tileSize, scale: scale)
+        } else {
+            PixelSprite(id: .piece(zodiac)) {
+                placeholder
+            }
         }
     }
 
