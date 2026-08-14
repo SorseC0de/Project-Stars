@@ -35,6 +35,9 @@ struct PieceView: View {
     /// True when the Zodiaction is charged or firing, which lights the gem.
     var isCharged: Bool = false
 
+    /// The movement playing out, if any. See `GameSession.Movement`.
+    var movement: GameSession.Movement?
+
     /// Which way the piece is looking.
     var facing: SwipeDirection = .up
 
@@ -239,6 +242,7 @@ struct PieceView: View {
                 scale: scale,
                 isCharged: isGilded,
                 pose: pose,
+                movement: movement,
                 // Whatever this piece is made of right now, applied one part at
                 // a time. Gold in the sky, mossy stone on the ground — the same
                 // choice `material` makes for everyone else, handed down instead

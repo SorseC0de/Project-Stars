@@ -1289,6 +1289,18 @@ enum GameRules {
     /// the pans are supposed to be pointing at, so the aim came and went as it
     /// breathed.
     static let libraArmSway: CGFloat = 1
+
+    /// How far the pans swing back when Libra is carried sideways, in degrees.
+    static let libraSwingAngle: Double = 14
+
+    /// How far the arms rise while she is in the air, and how far below resting
+    /// they drop as she lands — the pans meeting the tile is the moment the
+    /// ground is charged for.
+    static let libraCarryLift: CGFloat = 1
+    static let libraLandDip: CGFloat = 1
+
+    /// How much of a hop is spent in the air before the landing dip.
+    static let libraLandFraction: Double = 0.8
     static let libraArmSwayPeriod: TimeInterval = 2.4
 
     /// How fast the pans cycle.

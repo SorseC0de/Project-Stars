@@ -49,6 +49,9 @@ struct LibraPieceView: View {
     /// The body's hop, so the hanging parts can decline it.
     var pose: HopPose = .rest
 
+    /// What the piece is doing, if anything. See `GameSession.Movement`.
+    var movement: GameSession.Movement?
+
     /// Stone and moss, applied to one part at a time.
     ///
     /// Handed in rather than applied over the finished assembly, because the
@@ -67,8 +70,14 @@ struct LibraPieceView: View {
     var body: some View {
         TimelineView(.animation) { timeline in
             let now = ambientClock(timeline.date.timeIntervalSinceReferenceDate)
-            let sway = CGFloat(sin(now / GameRules.libraArmSwayPeriod * 2 * .pi))
+            // The idle breath, and whatever the current move is doing on top of
+            // it. A move overrides the breath rather than adding to it: the two
+            // are the same pixels, and a balance that is being carried somewhere
+            // is not idling.
+            let idle = CGFloat(sin(now / GameRules.libraArmSwayPeriod * 2 * .pi))
                 * GameRules.libraArmSway
+            let travel = carriage(at: timeline.date)
+            let sway = travel.lift ?? idle
 
             ZStack {
                 // Behind the body.
@@ -125,11 +134,11 @@ struct LibraPieceView: View {
     @ViewBuilder
     private func limb(side: Side, sway: CGFloat) -> some View {
         if side == .far {
-            pans(side: side, sway: sway)
+            pans(side: side, sway: sway, swing: carriage(at: Date()).swing)
             arm(side: side, sway: sway)
         } else {
             arm(side: side, sway: sway)
-            pans(side: side, sway: sway)
+            pans(side: side, sway: sway, swing: carriage(at: Date()).swing)
         }
     }
 
@@ -152,7 +161,7 @@ struct LibraPieceView: View {
     }
 
     /// The pans hanging off it.
-    private func pans(side: Side, sway: CGFloat) -> some View {
+    private func pans(side: Side, sway: CGFloat, swing: Double = 0) -> some View {
         // Pinned to one frame unless charged.
         //
         // Recolouring the strands to a single purple was not enough: the frames
@@ -164,6 +173,9 @@ struct LibraPieceView: View {
             cells: 1
         )
             .scaleEffect(x: side == .left ? -1 : 1, y: 1)
+            // Swung from the very top of the pan, where the cord meets the arm.
+            // A dish on a string pivots from where it hangs, not from its middle.
+            .rotationEffect(.degrees(swing), anchor: .top)
             // Hung from the arm's lowest *pixel*, not from its cell.
             //
             // The pans' own top pixel is the top of their cell, so the drop is
@@ -220,6 +232,50 @@ struct LibraPieceView: View {
     private static let stringTones: [Color] = [
         Palette.lightBlue, Palette.magenta, Palette.pink, Palette.yellow,
     ]
+
+    // MARK: - Being carried
+
+    /// What the current movement is doing to the scales.
+    ///
+    /// ## Two answers, because the two axes are different problems
+    ///
+    /// Moving **across** the screen, the pans trail: they swing back toward
+    /// where Libra came from, overshoot the other way as she stops, and settle.
+    /// That is what a hanging weight does when the thing holding it changes
+    /// speed, and it is only visible from the side.
+    ///
+    /// Moving **toward or away**, there is nothing to trail — the swing would be
+    /// straight into the screen. So the arms lift instead, level with each
+    /// other, and drop *below* their resting height as she lands: the pans meet
+    /// the tile, which is the moment the ground is being charged for.
+    ///
+    /// Returns `nil` for `lift` when nothing is moving, so the idle breath keeps
+    /// the pixels rather than being added to a zero.
+    private func carriage(at date: Date) -> (swing: Double, lift: CGFloat?) {
+        guard let movement, movement.style.arcs else { return (0, nil) }
+
+        let progress = movement.progress(at: date)
+        guard progress < 1 else { return (0, nil) }
+
+        if isProfile {
+            // Back toward where she came from, then past level, then home.
+            // `sin` over one and a half turns gives exactly that shape: out,
+            // back through zero, a smaller overshoot, and settled.
+            let phase = progress * .pi * 1.5
+            let decay = 1 - progress
+            let lean = sin(phase) * decay * GameRules.libraSwingAngle
+
+            // Trailing means leaning *away* from the direction of travel.
+            let sign: Double = movement.direction == .right ? -1 : 1
+            return (lean * sign, nil)
+        }
+
+        // Up while airborne, and a beat below resting as she arrives.
+        let lift = progress < GameRules.libraLandFraction
+            ? -GameRules.libraCarryLift
+            : GameRules.libraLandDip
+        return (0, lift)
+    }
 
     // MARK: - Placement
 
