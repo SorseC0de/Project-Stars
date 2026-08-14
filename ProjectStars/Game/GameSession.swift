@@ -282,6 +282,9 @@ final class GameSession {
     /// because it is a different pose entirely — see `HopPose.leap(progress:)`.
     private(set) var leapStartedAt: Date?
 
+    /// True while the piece is climbing away off the top of the board.
+    private(set) var isLaunching = false
+
     /// Throws the piece into the air and waits out the arc.
     func playLeap() async {
         leapStartedAt = .now
@@ -1460,6 +1463,17 @@ final class GameSession {
                 engine.apply(event)
             }
 
+        case let .pieceTeleported(from, _, fromPlane, _)
+            where zodiac == .sagittarius && engine.signState.arrow != nil:
+            // The archer does not warp to the arrow, he *jumps* to it.
+            //
+            // A beam is the right picture for Astral Breeze, where the board
+            // moves you. This is the same body that vaults three squares under
+            // its own power, going after its own shot — so it crouches flat,
+            // launches off the top of the screen in its own fire, and comes down
+            // hard where the arrow is standing.
+            await launchToArrow(event, from: from, plane: fromPlane)
+
         case let .pieceTeleported(from, _, fromPlane, toPlane):
             await animateWarp(event, from: from, fromPlane: fromPlane, toPlane: toPlane)
 
@@ -1469,6 +1483,37 @@ final class GameSession {
             }
             await sleep(event.displayDuration)
         }
+    }
+
+    /// Sagittarius launching after his own arrow.
+    ///
+    /// Crouch, fire, up and off the screen; then the board changes underneath
+    /// and he lands on the arrow's square hard enough to be felt. The pose is
+    /// `HopPose.leap` run past its own end — the piece keeps rising rather than
+    /// coming down, because the descent happens somewhere else.
+    private func launchToArrow(_ event: GameEvent, from: GridPoint, plane: Plane) async {
+        // The crouch, and the fire it pushes off with.
+        leapStartedAt = .now
+        playEffect(.sagittariusJump, at: from, on: plane)
+        Haptics.longer()
+        await sleep(GameRules.leapDuration * GameRules.vaultCrouchFraction)
+
+        // Away. `isLaunching` lifts the piece clear of the board on its own
+        // curve, since the leap pose alone only clears a tile or so.
+        isLaunching = true
+        await sleep(GameRules.vaultLaunchDuration)
+
+        engine.apply(event)
+        isLaunching = false
+        leapStartedAt = nil
+
+        // Arrival: the fire again, on the square he has landed on, and a knock.
+        playEffect(.sagittariusJump, at: engine.piece.point, on: engine.piece.plane)
+        playEffect(.sagittariusArrowHit, at: engine.piece.point, on: engine.piece.plane)
+        kickUpDust(at: engine.piece.point, on: engine.piece.plane, magnitude: 1.4)
+        shake(for: GameRules.arrowLandShake)
+        bounceSurface(at: engine.piece.point, on: engine.piece.plane)
+        await sleep(GameRules.fallArrivalDuration)
     }
 
     /// The piece disappearing down a hole: spin, shrink, fade.

@@ -375,7 +375,15 @@ enum GameRules {
     static let arrowLean: Double = 12
 
     /// Its glow, and how long one breath of it takes.
+    /// The planted arrow's bloom: how far it spreads, and how hard it burns.
+    ///
+    /// Brightness rather than reach. The arrow is the only thing on the board
+    /// *waiting* for the player — Sagittarius' whole second half is going back
+    /// to it — so it has to carry across a plane it does not belong to, and a
+    /// wider blur only makes a dim thing larger.
     static let arrowGlowRadius: CGFloat = 1.6
+    static let arrowGlowIntensity: Double = 1.6
+    static let arrowGlowPasses = 3
     static let arrowPulsePeriod: TimeInterval = 1.4
 
     /// How long the flight takes: up out of sight, and down onto its square.
@@ -2153,6 +2161,11 @@ enum GameRules {
 
     /// How long the whole thing takes.
     static let leapDuration: TimeInterval = 0.62
+
+    /// How much of a vault is the crouch before it, and how long the climb
+    /// off-screen takes.
+    static let vaultCrouchFraction: Double = 0.35
+    static let vaultLaunchDuration: TimeInterval = 0.3
 
     /// How long the board shudders under one of Taurus' Astra steps.
     ///

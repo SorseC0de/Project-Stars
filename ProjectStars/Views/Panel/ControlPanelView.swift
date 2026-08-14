@@ -163,7 +163,7 @@ enum PanelStyle {
     /// is still made of the forty-seven.
     static let seamTones: [Color] = [
         Palette.gold, Palette.orange, Palette.magenta,
-        Palette.purple, Palette.lightBlue, Palette.cyan,
+        Palette.purple, Palette.lightBlue,
     ]
 
     /// How much bigger the slab's type token is than a square on the pad.

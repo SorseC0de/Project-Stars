@@ -59,10 +59,17 @@ struct ArrowView: View {
                     clock: clock
                 )
 
-                shaft
-                    .blur(radius: GameRules.arrowGlowRadius * scale)
-                    .opacity(0.5 + 0.5 * pulse)
-                    .blendMode(.plusLighter)
+                // Stacked at widening radii, like every other light in this
+                // game: additive copies saturate toward white rather than
+                // clipping, which is how a bloom gets bright instead of merely
+                // wide.
+                ForEach(0..<GameRules.arrowGlowPasses, id: \.self) { pass in
+                    shaft
+                        .blur(radius: GameRules.arrowGlowRadius * scale
+                            * (1 + CGFloat(pass) * 0.8))
+                        .opacity((0.5 + 0.5 * pulse) * GameRules.arrowGlowIntensity)
+                        .blendMode(.plusLighter)
+                }
 
                 shaft
             }

@@ -1149,15 +1149,23 @@ struct BoardView: View {
             facing: session.engine.piece.facing,
             isFalling: session.isFalling,
             // Standing on the island means riding it.
-            carryOffset: session.engine.isOnNexys
+            // The island's carry, plus the climb when the archer has thrown
+            // himself off the top of the board after his own arrow.
+            carryOffset: (session.engine.isOnNexys
                 ? bob - GameRules.nexysRideLift * metrics.scale
-                : 0,
+                : 0) + launchLift(metrics: metrics),
             pose: pose,
             spin: session.fallSpin,
             dropOffset: dropOffset,
             shadowScale: shadowScale,
             chargeFlash: flash,
             starElement: starElement
+        )
+        // The launch itself: a fast climb rather than a spring, because it is
+        // meant to leave rather than to arrive somewhere.
+        .animation(
+            .easeIn(duration: GameRules.vaultLaunchDuration),
+            value: session.isLaunching
         )
         .overlay {
             // A burning piece sheds embers, for as long as the charge runs.
@@ -1521,6 +1529,11 @@ struct BoardView: View {
     }
 
     /// How the piece is deformed mid-hop.
+    /// How far off the top of the board a launching piece has climbed.
+    private func launchLift(metrics: PixelArtMetrics) -> CGFloat {
+        session.isLaunching ? -(metrics.boardSize + metrics.tileSize * 2) : 0
+    }
+
     private func hopPose(at date: Date) -> HopPose {
         // A deliberate leap outranks a hop: it is a different shape, and the two
         // are never wanted at once.
