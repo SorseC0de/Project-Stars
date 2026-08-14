@@ -83,19 +83,21 @@ enum PaletteRecolour {
 
             // Premultiplied: undo it before comparing, since a half-transparent
             // pixel of a colour is stored darker than the colour itself.
+            // Rounded here too, and for the same reason: undoing the
+            // premultiplication lands on fractions, and a truncated fraction is
+            // a colour that is one off the palette and matches nothing.
             let scale = 255.0 / Double(alpha)
-            let rgb = (
-                UInt8(min(255, Double(pixels[index]) * scale)),
-                UInt8(min(255, Double(pixels[index + 1]) * scale)),
-                UInt8(min(255, Double(pixels[index + 2]) * scale))
-            )
+            func straight(_ offset: Int) -> UInt8 {
+                UInt8(max(0, min(255, (Double(pixels[index + offset]) * scale).rounded())))
+            }
+            let rgb = (straight(0), straight(1), straight(2))
 
             guard let match = table.first(where: { $0.from == rgb }) else { continue }
 
             let back = Double(alpha) / 255.0
-            pixels[index] = UInt8(Double(match.to.0) * back)
-            pixels[index + 1] = UInt8(Double(match.to.1) * back)
-            pixels[index + 2] = UInt8(Double(match.to.2) * back)
+            pixels[index] = UInt8((Double(match.to.0) * back).rounded())
+            pixels[index + 1] = UInt8((Double(match.to.1) * back).rounded())
+            pixels[index + 2] = UInt8((Double(match.to.2) * back).rounded())
         }
 
         guard let output = context.makeImage() else { return nil }
@@ -105,12 +107,18 @@ enum PaletteRecolour {
 
 private extension Color {
     /// This colour as eight-bit components, for comparing against a bitmap.
+    /// **Rounded, not truncated.**
+    ///
+    /// `UIColor` hands back sRGB as fractions, and 0xAE comes back as
+    /// 0.682352…, which times 255 is 173.99999 — and `UInt8()` truncates, so it
+    /// arrived as 173 and matched nothing. Every swap in this file silently did
+    /// nothing, which looks exactly like the recolour not being wired up.
     var rgb8: (UInt8, UInt8, UInt8) {
         let parts = shaderComponents
-        return (
-            UInt8((parts.count > 0 ? parts[0] : 0) * 255),
-            UInt8((parts.count > 1 ? parts[1] : 0) * 255),
-            UInt8((parts.count > 2 ? parts[2] : 0) * 255)
-        )
+        func byte(_ index: Int) -> UInt8 {
+            let value = index < parts.count ? Double(parts[index]) : 0
+            return UInt8(max(0, min(255, (value * 255).rounded())))
+        }
+        return (byte(0), byte(1), byte(2))
     }
 }
