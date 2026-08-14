@@ -200,7 +200,7 @@ enum SpriteAtlas {
         // ── Nexys ────────────────────────────────────────────────────────
         // 48x48. Its middle cell is the tile it stands on; the overhang is the
         // island's rim and the greenery spilling off it.
-        map[.nexys] = .cells(column: 14, row: 0, width: 3, height: 3)
+        map[.nexys] = .cells(column: 16, row: 3, width: 3, height: 3)
 
         // ── Pieces ───────────────────────────────────────────────────────
         // 16x32 — a piece is twice a tile's height.
@@ -211,9 +211,11 @@ enum SpriteAtlas {
         // here. This is the only line each needs when its art arrives.
         let piscesColumn = 6
         let drawn: [Zodiac: Int] = [
+            .aries: 0,
+            .leo: 2,
             .pisces: piscesColumn,
-            .aries: piscesColumn - 1,
             .libra: 8,
+            .gemini: 4,
         ]
         for sign in Zodiac.allCases {
             map[.piece(sign)] = .cells(
@@ -228,9 +230,25 @@ enum SpriteAtlas {
         // their own depths around the body. See `LibraPieceView`.
         map[.libraArm(.northSouth)] = .cells(column: 10, row: 1)
         map[.libraArm(.eastWest)] = .cells(column: 10, row: 2)
+        // Gemini's halves, either side of the whole.
+        //
+        // Their own drawings rather than a recolour: Soul Split leaves one
+        // behind and takes the other, and two figures that are the same sprite
+        // in two tints are one figure the player has to keep track of twice.
+        map[.geminiHalf(.gold)] = .cells(column: 3, row: 1, height: 2)
+        map[.geminiHalf(.silver)] = .cells(column: 5, row: 1, height: 2)
+
+        // The plain scales, drawn once rather than computed.
+        //
+        // The uncharged pans used to be the coloured ones with every strand
+        // palette-swapped to a single purple and the animation pinned to one
+        // frame — a shader and a frame lock to arrive at a drawing that now
+        // simply exists.
+        map[.libraScalesPlain] = .cells(column: 11, row: 1)
+
         map[.libraScales] = SpriteSlice(
             sheet: masterSheet,
-            x: 11 * GameRules.tilePixelSize,
+            x: 12 * GameRules.tilePixelSize,
             y: 1 * GameRules.tilePixelSize,
             width: GameRules.tilePixelSize,
             height: GameRules.tilePixelSize,

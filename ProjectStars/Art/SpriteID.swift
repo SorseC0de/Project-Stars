@@ -42,6 +42,17 @@ enum CursorCorner: String, CaseIterable, Hashable {
 /// The sheet carries one bracket set per colour. The game's palette is fixed by
 /// design, so these are the only tints that exist — a status without its own
 /// colour reuses `white` at reduced opacity rather than inventing one.
+/// Which of Gemini's two halves.
+///
+/// Gold and silver rather than left and right: Soul Split leaves one standing
+/// and takes the other anywhere on the board, so which side of the pair it is
+/// stops meaning anything the moment they separate. A colour keeps its name
+/// wherever it goes.
+enum GeminiHalf: String, Hashable {
+    case gold
+    case silver
+}
+
 /// Which pair of Libra's arms is being drawn.
 ///
 /// Two drawings rather than four: north is south seen from behind and the
@@ -91,8 +102,15 @@ enum SpriteID: Hashable {
     /// versions; the other two are those flipped — see `LibraPieceView`.
     case libraArm(LibraArmSet)
 
-    /// The pans hanging off an arm. Three frames, looped.
+    /// The pans hanging off an arm. Three frames, looped — the lit version,
+    /// worn only at a full meter.
     case libraScales
+
+    /// The same pans at rest, drawn plain.
+    case libraScalesPlain
+
+    /// One of Gemini's two halves. See `GeminiHalf`.
+    case geminiHalf(GeminiHalf)
 
     /// A stand-in hole for Astra, where there are no tiles to make one out of.
     case astraHole
@@ -184,6 +202,10 @@ enum SpriteID: Hashable {
             "libra_arm_\(set.rawValue)"
         case .libraScales:
             "libra_scales"
+        case .libraScalesPlain:
+            "libra_scales_plain"
+        case let .geminiHalf(half):
+            "gemini_\(half.rawValue)"
         case .astraHole:
             "astra_hole"
         case .carriedCoin:

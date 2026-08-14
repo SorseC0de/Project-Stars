@@ -168,7 +168,14 @@ struct LibraPieceView: View {
         // move the cords as well as tint them, so it still shimmered. Uncharged
         // is one still drawing.
         shaded(
-            strung(PixelSprite(id: .libraScales, frame: isCharged ? nil : 0) { Color.clear })
+            // Two drawings, not one drawing recoloured.
+            //
+            // The plain pans used to be the lit ones with every strand
+            // palette-swapped to a single purple and the animation pinned to
+            // frame zero — a shader and a frame lock to arrive at something that
+            // is now just drawn. It also means the two can differ in more than
+            // colour without any of this changing.
+            PixelSprite(id: isCharged ? .libraScales : .libraScalesPlain) { Color.clear }
                 .frame(width: tileSize, height: tileSize),
             cells: 1
         )
@@ -200,38 +207,6 @@ struct LibraPieceView: View {
             art
         }
     }
-
-    /// The strings, dimmed unless the meter is full.
-    ///
-    /// They are drawn as three bright cords and cycle colour across the three
-    /// frames, which is a lot of light for something that is on screen every
-    /// turn — next to a piece whose own gem is a single dim pixel until it is
-    /// charged, the scales looked lit the whole time.
-    ///
-    /// So they take the gem's own unlit purple by default and are left alone
-    /// when the meter is full. The animation is still running underneath; with
-    /// every strand mapped to one colour there is simply nothing to see, which
-    /// makes the charged version read as the strings *coming on* rather than as
-    /// a different drawing.
-    @ViewBuilder
-    private func strung(_ art: some View) -> some View {
-        if isCharged {
-            art
-        } else {
-            art.paletteSwap(
-                Self.stringTones.map { PaletteSwap($0, GemTones.forElement(.air).dim) }
-            )
-        }
-    }
-
-    /// The colours the cords are drawn in, across the three frames.
-    ///
-    /// Sampled from the sheet, not guessed. The guess had cyan, sakura and
-    /// yellowGreen — none of which are in the art — and missed magenta, which is
-    /// most of what was still showing through.
-    private static let stringTones: [Color] = [
-        Palette.lightBlue, Palette.magenta, Palette.pink, Palette.yellow,
-    ]
 
     // MARK: - Being carried
 
