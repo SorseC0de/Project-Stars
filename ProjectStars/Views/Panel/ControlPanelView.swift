@@ -681,22 +681,24 @@ private struct PanelFrontView: View {
                         // Behind the text it can be as large as the button and
                         // still not compete: the sign is what the button *is*,
                         // and the name is what it does.
-                        // Sized to the button rather than to a number.
+                        // The image directly, not `PieceIconView`.
                         //
-                        // A fixed point size cannot fill a face whose height
-                        // depends on how many phantoms are sharing the column —
-                        // one follower gets the whole row, two get half each —
-                        // so it was too small in the tall case and would have
-                        // overflowed the short one.
-                        PieceIconView(
-                            zodiac: follower,
-                            size: PanelStyle.retinueGlyphSize,
-                            tint: ElementFX.ramp(for: follower.element).deep
-                        )
-                        .scaledToFit()
-                        .frame(maxWidth: .infinity, maxHeight: .infinity)
-                        .padding(PanelStyle.retinueGlyphInset)
-                        .opacity(PanelStyle.retinueGlyphOpacity)
+                        // That view frames itself to a fixed `size`, so asking it
+                        // to fill afterwards had nothing to grow — and a
+                        // `scaledToFit` on top of an already-framed view
+                        // collapsed it to nothing, which is why the mark
+                        // vanished entirely.
+                        //
+                        // It has to fill rather than take a number, because the
+                        // button's height depends on how many phantoms share the
+                        // column: one takes the whole row, two take half each.
+                        Image("Signs/\(follower.rawValue)")
+                            .renderingMode(.template)
+                            .resizable()
+                            .scaledToFit()
+                            .foregroundStyle(ElementFX.ramp(for: follower.element).deep)
+                            .padding(PanelStyle.retinueGlyphInset)
+                            .opacity(PanelStyle.retinueGlyphOpacity)
 
                         Text(follower.definition.zodiaction.displayName.uppercased())
                             .font(.system(size: PanelStyle.retinueLabelSize,
