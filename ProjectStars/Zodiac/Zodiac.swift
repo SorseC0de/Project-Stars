@@ -31,6 +31,13 @@ enum Zodiac: String, CaseIterable, Codable, Identifiable, Hashable {
 
     /// The sign's full behaviour and presentation record.
     ///
+    /// Whether this sign is drawn as two halves as well as as a pair.
+    ///
+    /// Only Gemini, and the distinction matters because splitting is otherwise
+    /// faked: a sign with no twins of its own is cut down the middle to make
+    /// one. Cropping a figure that is *already* a half takes half of a half.
+    var hasOwnHalves: Bool { self == .gemini }
+
     /// Defined per-sign in `Zodiac/Signs/<Name>.swift`; the switch below is the
     /// only place the two halves are joined.
     var definition: ZodiacDefinition {

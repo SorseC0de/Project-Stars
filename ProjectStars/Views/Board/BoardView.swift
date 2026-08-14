@@ -1180,7 +1180,14 @@ struct BoardView: View {
             // Split, the active half is drawn cropped and its twin is drawn
             // wherever it is standing — dimmed, and only when that is the plane
             // being looked at.
-            if session.isSplit {
+            // A sign with a drawing of its own half does not get a cropped one.
+            //
+            // Gemini has three sprites, so `PieceView` draws the gold twin
+            // directly. This was drawing a *second* figure on the same square on
+            // top of it — and asking `SplitHalfView` for it, which answers with
+            // the silver twin, so the same half appeared twice: once here in
+            // half, once beside its own other half.
+            if session.isSplit, !session.zodiac.hasOwnHalves {
                 SplitHalfView(
                     zodiac: session.zodiac,
                     tileSize: metrics.tileSize,

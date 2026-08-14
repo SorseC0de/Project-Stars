@@ -45,8 +45,11 @@ struct SplitHalfView: View {
     /// rather than cut out of the pair. Every other sign that ever splits falls
     /// back to being masked in half, which is what this view was built for.
     private var spriteID: SpriteID {
-        zodiac == .gemini ? .geminiHalf(.silver) : .piece(zodiac)
+        zodiac.hasOwnHalves ? .geminiHalf(.silver) : .piece(zodiac)
     }
+
+    /// Whether this has to be made out of a whole figure.
+    private var cropped: Bool { !zodiac.hasOwnHalves }
 
     /// Dimmed, for the half that is not taking this turn.
     var isWaiting = false
@@ -56,12 +59,19 @@ struct SplitHalfView: View {
     var body: some View {
         PixelSprite(id: spriteID) { Color.clear }
             .frame(width: tileSize, height: tileSize * 2)
-            .mask(alignment: side == .left ? .leading : .trailing) {
-                Rectangle().frame(width: tileSize / 2)
+            // Cut in half only for signs that have no half of their own.
+            //
+            // The crop is a stand-in: it makes half a figure out of a whole one
+            // for a sign nobody has drawn twins for. Applied to a sprite that is
+            // *already* one twin it takes half of a half, which is the clipped
+            // fragment that was standing in the middle of the board.
+            .mask(alignment: cropped ? (side == .left ? .leading : .trailing) : .center) {
+                Rectangle().frame(width: cropped ? tileSize / 2 : tileSize)
             }
             // The cut edge sits on the square's centre line rather than the
             // figure's, so half a piece still stands where a whole one would.
-            .offset(x: side == .left ? tileSize / 4 : -tileSize / 4)
+            // A whole drawing needs no such correction.
+            .offset(x: cropped ? (side == .left ? tileSize / 4 : -tileSize / 4) : 0)
             .opacity(isWaiting ? GameRules.splitWaitingOpacity : 1)
             // The waiting half is drained rather than merely faded: it is
             // somewhere else, on another plane, and colour is what says *here*.
