@@ -155,7 +155,7 @@ struct CloudSpriteField: View {
                 guard let art = PaletteRecolour.image(
                     .astraCloud(shade),
                     frame: frame,
-                    swaps: GameRules.cloudWearSwaps(health)
+                    swaps: GameRules.cloudWearSwaps(health, shade: shade)
                 ) else { continue }
 
                 resolved[Look(shade: shade, health: health)] =

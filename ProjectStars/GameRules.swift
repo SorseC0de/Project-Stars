@@ -5,7 +5,7 @@
 //  Every tunable number and rule toggle in one place.
 //
 
-import CoreGraphics
+import SwiftUI
 import Foundation
 
 /// Central balance and presentation constants.
@@ -867,40 +867,50 @@ enum GameRules {
 
     /// The palette entries a worn cloud is repainted in.
     ///
-    /// ## Why a swap and not a filter
+    /// ## Why this takes the shade
     ///
-    /// Orange was legible and read as a different *object* — a cloud on fire
-    /// rather than a cloud wearing out. The problem with a hue rotation is that
-    /// it does not know what the palette contains: it moves everything by an
-    /// angle and lands wherever that is, which for a magenta sky is somewhere no
-    /// other art in this game has ever been.
+    /// Because the two rows of the sheet are *different ramps*, not the same
+    /// drawing at two brightnesses. The light cloud runs darkMagenta → magenta →
+    /// pink; the dark one runs purple → darkMagenta → magenta. `magenta` is the
+    /// **shadow** on one row and the **highlight** on the other.
     ///
-    /// The palette already has the answer. Its lower rows are naturally
-    /// desaturated purples — the same family as the sky, drained of life — which
-    /// is what a cloud coming apart should look like, and they are on-palette by
-    /// construction rather than by luck.
+    /// One swap table for both therefore had to be wrong somewhere, and it was:
+    /// whatever `magenta` mapped to landed as a highlight on one row and a
+    /// shadow on the other, so half the board came out with its shading inside
+    /// out. That is the bug, and it is not fixable by choosing nicer colours.
     ///
-    /// Badly cracked keeps its red, because the last warning before a hole
-    /// should not be subtle.
-    static func cloudWearSwaps(_ health: TileHealth) -> [PaletteSwap] {
+    /// ## The rule
+    ///
+    /// Ordered outline → shadow → highlight, matching each row's own ramp in its
+    /// own order. A target ramp that is not sorted the same way as its source
+    /// turns a rounded puff inside out — the note on `SmokeSpriteView.cloudSwaps`
+    /// says the same thing, and this is the second time it has had to be learned.
+    static func cloudWearSwaps(_ health: TileHealth, shade: Palette.TileShade) -> [PaletteSwap] {
+        // The three body tones of each row, darkest first.
+        let source: [Color] = shade == .light
+            ? [Palette.darkMagenta, Palette.magenta, Palette.pink]
+            : [Palette.purple, Palette.darkMagenta, Palette.magenta]
+
+        let target: [Color]
         switch health {
         case .cracked:
-            [
-                PaletteSwap(Palette.pink, Palette.lavender),
-                PaletteSwap(Palette.magenta, Palette.dusk),
-                PaletteSwap(Palette.darkMagenta, Palette.navy),
-                PaletteSwap(Palette.purple, Palette.midnight),
-            ]
+            // Drained toward the blue end of the palette: the same sky with the
+            // life gone out of it, rather than a different object.
+            target = shade == .light
+                ? [Palette.midnight, Palette.blue, Palette.lavender]
+                : [Palette.dusk, Palette.midnight, Palette.navy]
+
         case .badlyCracked:
-            [
-                PaletteSwap(Palette.pink, Palette.blush),
-                PaletteSwap(Palette.magenta, Palette.red),
-                PaletteSwap(Palette.darkMagenta, Palette.darkRed),
-                PaletteSwap(Palette.purple, Palette.maroon),
-            ]
+            // Red, because the last warning before a hole should not be subtle.
+            target = shade == .light
+                ? [Palette.maroon, Palette.darkRed, Palette.red]
+                : [Palette.plum, Palette.maroon, Palette.darkRed]
+
         default:
-            []
+            return []
         }
+
+        return zip(source, target).map(PaletteSwap.init)
     }
 
     /// How far a cloud is shoved aside when something falls past it, in art

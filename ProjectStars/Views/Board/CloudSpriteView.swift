@@ -56,7 +56,7 @@ struct CloudSpriteView: View {
 
             let art = flashed(recoloured(
                 PixelSprite(id: .astraCloud(.at(point)), frame: motion.frame) { EmptyView() }
-                .paletteSwap(GameRules.cloudWearSwaps(health))
+                .paletteSwap(GameRules.cloudWearSwaps(health, shade: .at(point)))
                     .frame(width: motion.size.width, height: motion.size.height)
                     .scaleEffect(x: motion.isFlipped ? -1 : 1, y: 1)
             ))
