@@ -141,7 +141,12 @@ struct GameEngine {
     ///
     /// The engine knows *which* pickup from the moment the sparkles appear, but
     /// its square is not decided until the player commits a move.
-    private(set) var pendingPickup: PickupID?
+    /// True while a sparkle phase is open and no coin has been revealed yet.
+    ///
+    /// Was the coin itself, back when one was drawn as the squares lit up. It is
+    /// only ever asked as a yes/no, and holding an identity here is what made a
+    /// rule about a square look like a rule about a set.
+    private(set) var pendingPickup = false
 
     /// The pickup once it has appeared on the board, during a **pickup phase**.
     /// Every Pentacle currently out on the board.
@@ -539,7 +544,7 @@ struct GameEngine {
             facing: GameRules.startingFacing
         )
         self.sparkles = nil
-        self.pendingPickup = nil
+        self.pendingPickup = false
         self.revealedPickups = []
         self.raisedTiles = []
         self.carriedPickups = []
@@ -1741,10 +1746,7 @@ struct GameEngine {
     /// Tiles that are no longer legal hosts are skipped, so the pickup always
     /// lands somewhere the piece can stand.
     private mutating func rollPickupReveal(destination: GridPoint) -> [GameEvent] {
-        guard revealedPentacles.isEmpty,
-              let sparkles,
-              let pickup = pendingPickup
-        else { return [] }
+        guard revealedPentacles.isEmpty, let sparkles else { return [] }
 
         let board = self[sparkles.plane]
         // A set that was allowed over broken ground keeps every square it has.
@@ -1753,14 +1755,6 @@ struct GameEngine {
         let usable = sparkles.overBrokenGround
             ? sparkles.points
             : sparkles.points.filter { board[$0].canHostSparkle }
-
-        // An effect pinned to one square appears there or not at all — the
-        // catalogue only offered it because the set covers that square.
-        if let required = PickupCatalog.effect(for: pickup).requiredSpawnPoint {
-            guard usable.contains(required) else { return [] }
-            return [.pickupRevealed(id: pickup, plane: sparkles.plane, point: required)]
-                + secondReveal(among: usable, excluding: required, on: sparkles.plane)
-        }
 
         // A passive may steer the reveal — Virgo's Controlled Compensation puts the
         // coin on the square the move is already heading for. Otherwise it is a
@@ -1771,40 +1765,40 @@ struct GameEngine {
             context: passiveContext
         )
         guard let point = steered ?? usable.randomElement(using: &rng) else { return [] }
+        guard let pickup = drawPickup(at: point, on: sparkles.plane) else { return [] }
 
-        return [.pickupRevealed(
-            id: polarisOrNot(pickup, at: point),
-            plane: sparkles.plane,
-            point: point
-        )] + secondReveal(among: usable, excluding: point, on: sparkles.plane)
+        return [.pickupRevealed(id: pickup, plane: sparkles.plane, point: point)]
+            + secondReveal(among: usable, excluding: point, on: sparkles.plane)
     }
 
-    /// Turns the coin into Polaris a third of the time, on Polaris' square.
+    /// What the coin on `point` turns out to be.
     ///
-    /// ## Why the star is decided here and not in the draw
+    /// ## Why the square is an input
     ///
-    /// Everything else about a Pentacle is settled when the sparkles appear, and
-    /// for Polaris that was the mistake. Weighted into a tier, it won whenever
-    /// the set happened to cover the north-middle tile — which a five-square set
-    /// does often — and the tile requirement, which sounds like the whole gate,
-    /// turned out to be a weak one. Three or four a run for a legendary.
+    /// Because several rules are about the square and none of them can be
+    /// expressed before it is known. Polaris is the clear case — one tile in
+    /// forty-nine, a third of the time — but "is that tile among the five
+    /// sparkles" was the only question a set-time roll could ask, and that is a
+    /// far easier condition than the one the design wanted. Two special cases
+    /// grew on top of it before the placement itself was reconsidered.
     ///
-    /// The rule that was actually wanted is about the *square*: once a coin is
-    /// confirmed on that tile, it is Polaris one time in three. That cannot be
-    /// expressed as a weight, because a weight is asked before the square is
-    /// known — so it is asked here, where it is.
-    ///
-    /// The star can therefore replace any coin. That is the point: the square is
-    /// the lottery ticket, and what it was going to be otherwise is irrelevant
-    /// to whether it won.
-    private mutating func polarisOrNot(_ pickup: PickupID, at point: GridPoint) -> PickupID {
-        guard let star = PickupCatalog.effect(for: .polaris).requiredSpawnPoint,
-              point == star,
-              pickup != .polaris
-        else { return pickup }
+    /// Everything a coin's identity depends on is available here, so this is
+    /// where the draw belongs.
+    private mutating func drawPickup(at point: GridPoint, on plane: Plane) -> PickupID? {
+        #if DEBUG
+        if let forced = debugNextPickup {
+            debugNextPickup = nil
+            return forced
+        }
+        #endif
 
-        let roll = Double(rng.next() % 10_000) / 10_000
-        return roll < GameRules.polarisSpawnChance ? .polaris : pickup
+        // The star's own square, and only a third of the time even then.
+        if point == GameRules.polarisPoint,
+           Double(rng.next() % 10_000) / 10_000 < GameRules.polarisSpawnChance {
+            return .polaris
+        }
+
+        return PickupCatalog.rollPickup(weighting: pickupWeighting(), using: &rng)
     }
 
     /// A second Pentacle on one of the sparkles the first did not take.
@@ -1832,11 +1826,7 @@ struct GameEngine {
 
         let leftovers = usable.filter { $0 != taken }
         guard let point = leftovers.randomElement(using: &rng),
-              let pickup = PickupCatalog.rollPickup(
-                  sparklePoints: [point],
-                  weighting: pickupWeighting(),
-                  using: &rng
-              )
+              let pickup = drawPickup(at: point, on: plane)
         else { return [] }
 
         return [.pickupRevealed(id: pickup, plane: plane, point: point)]
@@ -3094,12 +3084,7 @@ struct GameEngine {
             if roll < mirrorChance { set = spawned.mirrored(on: board) }
         }
 
-        guard let pickup = PickupCatalog.rollPickup(
-            sparklePoints: set.points,
-            weighting: weighting,
-            using: &generator
-        ) else { return nil }
-        return .sparklesSpawned(set: set, pickup: pickup)
+        return .sparklesSpawned(set: set)
     }
 
     /// The coin the piece has just slid onto, swept up rather than opened.
@@ -3159,12 +3144,9 @@ struct GameEngine {
     /// Release builds compile this to the identity, so the roll is untouched.
     private mutating func staged(_ event: GameEvent) -> GameEvent {
         #if DEBUG
-        guard let forced = debugNextPickup,
-              case let .sparklesSpawned(set, _) = event
-        else { return event }
-
-        debugNextPickup = nil
-        return .sparklesSpawned(set: set, pickup: forced)
+        // Nothing to stage here any more: the coin is drawn at reveal, so the
+        // override is held and applied there instead.
+        return event
         #else
         return event
         #endif
@@ -3236,7 +3218,7 @@ struct GameEngine {
                 RevealedPickup(id: id, plane: plane, point: point, serial: pickupSerial)
             )
             sparkles = nil
-            pendingPickup = nil
+            pendingPickup = false
 
         case let .moveCommitted(direction):
             // The queue the retinue walks. See `rememberStep(_:)`.
@@ -3445,7 +3427,7 @@ struct GameEngine {
             revealedPickups.removeAll { $0.plane == plane && $0.point == point }
             // The hunt only restarts once the board is empty of coins.
             if revealedPentacles.isEmpty {
-                pendingPickup = nil
+                pendingPickup = false
                 sparkles = nil
             }
 
@@ -3482,7 +3464,7 @@ struct GameEngine {
             // engine does not have.
             carriedPickups.removeAll { $0.id == id }
             if revealedPentacles.isEmpty {
-                pendingPickup = nil
+                pendingPickup = false
                 sparkles = nil
             }
             pickupsCollected += 1
@@ -3522,9 +3504,9 @@ struct GameEngine {
         case let .tileStamped(plane, point):
             raisedTiles.removeAll { $0.plane == plane && $0.point == point }
 
-        case let .sparklesSpawned(set, pickup):
+        case let .sparklesSpawned(set):
             sparkles = set
-            pendingPickup = pickup
+            pendingPickup = true
             // Only the hunt's own leftovers. A boon is somewhere an ability put
             // it and stays there across any number of hunts.
             revealedPickups.removeAll {

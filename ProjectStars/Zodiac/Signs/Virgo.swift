@@ -216,11 +216,9 @@ struct VirgoRegulatedReboot: Zodiaction {
             board: context.currentBoard
         ) else { return [] }
 
-        guard let pickup = PickupCatalog.rollPickup(
-            sparklePoints: set.points,
-            using: &generator
-        ) else { return [] }
-
+        // No coin is drawn here. The ring lights the squares; which of them
+        // holds what is settled when one is stepped on — see
+        // `GameEngine.drawPickup(at:on:)`.
         var state = context.signState
         // Two, because timers tick down at the end of the turn that set them —
         // and this pop is a turn.
@@ -228,7 +226,7 @@ struct VirgoRegulatedReboot: Zodiaction {
 
         return [
             .signStateChanged(state),
-            .sparklesSpawned(set: set, pickup: pickup),
+            .sparklesSpawned(set: set),
         ]
     }
 }

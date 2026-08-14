@@ -1470,8 +1470,15 @@ enum GameRules {
     static let pentacleGlowRadius: CGFloat = 1.2
 
     /// Seconds Polaris takes to turn once. Negative is counter-clockwise.
-    /// How often Polaris actually appears once it has won its draw on the one
-    /// square it is allowed to appear on. See `PolarisEffect.spawnChance`.
+    /// The one square Polaris may appear on: north, middle.
+    static let polarisPoint = GridPoint(gridSize / 2, 0)
+
+    /// And how often it does, once a Pentacle is confirmed there.
+    ///
+    /// A third. The square alone was supposed to be the gate and is a weak one —
+    /// a five-square sparkle set covers it often — so the scarcity that reads as
+    /// "one tile in forty-nine" has to actually be asked *of that tile*. See
+    /// `GameEngine.drawPickup(at:on:)`.
     static let polarisSpawnChance: Double = 1.0 / 3.0
 
     static let polarisSpinPeriod: TimeInterval = -6.5

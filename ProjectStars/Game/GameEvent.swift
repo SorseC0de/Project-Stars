@@ -350,7 +350,15 @@ enum GameEvent: Equatable {
 
     /// A fresh sparkle set appeared, hiding `pickup`. Starts a new sparkle
     /// phase and replaces any previous set.
-    case sparklesSpawned(set: SparkleSet, pickup: PickupID)
+    /// A sparkle phase begins.
+    ///
+    /// Carries no `PickupID`. What the coin turns out to be is decided when a
+    /// square is chosen, not when the squares light up — see
+    /// `GameEngine.rollPickupReveal(destination:)`. Deciding it here tied every
+    /// rule about a *square* to the *set* instead, which is how a Pentacle
+    /// pinned to one tile ended up being common: "is that tile among the five"
+    /// is a much easier condition to meet than "is the coin on that tile".
+    case sparklesSpawned(set: SparkleSet)
 
     /// The Nexys island travelled to another plane, taking its chasm with it.
     ///

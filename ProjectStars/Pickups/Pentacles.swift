@@ -738,19 +738,13 @@ struct PolarisEffect: PickupEffect {
     /// was never seen.
     let rollsAsRarity: PickupRarity = .common
 
-    /// Zero: it does not compete for a draw. See `spawnChance`.
-    let weight = 0
-
-    /// The north-middle tile. Polaris appears here or not at all.
-    let requiredSpawnPoint: GridPoint? = GridPoint(GameRules.gridSize / 2, 0)
-
-    /// Never drawn. See `GameEngine.polarisOrNot(_:at:)`.
+    /// Zero: Polaris never wins an ordinary draw.
     ///
-    /// Polaris is not chosen among the other coins at all any more — it replaces
-    /// whatever was chosen, a third of the time, once a Pentacle is confirmed on
-    /// its square. Being in the draw as well would be two lotteries for one
-    /// prize.
-    let spawnChance: Double = 0
+    /// It is placed by `GameEngine.drawPickup(at:on:)`, which asks the only
+    /// question that decides it — whether this is the north-middle tile, and
+    /// whether the third came up. Being in the weighted roll as well would be
+    /// two lotteries for one prize.
+    let weight = 0
 
     func plan(
         context: PickupContext,
@@ -1022,24 +1016,26 @@ enum PickupCatalog {
         return effect
     }
 
-    /// Rolls the Pentacle to hide in a sparkle set.
+    /// Rolls a Pentacle.
     ///
     /// Two stages — tier, then effect within the tier — so the odds of a
     /// legendary do not shift every time a common one is added.
     ///
-    /// - Parameter sparklePoints: Squares the set covers. Effects with a
-    ///   `requiredSpawnPoint` are only eligible when the set includes it, which
-    ///   is how Polaris stays pinned to the north-middle tile.
+    /// Knows nothing about squares. It used to take the sparkle set so that
+    /// effects pinned to a tile could be filtered in or out, which meant a rule
+    /// about *where a coin is* was being asked as a rule about *which five
+    /// squares lit up* — a far weaker question, and the reason Polaris was
+    /// common. Square-dependent rules live in `GameEngine.drawPickup(at:on:)`,
+    /// which is called once the square is known.
+    ///
     /// - Parameter weighting: Lets the piece reweight the roll — see
     ///   `ZodiacPassive.pickupWeight`. Defaults to leaving every weight alone.
     static func rollPickup(
-        sparklePoints: [GridPoint],
         weighting: (PickupID, Int) -> Int = { _, weight in weight },
         using generator: inout SeededRandom
     ) -> PickupID? {
-        let covered = Set(sparklePoints)
 
-        /// Effects in `rarity` that could legally appear in this set.
+        /// Effects in `rarity` that could legally be drawn.
         func eligible(in rarity: PickupRarity) -> [(value: PickupID, weight: Int)] {
             allEffects.values
                 .filter { effect in
@@ -1051,9 +1047,7 @@ enum PickupCatalog {
                     // Nexys Shift's place — and testing the raw number first
                     // threw it away before the sign ever got a say. It is why
                     // the Gavel never appeared in a single session.
-                    guard effect.rollsAsRarity == rarity else { return false }
-                    guard let required = effect.requiredSpawnPoint else { return true }
-                    return covered.contains(required)
+                    effect.rollsAsRarity == rarity
                 }
                 .map { (value: $0.id, weight: weighting($0.id, $0.weight)) }
                 // The one weight that decides: zero here is out, whether it was
@@ -1068,17 +1062,7 @@ enum PickupCatalog {
             .map { (value: $0, weight: $0.weight) }
 
         guard let tier = generator.pick(weighted: tiers) else { return nil }
-        guard var drawn = generator.pick(weighted: eligible(in: tier)) else { return nil }
-
-        // The last gate. A coin that fails it hands the draw back to everything
-        // else in its tier rather than costing the phase a Pentacle — see
-        // `PickupEffect.spawnChance`.
-        let chance = allEffects[drawn]?.spawnChance ?? 1
-        if chance < 1, Double(generator.next() % 10_000) / 10_000 >= chance {
-            let rest = eligible(in: tier).filter { $0.value != drawn }
-            guard let second = generator.pick(weighted: rest) else { return nil }
-            drawn = second
-        }
+        guard let drawn = generator.pick(weighted: eligible(in: tier)) else { return nil }
 
         // The fifth Essence is rolled *inside* the result, not beside it: the
         // odds of drawing an Essence at all are untouched, and this only decides
