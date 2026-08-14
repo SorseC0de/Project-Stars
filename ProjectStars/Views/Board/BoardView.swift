@@ -1368,9 +1368,15 @@ struct BoardView: View {
         let piece = session.engine.piece
         let trail = session.engine.signState.trail
 
-        // The square Leo stood on `step + 1` turns ago. They are walking his
-        // route, not orbiting him — see `SignState.trail`.
-        if step + 1 < trail.count { return trail[step + 1] }
+        // `trail[0]` is where Leo was when *this* turn began.
+        //
+        // The queue is pushed on `moveCommitted`, which is stamped before the
+        // piece moves — so the newest entry is already the square he has just
+        // left, and the first follower belongs on it. Indexing from one put
+        // every phantom a turn further back than intended: correct on the first
+        // step after a summon, because the queue was empty and the fallback
+        // covered it, and a tile adrift on every step after that.
+        if step < trail.count { return trail[step] }
 
         // Not `trail.last`, which is where Leo is standing right now.
         //
