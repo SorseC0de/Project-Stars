@@ -180,6 +180,105 @@ struct GameEngine {
         return .planeRestored(plane: .astra)
     }
 
+    /// Where the phantom `step` places back in the line is standing.
+    ///
+    /// On the engine rather than in the view, because the board draws it *and*
+    /// the ground has to be worn under it. Two answers to that would be two
+    /// phantoms — one you can see and one that does the damage.
+    func retinueSquare(step: Int) -> GridPoint {
+        let trail = signState.trail
+
+        // `trail[0]` is where the piece was when this turn began: the turn stamp
+        // is emitted before it moves. So the first follower belongs on it.
+        if step < trail.count { return trail[step] }
+
+        // The queue is short for a turn or two after a summon. Behind the facing
+        // is right for exactly those turns — and never `trail.last`, which is
+        // where the piece is standing now.
+        let back = piece.facing.opposite.unitOffset
+        let size = currentBoard.size
+        return GridPoint(
+            min(max(piece.point.x + back.dx * (step + 1), 0), size - 1),
+            min(max(piece.point.y + back.dy * (step + 1), 0), size - 1)
+        )
+    }
+
+    /// Wears the ground under every phantom, by that phantom's own rules.
+    ///
+    /// ## Why this exists
+    ///
+    /// Attracting Aten is otherwise pure profit: a set of passives for nothing
+    /// and a Zodiaction for nothing, immediately. The cost is that a phantom is
+    /// a *body* — it stands on the board and the board knows it, so a lion with
+    /// two followers ruins the ground three times as fast.
+    ///
+    /// ## Why each one wears in its own way
+    ///
+    /// Because that is what makes a summon a decision rather than a number.
+    /// Libra digs trenches either side of where it stands instead of under
+    /// itself; Taurus hits twice on Astra and scuffs the first time on Terra;
+    /// Aquarius charges the square it leaves. A follower that wore ground
+    /// generically would be the same follower every time, and the sign it
+    /// happened to be would only matter for its super.
+    ///
+    /// Asked of the follower's own passives, not of `activePassives` — those are
+    /// the ones in force for *Leo*, and running the retinue's damage through
+    /// them would have every phantom wear like every other.
+    private mutating func applyRetinueWear() -> [GameEvent] {
+        guard !signState.retinue.isEmpty, !isGameOver else { return [] }
+
+        var events: [GameEvent] = []
+
+        for (step, follower) in signState.retinue.enumerated() {
+            let point = retinueSquare(step: step)
+            guard currentBoard.contains(point) else { continue }
+
+            let tile = currentBoard[point]
+            let passives = follower.definition.passives
+
+            guard passives.causesWear(
+                on: tile, at: point, plane: piece.plane, context: passiveContext
+            ) else { continue }
+
+            var proposal = WearProposal(
+                tile: tile,
+                point: point,
+                plane: piece.plane,
+                arrivedByFalling: false,
+                stages: GameRules.wearPerLanding,
+                signState: signState
+            )
+            proposal = passives.modifyWear(proposal, context: passiveContext)
+
+            var changes: [GridPoint: TileHealth] = [:]
+
+            // The flanks first, so a passive that spares what it lands on still
+            // gets its extras — the same order `applyWear` uses.
+            for extra in passives.additionalWear(from: proposal, context: passiveContext) {
+                guard currentBoard.contains(extra), currentBoard[extra].canBeWorn else { continue }
+                changes[extra] = currentBoard[extra].health.damaged
+            }
+
+            if proposal.stages > 0, tile.canBeWorn {
+                var health = tile.health
+                for _ in 0..<proposal.stages where health != .hole {
+                    health = health.damaged
+                }
+                if health != tile.health { changes[point] = health }
+            }
+
+            guard !changes.isEmpty else { continue }
+            guard let allowed = sheltered(
+                .tilesWorn(plane: piece.plane, changes: changes, cause: proposal.cause)
+            ) else { continue }
+
+            events.append(allowed)
+            apply(allowed)
+        }
+
+        return events
+    }
+
     /// Records a square Leo has occupied, for the retinue to walk through.
     ///
     /// ## Why every kind of movement calls this
@@ -648,6 +747,12 @@ struct GameEngine {
                 events += gathered.events
                 landing.collectedPickup = landing.collectedPickup ?? gathered.pickup
             }
+
+            // 4b-ii. The company wears the ground it is standing on.
+            //
+            //        After the piece has settled, so each phantom is charged for
+            //        where it actually ended up rather than where it set off.
+            events += sim.applyRetinueWear()
 
             // 4c. Anything still riding the piece opens now.
             //

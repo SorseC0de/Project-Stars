@@ -1358,39 +1358,11 @@ struct BoardView: View {
         return board[point].health.isHole || board[point].kind == .chasm
     }
 
-    /// The square a follower stands on: `step + 1` squares behind the lion.
-    ///
-    /// A real square rather than a nudge, so a phantom occupies ground the way
-    /// everything else on this board does. Clamped inside the border, because a
-    /// lion with its back to a wall still has company — they bunch up rather
-    /// than walking off the edge.
+    /// The square a follower stands on — the engine's answer, not a second one.
     private func followerSquare(step: Int) -> GridPoint {
-        let piece = session.engine.piece
-        let trail = session.engine.signState.trail
-
-        // `trail[0]` is where Leo was when *this* turn began.
-        //
-        // The queue is pushed on `moveCommitted`, which is stamped before the
-        // piece moves — so the newest entry is already the square he has just
-        // left, and the first follower belongs on it. Indexing from one put
-        // every phantom a turn further back than intended: correct on the first
-        // step after a summon, because the queue was empty and the fallback
-        // covered it, and a tile adrift on every step after that.
-        if step < trail.count { return trail[step] }
-
-        // Not `trail.last`, which is where Leo is standing right now.
-        //
-        // The queue is one entry short on the turn a phantom is summoned and on
-        // the turn after it, and falling back to the newest entry put the
-        // phantom directly on top of the lion until the queue caught up. Behind
-        // the facing is the right answer for exactly those turns.
-        let back = piece.facing.opposite.unitOffset
-        let size = session.visibleBoard.size
-        return GridPoint(
-            min(max(piece.point.x + back.dx * (step + 1), 0), size - 1),
-            min(max(piece.point.y + back.dy * (step + 1), 0), size - 1)
-        )
+        session.engine.retinueSquare(step: step)
     }
+
 
     /// The colours a piece drags behind it.
     ///
