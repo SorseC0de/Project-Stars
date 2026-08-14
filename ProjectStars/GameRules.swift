@@ -1219,16 +1219,11 @@ enum GameRules {
     // aligns the drawings and every number below is a deliberate departure from
     // that. See `LibraPieceView`.
 
-    /// - Note: These five are `var` so the assembly bench in
-    ///   `LibraPieceView.swift` can drive them from sliders. Nothing in the game
-    ///   writes to them, and they should go back to `let` once the numbers are
-    ///   settled and the bench is deleted.
-    ///
     /// How far above Libra's feet an arm hangs, facing toward or away.
-    static var libraArmLiftNS: CGFloat = 16
+    static let libraArmLiftNS: CGFloat = 16
 
     /// And in profile, where the near arm sits much lower.
-    static var libraArmLiftEW: CGFloat = 3
+    static let libraArmLiftEW: CGFloat = 3
 
     /// How far the far arm sits from the near one, in profile.
     ///
@@ -1239,7 +1234,7 @@ enum GameRules {
     /// apart up the screen. So the far arm is lifted most of a tile above the
     /// near one, which is what puts its pan over the right ground rather than
     /// hovering above her shoulder.
-    static var libraArmLiftEWBack: CGFloat = 24
+    static let libraArmLiftEWBack: CGFloat = 25
 
     /// How far each arm sits from centre when facing toward or away.
     ///
@@ -1250,14 +1245,14 @@ enum GameRules {
     ///
     /// In profile they are centred on the body instead, since one is simply
     /// behind the other.
-    static var libraArmInsetNS: CGFloat = -10
+    static let libraArmInsetNS: CGFloat = -10
 
     /// And how far the pans sit from centre, independently of the arm.
     ///
     /// Its own number because the two are not rigidly joined: an arm reaches
     /// out and the pan hangs *plumb* from its end, so the horizontal that suits
     /// the arm is not necessarily the one that suits what dangles off it.
-    static var libraScalesInsetX: CGFloat = -6
+    static let libraScalesInsetX: CGFloat = -6
 
     /// The gap between an arm's lowest pixel and the top of its pans.
     ///
@@ -1267,9 +1262,9 @@ enum GameRules {
     /// the right tiles from one angle only — in profile the far pan is a whole
     /// tile further up the screen than the near one, and it has to be, because
     /// the tile it belongs to is.
-    static var libraScalesGapNS: CGFloat = 0
-    static var libraScalesGapEW: CGFloat = 3
-    static var libraScalesGapEWBack: CGFloat = 3
+    static let libraScalesGapNS: CGFloat = 0
+    static let libraScalesGapEW: CGFloat = 3
+    static let libraScalesGapEWBack: CGFloat = -4
 
     /// Where an arm's lowest pixel sits inside its own cell, from the top.
     ///
@@ -1288,7 +1283,12 @@ enum GameRules {
     /// Opposed: one arm is at the top of its travel while the other is at the
     /// bottom, which is what a balance does and what makes the pair read as one
     /// object rather than two decorations.
-    static let libraArmSway: CGFloat = 3
+    ///
+    /// One pixel either way, for three positions in total. Three *pixels* either
+    /// way — which is what this was — is most of the distance between the tiles
+    /// the pans are supposed to be pointing at, so the aim came and went as it
+    /// breathed.
+    static let libraArmSway: CGFloat = 1
     static let libraArmSwayPeriod: TimeInterval = 2.4
 
     /// How fast the pans cycle.

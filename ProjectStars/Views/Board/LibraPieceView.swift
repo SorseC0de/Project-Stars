@@ -96,10 +96,19 @@ struct LibraPieceView: View {
 
     /// An arm and its pans together, for the profile poses where the two share
     /// a depth.
+    ///
+    /// The far pan is the backmost thing Libra has — behind its own arm, not
+    /// just behind her. It hangs over the tile *beyond* her, so anything nearer
+    /// the viewer should cover it, and that includes the arm holding it.
     @ViewBuilder
     private func limb(side: Side, sway: CGFloat) -> some View {
-        arm(side: side, sway: sway)
-        pans(side: side, sway: sway)
+        if side == .far {
+            pans(side: side, sway: sway)
+            arm(side: side, sway: sway)
+        } else {
+            arm(side: side, sway: sway)
+            pans(side: side, sway: sway)
+        }
     }
 
     /// One arm.
@@ -177,172 +186,3 @@ struct LibraPieceView: View {
         return (side == .left ? 1 : -1) * GameRules.libraScalesInsetX * scale
     }
 }
-
-// MARK: - Preview
-
-#if DEBUG
-/// A bench for Libra's five parts, with every offset on a slider.
-///
-/// ## Why it is here and not in `Views/Previews/`
-///
-/// Because it is not a gallery of finished art — it is the tuning surface for
-/// *this file*, and the numbers it moves are the constants declared beside it.
-/// Kept next to what it adjusts, it goes stale the moment the assembly changes,
-/// which is the point.
-///
-/// ## Why nothing moves
-///
-/// The sway and the pans' cycle are both off. Judging a resting position against
-/// something that is drifting means waiting for it to come back round, and the
-/// resting position is what every one of these numbers actually sets. There is a
-/// switch for the sway when it is the sway itself being judged.
-private struct LibraBench: View {
-
-    @State private var facing: SwipeDirection = .down
-    // Only what is still unsettled.
-    //
-    // Every number that has been decided is gone from here — a bench that keeps
-    // its solved controls grows until the unsolved ones are off the bottom of
-    // the screen, which is exactly what happened. The rest live in `GameRules`
-    // and this reads them.
-    @State private var liftEWBack = GameRules.libraArmLiftEWBack
-    @State private var gapEWBack = GameRules.libraScalesGapEWBack
-    @State private var sway = false
-    @State private var zoom: CGFloat = 6
-
-    var body: some View {
-        // Scrollable, because the stage grows with the zoom and a control you
-        // cannot reach is a control you do not have.
-        ScrollView {
-            content
-        }
-        .background(Palette.background)
-        .preferredColorScheme(.dark)
-    }
-
-    private var content: some View {
-        VStack(spacing: 18) {
-            stage
-
-            // The settled numbers, in the shape they go back into the code as.
-            //
-            // A screenshot of a figure is a picture of a result nobody can act
-            // on; a screenshot with the values under it is the answer written
-            // down. This is here so the bench can be *reported* rather than
-            // described.
-            Text(summary)
-                .font(.system(size: 11, design: .monospaced))
-                .foregroundStyle(Palette.textPrimary)
-                .textSelection(.enabled)
-                .padding(8)
-                .frame(maxWidth: .infinity, alignment: .leading)
-                .background(Palette.warmBlack)
-                .padding(.horizontal)
-
-            VStack(spacing: 10) {
-                Picker("Facing", selection: $facing) {
-                    Text("N").tag(SwipeDirection.up)
-                    Text("S").tag(SwipeDirection.down)
-                    Text("E").tag(SwipeDirection.right)
-                    Text("W").tag(SwipeDirection.left)
-                }
-                .pickerStyle(.segmented)
-
-                slider("Arm lift E/W far", $liftEWBack, 0...40)
-                slider("Scales gap E/W far", $gapEWBack, -8...24)
-                slider("Zoom", $zoom, 2...12, unit: "x")
-
-                Toggle("Animate", isOn: $sway)
-            }
-            .padding(.horizontal)
-        }
-        .padding(.top)
-        // Clear of the home indicator, and of the canvas' own bottom edge.
-        .padding(.bottom, 48)
-        // Written straight back into the constants the game reads, so the board
-        // in another preview pane shows the same thing — there is one set of
-        // numbers and this is a window onto it, not a copy.
-        .onChange(of: liftEWBack) { _, new in GameRules.libraArmLiftEWBack = new }
-        .onChange(of: gapEWBack) { _, new in GameRules.libraScalesGapEWBack = new }
-    }
-
-    /// Every value, written as the constants they set.
-    private var summary: String {
-        """
-        libraArmLiftEWBack  = \(Int(liftEWBack))
-        libraScalesGapEWBack= \(Int(gapEWBack))
-        """
-    }
-
-    /// The figure, on a tile, at whatever zoom is set.
-    private var stage: some View {
-        let tile = GameRules.tilePixelSize
-
-        return ZStack {
-            // Three squares of board, not one.
-            //
-            // The parts that hang highest and lowest — the far arm above, the
-            // pans below — leave the square she is standing on entirely, and
-            // against a single tile there is nothing to say whether that is
-            // correct or merely far. Neighbours give the overhang something to
-            // be measured in.
-            VStack(spacing: 0) {
-                ForEach(0..<3, id: \.self) { row in
-                    Rectangle()
-                        .fill(Palette.tileFace(
-                            .healthy,
-                            on: .terra,
-                            shade: row == 1 ? .light : .dark
-                        ))
-                        .frame(width: CGFloat(tile), height: CGFloat(tile))
-                }
-            }
-            .offset(y: CGFloat(tile) / 2)
-
-            LibraPieceView(
-                facing: facing,
-                tileSize: CGFloat(tile),
-                scale: 1
-            )
-            .environment(\.ambientClock, sway ? { $0 } : { _ in 0 })
-        }
-        .frame(width: CGFloat(tile) * 3, height: CGFloat(tile) * 4)
-        .scaleEffect(zoom)
-        .frame(
-            width: CGFloat(tile) * 3 * zoom,
-            height: CGFloat(tile) * 4 * zoom
-        )
-        // Reserves its own room rather than borrowing the controls'.
-        //
-        // `scaleEffect` does not change a view's layout size — the figure grows
-        // visually and the box it sits in does not, so at any real zoom it drew
-        // straight over whatever came next. A `maxHeight` made that worse by
-        // letting the box shrink. The frame has to be the *scaled* size, so the
-        // stack below it starts where the drawing actually ends.
-    }
-
-    private func slider(
-        _ name: String,
-        _ value: Binding<CGFloat>,
-        _ range: ClosedRange<CGFloat>,
-        unit: String = "px"
-    ) -> some View {
-        HStack {
-            Text(name)
-                .font(.caption)
-                .frame(width: 130, alignment: .leading)
-
-            Slider(value: value, in: range, step: 1)
-
-            Text("\(Int(value.wrappedValue))\(unit)")
-                .font(.caption.monospacedDigit())
-                .frame(width: 40, alignment: .trailing)
-        }
-        .foregroundStyle(Palette.textPrimary)
-    }
-}
-
-#Preview("Libra — assembly bench") {
-    LibraBench()
-}
-#endif
