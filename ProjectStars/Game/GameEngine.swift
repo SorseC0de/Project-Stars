@@ -3099,11 +3099,20 @@ struct GameEngine {
         case let .pieceTurned(direction):
             piece.facing = direction
 
-        case let .pieceSlid(from, to, _):
-            // The square being *left*, so the first follower lands on it exactly
-            // as it does after an ordinary step — and a long slide leaves a
-            // whole route behind for the line to walk.
-            rememberStep(from)
+        case let .pieceSlid(_, to, _):
+            // A slide restarts the queue rather than filling it.
+            //
+            // Not merely because six squares of follow-through outlasts the turn
+            // that caused it — because the engine's own rule is that a slide's
+            // middle squares are **crossed, not stood on**: no wear, no landing
+            // checks, no chance to fall in halfway. A retinue walking them as if
+            // they were steps would be the one thing on the board treating those
+            // squares as ground.
+            //
+            // So the line arrives stacked on Leo, exactly as it does through a
+            // warp, and sorts itself out on his next step. A slide has far more
+            // in common with a warp than with walking.
+            restartTrail(at: to)
             piece.point = to
 
         case let .pieceStepped(_, to, _):
