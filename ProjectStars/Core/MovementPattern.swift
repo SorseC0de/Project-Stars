@@ -92,6 +92,71 @@ enum MovementStyle: String, CaseIterable, Codable {
     /// False for a warp, which is the distinction the retinue, the wake and the
     /// cursor were each making for themselves.
     var travelsTheGround: Bool { self == .slide || self == .charge }
+
+    // MARK: - What a style already implies
+    //
+    // The point of naming these five is that saying "slide" should be enough:
+    // the engine knows it wears its ends, the panel knows it thumps when it runs
+    // out of board, the board knows not to bounce the sprite. Every one of the
+    // questions below used to be answered at the site that needed it — which is
+    // how a slide ended up wearing every square it crossed in one place and only
+    // its ends in another, and why Aries' charge had to hand-write events no
+    // other sign could reuse.
+    //
+    // A new style declares its answers here once and the whole game behaves.
+
+    /// Which squares this charges on the way through.
+    var wear: MovementWear {
+        switch self {
+        case .slide: .ends
+        case .charge: .everySquare
+        case .hop, .leap: .destination
+        case .warp: .destination
+        }
+    }
+
+    /// Whether running out of board is worth a thump.
+    ///
+    /// A style that travels has somewhere it was trying to get to and was
+    /// stopped; one that arrives had no journey to interrupt.
+    var balksAtWalls: Bool { travelsTheGround }
+
+    /// Whether the piece leaves the ground, and so takes an arc rather than
+    /// being carried along it.
+    var arcs: Bool { isAirborne }
+
+    /// Whether the ground gives under the arrival.
+    ///
+    /// Only something that came *down* lands. A slide is already at ground
+    /// level and a warp was never above it.
+    var bouncesOnArrival: Bool { isAirborne }
+
+    /// How long one square of it takes, as a share of the base step.
+    ///
+    /// A leap is slow because it is a decision; a charge is quick because it is
+    /// a run. Both were literals at their call sites before.
+    var paceMultiplier: Double {
+        switch self {
+        case .slide: GameRules.slideStepPace
+        case .charge: GameRules.chargeStepPace
+        case .hop: 1
+        case .leap: GameRules.leapPace
+        case .warp: 0
+        }
+    }
+}
+
+/// Which squares a movement charges.
+enum MovementWear {
+    /// The one it stops on, and nothing else.
+    case destination
+
+    /// The one it pushed off from and the one it reached — see
+    /// `GameRules.slideWearsEndsOnly`.
+    case ends
+
+    /// All of them, charged on the way out of each.
+    case everySquare
 }
 
 // MARK: - MovementPattern

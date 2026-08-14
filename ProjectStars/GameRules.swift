@@ -2125,6 +2125,14 @@ enum GameRules {
     /// between sliding and hopping.
     static let slideStepDuration: TimeInterval = 0.055
 
+    /// How long one square of each travelling style takes, against a step.
+    ///
+    /// Declared beside each other so the styles can be compared rather than
+    /// discovered one call site at a time. See `MovementStyle.paceMultiplier`.
+    static let slideStepPace: Double = 0.45
+    static let chargeStepPace: Double = 0.6
+    static let leapPace: Double = 2.2
+
     /// How far each square's movement runs past the beat it is given.
     ///
     /// Above 1 the squares *overlap*: the piece is still travelling toward one

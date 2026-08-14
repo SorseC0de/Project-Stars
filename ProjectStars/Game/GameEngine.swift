@@ -321,6 +321,23 @@ struct GameEngine {
     /// The phantoms end up stacked on Leo for a turn, which is what almost every
     /// game does with a party that teleports, and it sorts itself out the moment
     /// he takes a step.
+    /// Advances the retinue's queue however this movement wants it advanced.
+    ///
+    /// One question asked of the style instead of four sites each deciding for
+    /// themselves. A style that crossed the ground leaves a route to walk; one
+    /// that did not leaves nowhere to be but on top of the leader.
+    ///
+    /// This is what the styles are for: the rule is "did the leader cross the
+    /// squares between", and before there was a name for that, every caller
+    /// answered it from whichever event it happened to be handling.
+    private mutating func advanceTrail(_ style: MovementStyle, from: GridPoint, to: GridPoint) {
+        if style.travelsTheGround {
+            rememberStep(from)
+        } else {
+            restartTrail(at: to)
+        }
+    }
+
     private mutating func restartTrail(at point: GridPoint) {
         guard !signState.retinue.isEmpty || !signState.trail.isEmpty else { return }
         signState.trail = [point]
@@ -3294,7 +3311,7 @@ struct GameEngine {
         case let .pieceTurned(direction):
             piece.facing = direction
 
-        case let .pieceSlid(_, to, _):
+        case let .pieceSlid(from, to, _):
             // A slide restarts the queue rather than filling it.
             //
             // Not merely because six squares of follow-through outlasts the turn
@@ -3307,7 +3324,7 @@ struct GameEngine {
             // So the line arrives stacked on Leo, exactly as it does through a
             // warp, and sorts itself out on his next step. A slide has far more
             // in common with a warp than with walking.
-            restartTrail(at: to)
+            advanceTrail(.slide, from: from, to: to)
             piece.point = to
 
         case let .pieceStepped(_, to, _):
@@ -3343,7 +3360,7 @@ struct GameEngine {
             }
             piece.plane = toPlane
             piece.point = to
-            restartTrail(at: to)
+            advanceTrail(.warp, from: to, to: to)
 
         case .caughtOnReveal:
             // Presentation only; the charge is its own event.
@@ -3455,7 +3472,7 @@ struct GameEngine {
             signState = state
 
         case let .pieceFell(_, to, at):
-            restartTrail(at: at)
+            advanceTrail(.warp, from: at, to: at)
             refundLostRetinue()
             signState = signState.clearedForPlaneChange(atMove: moveCount)
             signState.closeRifts()

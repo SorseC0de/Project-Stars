@@ -294,6 +294,46 @@ final class GameSession {
     ///
     /// Taurus' Flowering Flop and Pisces' dive. Distinct from `hopStartedAt`
     /// because it is a different pose entirely — see `HopPose.leap(progress:)`.
+    /// The movement currently playing out, if any.
+    ///
+    /// One clock for every kind, rather than a flag per kind. It began as
+    /// `hopStartedAt`, gained `leapStartedAt` beside it when leaps arrived, and
+    /// would have gained a third for charges — each of them answering "is *my*
+    /// sort of movement happening" when the question anything downstream
+    /// actually asks is "what is happening, since when, and which way".
+    ///
+    /// Anything that wants to move with the piece — Libra's scales, the
+    /// retinue's beat, a future sign's cape — reads this rather than being told
+    /// about its own special case.
+    private(set) var movement: Movement?
+
+    /// One movement, from the moment it starts.
+    struct Movement: Equatable {
+        let style: MovementStyle
+        let direction: SwipeDirection
+        let start: Date
+        let duration: TimeInterval
+
+        /// How far through it is, `0`…`1`.
+        func progress(at now: Date) -> Double {
+            guard duration > 0 else { return 1 }
+            return min(max(now.timeIntervalSince(start) / duration, 0), 1)
+        }
+    }
+
+    /// Starts the clock for a movement of `style`.
+    func beginMovement(_ style: MovementStyle, direction: SwipeDirection, duration: TimeInterval) {
+        movement = Movement(
+            style: style,
+            direction: direction,
+            start: .now,
+            duration: duration
+        )
+    }
+
+    /// And stops it.
+    func endMovement() { movement = nil }
+
     private(set) var leapStartedAt: Date?
 
     /// True while the piece is climbing away off the top of the board.
@@ -302,6 +342,12 @@ final class GameSession {
     /// Throws the piece into the air and waits out the arc.
     func playLeap() async {
         leapStartedAt = .now
+        beginMovement(
+            .leap,
+            direction: engine.piece.facing,
+            duration: GameRules.leapDuration
+        )
+        defer { endMovement() }
         await sleep(GameRules.leapDuration)
         leapStartedAt = nil
     }
@@ -1263,6 +1309,11 @@ final class GameSession {
         case let .pieceSlid(from, to, plane):
             leaveAfterimage(at: from, on: plane)
             isSliding = true
+            beginMovement(
+                .slide,
+                direction: stepDirection(from: from, to: to),
+                duration: event.displayDuration
+            )
             pressedTiles.insert(to)
 
             // Water on every square the surf crosses. A slide is the one move
@@ -1308,6 +1359,11 @@ final class GameSession {
             hopDistance = max(from.manhattanDistance(to: to), 1)
             hopCount += 1
             hopStartedAt = .now
+            beginMovement(
+                .hop,
+                direction: stepDirection(from: from, to: to),
+                duration: hopDuration
+            )
 
             // The ground gives when the piece reaches it, not when it sets off —
             // so the dip is scheduled for the end of the hop rather than fired
