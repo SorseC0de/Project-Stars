@@ -714,7 +714,12 @@ struct GameEngine {
         // A one-square move is not a sweep and must not be treated as one: it
         // has no crossed middle to be spared, so charging its exit *as well as*
         // its arrival is simply double damage on every ordinary step.
-        let sweeps = move.style == .slide && move.path.count > 1
+        // Asked of the style rather than tested against one.
+        //
+        // `wear` is where the rule lives, so a future style that also charges
+        // its ends gets this without being named here — and the two places that
+        // used to test `== .slide` independently cannot drift apart again.
+        let sweeps = move.style.wear == .ends && move.path.count > 1
         let departure = sim.departCurrentTile(force: sweeps)
         events += departure.events
 

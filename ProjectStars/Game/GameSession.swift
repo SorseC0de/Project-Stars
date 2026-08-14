@@ -1368,7 +1368,12 @@ final class GameSession {
             // The ground gives when the piece reaches it, not when it sets off —
             // so the dip is scheduled for the end of the hop rather than fired
             // here. `hopDuration` is the arc; the impact is what follows it.
-            landAfterHop(at: to, on: plane)
+            // Only a style that came down lands. `bouncesOnArrival` rather
+            // than "is this a step", so a leap gets the dip and a slide does not
+            // without either having to be named here.
+            if movement?.style.bouncesOnArrival ?? true {
+                landAfterHop(at: to, on: plane)
+            }
 
             // And every phantom lands too, a beat later each.
             //
