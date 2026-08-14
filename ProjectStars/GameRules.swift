@@ -364,6 +364,14 @@ enum GameRules {
     /// fall — this is one heavy thing arriving once.
     static let arrowLandShake: TimeInterval = 0.22
 
+    /// How long the arrow takes to clear the top of the board on its way up.
+    ///
+    /// Slower than it looks like it should be. The shot is the whole of this
+    /// Zodiaction's first half and it was over before the eye found it — a
+    /// vertical streak needs longer than a horizontal one to register, because
+    /// there is nothing beside it to measure against.
+    static let arrowRiseDuration: TimeInterval = 0.45
+
     static let arrowLean: Double = 12
 
     /// Its glow, and how long one breath of it takes.

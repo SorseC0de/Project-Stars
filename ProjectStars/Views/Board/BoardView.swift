@@ -105,6 +105,7 @@ struct BoardView: View {
             healFlashClouds(plane: plane, metrics: metrics)
             healSparkles(metrics: metrics)
             stingLance(metrics: metrics)
+            loosedArrow(metrics: metrics)
             reeledCoin(metrics: metrics)
             bankArc(metrics: metrics)
 
@@ -171,6 +172,39 @@ struct BoardView: View {
             .position(metrics.center(of: skin.point))
             .allowsHitTesting(false)
             .transition(.opacity)
+        }
+    }
+
+    /// The arrow on its way up, out of the archer and off the board.
+    ///
+    /// Head *up* on the way out and head down coming back, which is the one
+    /// place the art's rotation differs — a fired arrow points where it is
+    /// going.
+    @ViewBuilder
+    private func loosedArrow(metrics: PixelArtMetrics) -> some View {
+        if let shot = session.loosedArrow, shot.plane == session.visiblePlane {
+            TimelineView(.animation) { timeline in
+                let progress = min(
+                    max(timeline.date.timeIntervalSince(shot.start)
+                        / GameRules.arrowRiseDuration, 0),
+                    1
+                )
+                // Accelerating away, so it reads as leaving under power rather
+                // than drifting off.
+                let eased = CGFloat(progress * progress)
+                let centre = metrics.center(of: shot.point)
+
+                PixelSprite(id: .effect(.sagittariusArrow)) { EmptyView() }
+                    .frame(width: metrics.tileSize * 2, height: metrics.tileSize * 2)
+                    .rotationEffect(.degrees(-GameRules.arrowArtRotation))
+                    .position(
+                        x: centre.x,
+                        y: centre.y - metrics.tileSize
+                            - eased * (metrics.boardSize + metrics.tileSize * 2)
+                    )
+            }
+            .frame(width: metrics.boardSize, height: metrics.boardSize)
+            .allowsHitTesting(false)
         }
     }
 

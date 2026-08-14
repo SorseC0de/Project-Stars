@@ -235,6 +235,11 @@ enum EffectSprite: String, CaseIterable, Hashable {
         // Prideful Plant, one stage down. Eleven frames of fire went past too
         // quickly to read as a landing.
         case .leoPridefulLanding: .fps10
+        // The shot's two halves. The strike is a single loud moment and the warp
+        // square is a thing that hums for as long as the arrow is out there;
+        // both were going past too quickly to be read as either.
+        case .sagittariusArrowHit: .fps10
+        case .sagittariusTeleTile: .fps12
         // The Tear's droplet is fourteen frames of a single splash. At the house
         // default it was over in about a second and never seen at all.
         case .droplet: .fps10
@@ -379,6 +384,31 @@ enum EffectSprite: String, CaseIterable, Hashable {
         // saying "this tile is the one" is the whole thing it must not do.
         case .sagittariusTeleTile: GameRules.effectSpan * 0.75
         default: GameRules.effectSpan
+        }
+    }
+
+    /// How much taller than wide this is drawn, against its own proportions.
+    ///
+    /// Separate from `span` because the two are answering different questions:
+    /// `span` is how much of the board it covers, and this is the shape of the
+    /// thing. The warp square has to fit one tile across and still read as a
+    /// column of fire, which is not a square.
+    var spanScaleY: CGFloat {
+        switch self {
+        case .sagittariusTeleTile: 1.25
+        default: 1
+        }
+    }
+
+    /// A nudge in art pixels, for a strip that is not centred in its own cell.
+    ///
+    /// The alternative is editing the sheet, which is worse: the art is right
+    /// and its *placement* is what needs saying, so it is said here rather than
+    /// baked into pixels somebody has to re-find later.
+    var artNudge: CGSize {
+        switch self {
+        case .sagittariusTeleTile: CGSize(width: 1, height: 0)
+        default: .zero
         }
     }
 

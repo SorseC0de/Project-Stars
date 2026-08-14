@@ -34,41 +34,38 @@ struct VaultBadgeView: View {
     var body: some View {
         let ready = session.canVault
 
-        // Namespaced, like every other sign asset. Without the folder the
-        // catalogue does not find it and the badge draws nothing at all.
-        Image("Signs/VulcanVault")
-            .resizable()
-            .renderingMode(.template)
-            .aspectRatio(contentMode: .fit)
-            .frame(width: Style.size, height: Style.size)
-            .foregroundStyle(ready ? Palette.red : Palette.gray)
-            .padding(Style.padding)
-            .background {
-                Circle()
-                    .fill(Palette.warmBlack)
-                    .overlay {
-                        Circle().strokeBorder(
-                            ready ? Palette.red : Palette.darkGray,
-                            lineWidth: Style.edge
-                        )
-                    }
-            }
-            // Lit means ready, and the bloom is static rather than pulsing — the
-            // archer's other button already breathes, and two things breathing
-            // at different rates in the same corner is noise.
-            .shadow(
-                color: ready ? Palette.red.opacity(Style.glow) : .clear,
-                radius: Style.glowRadius
-            )
-            .saturation(ready ? 1 : 0)
-            .contentShape(Circle())
-            .onTapGesture { session.vaultForward() }
-            .animation(.easeOut(duration: 0.18), value: ready)
-            .accessibilityLabel(Text("Vulcan Vault"))
+        // A `CelButton`, like everything else down here.
+        //
+        // It was a circle with a soft `shadow` bloom behind it, which is the one
+        // language this panel does not speak: the controls are flat two-plane
+        // shapes with a hard rim below them and no blur anywhere. A badge that
+        // glowed read as belonging to the *board*, which is drawn art — and it
+        // sits inches from the Zodiaction button, so the mismatch was on show.
+        //
+        // It is also a real button, so it should look pressable rather than
+        // merely lit.
+        CelButton(
+            tint: ready ? Palette.red : Palette.stone,
+            isEnabled: ready,
+            acceptsTouch: session.acceptsInput
+        ) {
+            Haptics.longer()
+            session.vaultForward()
+        } label: {
+            Image("Signs/VulcanVault")
+                .resizable()
+                .renderingMode(.template)
+                .aspectRatio(contentMode: .fit)
+                .foregroundStyle(ready ? Palette.textPrimary : Palette.darkGray)
+                .padding(Style.padding)
+        }
+        .frame(width: Style.size, height: Style.size)
+        .animation(.easeOut(duration: 0.18), value: ready)
+        .accessibilityLabel(Text("Vulcan Vault"))
     }
 
     private enum Style {
-        static let size: CGFloat = 26
+        static let size: CGFloat = 42
         static let padding: CGFloat = 5
         static let edge: CGFloat = 1.5
         static let glow: Double = 0.85

@@ -82,6 +82,10 @@ struct EffectSpriteView: View {
                     art
                 }
                 .offset(y: lift)
+                .offset(
+                    x: effect.artNudge.width * (tileSize / CGFloat(GameRules.tilePixelSize)),
+                    y: effect.artNudge.height * (tileSize / CGFloat(GameRules.tilePixelSize))
+                )
             }
         }
         .allowsHitTesting(false)
@@ -117,7 +121,7 @@ struct EffectSpriteView: View {
     /// Not every strip is square — a lightning bolt is 64x160 — so the height
     /// follows the art rather than being assumed equal to the width.
     private var height: CGFloat {
-        side * effect.frameSize.height / effect.frameSize.width
+        side * effect.frameSize.height / effect.frameSize.width * effect.spanScaleY
     }
 
     /// Points per art pixel at the size this is being drawn, so the bloom is

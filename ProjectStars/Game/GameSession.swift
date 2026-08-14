@@ -304,6 +304,16 @@ final class GameSession {
         let start: Date
     }
 
+    /// Sagittarius' arrow on its way up, if one has just been fired.
+    private(set) var loosedArrow: LoosedArrow?
+
+    /// One shot leaving the bow.
+    struct LoosedArrow: Equatable {
+        let point: GridPoint
+        let plane: Plane
+        let start: Date
+    }
+
     /// Scorpio's tail, mid-strike. See `StingLanceView`.
     private(set) var stingStrike: StingStrike?
 
@@ -548,6 +558,7 @@ final class GameSession {
         isSliding = false
         isCharging = false
         stingStrike = nil
+        loosedArrow = nil
         pluming = nil
         crabWalkOrigin = nil
         afterimages = []
@@ -1383,6 +1394,20 @@ final class GameSession {
                 isDeparture: true,
                 start: .now
             )
+
+            // The shot itself, leaving the bow.
+            //
+            // The arrow was only ever drawn coming *down*, so the ability began
+            // with a beam and a wait — the one frame that says an arrow was
+            // fired was missing entirely. It rises out of the piece's head and
+            // off the top of the board, and the descent picks it up from there.
+            loosedArrow = LoosedArrow(
+                point: engine.piece.point,
+                plane: engine.piece.plane,
+                start: .now
+            )
+            await sleep(GameRules.arrowRiseDuration)
+            loosedArrow = nil
 
             // Then down. Fired from Terra it brings a cloud with it, wrapped
             // around the shaft — Astra is whole again by the time anyone looks
