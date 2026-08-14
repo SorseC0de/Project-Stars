@@ -374,6 +374,10 @@ enum EffectSprite: String, CaseIterable, Hashable {
         // Under the piece's feet, not around it.
         case .crabWalk: 1.2
         case .waterSplash: 1.0
+        // The warp square marks *one* square and has to fit inside it. At the
+        // standard span it reached into its neighbours, which for a marker
+        // saying "this tile is the one" is the whole thing it must not do.
+        case .sagittariusTeleTile: GameRules.effectSpan * 0.75
         default: GameRules.effectSpan
         }
     }

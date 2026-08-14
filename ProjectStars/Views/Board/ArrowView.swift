@@ -82,11 +82,14 @@ struct ArrowView: View {
     private var shaft: some View {
         PixelSprite(id: .effect(.sagittariusArrow)) { EmptyView() }
             .frame(width: tileSize * 2, height: tileSize * 2)
-            .mask(alignment: .top) {
-                // Everything above the ground line survives; the head and a
-                // little shaft below it are buried.
+            // Masked **before** it is turned, and along the axis it is drawn
+            // on. The art points right, so the head is at its right-hand edge
+            // and that is the end that goes into the ground — clipping the
+            // bottom of a horizontal arrow takes a stripe off its length
+            // instead, which is why it came out whole and standing on its point.
+            .mask(alignment: .leading) {
                 Rectangle()
-                    .frame(height: tileSize * 2 * GameRules.arrowBuriedFraction)
+                    .frame(width: tileSize * 2 * GameRules.arrowBuriedFraction)
             }
             // The art's own rotation first, then the lean it landed at.
             .rotationEffect(.degrees(GameRules.arrowArtRotation + GameRules.arrowLean))

@@ -2654,16 +2654,26 @@ struct GameEngine {
         if pickup.fromRing {
             let cap = piece.zodiac.zodiaction.meterMax(on: pickup.plane)
 
-            if wasSolid {
-                let half = min(max(zodiactionMeter, cap / 2), cap)
-                if half != zodiactionMeter { commit(.zodiactionMeterChanged(to: half)) }
-            } else {
-                // Taken over nothing and got away with it. Mended only to badly
-                // cracked — the ground remembers — and the meter comes all the
-                // way back, because the gamble has to pay better than the safe
-                // play or nobody ever takes it.
+            // Half, either way.
+            //
+            // A full refund over a hole was the specified reward and it does not
+            // survive contact: the ring is dealt over holes on purpose, so on a
+            // worn board most of its coins sit over one — pop, take the coin,
+            // get the whole meter back, pop again until the coin lands where you
+            // wanted. A super that pays for its own re-use is not a super, it is
+            // a re-roll button.
+            //
+            // The gamble still pays better, and it pays in the thing the gamble
+            // was about: taking a coin over nothing mends the ground under it.
+            // That is a reward the board keeps, rather than one that hands the
+            // ability straight back.
+            let half = min(max(zodiactionMeter, cap / 2), cap)
+            if half != zodiactionMeter { commit(.zodiactionMeterChanged(to: half)) }
+
+            if !wasSolid {
+                // Taken over nothing and got away with it: the ground comes
+                // back, but only to badly cracked — it remembers.
                 commit(.tileHealed(plane: pickup.plane, point: pickup.point, to: .badlyCracked))
-                if zodiactionMeter != cap { commit(.zodiactionMeterChanged(to: cap)) }
             }
         }
 

@@ -350,10 +350,11 @@ enum GameRules {
     /// there is one arrow in this game and not two that have to agree.
     /// How far the arrow art has to be turned to point the way it flies.
     ///
-    /// The sprite is drawn horizontal, pointing right. The shot is vertical, so
-    /// everything that draws it turns it — in one place, because two places
-    /// disagreed the moment one of them was written from memory.
-    static let arrowArtRotation: Double = -90
+    /// The sprite is drawn horizontal, pointing right. Every use of it here is
+    /// an arrow that has been fired *downward* — falling out of the sky, or
+    /// already buried — so it turns clockwise to put the head at the bottom.
+    /// Anticlockwise stood it on its tail.
+    static let arrowArtRotation: Double = 90
 
     static let arrowBuriedFraction: CGFloat = 0.72
 
