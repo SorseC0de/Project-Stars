@@ -200,6 +200,10 @@ enum GameEvent: Equatable {
     /// Zodiaction charge is deliberately *not* reset — see `apply(_:)`.
     case pieceChanged(to: Zodiac)
 
+    /// A Pentacle was taken on the move it appeared. Presentation only — the
+    /// charge rides on the `zodiactionMeterChanged` beside it.
+    case caughtOnReveal(plane: Plane, point: GridPoint)
+
     /// One phantom is swapped for another, in place. Presentation only — the
     /// swap itself rides on the `signStateChanged` beside it.
     case retinueChanged(from: Zodiac, to: Zodiac)
@@ -397,6 +401,7 @@ enum GameEvent: Equatable {
         case .planeRestored: GameRules.planeRestoreDuration
         case .pieceTeleported: GameRules.teleportDuration
         case .pieceChanged: GameRules.pieceChangeDuration
+        case .caughtOnReveal: 0
         case .retinueChanged: GameRules.soulSplitDuration
         case .shadowSpawned: GameRules.soulSplitDuration
         case .shadowStepped: GameRules.hopDuration

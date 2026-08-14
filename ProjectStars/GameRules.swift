@@ -509,6 +509,11 @@ enum GameRules {
     /// Undocumented in the coin's own summary on purpose: it is a reward for
     /// knowing the game rather than a rule the game has to explain, and every
     /// Essence would otherwise need a sentence about eleven other signs.
+    /// Charge for taking a Pentacle on the move it was revealed.
+    ///
+    /// One, for everybody but Virgo. See `GameEngine.resolvePickupCollection`.
+    static let revealTileCharge = 1
+
     static let elementAffinityCharge = 3
 
     /// How often the Galeforce Gavel turns up for Libra.
@@ -1465,6 +1470,10 @@ enum GameRules {
     static let pentacleGlowRadius: CGFloat = 1.2
 
     /// Seconds Polaris takes to turn once. Negative is counter-clockwise.
+    /// How often Polaris actually appears once it has won its draw on the one
+    /// square it is allowed to appear on. See `PolarisEffect.spawnChance`.
+    static let polarisSpawnChance: Double = 1.0 / 3.0
+
     static let polarisSpinPeriod: TimeInterval = -6.5
 
     /// How strongly the coin's highlights bloom. Below 1 the glow is thinner

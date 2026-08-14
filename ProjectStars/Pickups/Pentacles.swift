@@ -738,16 +738,19 @@ struct PolarisEffect: PickupEffect {
     /// was never seen.
     let rollsAsRarity: PickupRarity = .common
 
-    /// Well under the Astral Tear's three.
-    ///
-    /// Being pinned to one square is a weaker gate than it looks: a sparkle set
-    /// covers five of forty-nine squares, so the top-centre tile is in play
-    /// roughly one phase in ten — and at parity with the Tear that made Polaris
-    /// something like one coin in forty. Several a run, which is not a legendary.
-    let weight = 1
+    /// Zero: it does not compete for a draw. See `spawnChance`.
+    let weight = 0
 
     /// The north-middle tile. Polaris appears here or not at all.
     let requiredSpawnPoint: GridPoint? = GridPoint(GameRules.gridSize / 2, 0)
+
+    /// Never drawn. See `GameEngine.polarisOrNot(_:at:)`.
+    ///
+    /// Polaris is not chosen among the other coins at all any more — it replaces
+    /// whatever was chosen, a third of the time, once a Pentacle is confirmed on
+    /// its square. Being in the draw as well would be two lotteries for one
+    /// prize.
+    let spawnChance: Double = 0
 
     func plan(
         context: PickupContext,
@@ -1065,7 +1068,17 @@ enum PickupCatalog {
             .map { (value: $0, weight: $0.weight) }
 
         guard let tier = generator.pick(weighted: tiers) else { return nil }
-        guard let drawn = generator.pick(weighted: eligible(in: tier)) else { return nil }
+        guard var drawn = generator.pick(weighted: eligible(in: tier)) else { return nil }
+
+        // The last gate. A coin that fails it hands the draw back to everything
+        // else in its tier rather than costing the phase a Pentacle — see
+        // `PickupEffect.spawnChance`.
+        let chance = allEffects[drawn]?.spawnChance ?? 1
+        if chance < 1, Double(generator.next() % 10_000) / 10_000 >= chance {
+            let rest = eligible(in: tier).filter { $0.value != drawn }
+            guard let second = generator.pick(weighted: rest) else { return nil }
+            drawn = second
+        }
 
         // The fifth Essence is rolled *inside* the result, not beside it: the
         // odds of drawing an Essence at all are untouched, and this only decides

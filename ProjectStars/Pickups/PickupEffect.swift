@@ -259,6 +259,16 @@ protocol PickupEffect {
     /// sparkle set actually covers that square, and the reveal is forced there.
     var requiredSpawnPoint: GridPoint? { get }
 
+    /// A last gate, rolled *after* this effect has already won its draw.
+    ///
+    /// One for almost everything. It exists for coins whose rarity cannot be
+    /// expressed as a weight, because a weight is relative to the tier and the
+    /// tier is not where the scarcity is meant to come from — Polaris is pinned
+    /// to a single square, which sounds rare and is not: the square is in play
+    /// often enough that winning its tier a fifth of the time made it several a
+    /// run. Failing this gate re-draws from everything else.
+    var spawnChance: Double { get }
+
     /// Whether this belongs to the Pentacle hunt or is something an ability left
     /// on the board. See `PickupClass`.
     var pickupClass: PickupClass { get }
@@ -311,6 +321,7 @@ extension PickupEffect {
     var choice: PickupChoice { .none }
     var arrivalWearsTile: Bool { true }
     var pickupClass: PickupClass { .pentacle }
+    var spawnChance: Double { 1 }
 
     func rolledChoice(using generator: inout SeededRandom) -> PickupChoice { choice }
 }

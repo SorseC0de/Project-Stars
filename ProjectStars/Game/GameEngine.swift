@@ -1772,8 +1772,39 @@ struct GameEngine {
         )
         guard let point = steered ?? usable.randomElement(using: &rng) else { return [] }
 
-        return [.pickupRevealed(id: pickup, plane: sparkles.plane, point: point)]
-            + secondReveal(among: usable, excluding: point, on: sparkles.plane)
+        return [.pickupRevealed(
+            id: polarisOrNot(pickup, at: point),
+            plane: sparkles.plane,
+            point: point
+        )] + secondReveal(among: usable, excluding: point, on: sparkles.plane)
+    }
+
+    /// Turns the coin into Polaris a third of the time, on Polaris' square.
+    ///
+    /// ## Why the star is decided here and not in the draw
+    ///
+    /// Everything else about a Pentacle is settled when the sparkles appear, and
+    /// for Polaris that was the mistake. Weighted into a tier, it won whenever
+    /// the set happened to cover the north-middle tile — which a five-square set
+    /// does often — and the tile requirement, which sounds like the whole gate,
+    /// turned out to be a weak one. Three or four a run for a legendary.
+    ///
+    /// The rule that was actually wanted is about the *square*: once a coin is
+    /// confirmed on that tile, it is Polaris one time in three. That cannot be
+    /// expressed as a weight, because a weight is asked before the square is
+    /// known — so it is asked here, where it is.
+    ///
+    /// The star can therefore replace any coin. That is the point: the square is
+    /// the lottery ticket, and what it was going to be otherwise is irrelevant
+    /// to whether it won.
+    private mutating func polarisOrNot(_ pickup: PickupID, at point: GridPoint) -> PickupID {
+        guard let star = PickupCatalog.effect(for: .polaris).requiredSpawnPoint,
+              point == star,
+              pickup != .polaris
+        else { return pickup }
+
+        let roll = Double(rng.next() % 10_000) / 10_000
+        return roll < GameRules.polarisSpawnChance ? .polaris : pickup
     }
 
     /// A second Pentacle on one of the sparkles the first did not take.
@@ -2605,6 +2636,30 @@ struct GameEngine {
 
         commit(.pickupCollected(id: pickup.id, plane: pickup.plane, point: pickup.point))
 
+        // Taking a coin on the very move it appeared is worth a pip, to anyone.
+        //
+        // ## Why it is a rule rather than a sign's ability
+        //
+        // Because it rewards the one decision the sparkle phase is actually
+        // asking about: five squares light up, one of them is the coin, and
+        // reaching the right one first is a guess worth paying for. Handing that
+        // to a single sign would make eleven others play the phase as though it
+        // were a formality.
+        //
+        // Virgo is out. Regulated Reboot already pays for landing on a ring's
+        // coin, and paying twice for the same step would make her sparkle phase
+        // worth more than her Zodiaction.
+        //
+        // - TODO: Give this its own collection sound — it is a different event
+        //   from an ordinary pickup and currently sounds identical.
+        if pickup.revealedOnMove == moveCount, piece.zodiac != .virgo {
+            let target = min(zodiactionMeter + GameRules.revealTileCharge, zodiactionMeterMax)
+            if target != zodiactionMeter {
+                commit(.zodiactionMeterChanged(to: target))
+            }
+            commit(.caughtOnReveal(plane: pickup.plane, point: pickup.point))
+        }
+
         // A ring's coin pays whoever takes it, whatever sign that is by then.
         if pickup.fromRing {
             let cap = piece.zodiac.zodiaction.meterMax(on: pickup.plane)
@@ -3254,6 +3309,10 @@ struct GameEngine {
             piece.plane = toPlane
             piece.point = to
             restartTrail(at: to)
+
+        case .caughtOnReveal:
+            // Presentation only; the charge is its own event.
+            break
 
         case .retinueChanged:
             // Presentation only. The swap itself rides on the `signStateChanged`
