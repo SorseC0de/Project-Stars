@@ -56,7 +56,17 @@ struct VaultBadgeView: View {
                 .resizable()
                 .renderingMode(.template)
                 .aspectRatio(contentMode: .fit)
-                .foregroundStyle(ready ? Palette.textPrimary : Palette.darkGray)
+                // The archer's own colour, not white.
+                //
+                // White is what a button *label* is, and this is not a label —
+                // it is the sign's mark, and the same mark drawn the same way
+                // everywhere else in the panel. A white one read as a generic
+                // icon that happened to be sitting on Sagittarius' controls.
+                .foregroundStyle(
+                    ready
+                        ? Zodiac.sagittarius.definition.accentColor
+                        : Palette.darkGray
+                )
                 .padding(Style.padding)
         }
         .frame(width: Style.size, height: Style.size)

@@ -149,6 +149,23 @@ enum PanelStyle {
     /// The outline on a slab's footprint squares, in points.
     static let gridPadSlabEdge: CGFloat = 1.5
 
+    /// The lit seam where the panel meets the board.
+    ///
+    /// Thin enough to be a seam rather than a stripe — at anything more it stops
+    /// closing the join and starts being a third thing between the two screens.
+    static let seamHeight: CGFloat = 2
+
+    /// Its colours, warm to cool across the diagonal.
+    ///
+    /// The elemental ramps in order — fire, earth, air, water — which is the
+    /// same journey the sign wheel makes and the same one the board makes from
+    /// Terra up to Astra. On-palette throughout, so the one gradient in the game
+    /// is still made of the forty-seven.
+    static let seamTones: [Color] = [
+        Palette.gold, Palette.orange, Palette.magenta,
+        Palette.purple, Palette.lightBlue, Palette.cyan,
+    ]
+
     /// How much bigger the slab's type token is than a square on the pad.
     static let gridPadTokenScale: CGFloat = 2.2
     static let gridPadConfirmWidth: CGFloat = 64
@@ -395,6 +412,22 @@ struct ControlPanelView: View {
     var body: some View {
         ZStack {
             Palette.panel
+                // A hairline along the top edge.
+                //
+                // The panel and the board meet at a hard colour change with
+                // nothing between them, which reads as two screens bolted
+                // together rather than one device. A lit seam is what a handheld
+                // has there — and running the twelve signs' own hues across it,
+                // gold through to blue, makes the join say what the game is
+                // about rather than just closing the gap.
+                .overlay(alignment: .top) {
+                    LinearGradient(
+                        colors: PanelStyle.seamTones,
+                        startPoint: .topLeading,
+                        endPoint: .bottomTrailing
+                    )
+                    .frame(height: PanelStyle.seamHeight)
+                }
                 .overlay(
                     SignBadge(zodiac: session.zodiac).scaleEffect(showingInfo ? 3 : 1),
                     alignment: showingInfo ? .center : .topLeading)
