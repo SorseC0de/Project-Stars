@@ -2088,7 +2088,12 @@ enum GameRules {
     /// One beat per place in the line, so the second follower goes after the
     /// first. Short: long enough to read as separate jumps, brief enough that
     /// the line is not still arriving when you have made your next move.
-    static let retinueBeat: TimeInterval = 0.12
+    /// Long enough to be a separate jump.
+    ///
+    /// At an eighth of a second the two hops overlapped so heavily that they
+    /// read as one animation with a soft edge. The gap wants to be visible: Leo
+    /// lands, and *then* the phantom goes.
+    static let retinueBeat: TimeInterval = 0.26
 
     /// The shadow under a phantom, and how far below it sits.
     /// How far a shadowed figure is lifted back up after being multiplied down.

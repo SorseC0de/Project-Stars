@@ -180,6 +180,48 @@ struct GameEngine {
         return .planeRestored(plane: .astra)
     }
 
+    /// Records a square Leo has occupied, for the retinue to walk through.
+    ///
+    /// ## Why every kind of movement calls this
+    ///
+    /// It was only called from the turn stamp, which is emitted before the piece
+    /// moves — so it recorded ordinary steps correctly and nothing else. A slide
+    /// crossed five squares and the queue heard about none of them, and a warp
+    /// left the phantoms standing where the turn had started, on the far side of
+    /// the board, forever.
+    ///
+    /// A queue of *squares the leader was on* only works if everything that puts
+    /// the leader on a square says so.
+    private mutating func rememberStep(_ point: GridPoint) {
+        guard !signState.retinue.isEmpty || !signState.trail.isEmpty else { return }
+
+        // Standing still is not a step. A slide's first square is the one the
+        // turn stamp already recorded, and a duplicate would hold the whole line
+        // back a turn.
+        guard signState.trail.first != point else { return }
+
+        signState.trail.insert(point, at: 0)
+
+        let keep = SignState.retinueLimit(on: piece.plane) + 2
+        if signState.trail.count > keep {
+            signState.trail.removeLast(signState.trail.count - keep)
+        }
+    }
+
+    /// Drops the queue and starts it here.
+    ///
+    /// For the movements that are not walking: a warp, a fall, a ride on the
+    /// island. There is no route to follow through those — the leader did not
+    /// cross the ground between, so neither can anybody behind him.
+    ///
+    /// The phantoms end up stacked on Leo for a turn, which is what almost every
+    /// game does with a party that teleports, and it sorts itself out the moment
+    /// he takes a step.
+    private mutating func restartTrail(at point: GridPoint) {
+        guard !signState.retinue.isEmpty || !signState.trail.isEmpty else { return }
+        signState.trail = [point]
+    }
+
     /// Pays back whatever a change of plane is about to cost in phantoms.
     ///
     /// Applied directly rather than as an event, because it happens *inside*
@@ -3037,16 +3079,8 @@ struct GameEngine {
             pendingPickup = nil
 
         case let .moveCommitted(direction):
-            // The queue the retinue walks. Pushed on the turn stamp, so it
-            // advances exactly once per turn however the piece got where it is —
-            // a step, a fall, a warp, a ride.
-            if !signState.retinue.isEmpty || !signState.trail.isEmpty {
-                signState.trail.insert(piece.point, at: 0)
-                let keep = SignState.retinueLimit(on: piece.plane) + 1
-                if signState.trail.count > keep {
-                    signState.trail.removeLast(signState.trail.count - keep)
-                }
-            }
+            // The queue the retinue walks. See `rememberStep(_:)`.
+            rememberStep(piece.point)
 
             // The Aten travels with the lion.
             //
@@ -3065,7 +3099,11 @@ struct GameEngine {
         case let .pieceTurned(direction):
             piece.facing = direction
 
-        case let .pieceSlid(_, to, _):
+        case let .pieceSlid(from, to, _):
+            // The square being *left*, so the first follower lands on it exactly
+            // as it does after an ordinary step — and a long slide leaves a
+            // whole route behind for the line to walk.
+            rememberStep(from)
             piece.point = to
 
         case let .pieceStepped(_, to, _):
@@ -3101,6 +3139,7 @@ struct GameEngine {
             }
             piece.plane = toPlane
             piece.point = to
+            restartTrail(at: to)
 
         case let .shadowSpawned(at, plane, onShadowNexys):
             shadow = Shadow(point: at, plane: plane, onShadowNexys: onShadowNexys)
@@ -3203,6 +3242,7 @@ struct GameEngine {
             signState = state
 
         case let .pieceFell(_, to, at):
+            restartTrail(at: at)
             refundLostRetinue()
             signState = signState.clearedForPlaneChange(atMove: moveCount)
             signState.closeRifts()
