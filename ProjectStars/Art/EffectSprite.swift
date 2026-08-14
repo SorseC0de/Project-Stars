@@ -248,7 +248,7 @@ enum EffectSprite: String, CaseIterable, Hashable {
         case .sagittariusTeleTile: .fps12
         // The Tear's droplet is fourteen frames of a single splash. At the house
         // default it was over in about a second and never seen at all.
-        case .droplet: .fps12
+        case .droplet: .fps15
         // The Bastion is two layers of the same bubble, and the lower one runs
         // slower on purpose: two identical strips in lockstep read as one
         // doubled-up drawing, while a beat between them reads as depth.
