@@ -551,6 +551,8 @@ private struct PanelFrontView: View {
                 Spacer(minLength: 0)
                 zodiactionRow
                 #if DEBUG
+
+
                 debugZodiacRow
                 #endif
             }
@@ -572,6 +574,11 @@ private struct PanelFrontView: View {
         .overlay(alignment: .trailing) {
             controlSchemeButton
                 .padding()
+        }
+        .overlay(alignment: .topLeading) {
+            #if DEBUG
+            perspectiveDials.padding(.leading, 8).padding(.top, 44)
+            #endif
         }
         .overlay(alignment: .bottomLeading) {
             // An overlay, so it costs the layout nothing.
@@ -893,6 +900,59 @@ private struct PanelFrontView: View {
             }
         }
         .frame(width: PanelStyle.retinueColumnWidth)
+    }
+
+    /// Live dials for seating the piece on the island. Read the numbers off the
+    /// labels and hand them back; they fold into `GameRules` afterwards.
+    ///
+    /// - TODO: **Temporary.** Delete with `GameSession.debugFeetDrop` and
+    ///   `debugCarryFollow`.
+    private var perspectiveDials: some View {
+        VStack(alignment: .leading, spacing: 2) {
+            dial(
+                "DROP",
+                value: Binding(
+                    get: { session.debugFeetDrop },
+                    set: { session.debugFeetDrop = $0 }
+                ),
+                range: -3...8,
+                unit: "px"
+            )
+            dial(
+                "FLOAT",
+                value: Binding(
+                    get: { session.debugCarryFollow },
+                    set: { session.debugCarryFollow = $0 }
+                ),
+                range: 0...2.5,
+                unit: "x"
+            )
+        }
+        .padding(8)
+        .background(Palette.midnight.opacity(0.85), in: RoundedRectangle(cornerRadius: 8))
+    }
+
+    private func dial(
+        _ name: String,
+        value: Binding<Double>,
+        range: ClosedRange<Double>,
+        unit: String
+    ) -> some View {
+        HStack(spacing: 6) {
+            Text(name)
+                .font(.system(size: 9, weight: .heavy, design: .monospaced))
+                .foregroundStyle(Palette.textSecondary)
+                .frame(width: 38, alignment: .leading)
+
+            Slider(value: value, in: range)
+                .frame(width: 120)
+                .tint(Palette.yellow)
+
+            Text(String(format: "%.2f\(unit)", value.wrappedValue))
+                .font(.system(size: 10, weight: .heavy, design: .monospaced))
+                .foregroundStyle(Palette.white)
+                .frame(width: 56, alignment: .trailing)
+        }
     }
 
     // ── Debug ─────────────────────────────────────────────────────────────

@@ -138,6 +138,7 @@ extension View {
         column: Int,
         tileSize: CGFloat,
         tilesTall: CGFloat = 2,
+        drop: CGFloat = GameRules.uprightFeetDrop,
         gridSize: Int = GameRules.gridSize,
         depth: CGFloat = GameRules.boardForeshorten
     ) -> some View {
@@ -202,7 +203,7 @@ extension View {
             // on its square, but the ones riding something — the piece on the
             // island above all — carry an extra lift that the anchor does not
             // know about, and it comes out as the same small rise every time.
-            .offset(y: tileSize * GameRules.uprightFeetDrop)
+            .offset(y: tileSize * drop)
     }
 }
 

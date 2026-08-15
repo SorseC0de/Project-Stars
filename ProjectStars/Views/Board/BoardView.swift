@@ -1334,6 +1334,7 @@ struct BoardView: View {
             scale: metrics.scale,
             plane: session.visiblePlane,
             isCharged: session.engine.isZodiactionReady,
+            shadowLift: CGFloat(session.debugShadowLift),
             twin: session.engine.piece.twin,
             movement: session.movement,
             facing: session.engine.piece.facing,
@@ -1342,7 +1343,8 @@ struct BoardView: View {
             // The island's carry, plus the climb when the archer has thrown
             // himself off the top of the board after his own arrow.
             carryOffset: (session.engine.isOnNexys
-                ? bob - GameRules.nexysRideLift * metrics.scale
+                ? bob * CGFloat(session.debugCarryFollow)
+                    - GameRules.nexysRideLift * metrics.scale
                 : 0) + launchLift(metrics: metrics),
             pose: pose,
             spin: session.fallSpin,
@@ -1410,7 +1412,10 @@ struct BoardView: View {
         .upright(
             row: session.engine.piece.point.y,
             column: session.engine.piece.point.x,
-            tileSize: metrics.tileSize
+            tileSize: metrics.tileSize,
+            drop: (CGFloat(session.debugFeetDrop)
+                + (session.engine.isOnNexys ? GameRules.nexysRideDrop : 0))
+                / CGFloat(GameRules.tilePixelSize)
         )
         .position(metrics.center(of: session.engine.piece.point))
         }

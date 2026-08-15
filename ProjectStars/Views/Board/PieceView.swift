@@ -35,6 +35,10 @@ struct PieceView: View {
     /// True when the Zodiaction is charged or firing, which lights the gem.
     var isCharged: Bool = false
 
+    /// How far the shadow is lifted against the perspective's seating drop, in
+    /// art pixels. Handed in so it can be tuned live.
+    var shadowLift: CGFloat = GameRules.pieceShadowPerspectiveLift
+
     /// Which of Gemini's twins this is, or `nil` for a whole piece.
     ///
     /// Handed in rather than inferred from being split: which twin is holding
@@ -96,7 +100,13 @@ struct PieceView: View {
                 // Two effects multiply: the arrival's swell, and the hop's own
                 // narrowing as the piece leaves the ground.
                 .scaleEffect(shadowScale * hopShadowScale)
-                .offset(y: GameRules.pieceShadowDrop * scale)
+                // Lifted back by what the perspective's seating pushed down.
+                //
+                // `upright` drops the whole piece to seat it on its square, and
+                // the shadow is inside the piece, so it went down too — but the
+                // shadow was already on the ground and had nothing to correct.
+                // It is the figure that needed moving, not the mark under it.
+                .offset(y: (GameRules.pieceShadowDrop - shadowLift) * scale)
                 .opacity(isFalling ? 0 : 1)
 
             figure

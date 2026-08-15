@@ -864,6 +864,25 @@ final class GameSession {
     /// cost. The key that sets it is still debug-only.
     var debugFissure = false
 
+    /// Live dials for seating a piece on the island while the board's
+    /// perspective is tuned.
+    ///
+    /// - `debugFeetDrop` is how far an uprighted object is pushed back down, in
+    ///   *art pixels*, and settles whether the piece is centred in the wreath.
+    /// - `debugCarryFollow` is how much of the island's float the piece takes.
+    ///   The island is fully keystoned and the piece is corrected, so their
+    ///   vertical offsets are scaled differently — this is the factor that puts
+    ///   them back in step.
+    ///
+    /// - TODO: **Temporary.** Fold the settled values into `GameRules` and
+    ///   delete these along with the sliders.
+    var debugFeetDrop = Double(GameRules.uprightFeetDrop)
+    var debugCarryFollow = Double(GameRules.carryFollow)
+
+    /// How far the piece's shadow is lifted against the seating drop, in art
+    /// pixels. See `PieceView`.
+    var debugShadowLift = Double(GameRules.pieceShadowPerspectiveLift)
+
     #if DEBUG
     func debugToggleFissure() { debugFissure.toggle() }
     #endif

@@ -1981,7 +1981,7 @@ enum GameRules {
     /// A keystone pulls the far rows down and in, so the tilt leaves a margin at
     /// the top and at the upper corners. Scaling back up from the near edge
     /// spends that margin rather than leaving it as a gap.
-    static let boardForeshortenScale: CGFloat = 1.15
+    static let boardForeshortenScale: CGFloat = 1.1
 
     /// How far the tilted board is lifted back up its square, as a fraction of
     /// the board. A keystone pulls its content toward the near edge, so without
@@ -1996,9 +1996,29 @@ enum GameRules {
     /// un-bend it across its own height rather than a whole square.
     static let tileFrontEdgeStrip: CGFloat = 0.25
 
-    /// How far an uprighted object is pushed back down, as a fraction of a
-    /// tile. Four art pixels of sixteen — see `View.upright(row:column:...)`.
-    static let uprightFeetDrop: CGFloat = 0.25
+    /// How far an uprighted object is pushed back down, in **art pixels**.
+    /// Measured on device: one pixel seats a piece in an ordinary tile.
+    static let uprightFeetDrop: CGFloat = 1
+
+    /// And the extra a piece needs while riding the island, on top of that.
+    ///
+    /// **Added, not subtracted**, which is the opposite of what the geometry
+    /// suggests — the island holds the piece higher, so the intuition is to
+    /// pull it up. Measured on device: five pixels total seats it in the wreath
+    /// against one on the ground.
+    static let nexysRideDrop: CGFloat = 4
+
+    /// How much of the island's float a carried piece takes.
+    ///
+    /// Not one. The island is fully keystoned while the piece is corrected back
+    /// upright, so the same offset is scaled differently for each and they
+    /// drift apart over the bob. Measured on device by eye at full speed:
+    /// either side of this and the lag is visible within a pixel.
+    static let carryFollow: CGFloat = 0.78
+
+    /// How far the piece's shadow is lifted back, in art pixels, against the
+    /// drop that seats the figure. Measured on device — see `PieceView`.
+    static let pieceShadowPerspectiveLift: CGFloat = 2
 
     /// How far out of focus it is, in art pixels. Heavy on purpose: anything
     /// legible enough to count squares on is something the player will try to
