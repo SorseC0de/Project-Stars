@@ -127,14 +127,34 @@ extension View {
     ///   keystone tapers anything with height — narrower at the head than at the
     ///   feet — and a uniform scale restores the *size* while leaving the
     ///   *shape* wrong. This is what unbends it.
+    /// - Parameter column: Where the object stands across the board. The
+    ///   keystone works about the **board's** centre, so it drags the top of a
+    ///   sprite toward the middle by an amount proportional to how far out it
+    ///   stands — clockwise on the left of the board, anticlockwise on the
+    ///   right, and nothing at all in the middle column. That lean is
+    ///   predictable, so it is cancelled here rather than lived with.
     func upright(
         row: Int,
+        column: Int,
         tileSize: CGFloat,
         tilesTall: CGFloat = 2,
         gridSize: Int = GameRules.gridSize,
         depth: CGFloat = GameRules.boardForeshorten
     ) -> some View {
         let size = CGSize(width: tileSize, height: tileSize * tilesTall)
+
+        // Where the object actually stands, as a fraction of its own frame.
+        //
+        // Not the frame's bottom. A two-tile sprite is centred on a one-tile
+        // square, so its frame hangs half a tile *below* the ground it is
+        // standing on — anchoring the corrections there pivots everything about
+        // a point in mid-air, and the error grows with the size of the
+        // correction. Which is why row 6 was perfect: there the correction is
+        // identity, so a wrong anchor costs nothing.
+        let feetAnchor = UnitPoint(
+            x: 0.5,
+            y: (tilesTall / 2 + 0.5) / tilesTall
+        )
         let feet = Foreshortened.shrink(
             row: CGFloat(row), gridSize: gridSize, depth: depth
         )
@@ -162,8 +182,27 @@ extension View {
         //
         // What survives both is a single, even scale by the row's own depth —
         // exactly what should happen to something standing there.
+        // How far the head is dragged toward the middle, in points: the same
+        // horizontal offset seen at two different depths.
+        let out = (CGFloat(column) - CGFloat(gridSize - 1) / 2) * tileSize
+        let drag = out * (feet - head)
+        let lean = atan2(drag, size.height)
+
         return foreshortened(1 / taper - 1, size: size, over: size.height)
-            .scaleEffect(x: 1, y: 1 / feet, anchor: .bottom)
+            .scaleEffect(x: 1, y: 1 / feet, anchor: feetAnchor)
+            // Turned back by however far the board leaned it. A shear rather
+            // than a true rotation, but over something two tiles tall the
+            // difference is well under a pixel, and a rotation is one modifier
+            // instead of a second projection.
+            .rotationEffect(.radians(Double(lean)), anchor: feetAnchor)
+            // And down by the constant the corrections leave behind.
+            //
+            // Measured rather than derived: four art pixels, everywhere. The
+            // anchor puts the pivot at the feet of a sprite standing directly
+            // on its square, but the ones riding something — the piece on the
+            // island above all — carry an extra lift that the anchor does not
+            // know about, and it comes out as the same small rise every time.
+            .offset(y: tileSize * GameRules.uprightFeetDrop)
     }
 }
 

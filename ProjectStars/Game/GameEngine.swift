@@ -601,12 +601,17 @@ struct GameEngine {
     init(zodiac: Zodiac, seed: UInt64? = nil) {
         self.boards = Dictionary(uniqueKeysWithValues: Plane.allCases.map { ($0, Board()) })
         self.nexysPlane = GameRules.startingNexysPlane
+        // - TODO: **Temporary.** Starts on Terra, on the island, while the
+        //   board's perspective is being worked on — Terra shows the tile edges
+        //   and the far rows far more clearly than the sky does. Put back to
+        //   `GameRules.startingPlane` / `startingPoint` when that is settled.
         self.piece = Piece(
             zodiac: zodiac,
-            plane: GameRules.startingPlane,
-            point: GameRules.startingPoint,
+            plane: .terra,
+            point: GameRules.nexysPoint,
             facing: GameRules.startingFacing
         )
+        self.nexysPlane = .terra
         self.sparkles = nil
         self.pendingPickup = false
         self.revealedPickups = []

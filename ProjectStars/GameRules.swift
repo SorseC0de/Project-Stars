@@ -1996,6 +1996,10 @@ enum GameRules {
     /// un-bend it across its own height rather than a whole square.
     static let tileFrontEdgeStrip: CGFloat = 0.25
 
+    /// How far an uprighted object is pushed back down, as a fraction of a
+    /// tile. Four art pixels of sixteen — see `View.upright(row:column:...)`.
+    static let uprightFeetDrop: CGFloat = 0.25
+
     /// How far out of focus it is, in art pixels. Heavy on purpose: anything
     /// legible enough to count squares on is something the player will try to
     /// plan with.

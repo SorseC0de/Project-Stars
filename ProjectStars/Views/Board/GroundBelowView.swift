@@ -88,10 +88,7 @@ struct GroundBelowView: View {
         // the same eye — left flat while the board lay down, it read as a wall
         // behind the world rather than a floor beneath it.
         .foreshortened(
-            size: CGSize(width: bandWidth, height: side * GameRules.groundBelowHeight),
-            // The board's height, not the band's, so both converge on the same
-            // vanishing point and read as one continuous world.
-            over: metrics.boardSize
+            size: CGSize(width: bandWidth, height: side * GameRules.groundBelowHeight)
         )
         .blur(radius: GameRules.groundBelowBlur * metrics.scale)
         .frame(width: side, height: side, alignment: .bottom)
