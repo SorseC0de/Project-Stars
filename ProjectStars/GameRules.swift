@@ -1974,6 +1974,22 @@ enum GameRules {
     /// The ceiling on this is legibility rather than taste: far enough and the
     /// top row's squares stop reading as the same size as the bottom's, and a
     /// grid the player cannot count is a grid they cannot plan on.
+    /// How high the camera sits above the board, in board-widths.
+    ///
+    /// The degree of freedom the projection was missing. A pinhole looking at a
+    /// plane sees widths as `1/distance` and heights as `cameraHeight/distance`
+    /// — so the tilt sets how much the board *narrows* into the distance, and
+    /// the camera height *alone* sets how tall the whole thing stands. They are
+    /// independent, and the old `projected` fused them: it was algebraically
+    /// identical to this with the height pinned at exactly `1 / boardForeshorten`.
+    ///
+    /// That pin is why the board's squares could not be made squarer without
+    /// also changing the tilt, and why correcting the shape needed a stack of
+    /// dials pulling against each other. Raising this makes the rows taller and
+    /// the squares squarer; lowering it lays the board flatter. It does not
+    /// touch the widths, so the perspective stays consistent either way.
+    static let boardCamera: CGFloat = 2.2
+
     static let boardForeshorten: CGFloat = 0.45
 
     /// How much the board is enlarged to fill the space foreshortening costs it.
@@ -1999,7 +2015,11 @@ enum GameRules {
     /// A *fixed* number of pixels, never a percentage: a multiplier closes the
     /// same seam by stretching the ground, and then the squares are no longer
     /// square. See `BoardBand`.
-    static let tileBorderPixels: CGFloat = 2
+    /// Not a whole two: the far rows lose their border at 2 and the near rows
+    /// open a seam at 3, so the value that satisfies both ends of the board sits
+    /// between them. A row is a fraction of a pixel either way once it has been
+    /// scaled for depth, and this is where that fraction lands.
+    static let tileBorderPixels: CGFloat = 1.5
 
     /// How much night sits over the far edge of a board, fading to nothing at
     /// the near one. Atmospheric perspective — see `BoardView`.

@@ -644,14 +644,14 @@ struct BoardView: View {
 
                 }
                 .frame(width: metrics.boardSize, height: metrics.tileSize)
-                .asBoardRow(row, metrics: metrics)
+                .asBoardRow(row, metrics: metrics, camera: CGFloat(session.debugCamera))
 
                 // And whoever is standing on it — evenly scaled, so the floor's
                 // squash never reaches the figure.
                 if session.engine.piece.point.y == row {
                     floatingPiece(metrics: metrics)
                         .frame(width: metrics.boardSize, height: metrics.tileSize)
-                        .standingOnBoardRow(row, metrics: metrics)
+                        .standingOnBoardRow(row, metrics: metrics, camera: CGFloat(session.debugCamera))
                 }
             }
         }

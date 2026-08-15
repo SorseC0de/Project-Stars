@@ -77,6 +77,19 @@ struct BoardBand {
     /// Where the row's centre sits, in points down the board.
     let centreY: CGFloat
 
+    /// How much the band's far edge is narrowed, as the keystone wants it.
+    let lean: CGFloat
+
+    /// Where the row's *ground* frame must be centred.
+    ///
+    /// Not the same as `centreY`, and conflating them is what left seams even
+    /// once the heights were exact. The frame is always one tile tall — a
+    /// projection does not change layout — while the ground drawn inside it is
+    /// the band's own height, so the two are only aligned at the edge the scale
+    /// is anchored to. Anchoring at the **bottom** pins the near edge, which is
+    /// the edge shared with the row in front, so consecutive bands meet exactly.
+    let groundCentreY: CGFloat
+
     /// The keystone's divisor for `row`, counting `0` as the far edge.
     static func divisor(
         row: Int,
@@ -115,84 +128,134 @@ struct BoardBand {
         metrics: PixelArtMetrics,
         depth: CGFloat = GameRules.boardForeshorten,
         zoom: CGFloat = GameRules.boardForeshortenScale,
-        lift: CGFloat = GameRules.boardForeshortenLift
+        lift: CGFloat = GameRules.boardForeshortenLift,
+        camera: CGFloat = GameRules.boardCamera
     ) -> BoardBand {
-        let w = divisor(row: row, gridSize: metrics.gridSize, depth: depth)
+        // A band spans the ground between two **edges**, and its height is the
+        // distance between them. Measuring centre-to-centre instead — which is
+        // what this did — asks for half of this band plus half of the one
+        // behind it, and the one behind it is smaller, so every band came out
+        // short. Short by more toward the front, where the difference between
+        // neighbouring bands is largest, which is exactly the shape of the seam
+        // that no single multiplier could close.
+        let top = edgeY(row, metrics: metrics, depth: depth, zoom: zoom, lift: lift, camera: camera)
+        let bottom = edgeY(row + 1, metrics: metrics, depth: depth, zoom: zoom, lift: lift, camera: camera)
+        let height = bottom - top
 
-        let centre = centreY(row: row, metrics: metrics, depth: depth, zoom: zoom, lift: lift)
-        let behind = centreY(row: row - 1, metrics: metrics, depth: depth, zoom: zoom, lift: lift)
+        // The taper is applied by a keystone that divides by `1 + lean`, so the
+        // far edge is `1 / (1 + lean)` of the near one — meaning the lean that
+        // narrows this band's back to the width of the row behind it is the
+        // *ratio of the divisors*, not one minus its reciprocal. The two agree
+        // to first order and drift a few percent apart at this depth.
+        let front = edgeDivisor(row + 1, gridSize: metrics.gridSize, depth: depth)
+        let back = edgeDivisor(row, gridSize: metrics.gridSize, depth: depth)
+        let lean = back / front - 1
 
-        // Exactly the space this band has to fill, so no sky can show between
-        // it and the row behind it. Doubled because the gap is measured to the
-        // neighbour's *centre*, which is half a band away.
-        let reach = abs(centre - behind)
-
-        // Two art pixels more than the gap, at this row's own size.
-        //
-        // A **fixed** two pixels, not a percentage. The tiles are drawn with a
-        // two-pixel border meant to overlap its neighbour — that is how the art
-        // tiles seamlessly — so a band sized to the bare geometric gap is short
-        // by exactly that border, every row. A multiplier hides the same seam by
-        // stretching the ground instead, and then the squares are no longer
-        // square, which is worse than the seam it fixed.
-        let rowScale = zoom / w
-        let border = GameRules.tileBorderPixels * metrics.scale * rowScale
+        // That same divide shortens the band as well as narrowing it: its top
+        // is pulled down to `1 / (1 + lean)` of its height. Pre-stretching by
+        // `1 + lean` lands it on exactly the height measured above — which is
+        // what the STRETCH dial had been standing in for.
+        // The row's centre for anything *standing* on it is where the square's
+        // middle actually projects, which is not the midpoint of the two edges
+        // — the near half of a receding square covers more screen than the far
+        // half. Objects use this; the ground uses its edges.
+        let board = metrics.boardSize
+        let up = board - (CGFloat(row) + 0.5) * metrics.tileSize
+        let mid = board - camera * depth * up / divisor(row: row, gridSize: metrics.gridSize, depth: depth)
 
         return BoardBand(
-            scale: rowScale,
-            groundScale: (reach + border) / metrics.tileSize,
-            centreY: centre
+            scale: zoom / front,
+            groundScale: height * (1 + lean) / metrics.tileSize,
+            centreY: board + (mid - board) * zoom - board * lift,
+            lean: lean,
+            groundCentreY: bottom - metrics.tileSize / 2
         )
     }
 
-    /// Where a row's centre lands, through the same three steps the board takes:
-    /// the keystone's divide about the near edge, the zoom about it, and the
-    /// lift up the square.
-    ///
-    /// Answers for `-1` too — the row that would sit behind the far edge — which
-    /// is what lets the back band measure its own reach.
-    private static func centreY(
-        row: Int,
+    /// The divisor at an **edge** — `0` is the board's far edge, `gridSize` its
+    /// near one — as opposed to `divisor(row:)`, which answers at a row's centre.
+    static func edgeDivisor(
+        _ edge: Int,
+        gridSize: Int = GameRules.gridSize,
+        depth: CGFloat = GameRules.boardForeshorten
+    ) -> CGFloat {
+        1 + depth * (1 - CGFloat(edge) / CGFloat(max(gridSize, 1)))
+    }
+
+    /// Where an edge lands on screen, through the same map the ground itself is
+    /// drawn with, so bands and tiles cannot disagree.
+    static func edgeY(
+        _ edge: Int,
         metrics: PixelArtMetrics,
-        depth: CGFloat,
-        zoom: CGFloat,
-        lift: CGFloat
+        depth: CGFloat = GameRules.boardForeshorten,
+        zoom: CGFloat = GameRules.boardForeshortenScale,
+        lift: CGFloat = GameRules.boardForeshortenLift,
+        camera: CGFloat = GameRules.boardCamera
     ) -> CGFloat {
         let board = metrics.boardSize
-        let w = divisor(row: row, gridSize: metrics.gridSize, depth: depth)
-        let flat = (CGFloat(row) + 0.5) * metrics.tileSize
-        let keystoned = board + (flat - board) / w
-        return board + (keystoned - board) * zoom - board * lift
+        let up = board - CGFloat(edge) * metrics.tileSize
+        let w = edgeDivisor(edge, gridSize: metrics.gridSize, depth: depth)
+        let y = board - camera * depth * up / w
+
+        // Rounded to a whole point, because a band is rasterised, not merely
+        // computed. Two neighbours already share this exact edge as a `CGFloat`
+        // — but a band whose height lands on a fraction has its last row of
+        // pixels blended to half coverage, and half coverage over sky is a
+        // hairline of sky. Integer edges make every band an integer number of
+        // points tall, so there is nothing left to blend.
+        return ((board + (y - board) * zoom - board * lift)).rounded()
     }
+
 }
 
 extension View {
 
     /// Puts this view on the given row, without scaling it.
-    ///
-    /// The two things a row carries scale differently — see
-    /// `BoardBand.groundScale` — so they are scaled separately and only their
-    /// *placement* is shared.
-    func onBoardRow(_ row: Int, metrics: PixelArtMetrics) -> some View {
-        position(x: metrics.boardSize / 2, y: BoardBand.at(row: row, metrics: metrics).centreY)
+    func onBoardRow(
+        _ row: Int,
+        metrics: PixelArtMetrics,
+        camera: CGFloat = GameRules.boardCamera
+    ) -> some View {
+        position(
+            x: metrics.boardSize / 2,
+            y: BoardBand.at(row: row, metrics: metrics, camera: camera).centreY
+        )
     }
 
-    /// Draws this view as the given row's **ground**: narrowed, and squashed by
-    /// the square so it meets the rows either side of it.
-    func asBoardRow(_ row: Int, metrics: PixelArtMetrics) -> some View {
-        let band = BoardBand.at(row: row, metrics: metrics)
+    /// Draws this view as the given row's **ground**: narrowed toward the back,
+    /// and exactly as tall as the gap between the two edges it spans.
+    func asBoardRow(
+        _ row: Int,
+        metrics: PixelArtMetrics,
+        camera: CGFloat = GameRules.boardCamera
+    ) -> some View {
+        let band = BoardBand.at(row: row, metrics: metrics, camera: camera)
         return foreshortened(
-            BoardBand.lean(row: row, gridSize: metrics.gridSize),
+            band.lean,
             size: CGSize(width: metrics.boardSize, height: metrics.tileSize)
         )
-            .scaleEffect(x: band.scale, y: band.groundScale)
-            .onBoardRow(row, metrics: metrics)
+            // Grown from the **top**, so the extra height only ever reaches
+            // toward the viewer. From the centre it would reach back over the
+            // row behind, which with bands drawn back to front is what ate the
+            // far rows' borders while the near ones looked right.
+            // Anchored at the **bottom**, so the near edge — the one shared
+            // with the row in front — never moves however the band is scaled.
+            // Any overdraw then reaches away from the viewer, into ground the
+            // row behind has already covered.
+            .scaleEffect(x: band.scale, y: band.groundScale, anchor: .bottom)
+            .position(x: metrics.boardSize / 2, y: band.groundCentreY)
     }
 
     /// And this view as something *standing* on it: evenly scaled, never
-    /// squashed.
-    func standingOnBoardRow(_ row: Int, metrics: PixelArtMetrics) -> some View {
-        scaleEffect(BoardBand.at(row: row, metrics: metrics).scale)
-            .onBoardRow(row, metrics: metrics)
+    /// squashed, and sized at the row's centre rather than its front edge —
+    /// which is where the object's feet actually are.
+    func standingOnBoardRow(
+        _ row: Int,
+        metrics: PixelArtMetrics,
+        camera: CGFloat = GameRules.boardCamera
+    ) -> some View {
+        let w = BoardBand.divisor(row: row, gridSize: metrics.gridSize)
+        return scaleEffect(GameRules.boardForeshortenScale / w)
+            .onBoardRow(row, metrics: metrics, camera: camera)
     }
 }

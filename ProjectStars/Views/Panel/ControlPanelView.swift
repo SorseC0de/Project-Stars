@@ -911,7 +911,15 @@ private struct PanelFrontView: View {
     ///   `debugCarryFollow`.
     private var perspectiveDials: some View {
         VStack(alignment: .leading, spacing: 2) {
-            dial("FAR Y", value: bind(\.farY), range: 0...0.6, unit: "")
+            dial(
+                "CAMERA",
+                value: Binding(
+                    get: { session.debugCamera },
+                    set: { session.debugCamera = $0 }
+                ),
+                range: 1.2...4.0,
+                unit: "w"
+            )
             dial("NEAR Y", value: bind(\.nearY), range: 0.5...1.2, unit: "")
             dial("FAR GAP", value: bind(\.farSpacing), range: 0.3...1.2, unit: "t")
             dial("NEAR GAP", value: bind(\.nearSpacing), range: 0.6...1.6, unit: "t")

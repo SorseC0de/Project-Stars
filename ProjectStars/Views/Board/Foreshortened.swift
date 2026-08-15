@@ -67,7 +67,8 @@ extension PixelArtMetrics {
         _ point: GridPoint,
         depth: CGFloat = GameRules.boardForeshorten,
         zoom: CGFloat = GameRules.boardForeshortenScale,
-        lift: CGFloat = GameRules.boardForeshortenLift
+        lift: CGFloat = GameRules.boardForeshortenLift,
+        camera: CGFloat = GameRules.boardCamera
     ) -> (position: CGPoint, scale: CGFloat) {
         let flat = center(of: point)
 
@@ -80,7 +81,12 @@ extension PixelArtMetrics {
         let w = 1 + depth * (up / boardSize)
 
         let x = boardSize / 2 + (flat.x - boardSize / 2) / w
-        let y = boardSize + (flat.y - boardSize) / w
+
+        // Height above the near edge is `camera · depth · up / w`, where the old
+        // form wrote plain `up / w` — the same expression with the camera pinned
+        // at `1 / depth`. Writing it out is what separates the tilt from the
+        // squash. See `GameRules.boardCamera`.
+        let y = boardSize - camera * depth * up / w
 
         // Then the two framing steps the board takes afterwards, in order: the
         // zoom about the near edge, and the lift up the square.
