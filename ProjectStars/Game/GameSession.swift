@@ -889,6 +889,16 @@ final class GameSession {
     /// - TODO: **Temporary.** Bake into `GameRules` and delete the dial.
     var debugAstraDepth: Double = 1.0
 
+    /// Astra's own framing zoom, kept apart from Terra's.
+    ///
+    /// Pivoting the depth on the middle row leaves the near row larger than it
+    /// was, so the two planes no longer agree about how big the board is even
+    /// though both are correct about their own shape. Terra's 1.25 is settled;
+    /// this is the one that has to move to meet it.
+    ///
+    /// - TODO: **Temporary.** Bake into `GameRules` and delete the dial.
+    var debugAstraZoom: Double = Double(GameRules.boardForeshortenScale)
+
     var placement = BoardPlacement.initial
 
     /// How far each row's ground is stretched to meet the row behind it.
