@@ -74,6 +74,9 @@ struct CloudFieldView: View {
     /// The plane's own framing zoom.
     var zoom: CGFloat = GameRules.boardForeshortenScale
 
+    /// And how far up the square it sits.
+    var lift: CGFloat = GameRules.boardForeshortenLift
+
     /// Paint only this row, or every row when `nil`.
     ///
     /// The field is one `Canvas` over all forty-nine squares, which is the
@@ -112,7 +115,7 @@ struct CloudFieldView: View {
                     // Where this square's row puts it, and how big that row
                     // draws it. A cluster is already drawn in perspective, so
                     // it wants a size and a place and nothing else.
-                    let spot = metrics.projected(point, zoom: zoom, emphasis: emphasis)
+                    let spot = metrics.projected(point, zoom: zoom, lift: lift, emphasis: emphasis)
 
                     var square = context
                     CloudCluster.paint(

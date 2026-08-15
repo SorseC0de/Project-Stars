@@ -927,6 +927,15 @@ private struct PanelFrontView: View {
                 range: 0.6...1.5,
                 unit: "x"
             )
+            dial(
+                "LIFT",
+                value: Binding(
+                    get: { session.debugAstraLift },
+                    set: { session.debugAstraLift = $0 }
+                ),
+                range: -0.1...0.45,
+                unit: ""
+            )
             dial("NEAR Y", value: bind(\.nearY), range: 0.5...1.2, unit: "")
             dial("FAR GAP", value: bind(\.farSpacing), range: 0.3...1.2, unit: "t")
             dial("NEAR GAP", value: bind(\.nearSpacing), range: 0.6...1.6, unit: "t")

@@ -87,6 +87,9 @@ struct CloudSpriteField: View {
     /// The plane's own framing zoom.
     var zoom: CGFloat = GameRules.boardForeshortenScale
 
+    /// And how far up the square it sits.
+    var lift: CGFloat = GameRules.boardForeshortenLift
+
     var body: some View {
         TimelineView(.animation) { timeline in
             let now = clock(timeline.date.timeIntervalSinceReferenceDate)
@@ -216,7 +219,7 @@ struct CloudSpriteField: View {
         // What this cloud's row does to it: how big, and where. A cloud is drawn
         // foreshortened already, so depth owes it a size and a place and nothing
         // else — no taper, no shear.
-        let spot = metrics.projected(point, zoom: zoom, emphasis: emphasis)
+        let spot = metrics.projected(point, zoom: zoom, lift: lift, emphasis: emphasis)
         let depth = spot.scale / zoom
 
         let width = side * wear * depth * stretch(point, now: now, salt: 0,

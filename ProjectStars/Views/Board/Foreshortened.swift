@@ -128,9 +128,10 @@ extension View {
         at point: GridPoint,
         metrics: PixelArtMetrics,
         emphasis: CGFloat = 1,
-        zoom: CGFloat = GameRules.boardForeshortenScale
+        zoom: CGFloat = GameRules.boardForeshortenScale,
+        lift: CGFloat = GameRules.boardForeshortenLift
     ) -> some View {
-        let spot = metrics.projected(point, zoom: zoom, emphasis: emphasis)
+        let spot = metrics.projected(point, zoom: zoom, lift: lift, emphasis: emphasis)
         return scaleEffect(spot.scale).position(spot.position)
     }
 

@@ -899,6 +899,11 @@ final class GameSession {
     /// - TODO: **Temporary.** Bake into `GameRules` and delete the dial.
     var debugAstraZoom: Double = Double(GameRules.boardForeshortenScale)
 
+    /// How far up the square Astra sits, as a fraction of the board.
+    ///
+    /// - TODO: **Temporary.** Bake into `GameRules` and delete the dial.
+    var debugAstraLift: Double = Double(GameRules.boardForeshortenLift)
+
     var placement = BoardPlacement.initial
 
     /// How far each row's ground is stretched to meet the row behind it.
