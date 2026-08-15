@@ -59,16 +59,19 @@ struct BoardBand {
     /// What must *not* take the squash is anything standing on the row, which is
     /// why the two scales are separate.
     ///
-    /// Taken from the **measured distance to the next row**, and then
-    /// overdrawn a little — see `GameRules.boardBandOverlap`.
+    /// Taken from the **measured distance to the next row**, corrected for the
+    /// lean's own squeeze, and then overdrawn a hair.
     ///
-    /// Measuring alone is not quite enough, because the lean compresses a band
-    /// vertically *before* this scale is applied, so a band sized to the gap
-    /// still lands short of it. Rather than chase that factor, each band simply
-    /// reaches past its neighbour: rows are drawn back to front, so the row in
-    /// front covers the overlap and nothing of it is ever seen.
+    /// Not from `1/w²`: the square is the right shape but a hair short, and
+    /// short bands leave hairline seams of sky between rows. Measuring the gap
+    /// the band actually has to fill closes them at every depth and board size.
     ///
-    /// Not from `1/w²`.
+    /// The overlap on top covers what is left: the lean compresses a band
+    /// vertically before this scale is applied, so a band sized to the gap still
+    /// lands a little short. Deriving that factor was tried twice and got it
+    /// wrong in both directions; overdrawing is the standard answer for banded
+    /// drawing and costs nothing, because rows draw back to front and the row in
+    /// front hides whatever its neighbour reached past.
     /// The square is the right shape but a hair short, and short bands leave
     /// hairline seams of sky between rows. Measuring the gap the band actually
     /// has to fill closes them exactly, at every depth and every board size.

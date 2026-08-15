@@ -1993,7 +1993,7 @@ enum GameRules {
     /// Seams of sky between rows are the one artefact banded drawing has, and
     /// overlap is the standard answer: back-to-front order means the row in
     /// front hides whatever its neighbour reached past. See `BoardBand`.
-    static let boardBandOverlap: CGFloat = 1.12
+    static let boardBandOverlap: CGFloat = 1.25
 
     /// How much night sits over the far edge of a board, fading to nothing at
     /// the near one. Atmospheric perspective — see `BoardView`.
