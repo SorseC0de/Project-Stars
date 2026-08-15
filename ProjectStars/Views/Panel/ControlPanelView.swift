@@ -688,9 +688,7 @@ private struct PanelFrontView: View {
     /// anything else on the panel — which it did, because a joystick and a
     /// three-row cross are not naturally the same size.
     private var movementRow: some View {
-        // - TODO: **Temporary.** The movement control is hidden to make room
-        //   for the homing dials; move with WASD until they come out.
-        Color.clear
+        movementControl
             .frame(height: PanelStyle.movementRowHeight)
     }
 
@@ -911,15 +909,6 @@ private struct PanelFrontView: View {
     ///   `debugCarryFollow`.
     private var perspectiveDials: some View {
         VStack(alignment: .leading, spacing: 2) {
-            dial(
-                "SCALE",
-                value: Binding(
-                    get: { session.debugZoom },
-                    set: { session.debugZoom = $0 }
-                ),
-                range: 1.0...1.6,
-                unit: "x"
-            )
             dial("NEAR Y", value: bind(\.nearY), range: 0.5...1.2, unit: "")
             dial("FAR GAP", value: bind(\.farSpacing), range: 0.3...1.2, unit: "t")
             dial("NEAR GAP", value: bind(\.nearSpacing), range: 0.6...1.6, unit: "t")

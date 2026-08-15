@@ -1999,7 +1999,7 @@ enum GameRules {
     /// A keystone pulls the far rows down and in, so the tilt leaves a margin at
     /// the top and at the upper corners. Scaling back up from the near edge
     /// spends that margin rather than leaving it as a gap.
-    static let boardForeshortenScale: CGFloat = 1.1
+    static let boardForeshortenScale: CGFloat = 1.25
 
     /// How far the tilted board is lifted back up its square, as a fraction of
     /// the board. A keystone pulls its content toward the near edge, so without

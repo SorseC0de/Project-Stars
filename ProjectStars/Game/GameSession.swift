@@ -883,15 +883,6 @@ final class GameSession {
     /// pixels. See `PieceView`.
     var debugShadowLift = Double(GameRules.pieceShadowPerspectiveLift)
 
-    /// The board's placement model while it is being homed on device.
-    ///
-    /// - TODO: **Temporary.** Fold the settled numbers into
-    ///   `BoardPlacement.initial` and delete the dials.
-    /// How much the whole framed board is scaled up — pure camera zoom, the one
-    /// number still open now that the tilt and the camera height are settled.
-    ///
-    /// - TODO: **Temporary.** Bake into `GameRules.boardForeshortenScale`.
-    var debugZoom: Double = Double(GameRules.boardForeshortenScale)
 
     var placement = BoardPlacement.initial
 
