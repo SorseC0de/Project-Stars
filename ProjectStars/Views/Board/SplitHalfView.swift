@@ -39,20 +39,21 @@ struct SplitHalfView: View {
     /// Which side of the figure survives the crop.
     let side: Side
 
+    /// Which twin this is, for the signs that have drawings of their own.
+    var twin: GeminiHalf?
+
     /// Which drawing this half is.
     ///
-    /// Gemini has one of its own — the twin that stays behind — so it is drawn
-    /// rather than cut out of the pair. Every other sign that ever splits falls
-    /// back to being masked in half, which is what this view was built for.
+    /// Gemini has one of each — they are two figures, not one figure cut in two
+    /// — so the twin says which. Every other sign that ever splits falls back to
+    /// being masked in half, which is what this view was built for.
     private var spriteID: SpriteID {
-        zodiac.hasOwnHalves ? .geminiHalf(.silver) : .piece(zodiac)
+        if let twin, zodiac.hasOwnHalves { return .geminiHalf(twin) }
+        return .piece(zodiac)
     }
 
     /// Whether this has to be made out of a whole figure.
-    private var cropped: Bool { !zodiac.hasOwnHalves }
-
-    /// Dimmed, for the half that is not taking this turn.
-    var isWaiting = false
+    private var cropped: Bool { !zodiac.hasOwnHalves || twin == nil }
 
     enum Side { case left, right }
 
@@ -72,10 +73,14 @@ struct SplitHalfView: View {
             // figure's, so half a piece still stands where a whole one would.
             // A whole drawing needs no such correction.
             .offset(x: cropped ? (side == .left ? tileSize / 4 : -tileSize / 4) : 0)
-            .opacity(isWaiting ? GameRules.splitWaitingOpacity : 1)
-            // The waiting half is drained rather than merely faded: it is
-            // somewhere else, on another plane, and colour is what says *here*.
-            .saturation(isWaiting ? GameRules.splitWaitingSaturation : 1)
+            // Drawn at full strength, waiting or not.
+            //
+            // The half that is not taking its turn used to be faded and drained
+            // of colour to say *this one is not you*. But the two halves are
+            // split across planes — that is what splitting means — so the only
+            // board that ever shows this one is the board the other half is not
+            // on. There is nothing to tell it apart from, and a dimmed piece
+            // alone on a plane just reads as a piece drawn wrong.
             .allowsHitTesting(false)
     }
 }

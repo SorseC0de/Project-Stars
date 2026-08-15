@@ -44,6 +44,14 @@ struct SlabPhantomView: View {
     /// The square currently being aimed at.
     var anchor: GridPoint = GameRules.nexysPoint
 
+    /// How far through its final drop the preview is, `0`…`1`.
+    ///
+    /// `0` while it is being aimed, where it floats and bobs. Driven to `1` as
+    /// it lands: the hover closes and the whole thing fades out together, so it
+    /// reads as the slab settling into the squares rather than as a picture
+    /// being deleted and some ground being switched on.
+    var arrival: Double = 0
+
     var body: some View {
         // Squares relative to the shape's own top-left, so the drawing is
         // centred on itself rather than on wherever its anchor happens to sit.
@@ -69,9 +77,17 @@ struct SlabPhantomView: View {
                 }
             }
             .frame(width: CGFloat(width) * cell, height: CGFloat(height) * cell)
-            .shadow(color: Palette.coolBlack.opacity(0.55), radius: cell * 0.25, y: cell * 0.3)
-            .opacity(Style.opacity)
-            .offset(y: CGFloat(bob) * metrics.tileSize)
+            // `Palette.shadow`, which is what every other thing held over the
+            // board casts — see `PieceShadowView`. It was `coolBlack`, a colour
+            // nothing else in the game drops a shadow in, so the slab hung over
+            // the board in a shade of its own.
+            .shadow(color: Palette.shadow.opacity(0.55), radius: cell * 0.25, y: cell * 0.3)
+            .opacity(Style.opacity * (1 - arrival))
+            // Bobbing stops as it comes down: it is being placed now, not held.
+            .offset(
+                y: (CGFloat(bob) * (1 - arrival) - Style.hover * (1 - arrival))
+                    * metrics.tileSize
+            )
             // Held over the square being aimed at, not parked in the middle of
             // the board. It is a preview of a placement, and a preview that does
             // not move with the thing it is previewing is a picture.
@@ -91,7 +107,14 @@ struct SlabPhantomView: View {
     /// like, held up and slightly see-through.
     @ViewBuilder
     private func ground(cell: CGFloat) -> some View {
-        if plane == .astra {
+        if plane == .astra, slab.health.isHole {
+            // A hole in the sky is a hole — there is no cloud to draw, so the
+            // preview of one was a blank square and the whole slab looked like
+            // it had failed to load. Marked instead, which is what the sprite is
+            // for: this is where the sky will not be.
+            PixelSprite(id: .astraHole) { Color.clear }
+                .frame(width: cell, height: cell)
+        } else if plane == .astra {
             CloudSpriteView(
                 point: GridPoint(0, 0),
                 health: slab.health,
@@ -137,6 +160,15 @@ struct SlabPhantomView: View {
         /// because you can see through it, which is enough.
         static let scale: CGFloat = 1
         static let opacity: Double = 0.66
+
+        /// How far above its target the slab is held, in tiles.
+        ///
+        /// It was sitting *on* the squares it was about to fill, centred on the
+        /// anchor — which draws the placement rather than previewing it, and put
+        /// the shape a full tile lower than it reads. Held clear of the board,
+        /// it is plainly a thing about to come down, and the squares underneath
+        /// stay visible while you aim.
+        static let hover: CGFloat = 1
 
         /// How far it drifts, in tiles.
         static let bob: Double = 0.05

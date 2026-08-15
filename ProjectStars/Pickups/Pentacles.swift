@@ -93,6 +93,10 @@ enum PickupID: String, CaseIterable, Codable, Identifiable, Hashable {
     /// `GaiaDropletEffect`.
     case gaiaDroplet
 
+    /// A bubble of Pisces' own water, on Terra. Never rolled into the hunt —
+    /// see `BubbleEffect` and `PiscesAridAquanaut`.
+    case bubble
+
     /// Libra's slab of ground. Takes the Nexys Shift's place in the roll while
     /// she is playing — see `LibraJudicatorElevator` and `GaleforceGavelEffect`.
     case galeforceGavel
@@ -114,7 +118,7 @@ struct ZChargeEffect: PickupEffect {
     /// coin that was not a repair, not the other way round.
     let weight = 1
     let displayName = "Z-Charge"
-    let summary = "Gain \(GameRules.zChargePentacleAmount) Zodiaction charge."
+    let summary = "Gain \(GameRules.zChargePentacleAmount) ZC."
     let glyph = "⚡"
 
     /// Commonest thing in the tier.
@@ -135,6 +139,70 @@ struct ZChargeEffect: PickupEffect {
     }
 }
 
+/// One bubble of Pisces' own water, on Terra.
+///
+/// ## Why this is not a Pentacle
+///
+/// Because it is not part of the hunt. The hunt is one coin at a time, revealed
+/// out of a sparkle phase that waits for it to be taken; bubbles appear
+/// *alongside* that coin, several at once, and taking one leaves the rest — see
+/// `PickupClass.scatter`. A Pentacle is a decision. A bubble is a errand.
+///
+/// ## Why Pisces needs them
+///
+/// Below, the fish charges from water and from nothing else: Z-Charge is struck
+/// from the pool, ordinary steps pay nothing, and the meter is the only way back
+/// to being gold — which is the only way to surf. So bubbles are the whole Terra
+/// economy of the sign, and they are deliberately small: one pip each, three if
+/// the bubble is the square you were already guessing at.
+///
+/// ## Why the snipe pays more
+///
+/// The sparkle phase asks one question — which of these squares is worth
+/// reaching — and answering it correctly should pay whatever it turns out you
+/// were reaching for. A bubble taken on the move it appeared is the same read as
+/// a Pentacle taken that way, and the game already pays for that read.
+///
+/// ## The above is now a HIDDEN bonus
+struct BubbleEffect: PickupEffect {
+
+    let id: PickupID = .bubble
+    let rarity: PickupRarity = .common
+
+    /// Never rolled. Placed by `PiscesAridAquanaut` and by a fall — see
+    /// `GameEngine.scatterMeterAsBubbles(on:)`.
+    let weight = 0
+    let displayName = "Bubble"
+    let summary = "Gain \(GameRules.bubbleCharge) ZC."
+    let glyph = "🫧"
+    let element: ZodiacElement? = .water
+    let appearance: PentacleAppearance = .bubble
+
+    /// Gathered, not chosen — several stand at once and taking one leaves the
+    /// others. See `PickupClass.scatter`.
+    let pickupClass: PickupClass = .scatter
+
+    /// Water settling on a square does not break it.
+    let arrivalWearsTile = false
+
+    func plan(
+        context: PickupContext,
+        choice: PickupChoiceResult?,
+        generator: inout SeededRandom
+    ) -> [GameEvent] {
+        // One pip, and only one.
+        //
+        // The bonus for reaching a coin on the turn it appeared is **already a
+        // rule of the game** — `GameRules.revealTileCharge`, paid by
+        // `resolvePickupCollection` to any sign on any pickup. A second bonus
+        // here was the same mechanic implemented twice, and the two stacked: a
+        // sniped bubble paid its own three plus the house's one.
+        let target = context.meter(afterGaining: GameRules.bubbleCharge)
+        guard target != context.zodiactionMeter else { return [] }
+        return [.zodiactionMeterChanged(to: target)]
+    }
+}
+
 /// Fully repairs one randomly-chosen damaged tile on the plane the piece is on.
 ///
 /// **Fully**, not by one step — a hole goes straight back to healthy. That makes
@@ -144,6 +212,8 @@ struct ZChargeEffect: PickupEffect {
 /// On a plane with nothing left to fix it does not fizzle: it pays out a point
 /// of Zodiaction charge instead, so a well-kept board never makes a Pentacle
 /// feel wasted.
+///
+/// ## Hidden Fallback: if all Tiles are healthy on activation, gain 10 ZC instead
 struct AstralTearEffect: PickupEffect {
 
     let id: PickupID = .restoreTile
@@ -156,7 +226,7 @@ struct AstralTearEffect: PickupEffect {
     /// board for.
     let weight = 3
     let displayName = "Astral Tear"
-    let summary = "Fully repairs one damaged tile here. If none are damaged, gain 1 Zodiaction charge instead."
+    let summary = "Fully restores one damaged tile at random."
     let glyph = "✚"
 
     func plan(
@@ -169,7 +239,7 @@ struct AstralTearEffect: PickupEffect {
         let candidates = context.currentBoard.repairablePoints
 
         guard let target = candidates.randomElement(using: &generator) else {
-            let meter = context.meter(afterGaining: GameRules.restoreTileBonusCharge)
+            let meter = context.meter(afterGaining: GameRules.defaultZodiactionMeterMax)
             guard meter != context.zodiactionMeter else { return [] }
             return [.zodiactionMeterChanged(to: meter)]
         }
@@ -198,8 +268,8 @@ struct AstralBrookEffect: PickupEffect {
     /// rate plays well — three each keeps it where it was while the warps come
     /// down around them.
     let weight = 3
-    let displayName = "Astral Brook"
-    let summary = "Slide to the far edge along your facing, damaging every tile you cross and passing over holes."
+    let displayName = "Astral Essence ✧ Brook"
+    let summary = "An Astral water current carries you forward, passing over holes along the way."
     let glyph = "≈"
     let element: ZodiacElement? = .water
 
@@ -327,8 +397,8 @@ struct AstralBoltEffect: PickupEffect {
     /// Never drawn directly — see the note above.
     let weight = 0
 
-    let displayName = "Astral Bolt"
-    let summary = "Struck by lightning: for \(GameRules.starMoves) moves you damage nothing, fall through nothing, and charge as you walk."
+    let displayName = "Astral Essence ✧ Bolt"
+    let summary = "Struck by Astral lightning, you are super-charged for \(GameRules.starMoves) turns. You do not damage tiles or fall in holes, and gain 1 ZC each turn."
     let glyph = "⚡︎"
 
     /// Nothing is worn while the star runs anyway, but the coin's own square is
@@ -364,8 +434,8 @@ struct AstralBreezeEffect: PickupEffect {
     /// rate plays well — three each keeps it where it was while the warps come
     /// down around them.
     let weight = 3
-    let displayName = "Astral Breeze"
-    let summary = "Teleport to any square on this plane — holes and the Nexys included."
+    let displayName = "Astral Essence ✧ Breeze"
+    let summary = "An Astral wind carries you to a tile of choice within this plane."
     let glyph = "❁"
 
     /// The player picks the destination, so this effect suspends the move.
@@ -414,8 +484,8 @@ struct AstralBlazeEffect: PickupEffect {
     /// rate plays well — three each keeps it where it was while the warps come
     /// down around them.
     let weight = 3
-    let displayName = "Astral Blaze"
-    let summary = "The ring of tiles around you loses one stage. Gain 1 charge per tile damaged, 2 per tile broken."
+    let displayName = "Astral Essence ✧ Blaze"
+    let summary = "The ring of tiles around you loses one stage. Gain 1 ZC per tile damaged, 2 per tile broken."
     let glyph = "✷"
     let element: ZodiacElement? = .fire
 
@@ -476,8 +546,8 @@ struct AstralBlossomEffect: PickupEffect {
     /// rate plays well — three each keeps it where it was while the warps come
     /// down around them.
     let weight = 3
-    let displayName = "Astral Blossom"
-    let summary = "The ring of tiles around you recovers one stage. Holes are beyond help."
+    let displayName = "Astral Essence ✧ Blossom"
+    let summary = "A ring of Astral energy blooms in a ring around you, fully healing all damaged tiles except holes."
     let glyph = "✽"
 
     func plan(
@@ -520,8 +590,12 @@ struct CornerWarpEffect: PickupEffect {
     /// Below the Essences: a warp rearranges where the whole run is happening,
     /// which is a bigger event than any single tile changing.
     let weight = 2
-    let displayName = "Corner Warp"
-    let summary = "Teleport to a random corner. It does not care what is waiting there."
+    /// Renamed off "Corner Current", which collided with Aquarius' Crazy
+    /// Current — one is a coin that moves you once, the other is the rule that
+    /// governs how that sign moves at all, and two things called *current* in a
+    /// game about being carried around is a word doing too much work.
+    let displayName = "Corner-Cut"
+    let summary = "An Astral gust takes you to a random corner of the plane."
     let glyph = "⟀"
 
     func plan(
@@ -580,8 +654,8 @@ struct NexysShiftEffect: PickupEffect {
     /// the board, and at its old rate it was turning up often enough that the
     /// Nexys stopped feeling fixed at all.
     let weight = 1
-    let displayName = "Nexys Shift"
-    let summary = "Brings the Nexys island to your plane, or warps you onto it if it is already here."
+    let displayName = "Nexys Node"
+    let summary = "Return to the Nexys. Summon it if on a different plane."
     let glyph = "◈"
 
     func plan(
@@ -623,7 +697,7 @@ struct ForcedFateEffect: PickupEffect {
     /// two, because it is luck rather than a decision.
     let weight = 3
     let displayName = "Forced Fate"
-    let summary = "Your sign changes at random. You do not get a say. With a phantom out, it changes the phantom instead."
+    let summary = "The stars have ordeigned your sign has changed."
     let glyph = "✦"
 
     /// ## Why company takes the hit
@@ -678,7 +752,7 @@ struct AlignmentEffect: PickupEffect {
     /// whichever run you wanted — so it has to be the one you almost never see.
     let weight = 1
     let displayName = "Alignment"
-    let summary = "Choose any sign to become — including the one you already are."
+    let summary = "When fully aligned, even the stars reaarange to your will."
     let glyph = "✧"
 
     /// The player picks, so this effect suspends the move.
@@ -723,7 +797,25 @@ struct PolarisEffect: PickupEffect {
     let id: PickupID = .polaris
     let rarity: PickupRarity = .legendary
     let displayName = "Polaris"
-    let summary = "Mend the whole of Terra, holes included. Taken from Astra, also fills your meter."
+    let summary = "A fragment of Old Astra, radiating with power. Restores the current plane, on your word."
+
+    /// What it says when it is found cold.
+    ///
+    /// A different object to the player, and it should read like one: below, it
+    /// is a rock with a story rather than a prize with a number. See
+    /// `PickupEffect.summary(on:)`.
+    func summary(on plane: Plane) -> String {
+        plane == .terra
+            ? "A fragment of Old Astra, dormant and cold. How did it get here and what is it for?"
+            : summary
+    }
+
+    /// Cold on Terra, lit above. The coin on the board says which one it is
+    /// before the player has touched it, which is most of why finding it down
+    /// there is a question rather than a payout.
+    func appearance(on plane: Plane) -> PentacleAppearance {
+        plane == .terra ? .dormant : appearance
+    }
     let glyph = "★"
 
     /// Bright and starlit rather than the anonymous gold coin — a legendary is
@@ -751,17 +843,27 @@ struct PolarisEffect: PickupEffect {
         choice: PickupChoiceResult?,
         generator: inout SeededRandom
     ) -> [GameEvent] {
-        // `planeRestored` already returns every ordinary tile to healthy, holes
-        // among them. The Nexys and its chasm are structural and stay as they
-        // are, which is correct: the island is not damage.
-        var events: [GameEvent] = [.planeRestored(plane: .terra)]
-
-        // From Astra the repair is for later, so the charge is for now.
-        if context.plane == .astra, context.zodiactionMeter < context.zodiactionMeterMax {
-            events.append(.zodiactionMeterChanged(to: context.zodiactionMeterMax))
-        }
-
-        return events
+        // Picked up, not spent.
+        //
+        // ## Why it is carried now
+        //
+        // Restoring a plane the instant it is touched makes the best coin in the
+        // game a thing that happens *to* you: it fires wherever you happened to
+        // be standing, on whatever the board happened to look like, and the
+        // player's only involvement was walking onto a square. For a legendary
+        // that is a waste of the moment.
+        //
+        // Carried, it becomes a decision with a clock — you hold a full board
+        // repair and choose when the board is bad enough to be worth it — and
+        // finding it on Terra becomes a *question* rather than a payout, because
+        // down there it arrives cold and has to be taken back into the light.
+        //
+        // No charge either way. It is not a battery for the meter; it is its own
+        // thing, and paying out twice was the old version being unsure what it
+        // was for.
+        var state = context.signState
+        state.polaris = context.plane == .astra ? .charged : .dormant
+        return [.signStateChanged(state)]
     }
 }
 
@@ -819,7 +921,7 @@ struct ShadowWorkEffect: PickupEffect {
     let id: PickupID = .shadowWork
     let rarity: PickupRarity = .legendary
     let displayName = "Shadow Work"
-    let summary = "A mirrored shadow of your piece appears and copies every move you make."
+    let summary = "Sometimes true power comes from conquering the darknesses avoided within self."
     let glyph = "☾"
 
     /// Desaturated and dark, so it is recognisable on sight.
@@ -843,7 +945,20 @@ struct ShadowWorkEffect: PickupEffect {
         // would turn "get rid of the shadow" into a formality.
         let onShadowNexys = context.nexysPlane != context.plane
 
-        return [.shadowSpawned(
+        // And it takes your charge on the way in.
+        //
+        // Two things fall out of this that the coin was missing. It explains
+        // what the shadow *wants* — it is here for your astral energy and it
+        // takes a mouthful arriving — and it explains why catching it hands the
+        // meter back full: that was your charge, and you are taking it back.
+        //
+        // Emptied before the spawn so the order reads correctly: it is drained
+        // out of you, and then the thing that drained it appears.
+        let drained: [GameEvent] = context.zodiactionMeter > 0
+            ? [.zodiactionMeterChanged(to: 0)]
+            : []
+
+        return drained + [.shadowSpawned(
             at: GameRules.nexysPoint,
             plane: context.plane,
             onShadowNexys: onShadowNexys
@@ -884,7 +999,7 @@ struct GaleforceGavelEffect: PickupEffect {
     /// Pisces uses to trade Z-Charge against the Tear.
     let weight = 0
     let displayName = "Galeforce Gavel"
-    let summary = "Place a slab of ground anywhere it fits."
+    let summary = "Tip the scales in your favor by placing tiles where you see fit."
     let glyph = "⚖"
     let element: ZodiacElement? = .air
 
@@ -946,7 +1061,7 @@ struct GaiaDropletEffect: PickupEffect {
     /// Never rolled. Placed by `PiscesGaiaGeyser` and by a pool burning off.
     let weight = 0
     let displayName = "Gaia Droplet"
-    let summary = "Gain \(GameRules.gaiaDropletCharge) Zodiaction charge."
+    let summary = "Gain \(GameRules.gaiaDropletCharge) ZC."
     let glyph = "💧"
     let element: ZodiacElement? = .water
     let appearance: PentacleAppearance = .droplet
@@ -999,6 +1114,7 @@ enum PickupCatalog {
         .shadowWork: ShadowWorkEffect(),
 
         .gaiaDroplet: GaiaDropletEffect(),
+        .bubble: BubbleEffect(),
         .galeforceGavel: GaleforceGavelEffect(),
     ]
 

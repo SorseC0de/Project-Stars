@@ -203,11 +203,11 @@ enum PanelStyle {
     /// are the numbers to reach for when one of them reads wrong.
     static func padThickness(_ direction: SwipeDirection) -> CGFloat {
         switch direction {
-        case .up: 7
-        case .down: 7
+        case .up: 6
+        case .down: 12
         // The diagonals have no plate of their own — they are stops on the
         // joystick, not buttons — so they never reach here.
-        default: 7
+        default: 12
         }
     }
 
@@ -247,7 +247,7 @@ enum PanelStyle {
     /// Two, not one. The vertical pair sit closer than the horizontal, and a
     /// single value has to suit whichever needs more.
     static let padGapVertical: CGFloat = 0
-    static let padGapHorizontal: CGFloat = 10
+    static let padGapHorizontal: CGFloat = -6
 
     /// The top face and the side, matching the joystick's guide so the two
     /// schemes read as one game.
@@ -302,6 +302,13 @@ enum PanelStyle {
     /// Pip gap when the button is sharing its row. Ten pips in two thirds of the
     /// width need to give something up, and the gap is the part nobody reads.
     static let meterPipSpacingCompact: CGFloat = 2
+
+    /// The "ZC" against the meter: how far off it sits, how big, and how far it
+    /// stays back. Quiet on purpose — it is a label on the bar, not a heading
+    /// over it, and a bright one would compete with the pips it is naming.
+    static let meterLabelGap: CGFloat = 5
+    static let meterLabelSize: CGFloat = 14
+    static let meterLabelOpacity: Double = 0.9
     static let retinueGlyphSize: CGFloat = 58
     static let retinueGlyphOpacity: Double = 0.5
 
@@ -311,6 +318,9 @@ enum PanelStyle {
 
     /// The bow, for Sagittarius' recall.
     static let zodiactionRecallGlyphSize: CGFloat = 34
+
+    /// Polaris' own button. Bigger than a glyph, because it is a sprite.
+    static let polarisButtonSize: CGFloat = 52
 
     /// The breath the button takes while it is ready to fire.
     ///
@@ -515,7 +525,7 @@ private struct PanelFrontView: View {
         ZStack {
             // The drag surface sits *behind* the content as a sibling, never as
             // its ancestor — see `SwipeInputSurface` for why that matters.
-            if GameRules.controlScheme == .joystick {
+            if session.controlScheme == .joystick {
                 SwipeInputSurface(
                     isEnabled: session.acceptsGesture,
                     includingDiagonals: session.movesDiagonally,
@@ -559,6 +569,10 @@ private struct PanelFrontView: View {
                     .padding(.top, PanelStyle.vaultBadgeTop)
             }
         }
+        .overlay(alignment: .trailing) {
+            controlSchemeButton
+                .padding()
+        }
         .overlay(alignment: .bottomLeading) {
             // An overlay, so it costs the layout nothing.
             //
@@ -567,8 +581,16 @@ private struct PanelFrontView: View {
             // every row in it is already spoken for. Lifted clear of the
             // Zodiaction button by that button's own height, so it sits above it
             // rather than on it.
-            if session.showsNexysCall {
-                NexysCallView(session: session)
+            // Beside the lift, not inside the Zodiaction's row.
+            //
+            // It lived in the retinue column, which is a third of the super
+            // button — so carrying a fragment shrank the biggest control on the
+            // panel. This is chrome for the run, like the lift, and belongs with
+            // it rather than taking room from something else.
+            VStack(alignment: .leading, spacing: PanelStyle.rowSpacing) {
+                if session.canFirePolaris { polarisButton }
+                if session.showsNexysCall {
+                    NexysCallView(session: session)
                     .padding(.leading, PanelStyle.padding)
                     // Measured off the row it has to clear rather than guessed.
                     //
@@ -577,15 +599,11 @@ private struct PanelFrontView: View {
                     // Zoom, which is the size it happened to be tuned against.
                     // Aligning to the Zodiaction row's own height means it moves
                     // when that row does.
-                    .padding(.bottom, PanelStyle.zodiactionRowHeight
-                        + PanelStyle.rowSpacing * 2)
+                }
             }
-        }
-        .overlay(alignment: .trailing) {
-            #if DEBUG
-            debugMainRow
-                .padding()
-            #endif
+            .padding(.leading, PanelStyle.padding)
+            .padding(.bottom, PanelStyle.zodiactionRowHeight
+                + PanelStyle.rowSpacing * 2)
         }
     }
 
@@ -599,6 +617,49 @@ private struct PanelFrontView: View {
 
             chromeButton("info", tint: Palette.lightBlue, action: onInfo)
             chromeButton("pause.fill", tint: Palette.stone) { session.togglePause() }
+        }
+    }
+
+    /// Cycles how you steer, showing what you would be steering with.
+    ///
+    /// ## Why it wears its destination rather than its current state
+    ///
+    /// Because the current state is already the largest thing on the panel. The
+    /// joystick, the cross of buttons and the grid are right there under the
+    /// player's thumb, filling a third of the screen — an icon repeating that
+    /// back in twenty points tells them nothing they are not already looking at.
+    /// What they cannot see is what is behind the button, so that is what it
+    /// shows: press this and become this.
+    ///
+    /// Replaced with a symbol effect on the change, because the glyph moves on
+    /// at the same moment the panel beneath it does. Without the transition the
+    /// icon reads as having been redrawn; with it, the button hands its old face
+    /// to the panel and takes the next one.
+    private var controlSchemeButton: some View {
+        CelButton(tint: Palette.yellow) { session.cycleControls() } label: {
+            Image(systemName: glyph(for: session.nextControlScheme))
+                .font(.system(size: PanelStyle.chromeGlyphSize, weight: .black))
+                .contentTransition(.symbolEffect(.replace))
+        }
+        .frame(width: PanelStyle.chromeButtonWidth, height: PanelStyle.chromeButtonHeight)
+        .animation(.snappy, value: session.controlScheme)
+        .accessibilityLabel(Text("Switch to \(name(for: session.nextControlScheme)) controls"))
+    }
+
+    /// One glyph per scheme, each naming the thing your thumb actually touches.
+    private func glyph(for scheme: GameRules.ControlScheme) -> String {
+        switch scheme {
+        case .joystick: "l.joystick.fill"
+        case .buttons: "dpad.fill"
+        case .grid: "square.grid.3x3.fill"
+        }
+    }
+
+    private func name(for scheme: GameRules.ControlScheme) -> String {
+        switch scheme {
+        case .joystick: "joystick"
+        case .buttons: "button"
+        case .grid: "grid"
         }
     }
 
@@ -639,7 +700,7 @@ private struct PanelFrontView: View {
 
     @ViewBuilder
     private var movementScheme: some View {
-        switch GameRules.controlScheme {
+        switch session.controlScheme {
         case .joystick:
             Joystick(
                 direction: liveDirection ?? session.engine.piece.facing,
@@ -669,11 +730,17 @@ private struct PanelFrontView: View {
             // — the panel is a fixed square and every row in it is already
             // spoken for. Taking a third of the Zodiaction button instead costs
             // nothing that was not already there.
-            ZodiactionButton(session: session, isCompact: !session.retinue.isEmpty)
-                .frame(maxWidth: .infinity)
-                .layoutPriority(session.retinue.isEmpty ? 1 : 0)
+            // The column holds the borrowed supers *and* the arrow recall, so
+            // the main button gives up its third for either.
+            let hasColumn = !session.retinue.isEmpty
+                || session.canRecallArrow
+                || session.polaris != nil
 
-            if !session.retinue.isEmpty {
+            ZodiactionButton(session: session, isCompact: hasColumn)
+                .frame(maxWidth: .infinity)
+                .layoutPriority(hasColumn ? 0 : 1)
+
+            if hasColumn {
                 retinueColumn
             }
         }
@@ -686,8 +753,89 @@ private struct PanelFrontView: View {
     /// always the same size and the buttons inside it are what change — a
     /// control that resizes its container is a control that moves everything
     /// else, which is the mistake this replaced.
+    /// The recall button's face.
+    ///
+    /// No words and no meter: the shot is paid for, nothing is charging, and
+    /// the only thing this button does is call it back. A bow says that in less
+    /// space than a sentence would.
+    private var recallLabel: some View {
+        Image(systemName: "figure.archery")
+            .font(.system(size: PanelStyle.zodiactionRecallGlyphSize, weight: .black))
+            .foregroundStyle(Palette.warmBlack)
+    }
+
+    /// Polaris, spendable.
+    ///
+    /// The sprite at button size rather than a glyph on a face: it is a specific
+    /// object the player went and found, and a star symbol would make it generic
+    /// — the same icon any game would use for "special".
+    ///
+    /// The depth comes from an opaque copy of the sprite in its own darkest
+    /// tone, offset beneath it. That is what the panel's other buttons do with
+    /// their rims, and doing it from the art means the drop shadow is the
+    /// fragment's own colour rather than a grey somebody picked. `Palette.purple`
+    /// is sampled from the sprite, not chosen — see `flatSilhouette`.
+    private var polarisButton: some View {
+        Button {
+            Haptics.zodiaction()
+            session.firePolaris()
+        } label: {
+            ZStack {
+                // Both copies framed **square**, inside a taller box.
+                //
+                // The frame carried the depth as extra height and the sprites
+                // stretched to fill it, so the fragment came out taller than it
+                // is drawn — which read as the board's foreshortening leaking
+                // into the panel. Only the box is taller now; the art is not.
+                PixelSprite(id: .pentacle(.radiant)) { Color.clear }
+                    .frame(width: PanelStyle.polarisButtonSize,
+                           height: PanelStyle.polarisButtonSize)
+                    .colorEffect(ShaderLibrary.flatSilhouette(.color(Palette.purple)))
+                    .offset(y: PanelStyle.buttonDepth)
+
+                PixelSprite(id: .pentacle(.radiant)) { Color.clear }
+                    .frame(width: PanelStyle.polarisButtonSize,
+                           height: PanelStyle.polarisButtonSize)
+            }
+            .frame(width: PanelStyle.polarisButtonSize,
+                   height: PanelStyle.polarisButtonSize + PanelStyle.buttonDepth,
+                   alignment: .top)
+        }
+        .buttonStyle(.plain)
+        .disabled(!session.acceptsInput)
+        .frame(maxHeight: .infinity)
+        .accessibilityLabel(Text("Spend Polaris"))
+    }
+
     private var retinueColumn: some View {
         VStack(spacing: PanelStyle.retinueSpacing) {
+            // The arrow, first, because it is the one that is already paid for.
+            //
+            // Its own button rather than a second face on the Zodiaction: an
+            // arrow outlives the archer who fired it, so with a different sign
+            // holding the board the old arrangement took that sign's super away
+            // and handed back a control that did nothing. See
+            // `GameEngine.planArrowRecall()`.
+            // Only once it can actually be spent.
+            //
+            // A greyed button for something you cannot use is a control that
+            // lies about being a control — the *carrying* is already stated up
+            // on the board, beside the plane's name, which is where facts about
+            // your run belong. Down here means "you may do this now".
+            if session.canRecallArrow {
+                CelButton(
+                    tint: Palette.red,
+                    isEnabled: true,
+                    acceptsTouch: session.acceptsInput
+                ) {
+                    Haptics.zodiaction()
+                    session.recallArrow()
+                } label: {
+                    recallLabel
+                }
+                .frame(maxHeight: .infinity)
+            }
+
             ForEach(session.retinue, id: \.self) { follower in
                 CelButton(
                     tint: ElementFX.ramp(for: follower.element).mid,
@@ -755,12 +903,6 @@ private struct PanelFrontView: View {
     /// All twelve rather than a stepper: picking the one you want is a glance
     /// and a tap, where cycling is a count. Drawn with the real marks, so it
     /// doubles as a look at all twelve together. Never ships.
-    private var debugMainRow: some View {
-        VStack(spacing: PanelStyle.debugRowSpacing) {
-            debugButton("CTRL", width: 40) { session.debugCycleControls() }
-        }
-    }
-    
     private var debugZodiacRow: some View {
         HStack(spacing: PanelStyle.debugSignSpacing) {
             ForEach(Zodiac.allCases) { sign in
@@ -782,17 +924,6 @@ private struct PanelFrontView: View {
         }
     }
 
-    private func debugButton(
-        _ title: String,
-        width: CGFloat,
-        action: @escaping () -> Void
-    ) -> some View {
-        CelButton(tint: Palette.stone, action: action) {
-            Text(title)
-                .font(.system(size: PanelStyle.debugLabelSize, weight: .heavy, design: .monospaced))
-        }
-        .frame(width: width, height: PanelStyle.debugButtonHeight)
-    }
     #endif
 
     /// How much of the bottom of the screen belongs to the system.
@@ -1227,26 +1358,57 @@ struct DirectionPad: View {
         // achieves that without opening the gap between north and south.
         ZStack {
             VStack(spacing: PanelStyle.padGapVertical) {
-                arrow(.up)
-                arrow(.down)
+                PadArrow(session: session, direction: .up)
+                PadArrow(session: session, direction: .down)
             }
 
             HStack(spacing: PanelStyle.padGapHorizontal) {
-                arrow(.left)
+                PadArrow(session: session, direction: .left)
                 Color.clear.frame(width: PanelStyle.padArrowSize, height: 1)
-                arrow(.right)
+                PadArrow(session: session, direction: .right)
             }
         }
     }
+}
 
-    private func arrow(_ direction: SwipeDirection) -> some View {
+/// One arrow on the pad, with the press the rest of the panel has.
+///
+/// ## Why it is its own view
+///
+/// For the press state. Four arrows built by one function share whatever that
+/// function closes over, so the pressed one cannot be told apart from its
+/// neighbours — each needs its own.
+private struct PadArrow: View {
+
+    let session: GameSession
+    let direction: SwipeDirection
+
+    @State private var isPressed = false
+
+    var body: some View {
         let special = session.specialReach(for: direction)
 
-        return DirectionArrow(direction: direction, hasSpecial: special != nil)
-            .opacity(session.acceptsInput ? 1 : 0.4)
+        DirectionArrow(direction: direction, hasSpecial: special != nil)
+            // Pushed down rather than dimmed.
+            //
+            // These had no press state at all. What looked like one was the
+            // whole pad fading on `acceptsInput`, which goes false the instant a
+            // move starts — so pressing an arrow appeared to switch it off, and
+            // during a fast sequence the pad spent most of its life grey. A
+            // button on this panel depresses; see `CelButton`, whose depth this
+            // borrows so the two feel like the same hardware.
+            .offset(y: isPressed ? PanelStyle.buttonDepth : 0)
+            .animation(.easeOut(duration: PanelStyle.buttonPressDuration), value: isPressed)
+            // Dimmed only when the pad genuinely cannot be used — paused, or the
+            // run is over. A move in progress no longer counts, because an input
+            // during one is buffered and played rather than dropped, so greying
+            // the arrows would be the panel lying about what it will accept.
+            .opacity(session.acceptsGesture || session.phase == .resolvingMove ? 1 : 0.4)
             .contentShape(Rectangle())
             // The hold is registered first, so a press that becomes a hold does
-            // not also fire the tap when it lifts.
+            // not also fire the tap when it lifts. Its `pressing` callback is
+            // also where the depress comes from — one gesture, so the visual
+            // cannot disagree with what the button is doing.
             .onLongPressGesture(minimumDuration: PanelStyle.padHoldDuration) {
                 // `acceptsGesture`, like the tap beside it: holding an arrow
                 // is reaching for a control, and reaching for a control is how
@@ -1254,9 +1416,11 @@ struct DirectionPad: View {
                 guard session.acceptsGesture, let reach = special else { return }
                 Haptics.longer()
                 session.submit(direction, reach: reach)
+            } onPressingChanged: { pressing in
+                isPressed = pressing
             }
             .onTapGesture {
-                guard session.acceptsGesture else { return }
+                guard session.acceptsGesture || session.phase == .resolvingMove else { return }
                 Haptics.step()
                 session.submit(direction, reach: 0)
             }
@@ -1344,32 +1508,24 @@ struct ZodiactionButton: View {
         // key, which is where it was previously found lagging.
         let ready = session.isZodiactionReady
         let element = ElementFX.ramp(for: session.zodiac.element)
-        let recall = session.arrowIsPlanted
 
         TimelineView(.animation) { timeline in
             CelButton(
-                tint: recall ? Palette.red : (ready ? Palette.yellow : Palette.stone),
+                tint: ready ? Palette.yellow : Palette.stone,
                 // Availability decides the colour; the move in progress decides
                 // only whether a touch lands. Tying both to `acceptsInput` made
                 // this flash grey on every step of every move.
-                isEnabled: ready || recall,
+                isEnabled: ready,
                 acceptsTouch: session.acceptsInput
             ) {
                 Haptics.zodiaction()
                 session.fireZodiaction()
             } label: {
-                if recall { recallLabel } else { label(charged: element.mid) }
+                label(charged: element.mid)
             }
             .frame(height: PanelStyle.zodiactionButtonHeight)
             .background {
-                // The recall bloom does not breathe. A ready-pulse means *this
-                // is available now*; the arrow being out is a state, and a state
-                // that pulses reads as a second thing being offered.
-                if recall {
-                    staticGlow(Palette.red)
-                } else if ready {
-                    readyGlow(element.bright, at: timeline.date)
-                }
+                if ready { readyGlow(element.bright, at: timeline.date) }
             }
         }
     }
@@ -1398,17 +1554,6 @@ struct ZodiactionButton: View {
         .padding(.horizontal, PanelStyle.zodiactionLabelInset)
     }
 
-    /// What the button becomes while an arrow is in the ground.
-    ///
-    /// No words and no meter, because neither is true any more: the shot is
-    /// paid for, nothing is charging, and the only thing the button does now is
-    /// call it back. A bow says that in less space than a sentence would.
-    private var recallLabel: some View {
-        Image(systemName: "figure.archery")
-            .font(.system(size: PanelStyle.zodiactionRecallGlyphSize, weight: .black))
-            .foregroundStyle(Palette.warmBlack)
-    }
-
     /// Pips rather than a bar: the meter is a whole number of charges and the
     /// player counts them, which a continuous fill hides.
     ///
@@ -1419,6 +1564,28 @@ struct ZodiactionButton: View {
     /// coins. Same variable, same maths — see `CapricornCelestialCommerce`.
     @ViewBuilder
     private func meter(charged: Color) -> some View {
+        HStack(spacing: PanelStyle.meterLabelGap) {
+            // Named, because the meter alone did not say what it was.
+            //
+            // A tester read a filling bar under the word ZODIACTION as gaining
+            // *Zodiactions* — plural, one per pip — which is a reasonable thing
+            // to conclude from a row of ten pips beneath a title. The word
+            // "charge" was in the tooltips and nowhere they were looking. Two
+            // letters against the meter itself is the cheapest place to put it,
+            // and it is why every Pentacle now says ZC too.
+            Text("ZC")
+                .font(.system(size: PanelStyle.meterLabelSize,
+                              weight: .black, design: .rounded))
+                .foregroundStyle(Palette.warmBlack.opacity(PanelStyle.meterLabelOpacity))
+                .fixedSize()
+
+            pips(charged: charged)
+        }
+    }
+
+    /// The meter itself.
+    @ViewBuilder
+    private func pips(charged: Color) -> some View {
         let filled = session.zodiactionMeter
 
         if session.zodiac == .capricorn {
@@ -1707,7 +1874,10 @@ struct ControlPanelPreview: View {
         .background(Palette.background)
         // The two choices are global rather than per-view, so the preview writes
         // them and redraws — the same way the debug buttons work on a device.
-        .onChange(of: scheme) { GameRules.controlScheme = scheme }
+        .onChange(of: scheme) {
+            GameRules.controlScheme = scheme
+            session.controlScheme = scheme
+        }
     }
 
     #if DEBUG

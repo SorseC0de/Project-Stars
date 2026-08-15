@@ -32,6 +32,83 @@ struct BoardView: View {
         let plane = session.visiblePlane
         let board = session.visibleBoard
 
+        // The whole board seen through the tear, chrome excepted.
+        //
+        // Wrapped inside the compass overlay on purpose: the compass is a label
+        // on the world rather than a thing in it, and a rippling HUD reads as a
+        // rendering fault where a rippling board reads as the world coming
+        // apart. See `FractureField`.
+        FractureField(isActive: session.isFractured, scale: metrics.scale) {
+            ZStack {
+            // The world tilts; the chrome over it does not. See `Foreshortened`.
+            ground(board: board, plane: plane, metrics: metrics)
+                // Air between you and the far rows.
+                //
+                // Laid on *before* the tilt, so it is carried by the same
+                // transform as the board and ends up exactly the board's shape.
+                // Applied after, it kept the board's untilted rectangle and sat
+                // over the scene as a floating pane.
+                .overlay {
+                    LinearGradient(
+                        colors: [
+                            Palette.midnight.opacity(GameRules.boardHazeFar),
+                            Palette.midnight.opacity(0),
+                        ],
+                        startPoint: .top,
+                        endPoint: .bottom
+                    )
+                    .frame(width: metrics.boardSize, height: metrics.boardSize)
+                    .allowsHitTesting(false)
+                }
+                .foreshortened(
+                    size: CGSize(width: metrics.boardSize, height: metrics.boardSize)
+                )
+                // Grown back into the room the tilt gave up, from the near edge
+                // so the bottom row stays where the panel expects it.
+                .scaleEffect(GameRules.boardForeshortenScale, anchor: .bottom)
+                // And lifted back up the sky. A keystone pulls its content
+                // toward the near edge, so an unlifted board sits lower in the
+                // square than the flat one did.
+                .offset(y: -metrics.boardSize * GameRules.boardForeshortenLift)
+
+            // And everything standing on it, placed by the same projection but
+            // never passed through it. See `PixelArtMetrics.projected(_:)`.
+            objectLayers(board: board, plane: plane, metrics: metrics)
+                .frame(width: metrics.boardSize, height: metrics.boardSize)
+            }
+            .frame(width: metrics.boardSize, height: metrics.boardSize)
+        }
+        .overlay(alignment: .bottomLeading) {
+            // With the HUD, above everything on the board.
+            //
+            // It is a label on the world rather than a thing in it, so being
+            // overlapped by a piece standing in front of it read as a drawing
+            // mistake. Above and faded when the piece is under it says what is
+            // true: this is chrome, and it will move aside for you.
+            compass(metrics: metrics)
+        }
+        .frame(width: metrics.boardSize, height: metrics.boardSize)
+        // A heavy landing jolts the board. Only the upper square shakes — the
+        // panel below is under the player's thumb, and shaking a control surface
+        // reads as a fault rather than as impact.
+        .screenShake(
+            startedAt: session.shakeStartedAt,
+            scale: metrics.scale,
+            strength: session.shakeStrength
+        )
+        // An illegal swipe shoves the board a few points and springs back.
+        .offset(nudgeOffset)
+        .animation(.spring(response: 0.22, dampingFraction: 0.35), value: session.blockedNudge)
+        // Not clipped: the cursor may hang past the edge when the projected move
+        // would leave the grid, and the Nexys overhangs its square.
+    }
+
+    /// The floor: everything that *is* the board rather than standing on it.
+    ///
+    /// This is what the keystone is applied to. A floor seen at an angle should
+    /// taper, squash and shear — that is what makes it a floor.
+    @ViewBuilder
+    private func ground(board: Board, plane: Plane, metrics: PixelArtMetrics) -> some View {
         ZStack {
             backdrop(plane: plane, metrics: metrics)
             mirrors(plane: plane, metrics: metrics)
@@ -46,10 +123,26 @@ struct BoardView: View {
 
 
             pools(board: board, plane: plane, metrics: metrics)
+        }
+        .frame(width: metrics.boardSize, height: metrics.boardSize)
+    }
+
+    /// Everything standing *on* the board.
+    ///
+    /// Never put through the keystone — see `PixelArtMetrics.projected(_:)`.
+    /// These ask the floor where their square ended up and how big things are
+    /// there, then draw themselves flat and upright.
+    @ViewBuilder
+    private func objectLayers(
+        board: Board,
+        plane: Plane,
+        metrics: PixelArtMetrics
+    ) -> some View {
+        ZStack {
             shedSkin(plane: plane, metrics: metrics)
+            sparkles(metrics: metrics)
             sanctuary(plane: plane, metrics: metrics)
             arrow(metrics: metrics)
-            sparkles(metrics: metrics)
             waitingHalf(plane: plane, metrics: metrics)
             shadowDouble(plane: plane, metrics: metrics)
 
@@ -95,6 +188,7 @@ struct BoardView: View {
             reeledCoin(metrics: metrics)
             bankArc(metrics: metrics)
             slabLanding(metrics: metrics)
+            slabDrop(metrics: metrics)
 
             // Above the cursor, and above the pieces.
             //
@@ -110,29 +204,6 @@ struct BoardView: View {
                 .opacity(session.ascentFlash)
                 .allowsHitTesting(false)
         }
-        .overlay(alignment: .bottomLeading) {
-            // With the HUD, above everything on the board.
-            //
-            // It is a label on the world rather than a thing in it, so being
-            // overlapped by a piece standing in front of it read as a drawing
-            // mistake. Above and faded when the piece is under it says what is
-            // true: this is chrome, and it will move aside for you.
-            compass(metrics: metrics)
-        }
-        .frame(width: metrics.boardSize, height: metrics.boardSize)
-        // A heavy landing jolts the board. Only the upper square shakes — the
-        // panel below is under the player's thumb, and shaking a control surface
-        // reads as a fault rather than as impact.
-        .screenShake(
-            startedAt: session.shakeStartedAt,
-            scale: metrics.scale,
-            strength: session.shakeStrength
-        )
-        // An illegal swipe shoves the board a few points and springs back.
-        .offset(nudgeOffset)
-        .animation(.spring(response: 0.22, dampingFraction: 0.35), value: session.blockedNudge)
-        // Not clipped: the cursor may hang past the edge when the projected move
-        // would leave the grid, and the Nexys overhangs its square.
     }
 
     // MARK: - Board layers
@@ -141,7 +212,7 @@ struct BoardView: View {
     private func pools(board: Board, plane: Plane, metrics: PixelArtMetrics) -> some View {
         ForEach(board.allPoints.filter { board[$0].kind == .pool }, id: \.self) { point in
             PoolView(size: metrics.tileSize, clock: session.ambientClock(at:))
-                .position(metrics.center(of: point))
+                .placed(at: point, metrics: metrics)
                 .transition(.opacity)
         }
     }
@@ -173,7 +244,7 @@ struct BoardView: View {
                     .colorMultiply(Palette.lightBlue)
             }
             .frame(width: metrics.tileSize, height: metrics.tileSize * 2)
-            .position(metrics.center(of: skin.point))
+            .placed(at: skin.point, metrics: metrics)
             .allowsHitTesting(false)
             .transition(.opacity)
         }
@@ -234,7 +305,8 @@ struct BoardView: View {
                 let to = metrics.center(of: session.engine.piece.point)
 
                 PentacleView(
-                    appearance: PickupCatalog.effect(for: flight.id).appearance,
+                    appearance: PickupCatalog.effect(for: flight.id)
+                        .appearance(on: session.visiblePlane),
                     size: metrics.tileSize,
                     scale: metrics.scale
                 )
@@ -259,7 +331,7 @@ struct BoardView: View {
                 tileSize: metrics.tileSize,
                 start: strike.start
             )
-            .position(metrics.center(of: strike.from))
+            .placed(at: strike.from, metrics: metrics)
         }
     }
 
@@ -301,7 +373,7 @@ struct BoardView: View {
                         bounce: surfaceBounce,
                         healFlash: healFlashes[point]
                     )
-                    .position(metrics.center(of: point))
+                    .placed(at: point, metrics: metrics)
                 }
             }
         }
@@ -318,7 +390,7 @@ struct BoardView: View {
                 seed: sparkle.point.x &* 31 &+ sparkle.point.y
             )
             .frame(width: metrics.tileSize * 2, height: metrics.tileSize * 2)
-            .position(metrics.center(of: sparkle.point))
+            .placed(at: sparkle.point, metrics: metrics)
         }
     }
 
@@ -402,7 +474,7 @@ struct BoardView: View {
         if plane == .terra {
             ForEach(board.allPoints, id: \.self) { point in
                 TileEdgeView(plane: plane, shade: .at(point), size: metrics.tileSize)
-                    .position(metrics.center(of: point))
+                    .placed(at: point, metrics: metrics)
                     .offset(y: GameRules.tileEdgeDrop * metrics.scale)
             }
 
@@ -415,7 +487,7 @@ struct BoardView: View {
             // same strip, dropped just far enough to sit flush underneath.
             ForEach(board.allPoints.filter { $0.y == board.size - 1 }, id: \.self) { point in
                 TileEdgeView(plane: plane, shade: .at(point), size: metrics.tileSize)
-                    .position(metrics.center(of: point))
+                    .placed(at: point, metrics: metrics)
                     .offset(y: GameRules.tileFrontEdgeDrop * metrics.scale)
             }
         }
@@ -497,6 +569,30 @@ struct BoardView: View {
         )
     }
 
+    /// The preview riding the last tile down into the board.
+    ///
+    /// Drawn here rather than in `TileChoiceOverlay` because the choice is over
+    /// by now — the overlay goes with it, and the phantom has to outlive its own
+    /// question to be seen arriving. See `GameSession.SlabDrop`.
+    @ViewBuilder
+    private func slabDrop(metrics: PixelArtMetrics) -> some View {
+        if let drop = session.slabDrop, drop.plane == session.visiblePlane {
+            TimelineView(.animation) { timeline in
+                let elapsed = timeline.date.timeIntervalSince(drop.start)
+                let arrival = min(max(elapsed / GameRules.slabDropDuration, 0), 1)
+
+                SlabPhantomView(
+                    slab: drop.slab,
+                    metrics: metrics,
+                    plane: drop.plane,
+                    anchor: drop.anchor,
+                    arrival: arrival
+                )
+            }
+            .allowsHitTesting(false)
+        }
+    }
+
     /// The squares a slab has just landed on, outlined while they settle.
     ///
     /// The same white the rest of Libra's work is marked in. A slab that simply
@@ -510,7 +606,7 @@ struct BoardView: View {
                     Rectangle()
                         .strokeBorder(Palette.white, lineWidth: GameRules.slabOutline)
                         .frame(width: metrics.tileSize, height: metrics.tileSize)
-                        .position(metrics.center(of: point))
+                        .placed(at: point, metrics: metrics)
                 }
             }
             .frame(width: metrics.boardSize, height: metrics.boardSize)
@@ -538,6 +634,16 @@ struct BoardView: View {
             .allowsHitTesting(false)
     }
 
+    /// How far in the camera leans, given where the piece is standing.
+    ///
+    /// The near row is the resting framing; every row further back pushes in a
+    /// little more, smoothly. Perspective costs the far rows their size, and a
+    /// player who has walked to the back of the board should not have to watch
+    /// their own turn happen at a distance — so the camera follows them in.
+    ///
+    /// Deliberately gentle, and bounded by the room the board has inside its
+    /// square: the whole board stays visible from every row. This is a lean,
+    /// not a chase.
     /// The square the compass sits over: bottom-left of the board.
     private var compassCorner: GridPoint {
         GridPoint(0, session.visibleBoard.size - 1)
@@ -628,7 +734,7 @@ struct BoardView: View {
                 point: point,
                 drawnByField: plane == .astra
             )
-            .position(metrics.center(of: point))
+            .placed(at: point, metrics: metrics)
         }
     }
 
@@ -641,11 +747,20 @@ struct BoardView: View {
     /// from it not working.
     @ViewBuilder
     private func mirrors(plane: Plane, metrics: PixelArtMetrics) -> some View {
-        let torn = plane == .astra || session.engine.signState.terraRifts
+        // Above they are innate and never close; below, only the pairs that are
+        // still open are drawn — using one shuts that doorway and leaves the
+        // other standing.
+        let open: SignState.RiftAxes = plane == .astra
+            ? .both
+            : session.engine.signState.terraRifts
 
         // Drawn for Gemini, and for whoever inherits the rifts afterwards.
-        if session.zodiac == .gemini || session.engine.signState.riftsLinger, torn {
-            ReflectiveRiftsView(metrics: metrics, accent: session.zodiac.definition.accentColor)
+        if session.zodiac == .gemini || session.engine.signState.riftsLinger, !open.isEmpty {
+            ReflectiveRiftsView(
+                metrics: metrics,
+                accent: session.zodiac.definition.accentColor,
+                open: open
+            )
                 .frame(width: metrics.boardSize, height: metrics.boardSize)
         }
     }
@@ -659,7 +774,7 @@ struct BoardView: View {
                 tileSize: metrics.tileSize,
                 start: burst.start
             )
-            .position(metrics.center(of: burst.center))
+            .placed(at: burst.center, metrics: metrics)
         }
     }
 
@@ -740,7 +855,7 @@ struct BoardView: View {
         if let planted = session.visibleArrow {
             ArrowView(tileSize: metrics.tileSize, scale: metrics.scale,
                       clock: session.ambientClock(at:))
-                .position(metrics.center(of: planted.point))
+                .placed(at: planted.point, metrics: metrics)
                 .transition(.scale(scale: 0.3).combined(with: .opacity))
         }
     }
@@ -750,7 +865,7 @@ struct BoardView: View {
     private func sun(metrics: PixelArtMetrics) -> some View {
         if let burning = session.visibleSun {
             SunView(sun: burning, tileSize: metrics.tileSize)
-                .position(metrics.center(of: burning.point))
+                .placed(at: burning.point, metrics: metrics)
         }
     }
 
@@ -783,7 +898,7 @@ struct BoardView: View {
                     sway: { surfaceSway(of: point, at: $0, metrics: metrics) },
                     clock: session.ambientClock(at:)
                 )
-                    .position(metrics.center(of: point))
+                    .placed(at: point, metrics: metrics)
                     .offset(GameRules.sparkleNudge)
             }
             .transition(.opacity)
@@ -814,7 +929,7 @@ struct BoardView: View {
             corners: corners,
             showsWarning: showsWarning
         )
-            .position(metrics.center(of: point))
+            .placed(at: point, metrics: metrics)
             .offset(
                 y: -GameRules.cursorLift * metrics.scale
                     + surfaceOffset(of: point, bob: bob, metrics: metrics)
@@ -922,7 +1037,7 @@ struct BoardView: View {
                         scale: metrics.scale,
                         clock: session.ambientClock(at:)
                     )
-                    .position(metrics.center(of: session.engine.piece.point))
+                    .placed(at: session.engine.piece.point, metrics: metrics)
                     .offset(y: surfaceOffset(
                         of: session.engine.piece.point, bob: bob, metrics: metrics
                     ))
@@ -946,7 +1061,7 @@ struct BoardView: View {
                     // than sitting on a square, and nothing may draw across it.
                     if let burning = session.visibleSun {
                         SunView(sun: burning, tileSize: metrics.tileSize)
-                            .position(metrics.center(of: object.point))
+                            .placed(at: object.point, metrics: metrics)
                             .offset(y: surfaceOffset(
                                 of: object.point, bob: bob, metrics: metrics
                             ))
@@ -1067,7 +1182,7 @@ struct BoardView: View {
                     glows: true
                 )
                 .offset(y: -GameRules.cloudSpriteRaiseLift * metrics.scale)
-                .position(metrics.center(of: point))
+                .placed(at: point, metrics: metrics)
                 .transition(.opacity)
             )
         }
@@ -1083,7 +1198,7 @@ struct BoardView: View {
                 point: point
             )
             .offset(y: -GameRules.tilePopLift * metrics.scale)
-            .position(metrics.center(of: point))
+            .placed(at: point, metrics: metrics)
             .transition(.opacity)
         )
     }
@@ -1101,7 +1216,8 @@ struct BoardView: View {
             let lifted = session.visibleRaisedTiles.contains { $0.point == point }
 
             PentacleView(
-                appearance: PickupCatalog.effect(for: pickup.id).appearance,
+                appearance: PickupCatalog.effect(for: pickup.id)
+                    .appearance(on: pickup.plane),
                 size: metrics.tileSize,
                 scale: metrics.scale,
                 clock: session.ambientClock(at:),
@@ -1110,11 +1226,71 @@ struct BoardView: View {
                 swaps: pickup.fromRing ? PentacleView.ringSwaps : []
             )
             .offset(y: lifted ? -GameRules.tilePopLift * metrics.scale : 0)
-            .position(metrics.center(of: point))
+            // Thrown, not placed.
+            //
+            // A spilled bubble erupts from the piece — out of nothing, up over
+            // an arc, growing as it climbs, and raining down onto its square a
+            // beat behind the one before it. Appearing on the square is what
+            // made a scatter look like a board laid out in advance; rings read
+            // as *lost* because you watch them leave.
+            .modifier(BubbleThrow(
+                flight: scattered(point, at: Date(), metrics: metrics),
+                home: metrics.center(of: point)
+            ))
+            .placed(at: point, metrics: metrics)
             // Hovering over a cloud that is drifting means drifting with it.
             .offset(surfaceSway(of: point, at: Date(), metrics: metrics))
             .transition(.scale(scale: 0.2).combined(with: .opacity))
         }
+    }
+
+    /// Where a bubble is on its way out, or `nil` if nothing is being thrown.
+    ///
+    /// Eased so the handful leaves quickly and settles, rather than sliding at a
+    /// constant rate — the same curve the reeled coin uses.
+    private func scattered(
+        _ point: GridPoint,
+        at date: Date,
+        metrics: PixelArtMetrics
+    ) -> (position: CGPoint, scale: CGFloat)? {
+        guard let scatter = session.bubbleScatter,
+              let place = scatter.points.firstIndex(of: point)
+        else { return nil }
+
+        // Its own place in the queue: each bubble leaves a beat after the one
+        // before it, so the handful erupts rather than appearing.
+        let began = scatter.start
+            .addingTimeInterval(GameRules.bubbleScatterStagger * Double(place))
+        let elapsed = date.timeIntervalSince(began) / GameRules.bubbleScatterDuration
+
+        // Not yet thrown: held at nothing, at the piece. A bubble waiting its
+        // turn must not be sitting on its square already.
+        guard elapsed >= 0 else { return (metrics.center(of: scatter.origin), 0) }
+        guard elapsed < 1 else { return nil }
+
+        let t = CGFloat(elapsed)
+        let eased = t * t * (3 - 2 * t)
+
+        let from = metrics.center(of: scatter.origin)
+        let to = metrics.center(of: point)
+
+        // Up and out, then raining down. A parabola over the straight line,
+        // measured against the distance covered so a bubble thrown across the
+        // board arcs higher than one dropped beside you.
+        let span = hypot(to.x - from.x, to.y - from.y)
+        let lift = sin(Double(eased) * .pi) * Double(span) * Double(GameRules.bubbleScatterArc)
+
+        // Grows as it climbs and settles back to full — the volcano, rather
+        // than something sliding across the floor.
+        let swell = 1 + (GameRules.bubbleScatterGrowth - 1) * CGFloat(sin(Double(eased) * .pi))
+
+        return (
+            CGPoint(
+                x: from.x + (to.x - from.x) * eased,
+                y: from.y + (to.y - from.y) * eased - CGFloat(lift)
+            ),
+            eased < 0.25 ? eased / 0.25 * swell : swell
+        )
     }
 
     /// The Nexys island, at whatever height its drift and any transition put it.
@@ -1145,7 +1321,7 @@ struct BoardView: View {
             .offset(
                 y: session.nexysCarryingPiece ? travel.lift : ascent.lift + travel.lift
             )
-            .position(metrics.center(of: GameRules.nexysPoint))
+            .placed(at: GameRules.nexysPoint, metrics: metrics)
         }
     }
 
@@ -1203,7 +1379,7 @@ struct BoardView: View {
             scale: metrics.scale,
             plane: session.visiblePlane,
             isCharged: session.engine.isZodiactionReady,
-            isSplit: session.engine.isSplit,
+            twin: session.engine.piece.twin,
             movement: session.movement,
             facing: session.engine.piece.facing,
             isFalling: session.isFalling,
@@ -1274,7 +1450,7 @@ struct BoardView: View {
         .offset(y: hover * metrics.scale)
         // And a move it could not make is still attempted.
         .offset(balk(at: Date(), metrics: metrics))
-        .position(metrics.center(of: session.engine.piece.point))
+        .placed(at: session.engine.piece.point, metrics: metrics)
         }
         .frame(width: metrics.boardSize, height: metrics.boardSize)
     }
@@ -1361,7 +1537,7 @@ struct BoardView: View {
                     scale: metrics.scale
                 )
             }
-            .position(metrics.center(of: shadow.point))
+            .placed(at: shadow.point, metrics: metrics)
             .offset(y: surfaceOffset(of: shadow.point, bob: 0, metrics: metrics))
             .animation(
                 .spring(response: GameRules.hopDuration * 1.4, dampingFraction: 0.75),
@@ -1382,10 +1558,10 @@ struct BoardView: View {
                 tileSize: metrics.tileSize,
                 scale: metrics.scale,
                 side: .right,
-                isWaiting: true
+                twin: half.twin
             )
             .offset(y: -metrics.tileSize / 2 - GameRules.pieceLift * metrics.scale)
-            .position(metrics.center(of: half.point))
+            .placed(at: half.point, metrics: metrics)
             .offset(y: surfaceOffset(of: half.point, bob: 0, metrics: metrics))
         }
     }
@@ -1452,7 +1628,7 @@ struct BoardView: View {
             // Its own hop, started late — see `followerPose(step:at:)`.
             .scaleEffect(x: ownPose.scaleX, y: ownPose.scaleY, anchor: .bottom)
             .offset(y: -ownPose.lift * metrics.scale)
-            .position(metrics.center(of: point))
+            .placed(at: point, metrics: metrics)
             .offset(y: ownGround)
             .offset(ownSway)
             // The *same* hop as Leo's, delayed. Not a slower one.
@@ -1550,7 +1726,7 @@ struct BoardView: View {
                         step: step,
                         age: age
                     )
-                    .position(metrics.center(of: ghost.point))
+                    .placed(at: ghost.point, metrics: metrics)
                 }
             }
             // Pinned, and pinned means pinned: an inherited transaction would
@@ -1575,7 +1751,7 @@ struct BoardView: View {
                     scale: metrics.scale,
                     step: step
                 )
-                .position(metrics.center(of: session.engine.piece.point))
+                .placed(at: session.engine.piece.point, metrics: metrics)
                 .animation(
                     .spring(
                         response: GameRules.gemTrailLag * Double(step + 2),
@@ -1722,7 +1898,7 @@ struct BoardView: View {
                 tileSize: metrics.tileSize,
                 start: summon.start
             )
-            .position(metrics.center(of: session.engine.piece.point))
+            .placed(at: session.engine.piece.point, metrics: metrics)
             .offset(y: -GameRules.constellationRise * metrics.scale)
             .id(summon.id)
         }
@@ -1738,7 +1914,7 @@ struct BoardView: View {
                 start: beam.start,
                 isDeparture: beam.isDeparture
             )
-            .position(metrics.center(of: beam.point))
+            .placed(at: beam.point, metrics: metrics)
             .id(beam.id)
         }
     }
@@ -1760,7 +1936,7 @@ struct BoardView: View {
                         magnitude: GameRules.cloudPoofMagnitude,
                         swaps: SmokeSpriteView.cloudSwaps
                     )
-                    .position(metrics.center(of: poof.point))
+                    .placed(at: poof.point, metrics: metrics)
                     .id(poof.id)
                 } else {
                     CloudPoofView(
@@ -1769,7 +1945,7 @@ struct BoardView: View {
                         size: metrics.tileSize,
                         start: poof.start
                     )
-                    .position(metrics.center(of: poof.point))
+                    .placed(at: poof.point, metrics: metrics)
                 }
             }
         }
@@ -1778,7 +1954,7 @@ struct BoardView: View {
     /// Dust kicked up by a landing.
     @ViewBuilder
     private func dust(metrics: PixelArtMetrics) -> some View {
-        if let smoke = session.smoke, smoke.plane == session.visiblePlane {
+        ForEach(session.smoke.filter { $0.plane == session.visiblePlane }) { smoke in
             // Drawn smoke wherever there is a strip for the plane. Astra's is
             // recoloured into its violets, so cloudstuff disperses as cloudstuff
             // rather than as grey.
@@ -1791,7 +1967,7 @@ struct BoardView: View {
                     swaps: smokeSwaps(for: smoke),
                     tint: smoke.tint
                 )
-                .position(metrics.center(of: smoke.point))
+                .placed(at: smoke.point, metrics: metrics)
                 .id(smoke.id)
             } else {
                 SmokeBurstView(
@@ -1802,7 +1978,7 @@ struct BoardView: View {
                     magnitude: smoke.magnitude,
                     start: smoke.start
                 )
-                .position(metrics.center(of: smoke.point))
+                .placed(at: smoke.point, metrics: metrics)
                 .id(smoke.id)
             }
         }
@@ -1832,7 +2008,7 @@ struct BoardView: View {
                 scale: metrics.scale,
                 start: burst.start
             )
-            .position(metrics.center(of: burst.center))
+            .placed(at: burst.center, metrics: metrics)
             .offset(y: -GameRules.tilePopLift * metrics.scale)
             .id(burst.id)
         }

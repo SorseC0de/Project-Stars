@@ -35,12 +35,16 @@ struct PieceView: View {
     /// True when the Zodiaction is charged or firing, which lights the gem.
     var isCharged: Bool = false
 
-    /// True while Gemini is in two places, so this half draws alone.
-    var isSplit = false
+    /// Which of Gemini's twins this is, or `nil` for a whole piece.
+    ///
+    /// Handed in rather than inferred from being split: which twin is holding
+    /// the turn changes every turn, and either of them can be the one that fell.
+    var twin: GeminiHalf?
 
     /// Which drawing this piece is right now.
     private var spriteID: SpriteID {
-        zodiac == .gemini && isSplit ? .geminiHalf(.gold) : .piece(zodiac)
+        if zodiac.hasOwnHalves, let twin { return .geminiHalf(twin) }
+        return .piece(zodiac)
     }
 
     /// The movement playing out, if any. See `GameSession.Movement`.
@@ -102,7 +106,18 @@ struct PieceView: View {
             .offset(y: -tileSize / 2 - GameRules.pieceLift * scale)
             // Anchored at the feet, so squashing spreads the piece outward
             // along the ground instead of sinking it through the tile.
-            .scaleEffect(x: pose.scaleX, y: pose.scaleY, anchor: .bottom)
+            //
+            // Skipped for a piece that squashes its own body — see
+            // `posesItself`. Squashing the whole assembly here and having the
+            // hanging parts each invert it back is not the same as not squashing
+            // them: the outer scale is animated by whoever set the pose and the
+            // inner one is re-read every frame by a `TimelineView`, so the two
+            // run on different curves and the "cancelled" transform pumps.
+            .scaleEffect(
+                x: posesItself ? 1 : pose.scaleX,
+                y: posesItself ? 1 : pose.scaleY,
+                anchor: .bottom
+            )
             .offset(y: -pose.lift * scale)
             // Spin and drop apply to the sprite alone, so the shadow stays put
             // on the square being fallen onto.
@@ -238,6 +253,13 @@ struct PieceView: View {
     /// Both a full meter and the star burn the stone off, on both planes.
     private var isGilded: Bool { isCharged || starElement != nil }
 
+    /// True when the figure squashes itself rather than being squashed whole.
+    ///
+    /// Libra is five sprites, only one of which is a body. A pan on a string is
+    /// rigid — it swings, it does not flatten — so the pose has to be applied to
+    /// the part that pushes off the ground and to nothing else.
+    private var posesItself: Bool { zodiac == .libra }
+
     @ViewBuilder
     private var sprite: some View {
         if zodiac == .libra {
@@ -301,10 +323,22 @@ struct PieceView: View {
     ///
     /// Read from the pose's own lift rather than from the clock, so it stays in
     /// step with the piece even if the hop curve is reshaped.
+    ///
+    /// ## Why it is not clamped to one arc's worth
+    ///
+    /// It was, and that quietly ate every long jump. A two-square vault lifts
+    /// well past `hopArcHeight`, and dividing by that and clamping meant the
+    /// shadow bottomed out at exactly the height an ordinary step reaches —
+    /// so the piece went higher and the ground said nothing about it. The
+    /// shadow is most of how height reads at all; a bigger arc under a shadow
+    /// that stops reacting is a bigger arc nobody sees.
+    ///
+    /// Left unclamped instead, with the swing limited by the pose. A jump twice
+    /// as high now throws a shadow twice as small.
     private var hopShadowScale: CGFloat {
         guard GameRules.hopArcHeight > 0 else { return 1 }
-        let height = min(pose.lift / GameRules.hopArcHeight, 1)
-        return 1 - GameRules.pieceShadowLiftSwing * height
+        let height = pose.lift / GameRules.hopArcHeight
+        return max(1 - GameRules.pieceShadowLiftSwing * height, GameRules.pieceShadowFloor)
     }
 
     // MARK: - Placeholder

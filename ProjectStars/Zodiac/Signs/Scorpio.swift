@@ -66,7 +66,7 @@ extension ZodiacCatalog {
 struct ScorpioVoidCulling: ZodiacPassive {
 
     let displayName = "Void Culling"
-    let summary = "Astra & Terra: you may vault two squares only to clear a hole, and charge for doing it — +1 more for each consecutive move that does."
+    let summary = "Astra & Terra: you may vault two squares only to clear a hole, and gain ZC for doing it — +1 more for each consecutive move that does."
 
     func meterBonus(from move: MoveSummary, context: PassiveContext) -> Int {
         guard move.holesJumped > 0 else { return 0 }

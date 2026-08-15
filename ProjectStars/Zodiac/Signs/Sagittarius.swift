@@ -222,19 +222,13 @@ struct SagittariusLuckyLanding: ZodiacPassive {
 struct SagittariusAstralArrow: Zodiaction {
 
     let displayName = "Astral Arrow"
-    let summary = "Fire an arrow to a random square, then pop again — free — to warp to it. No charge accrues while it is out."
+    let summary = "Fire an arrow to a random square, then pop again — free — to warp to it. No ZC accrues while it is out."
 
     /// The archer's charge comes from the passives.
     func meterGain(from move: MoveSummary, context: PassiveContext) -> Int { 0 }
 
-    /// Recalling costs nothing: the shot was paid for when it was fired.
-    func ignoresMeter(context: PassiveContext) -> Bool {
-        context.signState.arrow != nil
-    }
-
     func activate(context: PassiveContext, generator: inout SeededRandom) -> [GameEvent] {
-        if let arrow = context.signState.arrow { return recall(arrow, context: context) }
-        return fire(context: context, generator: &generator)
+        fire(context: context, generator: &generator)
     }
 
     // MARK: Firing
@@ -313,8 +307,21 @@ struct SagittariusAstralArrow: Zodiaction {
 
     // MARK: Recalling
 
-    /// The second pop: step out of the world and back in where the arrow is.
-    private func recall(
+    /// Step out of the world and back in where the arrow is.
+    ///
+    /// ## Why this is not the Zodiaction's second face
+    ///
+    /// It was: pop with an arrow out and you recalled instead of firing. That
+    /// works exactly as long as the archer is the one holding the board — and an
+    /// arrow outlives its archer. After a piece change the button still said
+    /// *recall*, still cost nothing, and ran whoever's super it was now, so Leo
+    /// lost his Zodiaction to a control that then did nothing.
+    ///
+    /// The recall is a thing the *board* offers, like Gemini's rifts left
+    /// standing, so it has its own button and its own plan — see
+    /// `GameEngine.planArrowRecall()`. This stays here because the shot is still
+    /// Sagittarius' work; it is simply no longer only his to answer.
+    static func recall(
         _ arrow: SignState.Arrow,
         context: PassiveContext
     ) -> [GameEvent] {

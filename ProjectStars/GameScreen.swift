@@ -45,13 +45,39 @@ struct GameScreen: View {
                         side: side,
                         clock: session.ambientClock(at:)
                     )
+                    // Underneath the sky, and underneath the board with it —
+                    // so it shows through Astra's holes. See `GroundBelowView`.
+                    if session.visiblePlane == .astra {
+                        GroundBelowView(
+                            side: side,
+                            metrics: PixelArtMetrics(availableSide: side)
+                        )
+                        .frame(width: side, height: side)
+                        .transition(.opacity)
+                    }
+
                     BoardView(session: session, availableSide: side)
 
                     // Names what is being looked at, so it belongs with the
                     // thing being looked at rather than among the controls.
-                    PlaneBadgeView(plane: session.visiblePlane)
-                        .padding(10)
-                        .frame(width: side, height: side, alignment: .topTrailing)
+                    // The fragment you are carrying, immediately left of the
+                    // plane's name.
+                    //
+                    // Beside it rather than anywhere else on the board, because
+                    // the two are the same kind of statement: this is where the
+                    // upper square tells you what is *true* right now. The panel
+                    // has a button for spending it, which says something
+                    // different — that you may use it — and while the fragment
+                    // is dormant only the first of those is.
+                    HStack(spacing: 8) {
+                        PolarisBadgeView(
+                            polaris: session.polaris,
+                            scale: PixelArtMetrics(availableSide: side).scale
+                        )
+                        PlaneBadgeView(plane: session.visiblePlane)
+                    }
+                    .padding(10)
+                    .frame(width: side, height: side, alignment: .topTrailing)
 
                     // What you just opened, on every pickup rather than only the
                     // first. Pinned low so it never covers the piece.
@@ -180,8 +206,11 @@ struct GameScreen: View {
             Button("Stage lightning") { session.debugStageLightning() }
                 .keyboardShortcut("l", modifiers: [])
 
-            Button("Cycle controls") { session.debugCycleControls() }
+            Button("Cycle controls") { session.cycleControls() }
                 .keyboardShortcut("2", modifiers: [])
+
+            Button("Toggle fissure") { session.debugToggleFissure() }
+                .keyboardShortcut("3", modifiers: [])
 
             #endif
         }

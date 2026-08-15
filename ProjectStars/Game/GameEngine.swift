@@ -22,6 +22,17 @@ struct Piece: Equatable {
     /// completing. Several signs' passives read this, so it is real state rather
     /// than a presentation detail.
     var facing: SwipeDirection = .up
+
+    /// Which of Gemini's twins this is, once they have come apart.
+    ///
+    /// `nil` for every whole piece, including Gemini before the split — there is
+    /// no gold twin until there is a silver one to be gold *against*.
+    ///
+    /// Real state rather than something the view works out from position,
+    /// because which twin fell is a coin flip and the drawings differ: worked
+    /// out from position it would be whichever half the renderer happened to
+    /// reach first, which is how both of them came to be drawn as gold.
+    var twin: GeminiHalf?
 }
 
 // MARK: - RevealedPickup
@@ -232,7 +243,24 @@ struct GameEngine {
     private mutating func applyRetinueWear() -> [GameEvent] {
         guard !signState.retinue.isEmpty, !isGameOver else { return [] }
 
-        var events: [GameEvent] = []
+        // Gathered by cause rather than emitted one follower at a time.
+        //
+        // The phantoms all come down on the same instant — the beat between them
+        // is a *drawn* stagger, scheduled by the view — so a separate event each
+        // meant the replay stopped and waited once per follower for damage that
+        // had already happened together. With a full line that was most of a
+        // Leo turn spent on nothing, which is why the lion felt sluggish when
+        // nobody else did.
+        //
+        // Still keyed by cause, because the cause decides how the wear is drawn
+        // and two phantoms need not break the ground the same way.
+        // Order kept alongside the grouping, because a dictionary has none and
+        // this list is a *replay*. Two causes emitted in whichever order the
+        // hashing happened to produce would make the same seed draw a different
+        // sequence of events on different runs, which is the one thing the
+        // event log exists to rule out.
+        var merged: [WearCause: [GridPoint: TileHealth]] = [:]
+        var order: [WearCause] = []
 
         for (step, follower) in signState.retinue.enumerated() {
             let point = retinueSquare(step: step)
@@ -277,11 +305,25 @@ struct GameEngine {
                 .tilesWorn(plane: piece.plane, changes: changes, cause: proposal.cause)
             ) else { continue }
 
-            events.append(allowed)
+            // Applied as we go, so the next phantom reads a board this one has
+            // already broken — two of them on the same square must cost that
+            // square two stages, which a batch computed against one snapshot
+            // would quietly reduce to one.
             apply(allowed)
+
+            guard case let .tilesWorn(_, allowedChanges, cause) = allowed else { continue }
+            if merged[cause] == nil { order.append(cause) }
+            merged[cause, default: [:]].merge(allowedChanges) { _, newer in newer }
         }
 
-        return events
+        // Whole-value replacements, so replaying the merged event over a board
+        // these changes were already applied to lands on the same numbers. See
+        // the note on `GameEvent.tilesWorn`.
+        return order.compactMap { cause in
+            merged[cause].map {
+                .tilesWorn(plane: piece.plane, changes: $0, cause: cause)
+            }
+        }
     }
 
     /// Records a square Leo has occupied, for the retinue to walk through.
@@ -406,6 +448,11 @@ struct GameEngine {
     /// forcing a re-roll — is written against this rather than against
     /// `revealedPickups`, because a boon left lying about by an ability is not
     /// part of that economy and must not stall it. See `PickupClass`.
+
+    /// True while a Zodiaction is resolving. Set for the length of the plan, as
+    /// `pickupRevealedThisMove` and `arrivalWasChosen` are.
+    private(set) var isFiringZodiaction = false
+
     var revealedPentacles: [RevealedPickup] {
         revealedPickups.filter { PickupCatalog.effect(for: $0.id).pickupClass == .pentacle }
     }
@@ -679,16 +726,22 @@ struct GameEngine {
         // 1. Committing the move ends the sparkle phase: the sparkles vanish and
         //    the pickup appears on one of the tiles they occupied, all as the
         //    piece begins its hop.
+        // Mirrored onto the engine for the length of the plan, so an effect
+        // opened later in this same move can see it — a bubble pays triple for
+        // being guessed and is handed a `PickupContext`, not a `MoveSummary`.
         var revealedThisMove = false
         for reveal in sim.rollPickupReveal(destination: move.destination) {
             commit(reveal)
             revealedThisMove = true
         }
 
-        // Arriving through a rift closes the torn set.
-        if move.usedRift, sim.signState.terraRifts {
+        // Arriving through a rift closes the doorway behind you — that pair
+        // only. The other axis was never entered and stays open for a second
+        // crossing.
+        let crossed = SignState.RiftAxes.crossed(by: direction)
+        if move.usedRift, !sim.signState.terraRifts.intersection(crossed).isEmpty {
             var closed = sim.signState
-            closed.terraRifts = false
+            closed.terraRifts.subtract(crossed)
             commit(.signStateChanged(closed))
         }
 
@@ -935,6 +988,12 @@ struct GameEngine {
         let planeBefore = sim.piece.plane
         let pointBefore = sim.piece.point
 
+        // Borrowed or your own, a super is a thing you *did* — see
+        // `PassiveContext.duringZodiaction`. A phantom Pisces taking you down
+        // dives; it does not drop you.
+        sim.isFiringZodiaction = true
+        defer { sim.isFiringZodiaction = false }
+
         // Stamped at the tail, not here — a borrowed super answers to the same
         // rule as your own. See `actionWasATurn(from:)`.
         let startedAt = (point: pointBefore, plane: planeBefore)
@@ -1082,13 +1141,32 @@ struct GameEngine {
             coin.point.x + (piece.point.x - coin.point.x).signum(),
             coin.point.y + (piece.point.y - coin.point.y).signum()
         )
-        guard step != coin.point, self[coin.plane].contains(step) else { return [] }
 
-        let moved = GameEvent.pickupMoved(
-            id: coin.id, plane: coin.plane, from: coin.point, to: step
-        )
-        apply(moved)
-        return [moved]
+        var events: [GameEvent] = []
+
+        if step != coin.point, self[coin.plane].contains(step) {
+            let moved = GameEvent.pickupMoved(
+                id: coin.id, plane: coin.plane, from: coin.point, to: step
+            )
+            apply(moved)
+            events.append(moved)
+        }
+
+        // Caught, when it is the coin that did the catching.
+        //
+        // Every other Pentacle in the game is collected by the piece arriving on
+        // it, which is checked when the piece moves — so a coin that walks onto
+        // a stationary player was never checked by anything. It simply sat on
+        // top of the piece and kept trying to close a distance of nothing, which
+        // is the one outcome Shadow Work is built to reach.
+        //
+        // Run through the ordinary collection so it opens exactly as it would
+        // have if it had been walked onto: same event, same effect, same charge
+        // for taking it.
+        let collection = resolvePickupCollection()
+        events += collection.events
+
+        return events
     }
 
     /// Ends a turn for a split Gemini: rejoin if the halves have met, otherwise
@@ -1134,6 +1212,160 @@ struct GameEngine {
     ///
     /// Both count as a turn, for the same reason a Zodiaction does: the board
     /// changed because the player asked it to.
+    /// Wakes a dormant Polaris if these events exposed it to astral energy.
+    ///
+    /// Three ways, and they are the same way three times: **a Zodiaction fired**,
+    /// **arriving on Astra**, or **an Astral Essence opened**. All three are the
+    /// player putting raw astral energy through the piece, which is what a cold
+    /// fragment of Old Astra needs and cannot get by being carried around Terra.
+    ///
+    /// Read off the events rather than asked as a condition, because two of the
+    /// three are *moments* rather than states — a pop is over by the time
+    /// anything could check for it.
+    private mutating func chargePolaris(after events: [GameEvent]) -> [GameEvent] {
+        guard signState.polaris == .dormant else { return [] }
+
+        let exposed = events.contains { event in
+            switch event {
+            case .zodiactionFired:
+                true
+            case let .pickupCollected(id, _, _):
+                PickupCatalog.essences.contains(id)
+            case let .pieceFell(_, to, _):
+                to == .astra
+            case let .pieceTeleported(_, _, from, to, _):
+                from != .astra && to == .astra
+            case let .nexysMoved(to, carrying):
+                to == .astra && carrying
+            default:
+                false
+            }
+        }
+
+        guard exposed else { return [] }
+
+        var lit = signState
+        lit.polaris = .charged
+        return [.signStateChanged(lit)]
+    }
+
+    /// True when the fragment is lit and the player may spend it.
+    var canFirePolaris: Bool {
+        !isGameOver && signState.polaris == .charged
+    }
+
+    /// Spends it: the plane you are standing on comes back whole.
+    ///
+    /// ## Why it falls back rather than refusing
+    ///
+    /// A repair on an undamaged board is a legendary that does nothing, and a
+    /// button that does nothing is worse than no button. The fragment is a piece
+    /// of Old Astra either way, so on a board with nothing to mend it does the
+    /// other thing Old Astra does — it moves the island. Nobody is ever punished
+    /// for holding it until the board looked bad enough.
+    mutating func planPolaris() -> [GameEvent] {
+        guard canFirePolaris else { return [] }
+
+        var sim = self
+        defer { self.rng = sim.rng }
+
+        var events: [GameEvent] = []
+        func commit(_ event: GameEvent) {
+            events.append(event)
+            sim.apply(event)
+        }
+
+        var spent = sim.signState
+        spent.polaris = nil
+        commit(.signStateChanged(spent))
+
+        let plane = sim.piece.plane
+        let broken = sim[plane].allPoints.contains {
+            sim[plane][$0].kind == .normal && sim[plane][$0].health != .healthy
+        }
+
+        if broken {
+            commit(.planeRestored(plane: plane))
+        } else if sim.nexysPlane != plane {
+            commit(.nexysMoved(to: plane, carryingPiece: false))
+        } else {
+            commit(.nexysMoved(to: plane.opposite, carryingPiece: true))
+        }
+
+        if !sim.isGameOver {
+            events += sim.settle(arrivedByFalling: false, wearsOnArrival: false).events
+        }
+
+        events += sim.ensurePentacleAvailable(previousPlane: plane, after: events)
+        return events
+    }
+
+    /// True once a fragment of Old Astra has been picked up this run.
+    ///
+    /// ## Why the run and not the carry
+    ///
+    /// Blocking the spawn only while one is *carried* would make Polaris a thing
+    /// you farm: spend it, walk back to the north-middle tile, and wait for the
+    /// next one. It is a full board repair held until the player decides the
+    /// moment is right, which is only a decision if there is exactly one.
+    ///
+    /// ## Why it is not in `SignState`
+    ///
+    /// Because that is the sign's scratchpad, and every scope in it is cleared
+    /// by either a plane change or a piece change — `runFlags` included, which
+    /// a piece change wipes on purpose for Scorpio's sake. "This run has already
+    /// produced its Polaris" outlives both. It is a fact about the *run*, so it
+    /// lives on the run.
+    private(set) var polarisTaken = false
+
+    /// True while there is an arrow in the ground for whoever holds the board.
+    ///
+    /// Not gated on being Sagittarius. An arrow is a hole punched in the world
+    /// and it stays punched — the same rule Gemini's rifts follow.
+    var canRecallArrow: Bool { !isGameOver && signState.arrow != nil }
+
+    /// Answering it: out of the world here, back in where the arrow is.
+    ///
+    /// Free, because the shot was paid for when it was fired, and always a turn,
+    /// because the arrow is never in the square you are standing in.
+    mutating func planArrowRecall() -> [GameEvent] {
+        guard canRecallArrow, let arrow = signState.arrow else { return [] }
+
+        var sim = self
+        defer { self.rng = sim.rng }
+
+        var events: [GameEvent] = []
+        func commit(_ event: GameEvent) {
+            events.append(event)
+            sim.apply(event)
+        }
+
+        let planeBefore = sim.piece.plane
+        let startedAt = (point: sim.piece.point, plane: sim.piece.plane)
+
+        for event in SagittariusAstralArrow.recall(arrow, context: sim.passiveContext) {
+            guard let allowed = sim.sheltered(event) else { continue }
+            commit(allowed)
+            for sweep in sim.gatherIfCrossed(allowed) { commit(sweep) }
+        }
+
+        events += sim.openCarriedPickups()
+
+        if !sim.isGameOver {
+            events += sim.settle(arrivedByFalling: false, wearsOnArrival: false).events
+        }
+
+        if sim.actionWasATurn(from: startedAt) {
+            for reveal in sim.rollPickupReveal(destination: sim.piece.point) { commit(reveal) }
+            commit(.moveCommitted(direction: sim.piece.facing))
+            events += sim.tickForTurn()
+            events += sim.ensurePentacleAvailable(previousPlane: planeBefore, after: events)
+            events += sim.passTheTurn()
+        }
+
+        return events
+    }
+
     mutating func planNexysCall() -> [GameEvent] {
         guard !isGameOver, canCallNexys else { return [] }
 
@@ -1147,9 +1379,7 @@ struct GameEngine {
         }
 
         let planeBefore = sim.piece.plane
-
-        for reveal in sim.rollPickupReveal(destination: sim.piece.point) { commit(reveal) }
-        commit(.moveCommitted(direction: sim.piece.facing))
+        let startedAt = (point: sim.piece.point, plane: sim.piece.plane)
 
         if sim.nexysPlane != sim.piece.plane {
             commit(.nexysMoved(to: sim.piece.plane, carryingPiece: false))
@@ -1161,9 +1391,21 @@ struct GameEngine {
             events += sim.settle(arrivedByFalling: false, wearsOnArrival: false).events
         }
 
-        events += sim.tickForTurn()
-        events += sim.ensurePentacleAvailable(previousPlane: planeBefore, after: events)
-        events += sim.passTheTurn()
+        // Calling the lift is only a turn if you rode it.
+        //
+        // It used to be one either way, which made summoning the island from the
+        // other plane cost a glow phase, a coin roll, every timer on the board
+        // and — while split — Gemini's go. Pressing a button to bring the lift to
+        // you is not a move, and `actionWasATurn` is the one place that question
+        // is answered for everybody. See its note on the third special case.
+        if sim.actionWasATurn(from: startedAt) {
+            for reveal in sim.rollPickupReveal(destination: sim.piece.point) { commit(reveal) }
+            commit(.moveCommitted(direction: sim.piece.facing))
+            events += sim.tickForTurn()
+            events += sim.ensurePentacleAvailable(previousPlane: planeBefore, after: events)
+            events += sim.passTheTurn()
+        }
+
         return events
     }
 
@@ -1309,6 +1551,12 @@ struct GameEngine {
 
         var sim = self
         defer { self.rng = sim.rng }
+
+        // Marked for the length of the plan, so anything that happens *inside* a
+        // super knows it was deliberate. A descent is the case that needs it —
+        // see `PassiveContext.duringZodiaction`.
+        sim.isFiringZodiaction = true
+        defer { sim.isFiringZodiaction = false }
 
         var events: [GameEvent] = []
         func commit(_ event: GameEvent) {
@@ -1581,7 +1829,29 @@ struct GameEngine {
             }
         }
 
-        return struck.flatMap { plane, points in dryUp(Array(points), on: plane) }
+        return struck.flatMap { plane, points in
+            dryUp(Array(points), on: plane) + popBubbles(Array(points), on: plane)
+        }
+    }
+
+    /// Bursts any bubbles on squares that were just struck.
+    ///
+    /// Same rule as the pools and for the same reason: a bubble is water sitting
+    /// on the board, and anything that would have damaged the square it is on
+    /// evaporates it. Written here rather than in a list of fire sources so
+    /// nothing new has to know bubbles exist.
+    ///
+    /// Nothing is left behind. A pool leaves a droplet because a pool is a
+    /// standing body of water; a bubble is already the smallest piece of it.
+    private mutating func popBubbles(_ points: [GridPoint], on plane: Plane) -> [GameEvent] {
+        var produced: [GameEvent] = []
+        for coin in revealedPickups
+        where coin.id == .bubble && coin.plane == plane && points.contains(coin.point) {
+            let event = GameEvent.pickupDestroyed(id: coin.id, plane: plane, point: coin.point)
+            produced.append(event)
+            apply(event)
+        }
+        return produced
     }
 
     /// Turns pools into droplets, one for one.
@@ -1789,8 +2059,50 @@ struct GameEngine {
         guard let point = steered ?? usable.randomElement(using: &rng) else { return [] }
         guard let pickup = drawPickup(at: point, on: sparkles.plane) else { return [] }
 
-        return [.pickupRevealed(id: pickup, plane: sparkles.plane, point: point)]
-            + secondReveal(among: usable, excluding: point, on: sparkles.plane)
+        var events = [GameEvent.pickupRevealed(id: pickup, plane: sparkles.plane, point: point)]
+        events += secondReveal(among: usable, excluding: point, on: sparkles.plane)
+
+        // Bubbles are rolled last and take no square the hunt wanted.
+        //
+        // They are not a second chance at the coin — they sit *beside* it, on
+        // sparkles it did not use, which is why a phase can end with two of each.
+        events += revealBubbles(
+            among: usable,
+            excluding: events.compactMap(\.revealedPoint),
+            on: sparkles.plane
+        )
+        return events
+    }
+
+    /// The bubbles that appear alongside a reveal, if any.
+    ///
+    /// Rolled per bubble rather than as one draw with a count, so the chance
+    /// means the same thing however many are allowed, and so the run's luck —
+    /// Sagittarius' Fortunate Find — scales them without knowing they exist.
+    private mutating func revealBubbles(
+        among usable: [GridPoint],
+        excluding taken: [GridPoint],
+        on plane: Plane
+    ) -> [GameEvent] {
+        let chance = activePassives.bubbleChance(context: passiveContext)
+        guard chance > 0 else { return [] }
+
+        var free = usable.filter { !taken.contains($0) }
+        var events: [GameEvent] = []
+
+        for _ in 0..<GameRules.bubbleMaxPerPhase {
+            guard !free.isEmpty else { break }
+            let roll = Double(rng.next() % 10_000) / 10_000
+            guard roll < min(chance * luck, 1) else { continue }
+
+            guard let index = free.indices.randomElement(using: &rng) else { break }
+            let point = free.remove(at: index)
+            let event = GameEvent.pickupRevealed(id: .bubble, plane: plane, point: point)
+            apply(event)
+            events.append(event)
+        }
+
+        return events
     }
 
     /// What the coin on `point` turns out to be.
@@ -1816,6 +2128,7 @@ struct GameEngine {
 
         // The star's own square, and only a third of the time even then.
         if point == GameRules.polarisPoint,
+           !polarisTaken,
            Double(rng.next() % 10_000) / 10_000 < GameRules.polarisSpawnChance {
             return .polaris
         }
@@ -1916,14 +2229,29 @@ struct GameEngine {
                 result.absorb(departure)
 
                 let step = GameEvent.pieceStepped(
-                    from: piece.point, to: square, plane: piece.plane
+                    from: piece.point, to: square, plane: piece.plane, style: .charge
                 )
                 result.events.append(step)
                 result.covered.append(square)
                 apply(step)
 
+                // Swept up as it is passed, exactly as a slide does.
+                //
+                // Left out when the charge was split off from the slide, which
+                // meant the one movement in the game that crosses the most
+                // ground was the one that picked nothing up off it. Anything
+                // `travelsTheGround` collects what it runs over — the styles
+                // differ in what they do *to* the ground, not in whether they
+                // are on it.
+                for gathered in gatherIfCrossed(step) { result.events.append(gathered) }
+
                 if isGameOver { return result }
             }
+
+            // The last moment a coin can change what the arrival does — see the
+            // same call in the slide.
+            result.events += openCarriedPickups()
+
             result.absorb(settle(arrivedByFalling: false))
 
         case .hop, .leap:
@@ -1933,7 +2261,8 @@ struct GameEngine {
             let hop = GameEvent.pieceStepped(
                 from: piece.point,
                 to: destination,
-                plane: piece.plane
+                plane: piece.plane,
+                style: effective
             )
             result.events.append(hop)
             result.covered.append(destination)
@@ -2262,12 +2591,32 @@ struct GameEngine {
             // only one of them fell.
             if piece.zodiac == .gemini, plane == .astra, !isSplit,
                piece.zodiac.passives.splitsOnDescent(context: passiveContext) {
-                commit(.pieceSplit(strandedAt: point, plane: .astra))
+                commit(.pieceSplit(
+                    strandedAt: point,
+                    plane: .astra,
+                    // Which twin falls is a coin flip. Neither of them is the
+                    // real one, so nothing should be able to predict which of
+                    // the two the player is about to be holding.
+                    faller: GeminiHalf.allCases.randomElement(using: &rng) ?? .gold
+                ))
             }
 
             commit(.pieceFell(from: plane, to: below, at: point))
             result.fell = true
             fellAlready = true
+
+            // Whatever charge was in the meter comes down as water — *after* the
+            // fall, not before it.
+            //
+            // Committed first, the bubbles were already lying all over Terra
+            // while the fish was still in the air, so the player arrived at a
+            // board that had somehow anticipated them. Rings do not work that
+            // way: you hit the ground, and then everything you were carrying
+            // leaves you. The impact has to come first for the scatter to read
+            // as a consequence of it.
+            for spill in scatterMeterAsBubbles(landingOn: below, clearOf: point) {
+                commit(spill)
+            }
 
             // Leaving Astra repairs it, so a player who can climb back up finds
             // fresh ground waiting. This is the mechanism that makes long runs
@@ -2279,6 +2628,80 @@ struct GameEngine {
         }
 
         return result
+    }
+
+    /// Spills the meter across the plane below as bubbles, one per pip.
+    ///
+    /// ## Why a fall does not simply cost you the meter
+    ///
+    /// Because it already costs everything else. Pisces arrives on Terra unable
+    /// to cross the board and unable to charge from anything but water, and
+    /// wiping the meter on the way down makes the worst moment of the run into a
+    /// blank one. Scattering it puts the same value back on the board as *a
+    /// layout* — the charge is still there, it is simply somewhere else, and
+    /// getting it back is the first thing the fish has to do.
+    ///
+    /// Like rings, deliberately: they fly out, some of them are lost, and you
+    /// spend the next while collecting what you can reach.
+    ///
+    /// Only for a sign that charges from water. For everybody else a fall is a
+    /// fall, and a board full of somebody else's bubbles would be a gift nobody
+    /// asked for.
+    /// - Parameter landing: The square the piece is about to come down on. Kept
+    ///   clear, because a bubble there is one the fall hands you for nothing —
+    ///   and the whole point of the scatter is that the charge is somewhere
+    ///   *else* now.
+    private mutating func scatterMeterAsBubbles(
+        landingOn plane: Plane,
+        clearOf landing: GridPoint
+    ) -> [GameEvent] {
+        guard zodiactionMeter > 0,
+              activePassives.spillsMeterOnDescent(context: passiveContext)
+        else { return [] }
+
+        // Read before the meter is emptied: one bubble per pip, and the pips are
+        // about to be gone.
+        let pips = zodiactionMeter
+
+        let board = self[plane]
+
+        // One square each, and never the one being landed on. Squares are taken
+        // out of `free` as they are used, so two bubbles can never pick the
+        // same tile — and anything already holding a pickup is out from the
+        // start, so they cannot land on a coin either.
+        var free = board.allPoints.filter { point in
+            point != landing
+                && !revealedPickups.contains { $0.plane == plane && $0.point == point }
+        }
+        guard !free.isEmpty else { return [] }
+
+        var events: [GameEvent] = [.zodiactionMeterChanged(to: 0)]
+        apply(events[0])
+
+        for _ in 0..<min(pips, free.count) where !free.isEmpty {
+            guard let index = free.indices.randomElement(using: &rng) else { break }
+            let point = free.remove(at: index)
+
+            // A bubble that lands over nothing is gone. It fell into the hole
+            // with everything else — which is the cost of the drop, and the
+            // reason the scatter is a loss as well as a layout.
+            //
+            // The Nexys' square is the exception, and it is not a special case
+            // so much as the truth about that square: the chasm reads as a hole
+            // only while the island is elsewhere. With the island sitting in it
+            // there is ground there, and a bubble lands on it like anywhere
+            // else.
+            let onTheIsland = plane == nexysPlane && point == GameRules.nexysPoint
+            guard board[point].isSolid || onTheIsland else { continue }
+
+            let event = GameEvent.pickupRevealed(
+                id: .bubble, plane: plane, point: point, thrownFrom: landing
+            )
+            apply(event)
+            events.append(event)
+        }
+
+        return events
     }
 
     // MARK: - Abandoned works
@@ -2758,9 +3181,14 @@ struct GameEngine {
         // choice, not a haul, and so are eight droplets — but a coin and a
         // droplet are two different offers, and taking one has never been a
         // reason to lose the other.
+        //
+        // Scattered things are the exception, and the one class that really is
+        // a haul: bubbles are gathered over as many turns as it takes, so
+        // reaching one has nothing to say about the rest.
         let taken = PickupCatalog.effect(for: pickup.id).pickupClass
         for other in revealedPickups
-        where (other.id != pickup.id || other.point != pickup.point)
+        where taken != .scatter
+            && (other.id != pickup.id || other.point != pickup.point)
             && PickupCatalog.effect(for: other.id).pickupClass == taken {
             commit(.pickupDestroyed(id: other.id, plane: other.plane, point: other.point))
         }
@@ -2897,7 +3325,21 @@ struct GameEngine {
         // Applied here rather than in the four effects: it is a rule about the
         // *piece*, not about any one coin, and adding a fifth Essence should not
         // mean remembering to write this again.
-        if let element = effect.element, element == piece.zodiac.element {
+        //
+        // ## Why only the hunt pays it
+        //
+        // Because this rewards *finding your own element out there* — one of the
+        // four Essences turning out to match the sign you are holding. A thing
+        // you put on the board yourself is not a find. Pisces' bubbles are water
+        // and Pisces is a water sign, so every bubble was quietly paying an
+        // affinity bonus on top of its own pip, which is the sign being paid
+        // twice for its own charge. Gaia droplets had the same problem.
+        //
+        // Asked of the class rather than by naming the two: anything scattered
+        // or left lying about is not the hunt, and the next one will not need
+        // remembering either.
+        if effect.pickupClass == .pentacle,
+           let element = effect.element, element == piece.zodiac.element {
             let target = min(zodiactionMeter + GameRules.elementAffinityCharge, zodiactionMeterMax)
             if target != zodiactionMeter {
                 commit(.zodiactionMeterChanged(to: target))
@@ -2944,22 +3386,7 @@ struct GameEngine {
             }
             commit(.pickupSpent(id: id))
 
-            // The lender leaves with the rest of its purse. Capricorn goes the
-            // moment the purchase is confirmed rather than the moment the shop
-            // opened, so a phantom is never dismissed for a decision the player
-            // has not made yet.
-            // Asked of the *piece*, not of the retinue.
-            //
-            // The phantom is already gone by now — it is spent before its super
-            // runs — so "is Capricorn still following" is false for a borrowed
-            // purse and for a real one alike. It wiped the goat's own savings
-            // after every purchase and left Leo's borrowed coins lying about,
-            // which is both directions of the same wrong question.
-            if !sim.signState.purse.isEmpty, sim.piece.zodiac != .capricorn {
-                var emptied = sim.signState
-                emptied.purse = []
-                commit(.signStateChanged(emptied))
-            }
+            for closing in sim.closingTheShop() { commit(closing) }
 
             let effect = PickupCatalog.effect(for: id)
             // A banked coin that still owes a question asks it now, through the
@@ -2975,6 +3402,17 @@ struct GameEngine {
             events += sim.applyEffect(effect, choice: nil)
             events += sim.ensurePentacleAvailable(previousPlane: planeBefore, after: events)
             return events
+        }
+
+        // A shop that closes without a sale ends the loan just the same.
+        //
+        // This only ran on the purchase, so declining the strip left a borrowed
+        // purse sitting on the run for ever: the phantom was already spent, the
+        // coins were still there, and the next Cash-in found somebody else's
+        // takings waiting for it. The loan ends when the shop closes — whether
+        // the player bought anything is not the question.
+        if pending.kind == .shop {
+            for closing in sim.closingTheShop() { commit(closing) }
         }
 
         switch pending.source {
@@ -3014,6 +3452,20 @@ struct GameEngine {
 
         events += sim.ensurePentacleAvailable(previousPlane: planeBefore, after: events)
         return events
+    }
+
+    /// Hands back whatever is left of a borrowed purse when the shop shuts.
+    ///
+    /// Asked of the *piece*, not of the retinue: the phantom is already gone by
+    /// this point — a borrowed super is spent before it runs — so "is Capricorn
+    /// still following" answers false for a lent purse and a real one alike. It
+    /// wiped the goat's own savings after every purchase and left Leo's borrowed
+    /// coins lying about, which is both directions of the same wrong question.
+    private func closingTheShop() -> [GameEvent] {
+        guard !signState.purse.isEmpty, piece.zodiac != .capricorn else { return [] }
+        var emptied = signState
+        emptied.purse = []
+        return [.signStateChanged(emptied)]
     }
 
     /// Applies the current sign's charging rule to the move that just resolved.
@@ -3087,7 +3539,12 @@ struct GameEngine {
         // notice that the piece has changed plane or changed sign — and the one
         // place holding the whole move, which is what the water has to be
         // checked against.
-        var events: [GameEvent] = evaporateStalePools()
+        // A dormant fragment wakes here for the same reason everything else
+        // does: this is the one function every planner ends with, so a rule
+        // about the end of a turn belongs here rather than in a list of nine
+        // call sites somebody has to remember to keep in step.
+        var events: [GameEvent] = chargePolaris(after: played)
+        events += evaporateStalePools()
         events += burnOffPools(namedBy: played)
 
         // A coin whose tile has broken underneath it goes down with it. Area
@@ -3162,13 +3619,37 @@ struct GameEngine {
         return .sparklesSpawned(set: set)
     }
 
-    /// The coin the piece has just slid onto, swept up rather than opened.
+    /// The coin the piece has just crossed, swept up rather than opened.
     ///
-    /// Returns nothing for any event that is not a slide, which is most of them.
+    /// ## Which movements sweep
+    ///
+    /// The ones that `travelsTheGround` — a slide and a charge. This tested for
+    /// `.pieceSlid` alone, which was the same answer back when a slide was the
+    /// only thing that crossed squares at all; once the charge was split off it
+    /// silently stopped sweeping, so the movement that covers the most ground in
+    /// the game was the one that picked nothing up off it.
+    ///
+    /// Airborne styles are deliberately excluded rather than forgotten. A hop
+    /// touches only where it lands, and what it lands on is collected by the
+    /// landing itself — sweeping it here would open the same coin twice.
     private mutating func gatherIfCrossed(_ event: GameEvent) -> [GameEvent] {
-        guard case let .pieceSlid(_, to, plane) = event,
-              let coin = revealedPickups.first(where: { $0.plane == plane && $0.point == to })
+        let crossing: (point: GridPoint, plane: Plane)? = switch event {
+        case let .pieceSlid(_, to, plane):
+            (to, plane)
+        case let .pieceStepped(_, to, plane, style) where style.travelsTheGround:
+            (to, plane)
+        default:
+            nil
+        }
+
+        guard let crossing,
+              let coin = revealedPickups.first(where: {
+                  $0.plane == crossing.plane && $0.point == crossing.point
+              })
         else { return [] }
+
+        let to = crossing.point
+        let plane = crossing.plane
 
         let gathered = GameEvent.pickupGathered(id: coin.id, plane: plane, point: to)
         apply(gathered)
@@ -3254,6 +3735,8 @@ struct GameEngine {
             facing: piece.facing,
             moveCount: moveCount,
             zodiactionMeter: zodiactionMeter,
+            zodiactionMeterMax: zodiactionMeterMax,
+            duringZodiaction: isFiringZodiaction,
             arrivalWasChosen: arrivalWasChosen,
             arrivedOnOpenGround: arrivedOnOpenGround,
             pickupPoints: revealedPickups.filter { $0.plane == piece.plane }.map(\.point),
@@ -3275,7 +3758,7 @@ struct GameEngine {
         case .moveBlocked:
             break // Presentation only.
 
-        case let .pickupRevealed(id, plane, point):
+        case let .pickupRevealed(id, plane, point, _):
             // The sparkle phase ends here: the shimmer goes out as the pickup
             // appears.
             pickupSerial += 1
@@ -3332,7 +3815,7 @@ struct GameEngine {
             advanceTrail(.slide, from: from, to: to)
             piece.point = to
 
-        case let .pieceStepped(_, to, _):
+        case let .pieceStepped(_, to, _, _):
             piece.point = to
 
         case let .tilesChanged(plane, changes):
@@ -3351,10 +3834,14 @@ struct GameEngine {
         case let .tileHealed(plane, point, health):
             self[plane][point].health = health
 
-        case let .pieceTeleported(_, to, fromPlane, toPlane):
-            // Arriving anywhere by warp closes the torn set, and leaving the
-            // plane closes everything.
-            signState.terraRifts = false
+        case let .pieceTeleported(_, to, fromPlane, toPlane, _):
+            // Arriving anywhere by warp closes every torn doorway, and leaving
+            // the plane closes everything.
+            //
+            // All of them rather than a pair, because a warp does not go
+            // *through* a rift — it is a hole torn somewhere else, and the
+            // mirrors do not survive the board being folded around them.
+            signState.terraRifts = []
             if toPlane != fromPlane {
                 // The third way to change plane, and it costs the retinue like
                 // the other two. One rule, no exceptions — which is the whole
@@ -3393,14 +3880,16 @@ struct GameEngine {
                 : Int(Double(zodiactionMeterMax) * GameRules.shadowDriveOffFraction)
             zodiactionMeter = min(zodiactionMeter + reward, zodiactionMeterMax)
 
-        case let .pieceSplit(strandedAt, plane):
+        case let .pieceSplit(strandedAt, plane, faller):
             // The half left behind. The faller keeps control, because the fall
             // is what just happened and is where the player is looking.
+            piece.twin = faller
             otherHalf = Piece(
                 zodiac: piece.zodiac,
                 plane: plane,
                 point: strandedAt,
-                facing: piece.facing
+                facing: piece.facing,
+                twin: faller.sibling
             )
 
         case .turnPassed:
@@ -3411,6 +3900,8 @@ struct GameEngine {
             otherHalf = waiting
 
         case .piecesRejoined:
+            // One piece again, so neither half is a half any more.
+            piece.twin = nil
             otherHalf = nil
             zodiactionMeter = zodiactionMeterMax
 
@@ -3418,6 +3909,7 @@ struct GameEngine {
             // The survivor takes over, and takes the soul with it.
             guard let survivor = otherHalf else { break }
             piece = survivor
+            piece.twin = nil
             otherHalf = nil
             zodiactionMeter = min(
                 zodiactionMeter
@@ -3437,6 +3929,8 @@ struct GameEngine {
             // *cap* may move, since each sign sets its own `meterMax`; the meter
             // is clamped here so it can never sit above a lower new cap.
             piece.zodiac = zodiac
+            // Only Gemini has twins, so becoming anything else ends being one.
+            if zodiac != .gemini { piece.twin = nil }
             zodiactionMeter = min(zodiactionMeter, zodiactionMeterMax)
 
             // Becoming Capricorn turns the charge you were carrying into coins.
@@ -3526,6 +4020,10 @@ struct GameEngine {
             break
 
         case let .pickupCollected(id, plane, point):
+            // One to a run, whether or not it is still being carried. See
+            // `polarisTaken`.
+            if id == .polaris { polarisTaken = true }
+
             raisedTiles.removeAll { $0.plane == plane && $0.point == point }
             revealedPickups.removeAll { $0.plane == plane && $0.point == point }
 

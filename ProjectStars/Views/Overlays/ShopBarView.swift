@@ -47,12 +47,32 @@ struct ShopBarView: View {
     /// What is being pressed, so the coin can dip under the finger.
     @State private var pressed: PickupID?
 
+    /// What the player has asked about but not yet bought.
+    ///
+    /// ## Why buying is two taps
+    ///
+    /// Because a coin is a glyph on a disc, and a glyph is a reminder of an
+    /// effect rather than a description of one. A tester could not tell what
+    /// they were purchasing until after they had purchased it, which for a
+    /// resource this sign spends its whole run accumulating is the worst
+    /// possible moment to find out.
+    ///
+    /// The first tap asks, the second buys. It costs one tap in the only place
+    /// in the game where the player is spending something irreversible, and it
+    /// puts the coin's own words on screen before the decision instead of after
+    /// it.
+    @State private var asked: PickupID?
+
     var body: some View {
         VStack(spacing: Style.captionGap) {
-            Text(isLive ? "COSMIC CASH-IN" : "PURSE")
-                .font(.system(size: Style.captionSize, weight: .heavy, design: .rounded))
-                .tracking(Style.captionTracking)
-                .foregroundStyle(Palette.pentacle)
+            if let asked, isLive {
+                description(of: asked)
+            } else {
+                Text(isLive ? "COSMIC CASH-IN" : "PURSE")
+                    .font(.system(size: Style.captionSize, weight: .heavy, design: .rounded))
+                    .tracking(Style.captionTracking)
+                    .foregroundStyle(Palette.pentacle)
+            }
 
             // Stacked, the way a hotbar is.
             //
@@ -79,6 +99,33 @@ struct ShopBarView: View {
                 }
         }
         .transition(.move(edge: .bottom).combined(with: .opacity))
+        .animation(.easeOut(duration: 0.14), value: asked)
+        // A shop that closes forgets what was being considered, so re-opening it
+        // does not start on last time's question.
+        .onChange(of: isLive) { if !isLive { asked = nil } }
+    }
+
+    /// What the coin under consideration actually does, and what it is called.
+    ///
+    /// Its own words, taken from the effect, so a retuned Pentacle cannot end up
+    /// described here by a string somebody forgot to change.
+    private func description(of id: PickupID) -> some View {
+        let effect = PickupCatalog.effect(for: id)
+
+        return VStack(spacing: 1) {
+            Text(effect.displayName.uppercased())
+                .font(.system(size: Style.captionSize, weight: .heavy, design: .rounded))
+                .tracking(Style.captionTracking)
+                .foregroundStyle(Palette.pentacle)
+
+            Text(effect.summary)
+                .font(.system(size: Style.summarySize, weight: .semibold, design: .rounded))
+                .foregroundStyle(Palette.textSecondary)
+                .multilineTextAlignment(.center)
+                .lineLimit(Style.summaryLines)
+                .minimumScaleFactor(0.8)
+                .fixedSize(horizontal: false, vertical: true)
+        }
     }
 
     /// The purse grouped by kind, in the order each kind was first banked.
@@ -140,8 +187,27 @@ struct ShopBarView: View {
         .frame(width: Style.coinSize, height: Style.coinSize + Style.coinDepth)
         .animation(.easeOut(duration: 0.08), value: isDown)
         .opacity(isLive ? 1 : Style.restingOpacity)
+        .overlay {
+            // A ring on the one being asked about, so the second tap has an
+            // obvious target and the description has an obvious owner.
+            if asked == id, isLive {
+                Circle()
+                    .strokeBorder(Palette.textPrimary, lineWidth: Style.askedRing)
+                    .padding(-Style.askedRingInset)
+                    .offset(y: isDown ? Style.coinDepth : 0)
+            }
+        }
         .contentShape(Circle())
-        .onTapGesture { if isLive { onBuy(id) } }
+        // Ask, then buy. See `asked`.
+        .onTapGesture {
+            guard isLive else { return }
+            if asked == id {
+                onBuy(id)
+                asked = nil
+            } else {
+                asked = id
+            }
+        }
         .simultaneousGesture(
             DragGesture(minimumDistance: 0)
                 .onChanged { _ in pressed = id }
@@ -154,6 +220,15 @@ struct ShopBarView: View {
 
     private enum Style {
         static let captionSize: CGFloat = 10
+
+        /// The coin's own words, under its name. Two lines is every summary in
+        /// the game at this width; a third would push the strip over the board.
+        static let summarySize: CGFloat = 9
+        static let summaryLines = 2
+
+        /// The ring on the coin being asked about.
+        static let askedRing: CGFloat = 2
+        static let askedRingInset: CGFloat = 3
         static let captionTracking: CGFloat = 3
         static let captionGap: CGFloat = 5
 

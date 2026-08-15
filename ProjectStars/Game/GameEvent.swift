@@ -107,6 +107,24 @@ enum ChoiceSource: Equatable, Hashable {
 /// happened.
 ///
 /// Events carry concrete outcomes, never instructions to roll dice. All
+
+/// How a piece got from one square to another without walking.
+///
+/// The engine knows and the view cannot work it out — the same reason
+/// `MovementStyle` rides on `pieceStepped`. A warp and a rise share every field
+/// an event has and look nothing alike.
+enum TeleportStyle: String, Codable, Hashable, Sendable {
+
+    /// Out here, in there. The default, and what every corner, arrow and Breeze
+    /// does.
+    case warp
+
+    /// Straight up through the ceiling, surfacing on the plane above. Pisces
+    /// swimming Upstream — the only piece in the game that climbs under its own
+    /// power.
+    case rise
+}
+
 /// randomness is resolved during planning.
 enum GameEvent: Equatable {
 
@@ -119,7 +137,17 @@ enum GameEvent: Equatable {
     /// One event because the two happen together: the sparkles vanish and the
     /// pickup materialises on one of the tiles they occupied, as the piece
     /// begins its hop and before it lands. Applying this clears the sparkle set.
-    case pickupRevealed(id: PickupID, plane: Plane, point: GridPoint)
+    /// - Parameter thrownFrom: The square this was flung from, when it did not
+    ///   simply appear. Only a spill sets it — a coin surfacing out of the glow
+    ///   phase was always there to be found and has nowhere to have come from.
+    ///   Without this the view had to guess, and guessed that *every* bubble was
+    ///   a spilled one, so the whole board re-threw itself on every step.
+    case pickupRevealed(
+        id: PickupID,
+        plane: Plane,
+        point: GridPoint,
+        thrownFrom: GridPoint? = nil
+    )
 
     /// The move was committed: it counts toward the move total and turns the
     /// piece to face `direction`.
@@ -137,9 +165,18 @@ enum GameEvent: Equatable {
     /// how it says so without inventing a move that never happened.
     case pieceTurned(to: SwipeDirection)
 
-    /// The piece entered one square. A jump emits one of these; a slide emits
+    /// The piece entered one square. A jump emits one of these; a charge emits
     /// one per square it crosses.
-    case pieceStepped(from: GridPoint, to: GridPoint, plane: Plane)
+    ///
+    /// `style` is how it got there, and it travels on the event because
+    /// everything downstream needs it and nothing downstream can work it out. A
+    /// charge's steps and a hop's step are the same case, and the difference —
+    /// the pace, whether the sprite arcs, whether the ground gives on arrival,
+    /// whether the squares crossed press down — is the entire question the view
+    /// layer is asking. Left off, it had to be guessed from whose super was
+    /// running, which is a rule about Aries standing in for a rule about
+    /// movement.
+    case pieceStepped(from: GridPoint, to: GridPoint, plane: Plane, style: MovementStyle)
 
     /// A tile took wear and is now in state `to`.
     case tileDamaged(plane: Plane, point: GridPoint, to: TileHealth)
@@ -193,7 +230,13 @@ enum GameEvent: Equatable {
     /// destination is touched, and because it may cross planes. Arriving is
     /// still landing: the engine settles the destination afterwards, so every
     /// landing check runs exactly as it would after an ordinary move.
-    case pieceTeleported(from: GridPoint, to: GridPoint, fromPlane: Plane, toPlane: Plane)
+    case pieceTeleported(
+        from: GridPoint,
+        to: GridPoint,
+        fromPlane: Plane,
+        toPlane: Plane,
+        style: TeleportStyle = .warp
+    )
 
     /// The piece became a different sign, keeping its square, plane and facing.
     ///
@@ -226,7 +269,11 @@ enum GameEvent: Equatable {
     ///
     /// The piece taking the *next* turn is the one that fell, because a fall is
     /// the thing that just happened and the player should be looking at it.
-    case pieceSplit(strandedAt: GridPoint, plane: Plane)
+    ///
+    /// `faller` is which twin went down, rolled here rather than decided by the
+    /// renderer: it is a coin flip, and a coin flip that is not in the event is
+    /// a coin flip that lands differently every time the run is replayed.
+    case pieceSplit(strandedAt: GridPoint, plane: Plane, faller: GeminiHalf)
 
     /// The two halves exchange places. Emitted at the end of every turn while
     /// split, so alternation replays like everything else rather than being a
@@ -385,6 +432,15 @@ enum GameEvent: Equatable {
     ///
     /// Pure presentation — the engine ignores these entirely, and the game is
     /// move-based, so nothing here gates a rule.
+    /// The square a reveal put something on, or `nil` for anything else.
+    ///
+    /// Used to keep two reveals in the same phase off each other's squares
+    /// without the caller having to remember which shapes carry a point.
+    var revealedPoint: GridPoint? {
+        if case let .pickupRevealed(_, _, point, _) = self { return point }
+        return nil
+    }
+
     var displayDuration: TimeInterval {
         switch self {
         case .moveBlocked: 0.18
@@ -398,11 +454,14 @@ enum GameEvent: Equatable {
         case .pickupMoved: GameRules.hopDuration
         case .tileStamped: GameRules.tilePopResponse
         case .moveCommitted: 0
-        case .pieceTurned: 0.06
+        // Instant. The facing swings on a spring that carries on under whatever
+        // follows, so holding the turn open for it only delayed the step the
+        // player actually asked for.
+        case .pieceTurned: 0
         case .pieceStepped: GameRules.hopDuration
         case .tilesChanged: GameRules.areaEffectDuration
         case .tileDamaged: GameRules.tileDamageDuration
-        case .tilesWorn: GameRules.tileDamageDuration
+        case .tilesWorn: GameRules.tileDamageHold
         case .tilesWornOnExit: GameRules.tileDamageOnExitDuration
         case .tileHealed: GameRules.tileHealDuration
         case .pieceFell: GameRules.fallDuration
@@ -432,7 +491,11 @@ enum GameEvent: Equatable {
         // by the time the player picks the coin out of the strip.
         case .pickupSpent: 0
         case .pickupDestroyed: GameRules.pickupCollectDuration
-        case .sparklesSpawned: 0.10
+        // Instant. The sparkles animate themselves once they exist, so holding
+        // the turn open for a tenth of a second first bought nothing and was
+        // pure dead time on the end of every single move — see the note on
+        // buffering in `GameSession.submit(_:reach:)`.
+        case .sparklesSpawned: 0
         case .nexysMoved: GameRules.nexysShiftDuration
         case .zodiactionMeterChanged: 0
         case .zodiactionFired: GameRules.zodiactionDuration

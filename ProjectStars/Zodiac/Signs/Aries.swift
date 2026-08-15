@@ -66,7 +66,7 @@ struct AriesSearingStride: ZodiacPassive {
     static let requiredStreak = 3
 
     let displayName = "Searing Stride"
-    let summary = "Astra & Terra: +1 charge for each consecutive move in the same direction after the second."
+    let summary = "Astra & Terra: +1 ZC for each consecutive move in the same direction after the second."
 
     func meterBonus(from move: MoveSummary, context: PassiveContext) -> Int {
         // The charge itself pays nothing. Brazen Blaze crosses several squares
@@ -215,7 +215,7 @@ struct AriesBrazenBlaze: Zodiaction {
             }
 
             events.append(
-                .pieceStepped(from: from, to: square, plane: context.plane)
+                .pieceStepped(from: from, to: square, plane: context.plane, style: .charge)
             )
             from = square
         }

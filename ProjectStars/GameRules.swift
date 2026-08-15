@@ -744,6 +744,14 @@ enum GameRules {
     /// A tile visibly cracking.
     static let tileDamageDuration: TimeInterval = 0.16
 
+    /// How long a turn waits on a wear flash before moving on.
+    ///
+    /// Far shorter than the flash itself, which finishes in its own time — see
+    /// `GameSession.clearFlashLater(_:)`. This is only the beat that says
+    /// *something broke*, and at the pace people actually play, a beat is all
+    /// there is room for.
+    static let tileDamageHold: TimeInterval = 0.04
+
     /// A tile cracking under a piece that is *leaving* it.
     ///
     /// Near-instant, unlike wear on arrival. Exit damage is emitted before the
@@ -1291,16 +1299,103 @@ enum GameRules {
     static let libraArmSway: CGFloat = 1
 
     /// How far the pans swing back when Libra is carried sideways, in degrees.
-    static let libraSwingAngle: Double = 14
+    static let libraSwingAngle: Double = 60
+
+    /// One full swing of the pans, in seconds.
+    ///
+    /// Deliberately longer than a hop. The swing is not an animation of the
+    /// move — it is what the move *left behind*, so it keeps going after the
+    /// piece has stopped and settles in its own time.
+    static let libraSwingPeriod: TimeInterval = 0.8
+
+    /// How long the swing takes to fall to a third of its size.
+    ///
+    /// Short enough that the backward lean is comfortably the largest thing that
+    /// happens: the first peak lands around a quarter of a period in and the
+    /// forward overshoot three quarters later, so the damping between them is
+    /// what sets the ratio between the two — and the overshoot is a settle, not
+    /// a second swing.
+    static let libraSwingDamping: TimeInterval = 0.45
+
+    /// Which sense the pans rock in facing toward or away — the same either
+    /// way, so a move north and a move south disturb the balance identically.
+    /// Flip the sign to swap which pan leads.
+    static let libraRockSense: Double = -1
+
+    /// Which way a north-south swing is drawn: as a turn into the screen, or as
+    /// the two pans rocking apart in the plane the viewer can see.
+    ///
+    /// The keystone is the truthful one and is kept whole behind this — see
+    /// `PanSwing`. The rock is the one that reads at sixteen pixels.
+    static let libraDepthSwingUsesKeystone = false
+
+    /// How much of the swing's angle the north-south poses spend. See `PanSwing`.
+    ///
+    /// Under one, because a rotation into the screen has less room than one
+    /// across it: past sixty degrees the pan is nearly edge-on and collapses to
+    /// a line, where the same angle sideways is still plainly a dish.
+    static let libraDepthSwingScale: Double = 0.75
+
+    /// How far the far edge of a pan pinches in at full swing, as a fraction of
+    /// its width. See `PanSwing` — the taper is bounded, so this only deepens
+    /// the keystone and never grows the sprite.
+    ///
+    /// Far stronger than life. At sixteen pixels a realistic amount of
+    /// foreshortening is a sub-pixel change and reads as nothing.
+    static let libraDepthSwingTaper: Double = 0.55
 
     /// How far the arms rise while she is in the air, and how far below resting
     /// they drop as she lands — the pans meeting the tile is the moment the
     /// ground is charged for.
-    static let libraCarryLift: CGFloat = 1
-    static let libraLandDip: CGFloat = 1
+    static let libraCarryLift: CGFloat = 3
+    static let libraLandDip: CGFloat = 3
 
     /// How much of a hop is spent in the air before the landing dip.
     static let libraLandFraction: Double = 0.8
+
+    /// How big each pan's dust cloud is against an ordinary landing puff.
+    ///
+    /// Under half, because there are two of them and they fire together: two
+    /// full puffs either side of the piece is more dust than a fall raises.
+    static let libraPanDustMagnitude: CGFloat = 0.7
+
+    /// The pans' own shadows. See `LibraPieceView.panShadow(side:sway:)`.
+    ///
+    /// A full tile wide, and deliberately wider than the body's own — a pan is
+    /// wider than Libra is, and a big object throwing a small shadow reads as
+    /// hovering. It was set narrower on the reasoning that a hanging part is a
+    /// detail, which is a rule about importance rather than about size.
+    ///
+    /// One tile is the cap rather than the true width. The pans overhang a
+    /// little further than that, but a shadow that crosses into the next square
+    /// is claiming ground the scales are not standing on — and those squares are
+    /// exactly the ones the player is reading for what the trenches will hit.
+    static let libraPanShadowWidth: CGFloat = 1
+    /// The same as any other piece's — a pan is a solid object standing over a
+    /// tile and occludes it exactly as much as the piece does. It was darker,
+    /// which made the scales read as heavier than the sign carrying them.
+    static let libraPanShadowOpacity: Double = 0.45
+
+    /// How far a pan has to rise, in art pixels, for the shadow to reach its
+    /// full shrink. The swing and the landing dip both work well inside this.
+    static let libraPanShadowRange: CGFloat = 4
+
+    /// How much of the shadow that rise takes away, at most.
+    static let libraPanShadowSpread: CGFloat = 0.45
+
+    /// How far a pan's shadow travels with the swing, as a fraction of a tile at
+    /// full lean. The pan pivots at the cord, so its foot moves and its shadow
+    /// has to move with it or it is paint rather than shadow.
+    static let libraPanShadowTravel: Double = 0.3
+
+    /// How far up the screen a pan's shadow sits when its square is a row away,
+    /// as a fraction of a tile.
+    ///
+    /// Under one because the board is foreshortened vertically and not
+    /// horizontally: every tile is drawn with a front edge, so the row above is
+    /// nearer than a tile is wide. A full tile put the far pan's shadow a row
+    /// too high — see `LibraPieceView.panShadow(side:sway:swing:)`.
+    static let libraPanShadowFlankRise: CGFloat = 0.7
     static let libraArmSwayPeriod: TimeInterval = 2.4
 
     /// How fast the pans cycle.
@@ -1321,6 +1416,11 @@ enum GameRules {
     /// rises says "height" far more clearly than the rise itself does, because
     /// the shadow stays on the ground where the eye can measure it against
     /// something fixed.
+    /// How small a shadow is allowed to get, however high the piece goes.
+    /// Not zero — a piece with no shadow at all has left the board rather than
+    /// jumped.
+    static let pieceShadowFloor: CGFloat = 0.25
+
     static let pieceShadowLiftSwing: CGFloat = 0.4
 
     /// Roughly how much of a stone piece's lower half is overgrown.
@@ -1356,7 +1456,16 @@ enum GameRules {
     static let gemTrailBoost = 3
 
     /// A single hop between tiles.
-    static let hopDuration: TimeInterval = 0.20
+    static let hopDuration: TimeInterval = 0.12
+
+    /// How long a move asked for mid-turn stays worth answering, in seconds.
+    ///
+    /// Generous enough to cover the tail of an ordinary turn — which is what the
+    /// player is flicking through — and far short of a Zodiaction or a fall. An
+    /// input held across one of those is an input about a board that has since
+    /// changed, and answering it late is a lurch rather than a favour. See
+    /// `GameSession.submit(_:reach:)`.
+    static let inputBufferWindow: TimeInterval = 0.6
 
     /// Peak height of a hop's arc, above the straight line between squares.
     static let hopArcHeight: CGFloat = 6
@@ -1372,7 +1481,11 @@ enum GameRules {
     ///
     /// Applies to jumps *and* to long slides, though a slide is emitted one
     /// square at a time so in practice only jumps ever see a distance above one.
-    static let hopArcHeightPerExtraTile: CGFloat = 0.6
+    /// Raised from a fraction to a whole arc: each extra square adds as much
+    /// height again as the first one had. A two-square vault reads as a *vault*
+    /// rather than as a step that happened to cover more ground, which is the
+    /// only thing that distinguishes Scorpio's hole-clearing jump on sight.
+    static let hopArcHeightPerExtraTile: CGFloat = 1
 
     /// Extra hop time per tile travelled beyond the first, as a fraction of
     /// `hopDuration`.
@@ -1442,13 +1555,6 @@ enum GameRules {
 
     static let soulSplitDuration: TimeInterval = 0.55
 
-    /// How the half that is not taking its turn is drawn.
-    ///
-    /// Faded *and* drained. Opacity alone reads as a ghost, and neither half is
-    /// a ghost — they are both real, both wear the ground and both can die.
-    /// Draining the colour says "somewhere else" rather than "not quite there".
-    static let splitWaitingOpacity: Double = 0.55
-    static let splitWaitingSaturation: Double = 0.25
 
     /// How long a lost half's soul takes to rise and be absorbed.
     static let soulRiseDuration: TimeInterval = 0.9
@@ -1756,6 +1862,58 @@ enum GameRules {
     /// steps it replaces or nobody would ever take it.
     static let starstreamCharge = 3
 
+    /// Charge for one ordinary step on Astra. See `PiscesStarstreamSurfer`.
+    ///
+    /// The surf used to pay this and steps paid nothing; they have traded
+    /// places. Steps are what fill the meter now, and a full meter is what buys
+    /// the surf.
+    static let starstreamStepCharge = 1
+
+    // ── Pisces' bubbles ───────────────────────────────────────────────────
+
+    /// How deep Pisces' meter runs on Terra. See `PiscesSurgingStream`.
+    static let piscesTerraMeterMax = 12
+
+    /// What one bubble is worth.
+    ///
+    /// Small on purpose. Bubbles are the *whole* of Pisces' charge on Terra, so
+    /// they are meant to be gathered rather than found — the sign's problem down
+    /// there is a long errand, not a lucky break.
+    ///
+    /// There is deliberately no snipe bonus here. Reaching any pickup on the
+    /// turn it appeared already pays `revealTileCharge`, to every sign, so a
+    /// bubble caught that way is worth this plus that and needs no rule of its
+    /// own. It had one, and the two stacked.
+    static let bubbleCharge = 1
+
+    /// The chance of a bubble appearing alongside the reveal, and how many may.
+    ///
+    /// Rolled per bubble, so two is the chance twice rather than a separate
+    /// case. Scaled by the run's luck, which is how Sagittarius' Fortunate Find
+    /// reaches them without naming them.
+    /// How long a spilled bubble takes to fly from the piece to its square.
+    ///
+    /// The whole handful shares one throw — see `GameSession.scatterBubbles`.
+    static let bubbleScatterDuration: TimeInterval = 0.55
+
+    /// How long each bubble waits behind the one before it.
+    ///
+    /// They erupt one after another rather than as a single spray — a handful
+    /// leaving on the same frame reads as a pattern being drawn, where a stagger
+    /// reads as things being thrown.
+    static let bubbleScatterStagger: TimeInterval = 0.07
+
+    /// How high a thrown bubble arcs above the straight line to its square, as a
+    /// fraction of the distance it covers. Up and out, then raining down.
+    static let bubbleScatterArc: CGFloat = 0.55
+
+    /// How small a bubble starts. Zero, and it grows as it climbs — the volcano
+    /// rather than a coin sliding across the floor.
+    static let bubbleScatterGrowth: CGFloat = 1.25
+
+    static let bubbleSpawnChance = 0.55
+    static let bubbleMaxPerPhase = 2
+
     /// Charge for stepping into a pool. Paid every time, not once.
     ///
     /// One, and deliberately small. The pool is a place worth walking back to on
@@ -1765,11 +1923,118 @@ enum GameRules {
 
     /// Charge from one of Gaia Geyser's droplets.
     ///
-    /// A full meter. The move that takes it drains one on the way out, so the
-    /// fish stands up from the geyser on nine — exactly where the old
-    /// fill-on-arrival left it after its first step, which is the number this
-    /// was tuned against.
-    static let gaiaDropletCharge = defaultZodiactionMeterMax
+    /// What one droplet is worth.
+    ///
+    /// It used to be a whole meter, because a droplet was one of eight in a ring
+    /// and taking it dismissed the other seven — a full meter *was* the offer.
+    /// The ring is gone; a droplet is now what a geyser throws up, and it is
+    /// worth what a geyser is worth.
+    static let gaiaDropletCharge = 3
+
+    /// The chance a freshly-made hole on Terra sprouts one. See
+    /// `PiscesGaiaGeyser`.
+    ///
+    /// Read as *water finding a way up through ground that just broke*, which is
+    /// also why it only answers to new holes: an old one has already drained.
+    static let gaiaGeyserChance = 0.12
+
+    // ── Umbra ─────────────────────────────────────────────────────────────
+
+    /// Scenery is drawn in `smoke`, which is also the dark floor's own colour.
+    /// On a dark tile it is swapped one step darker so it still reads. See
+    /// `SpriteID.umbraDecor`.
+    static let umbraDecorDarkSwap = PaletteSwap(Palette.smoke, Palette.coolBlack)
+
+    /// How likely a tile is to be given a piece of scenery when Umbra is
+    /// generated, and how much rarer the turned one is.
+    static let umbraDecorChance = 0.18
+    static let umbraDecorRareChance = 0.04
+
+    /// How many impassable rocks a generated Umbra carries. Their job is to
+    /// give the player something to put between themselves and Nilyth.
+    static let umbraRockCount = 2
+
+    // ── The ground seen from Astra ────────────────────────────────────────
+    //
+    // See `BoardView.groundBelow(plane:metrics:)`.
+
+    /// How much of the sky's height the world below occupies, from the bottom.
+    static let groundBelowHeight: CGFloat = 0.25
+
+    /// How far off each edge of the screen it is held, as a fraction of the
+    /// square. Run edge to edge it reads as a fitted carpet; inset, as a
+    /// landmass with sky either side.
+    static let groundBelowInset: CGFloat = 0.08
+
+    /// How much narrower the far edge of a board is than its near one.
+    ///
+    /// Laying the plane down rather than showing it flat-on. See
+    /// `View.foreshortened(_:)`.
+    ///
+    /// The ceiling on this is legibility rather than taste: far enough and the
+    /// top row's squares stop reading as the same size as the bottom's, and a
+    /// grid the player cannot count is a grid they cannot plan on.
+    static let boardForeshorten: CGFloat = 0.45
+
+    /// How much the board is enlarged to fill the space foreshortening costs it.
+    ///
+    /// A keystone pulls the far rows down and in, so the tilt leaves a margin at
+    /// the top and at the upper corners. Scaling back up from the near edge
+    /// spends that margin rather than leaving it as a gap.
+    static let boardForeshortenScale: CGFloat = 1.15
+
+    /// How far the tilted board is lifted back up its square, as a fraction of
+    /// the board. A keystone pulls its content toward the near edge, so without
+    /// this the board sits lower in the sky than the flat one did.
+    static let boardForeshortenLift: CGFloat = 0.05
+
+    /// How much night sits over the far edge of a board, fading to nothing at
+    /// the near one. Atmospheric perspective — see `BoardView`.
+    static let boardHazeFar: Double = 0.2
+
+    /// How much of a tile the front face of the board actually occupies. Used to
+    /// un-bend it across its own height rather than a whole square.
+    static let tileFrontEdgeStrip: CGFloat = 0.25
+
+    /// How far out of focus it is, in art pixels. Heavy on purpose: anything
+    /// legible enough to count squares on is something the player will try to
+    /// plan with.
+    static let groundBelowBlur: CGFloat = 1.2
+
+    /// How much night is laid over it. **Opaque** — the ground is solid, and
+    /// fading it let the stars shine through the world.
+    static let groundBelowShade: Double = 0.55
+
+    // ── Nilyth's eyes, through the umbra hole ─────────────────────────────
+    //
+    // See `UmbraEyesView`. All distances are art pixels.
+
+    /// Two eyes, each two pixels on a diagonal, with two pixels of dark between
+    /// them — matching the slant and the spacing Aries' statue already wears.
+    static let umbraEyeRows = 2
+    static let umbraEyeGap = 2
+
+    /// How far the pair drifts from the tile's centre, in either direction.
+    /// They move together — it is one creature looking around, not two.
+    static let umbraEyeWander = 2
+
+    /// How often the eyes come back, how long they stay, and how much the
+    /// interval wanders so it never reads as a metronome.
+    static let umbraEyesCycle: TimeInterval = 6.5
+    static let umbraEyesCycleJitter: TimeInterval = 2.5
+    static let umbraEyesDwell: TimeInterval = 2.8
+
+    /// How long a direction is held before the eyes move again.
+    static let umbraEyesLookInterval: TimeInterval = 0.65
+
+    /// One frame of a blink, and how often one happens on a given look.
+    static let umbraBlinkFrame: TimeInterval = 0.07
+    static let umbraBlinkChance = 0.35
+
+    /// The carried-Polaris badge, as a fraction of a tile, and how far it fades
+    /// while the fragment is still cold.
+    static let polarisBadgeScale: CGFloat = 0.7
+    static let polarisBadgeDormantOpacity: Double = 0.55
 
     // ──────────────────────────────────────────────────────────────────────
     // MARK: - Scorpio's sting
@@ -2388,6 +2653,37 @@ enum GameRules {
     /// produced a steady trickle of glows in the wrong hue, and glows that did
     /// not appear at all because the list named a colour the art did not use.
     static let glowLuminanceThreshold: Double = 0.45
+
+    // ── The Fracturing Fissure's screen effect ────────────────────────────
+
+    /// How far the world ripples while Gemini is split, in **art pixels**.
+    ///
+    /// Small on purpose. The shader rounds to whole pixels, so at this setting
+    /// the board sits still most of the time and steps a pixel at the crests —
+    /// which is the difference between a world that is unstable and a world that
+    /// is underwater. See `fractureWarp`.
+    static let fractureWarpAmplitude: Double = 1.6
+
+    /// How long the ripple takes to arrive and to leave, in seconds.
+    ///
+    /// Long enough to be a transition rather than a toggle: coming apart is the
+    /// most dramatic thing this sign does and it should take a beat.
+    static let fractureRampDuration: TimeInterval = 0.5
+
+    /// How bright a pixel has to be to feed the split's haze.
+    ///
+    /// Lower than the house threshold, because this bloom is not picking out
+    /// highlights on one sprite — it is lifting a whole board slightly off its
+    /// own background, and that wants more of the picture contributing.
+    static let fractureBloomThreshold: Double = 0.3
+
+    /// How far the haze spreads, in points, and how strong it is.
+    ///
+    /// Wide and faint. Every copy of an additive bloom adds to every other one
+    /// and to the board behind it, so spread over a whole screen this needs a
+    /// fraction of the strength a single piece's glow uses.
+    static let fractureBloomRadius: CGFloat = 12
+    static let fractureBloomIntensity: Double = 0.3
 
     /// For strips that have to read as an event rather than as decoration.
     ///

@@ -61,7 +61,7 @@ extension ZodiacCatalog {
 struct CancerCrabtitude: ZodiacPassive {
 
     let displayName = "Crabtitude"
-    let summary = "Astra: +1 charge for a seafoam scuttle. Terra: none."
+    let summary = "Astra: +1 ZC for a seafoam scuttle. Terra: none."
 
     func meterBonus(from move: MoveSummary, context: PassiveContext) -> Int {
         // Sideways is measured against the facing the piece had *before* the
@@ -112,7 +112,7 @@ struct CancerSeafoamScuttle: ZodiacPassive {
 struct CancerHomeboundHarvest: ZodiacPassive {
 
     let displayName = "Homebound Harvest"
-    let summary = "Astra & Terra: +3 charge when you reach the Nexys by anything other than ordinary movement."
+    let summary = "Astra & Terra: +3 ZC when you reach the Nexys by anything other than ordinary movement."
 
     func meterBonus(from move: MoveSummary, context: PassiveContext) -> Int {
         move.arrivedAtNexysByEffect ? 3 : 0
@@ -176,7 +176,7 @@ struct CancerHeavenlyHoarder: ZodiacPassive {
 struct CancerBubbleBastion: Zodiaction {
 
     let displayName = "Bubble Bastion"
-    let summary = "Consecrate a 3x3 around you for 3 moves: those tiles cannot be damaged by anything. Opening a Pentacle inside pays +3 charge."
+    let summary = "Consecrate a 3x3 around you for 3 moves: those tiles cannot be damaged by anything. Opening a Pentacle inside pays +3 ZC."
 
     /// Charge comes from the three passives, plus coins opened under the
     /// Bastion's own roof.

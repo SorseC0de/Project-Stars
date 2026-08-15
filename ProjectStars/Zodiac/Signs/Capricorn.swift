@@ -126,7 +126,7 @@ struct CapricornHeavenlyHooves: ZodiacPassive {
 struct CapricornCelestialCommerce: ZodiacPassive {
 
     let displayName = "Celestial Commerce"
-    let summary = "Astra & Terra: Pentacles are banked instead of opened, and each is worth 1 charge. Spend them with Cosmic Cash-in."
+    let summary = "Astra & Terra: Pentacles are banked instead of opened, and each is worth 1 ZC. Spend them with Cosmic Cash-in."
 
     /// A Pentacle is worth a coin. Nothing else is.
     ///

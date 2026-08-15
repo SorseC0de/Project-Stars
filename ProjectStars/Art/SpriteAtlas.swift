@@ -200,7 +200,7 @@ enum SpriteAtlas {
         // ── Nexys ────────────────────────────────────────────────────────
         // 48x48. Its middle cell is the tile it stands on; the overhang is the
         // island's rim and the greenery spilling off it.
-        map[.nexys] = .cells(column: 16, row: 3, width: 3, height: 3)
+        map[.nexys] = .cells(column: 12, row: 2, width: 3, height: 3)
 
         // ── Pieces ───────────────────────────────────────────────────────
         // 16x32 — a piece is twice a tile's height.
@@ -261,6 +261,23 @@ enum SpriteAtlas {
         // Astra has no tiles, so a slab of holes placed there drew nothing at
         // all — the shape was invisible until it landed. This is a cloud-side
         // stand-in for one.
+        // ── Umbra ─────────────────────────────────────────────────────────
+        //
+        // Wired ahead of the plane itself: the art exists, and an atlas entry
+        // costs nothing until something asks for it. See the Umbra design note.
+        map[.umbraFloor(.light)] = .cells(column: 0, row: 5)
+        map[.umbraFloor(.dark)] = .cells(column: 1, row: 5)
+        map[.umbraEdge(.light)] = .cells(column: 0, row: 6)
+        map[.umbraEdge(.dark)] = .cells(column: 1, row: 6)
+
+        map[.umbraDecor(0)] = .cells(column: 1, row: 3)
+        map[.umbraDecor(1)] = .cells(column: 1, row: 4)
+        map[.umbraDecorRare] = .cells(column: 2, row: 3)
+
+        // Two cells tall, like a piece — it stands on the board rather than
+        // lying in it.
+        map[.umbraRock] = .cells(column: 0, row: 3, height: 2)
+
         map[.astraHole] = .cells(column: 0, row: 8)
 
         // The coin a piece carries over its head.
@@ -284,6 +301,9 @@ enum SpriteAtlas {
         // Polaris: a single 16x16 star on the master sheet. No frames of its
         // own — all of its motion is applied by the view.
         map[.pentacle(.radiant)] = .cells(column: 12, row: 5)
+
+        // The cell to its left: the same fragment, cold.
+        map[.pentacle(.dormant)] = .cells(column: 11, row: 5)
 
         map[.pentacle(.standard)] = .cells(
             sheet: pentacleSheet,

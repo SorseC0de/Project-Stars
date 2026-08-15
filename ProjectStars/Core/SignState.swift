@@ -240,6 +240,55 @@ struct SignState: Equatable {
         var movesRemaining: Int
     }
 
+    /// Polaris, once it has been picked up.
+    ///
+    /// A fragment of Old Astra is a *thing you carry*, not an effect that fires
+    /// on contact — see `PolarisEffect`. Found above it arrives already lit;
+    /// found below it is a cold rock that has to be charged before it does
+    /// anything.
+    enum Polaris: String, Codable, Hashable, Sendable {
+        /// Carried, and inert. Needs astral energy.
+        case dormant
+
+        /// Lit, and waiting for the player to say when.
+        case charged
+    }
+
+    /// The fragment being carried, if one is. Nil is the ordinary case.
+    var polaris: Polaris?
+
+    /// Which opposing pair of rifts a doorway belongs to.
+    ///
+    /// The four mirrors are two doorways: north leads to south and east leads to
+    /// west. Nothing in the game addresses a single mirror, so this is the
+    /// smallest unit worth naming — and being a set means "all of them", "one
+    /// pair" and "none" are the same expression rather than three.
+    struct RiftAxes: OptionSet, Codable, Hashable, Sendable {
+
+        let rawValue: Int
+
+        init(rawValue: Int) { self.rawValue = rawValue }
+
+        static let northSouth = RiftAxes(rawValue: 1 << 0)
+        static let eastWest = RiftAxes(rawValue: 1 << 1)
+
+        /// Both doorways, which is what tearing them open gives you.
+        static let both: RiftAxes = [.northSouth, .eastWest]
+
+        /// The pair a move in this direction would cross, if any.
+        ///
+        /// Diagonals have no rifts — the mirrors sit at the middle of each edge
+        /// and are entered head-on — so they answer with the empty set, which
+        /// reads as "no doorway" everywhere this is asked.
+        static func crossed(by direction: SwipeDirection) -> RiftAxes {
+            switch direction {
+            case .up, .down: .northSouth
+            case .left, .right: .eastWest
+            default: []
+            }
+        }
+    }
+
     /// True once Gemini's rifts have been torn and left behind.
     ///
     /// The rifts are a hole in the world, not a property of the twins: change
@@ -248,13 +297,19 @@ struct SignState: Equatable {
     /// un-tear a hole in space.
     var riftsLinger = false
 
-    /// True while a torn set of rifts is open on Terra.
+    /// Which torn rifts are still open on Terra.
     ///
     /// Gemini's rifts are innate on Astra and endless there. Below, they have to
-    /// be *made* — Mirrored Mandate tears them — and they are shared and
-    /// single-use: step through any one of the four and all four close until the
-    /// next Zodiaction.
-    var terraRifts = false
+    /// be *made* — Mirrored Mandate tears all four — and each opposing **pair**
+    /// is single-use: step through the north rift and the north-south pair
+    /// closes behind you, while the east-west pair stays open for a second
+    /// crossing.
+    ///
+    /// Per pair rather than all four, because a rift and the rift it comes out
+    /// of are one doorway seen from both ends — closing that doorway is what
+    /// using it costs. The pair on the other axis is a different doorway and was
+    /// never entered.
+    var terraRifts: RiftAxes = []
 
     /// Closes whatever is open, on either plane.
     ///
@@ -263,7 +318,7 @@ struct SignState: Equatable {
     /// it does not follow anyone up or down.
     mutating func closeRifts() {
         riftsLinger = false
-        terraRifts = false
+        terraRifts = []
     }
 
     /// The protected patch of board a Zodiaction has thrown up, if any.

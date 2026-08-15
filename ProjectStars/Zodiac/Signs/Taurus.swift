@@ -158,7 +158,7 @@ struct TaureanTear: ZodiacPassive {
 struct TaurusGreedyGather: ZodiacPassive {
 
     let displayName = "Greedy Gather"
-    let summary = "Astra & Terra: +3 charge when the sparkle you land on is the one holding the Pentacle."
+    let summary = "Astra & Terra: +3 ZC when the sparkle you land on is the one holding the Pentacle."
 
     func meterBonus(from move: MoveSummary, context: PassiveContext) -> Int {
         move.collectedOnRevealTile ? 3 : 0

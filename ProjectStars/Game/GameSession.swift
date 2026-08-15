@@ -100,9 +100,19 @@ final class GameSession {
 
     /// Running total of the piece's fall rotation, in degrees.
     ///
-    /// Only ever decreases, so the spin always turns counter-clockwise instead
-    /// of unwinding back the way it came at the halfway point.
+    /// Only ever moves one way for any given faller, so the spin keeps turning
+    /// instead of unwinding back the way it came at the halfway point.
     private(set) var fallSpin: Double = 0
+
+    /// Which way the piece currently tumbles, as a multiplier on the fall spin.
+    ///
+    /// Everything in the game falls counter-clockwise except Gemini's silver
+    /// twin, which turns the other way — the two halves are a mirrored pair, and
+    /// a mirror reverses the direction of a turn. It is also the fastest way to
+    /// tell at a glance which of them you are holding.
+    private var tumbleDirection: Double {
+        engine.piece.twin == .silver ? -1 : 1
+    }
 
     /// Multiplier on the next smoke burst. Landing after a fall throws up much
     /// more than an ordinary hop.
@@ -127,6 +137,23 @@ final class GameSession {
     /// Set when a slab placement is confirmed, so the `tilesChanged` it causes
     /// can be told apart from every other one.
     private var placedSlab: GavelSlab?
+
+    /// The preview riding down into the board, or `nil`.
+    ///
+    /// The phantom belongs to the *choice* while a choice is being made, and the
+    /// choice ends the instant the player commits — so without this the preview
+    /// blinked out of existence and the squares appeared underneath it. It is
+    /// handed over here at the same position it was already floating at, and
+    /// closes the gap it was hovering over while it fades.
+    private(set) var slabDrop: SlabDrop?
+
+    /// One preview falling the last tile into place.
+    struct SlabDrop: Equatable {
+        let slab: GavelSlab
+        let anchor: GridPoint
+        let plane: Plane
+        let start: Date
+    }
 
     /// When the piece began falling in onto the lower plane, or `nil` when it is
     /// not arriving. Drives the drop from off-screen and the growing shadow.
@@ -271,6 +298,58 @@ final class GameSession {
             )
             guard self?.cloudWake == wake else { return }
             self?.cloudWake = nil
+        }
+    }
+
+    /// The square a spill of bubbles flew out of, and when.
+    ///
+    /// Bubbles land on their squares the instant they are revealed, which reads
+    /// as *having always been there* — the exact complaint rings would draw if
+    /// they appeared in a ring instead of flying into one. This is what lets the
+    /// board draw the first moment of their lives somewhere else.
+    private(set) var bubbleScatter: BubbleScatter?
+
+    /// One eruption of bubbles: where from, when, and in what order they left.
+    struct BubbleScatter: Equatable {
+        let origin: GridPoint
+        let start: Date
+
+        /// The squares being thrown at, in the order they were thrown. Position
+        /// in this list is the stagger — they leave one after another rather
+        /// than as a single spray.
+        var points: [GridPoint] = []
+    }
+
+    /// Adds a bubble to the throw, starting one if none is running.
+    ///
+    /// Cleared once the last of them has landed, so the timer is extended by
+    /// each new bubble rather than being restarted.
+    func throwBubble(to point: GridPoint, from origin: GridPoint) {
+        if bubbleScatter?.origin != origin { bubbleScatter = BubbleScatter(origin: origin, start: .now) }
+        bubbleScatter?.points.append(point)
+
+        let count = bubbleScatter?.points.count ?? 1
+        let plane = engine.piece.plane
+
+        // Its own arrival, a beat behind the bubble before it. The splash is
+        // what makes the landing an event rather than the animation running out
+        // — the same strip that goes off at the fish's feet on the way out, so
+        // the two ends of the throw match.
+        let arrival = GameRules.bubbleScatterDuration
+            + GameRules.bubbleScatterStagger * Double(count - 1)
+
+        Task { [weak self] in
+            try? await Task.sleep(nanoseconds: UInt64(arrival * 1_000_000_000))
+            self?.playEffect(.waterSplash, at: point, on: plane)
+        }
+
+        let lifetime = GameRules.bubbleScatterDuration
+            + GameRules.bubbleScatterStagger * Double(count)
+
+        Task { [weak self] in
+            try? await Task.sleep(nanoseconds: UInt64(lifetime * 1_000_000_000))
+            guard let self, self.bubbleScatter?.points.count == count else { return }
+            self.bubbleScatter = nil
         }
     }
 
@@ -511,8 +590,13 @@ final class GameSession {
         pluming == .waterSplash ? .water : zodiac.element
     }
 
-    /// The dust currently settling, if any.
-    private(set) var smoke: SmokePuff?
+    /// The dust currently settling.
+    ///
+    /// A list rather than one puff, because a landing is not always one impact:
+    /// Libra comes down on two pans and cracks the squares either side of her,
+    /// which is two clouds in two places at once. Each puff clears itself when
+    /// its own run is up.
+    private(set) var smoke: [SmokePuff] = []
 
     /// Cloud squares currently coming apart.
     ///
@@ -621,6 +705,7 @@ final class GameSession {
         surfaceBounce = nil
         cloudWake = nil
         pressedTiles = []
+        bubbleScatter = nil
         isSliding = false
         isCharging = false
         stingStrike = nil
@@ -631,7 +716,9 @@ final class GameSession {
         fallingCloud = nil
         chargeFlashStartedAt = nil
         collectBurst = nil
-        smoke = nil
+        smoke = []
+        bufferedMove = nil
+        slabDrop = nil
         cloudPoofs = []
         warpBeam = nil
         constellation = nil
@@ -677,6 +764,28 @@ final class GameSession {
         // piece. Same keys, same stick, same buttons — there is only ever one
         // thing on screen asking to be pointed at.
         if nudgeTarget(direction) { return }
+
+        // A move asked for while the last one is still playing is *remembered*,
+        // not thrown away.
+        //
+        // ## Why this exists
+        //
+        // A turn is longer than the hop inside it — the piece lands, then the
+        // ground flashes, then the next sparkles arrive — and input is shut for
+        // all of it. A player flicking at a comfortable pace gets a second flick
+        // in before that tail is over, and the game answered by doing nothing at
+        // all. Nothing on screen explains that, so it reads as the input having
+        // been missed, which is the worst thing a turn-based game can look like.
+        //
+        // Only the *last* request is kept, so a flurry does not queue up five
+        // moves and then play them at the player. And only briefly: an input
+        // held over a long animation — a Zodiaction, a fall between planes — is
+        // an input about a board that no longer exists, and playing it when the
+        // dust settles would be a lurch nobody asked for.
+        if phase == .resolvingMove, pentacleIntro == nil, pendingPickupChoice == nil, !isPaused {
+            bufferedMove = (direction, reach, Date.now)
+            return
+        }
 
         // `acceptsInput` rather than `phase` alone: it is the one place that
         // knows about pausing, first-encounter splashes and parked Pentacles, and
@@ -737,15 +846,66 @@ final class GameSession {
         publish()
     }
 
-    /// Cycles the control scheme. Debug builds only.
+    /// Forces the Fracturing Fissure's screen effect on, for looking at it.
     ///
-    /// Stands in for the selection screen, so both schemes can be felt on a
-    /// device before either is committed to.
-    func debugCycleControls() {
+    /// Separate from `isSplit` rather than faking one: a split is a rule and
+    /// this is a picture, and a debug key that put the engine into a real split
+    /// would be testing the wrong thing.
+    ///
+    /// ## Why this is not inside `#if DEBUG`
+    ///
+    /// Because `@Observable` does not reach into conditional-compilation blocks:
+    /// a stored property declared inside one gets no observation accessors, so
+    /// writing to it changes the value and tells nobody. The toggle flipped and
+    /// the screen never redrew. Every other debug member here is a *function*,
+    /// which is why nothing had hit this before.
+    ///
+    /// A single always-false `Bool` in release is cheaper than the hour this
+    /// cost. The key that sets it is still debug-only.
+    var debugFissure = false
+
+    #if DEBUG
+    func debugToggleFissure() { debugFissure.toggle() }
+    #endif
+
+    /// True while the world should look torn — see `FractureField`.
+    var isFractured: Bool { isSplit || debugFissure }
+
+    /// How the player is steering, right now.
+    ///
+    /// ## Why this is not read straight off `GameRules`
+    ///
+    /// Because a `static var` is invisible to observation. The panel read the
+    /// global directly, so flipping it changed nothing on screen until some
+    /// *other* observable write happened to redraw the panel — and the nearest
+    /// one is `publish()`, which is turn-shaped. That made a preference appear
+    /// to apply on your next move, as though how you steer were a rule of the
+    /// game rather than a setting.
+    ///
+    /// The global stays as the seed and is kept in step, so anything reading it
+    /// outside a view still sees the truth.
+    var controlScheme: GameRules.ControlScheme = GameRules.controlScheme
+
+    /// Cycles the control scheme.
+    ///
+    /// Not a debug affordance any more: how you steer is a preference, and one
+    /// the player has to be able to change from inside a run — the schemes feel
+    /// different enough that nobody can pick between them from a menu they have
+    /// not played behind. It stands in for a settings screen until there is one.
+    /// What pressing the control button would switch to.
+    ///
+    /// Exposed rather than worked out again in the view, because the button
+    /// *shows* its destination — so the order is now drawn on screen as well as
+    /// acted on, and two copies of it would be two chances to disagree.
+    var nextControlScheme: GameRules.ControlScheme {
         let all = GameRules.ControlScheme.allCases
-        let next = (all.firstIndex(of: GameRules.controlScheme) ?? 0) + 1
-        GameRules.controlScheme = all[next % all.count]
-        publish()
+        let next = (all.firstIndex(of: controlScheme) ?? 0) + 1
+        return all[next % all.count]
+    }
+
+    func cycleControls() {
+        controlScheme = nextControlScheme
+        GameRules.controlScheme = controlScheme
     }
 
     /// Stages the Astral Bolt as the next Pentacle. Debug builds only.
@@ -850,6 +1010,37 @@ final class GameSession {
     }
 
     /// Presses the elevator. See `GameEngine.planNexysCall`.
+    /// The fragment being carried, if one is. See `SignState.Polaris`.
+    var polaris: SignState.Polaris? { engine.signState.polaris }
+
+    /// True while it is lit and may be spent.
+    var canFirePolaris: Bool { engine.canFirePolaris }
+
+    /// Spends it. See `GameEngine.planPolaris()`.
+    func firePolaris() {
+        if dismissIntroIfShowing() { return }
+        guard acceptsInput, engine.canFirePolaris else { return }
+
+        let events = engine.planPolaris()
+        guard !events.isEmpty else { return }
+        Haptics.zodiaction()
+        run(events)
+    }
+
+    /// True while an arrow is waiting in the ground, for anybody.
+    var canRecallArrow: Bool { engine.canRecallArrow }
+
+    /// Answers it. See `GameEngine.planArrowRecall()`.
+    func recallArrow() {
+        if dismissIntroIfShowing() { return }
+        guard acceptsInput, engine.canRecallArrow else { return }
+
+        let events = engine.planArrowRecall()
+        guard !events.isEmpty else { return }
+        Haptics.zodiaction()
+        run(events)
+    }
+
     func callNexys() {
         if dismissIntroIfShowing() { return }
         guard acceptsInput, engine.canCallNexys else { return }
@@ -905,7 +1096,15 @@ final class GameSession {
     private var replayTask: Task<Void, Never>?
 
     /// Starts replaying a planned event list.
+    /// The move the player asked for while this one was still playing, if any.
+    /// See `submit(_:reach:)`.
+    private var bufferedMove: (direction: SwipeDirection, reach: Int, at: Date)?
+
     private func run(_ events: [GameEvent]) {
+        // A fresh move of its own accord clears whatever was waiting: the buffer
+        // is a *pending* input, and once one has been answered the next belongs
+        // to the turn after this one.
+        bufferedMove = nil
         phase = .resolvingMove
         replayTask = Task { [weak self] in
             await self?.replay(events)
@@ -975,6 +1174,20 @@ final class GameSession {
 
         flashingTiles = []
         phase = engine.isGameOver ? .gameOver : .awaitingInput
+
+        playBufferedMove()
+    }
+
+    /// Answers the input that arrived mid-turn, if it is still worth answering.
+    private func playBufferedMove() {
+        guard let waiting = bufferedMove else { return }
+        bufferedMove = nil
+
+        guard acceptsInput,
+              Date.now.timeIntervalSince(waiting.at) <= GameRules.inputBufferWindow
+        else { return }
+
+        submit(waiting.direction, reach: waiting.reach)
     }
 
     /// Animates a single event, mutates the engine, and holds for its beat.
@@ -989,6 +1202,7 @@ final class GameSession {
 
         #if DEBUG
         logWear(event)
+        logMeter(event)
         #endif
 
         switch event {
@@ -1045,6 +1259,9 @@ final class GameSession {
             }
             await sleep(GameRules.slabDropDuration)
 
+            // The preview has arrived where the ground now is, so it stops being
+            // a preview.
+            slabDrop = nil
             disperseClouds(in: changes, on: plane)
             await sleep(GameRules.slabFlashDuration)
             slabLanding = nil
@@ -1077,8 +1294,15 @@ final class GameSession {
             withAnimation(.easeOut(duration: GameRules.tileDamageDuration)) {
                 engine.apply(event)
             }
+            // Held for a beat, not for the whole flash.
+            //
+            // The crack animates on its own once the engine has applied it, so
+            // waiting out the full flash before the next event bought nothing
+            // and put a sixth of a second on the end of every move that damaged
+            // anything — which is every move. The flash clears itself, the way
+            // the dust and the tile press already do.
             await sleep(event.displayDuration)
-            flashingTiles.subtract(changes.keys)
+            clearFlashLater(changes.keys)
 
         case let .tilesWorn(plane, changes, cause):
             showWear(cause, changes: changes, on: plane)
@@ -1087,8 +1311,15 @@ final class GameSession {
             withAnimation(.easeOut(duration: GameRules.tileDamageDuration)) {
                 engine.apply(event)
             }
+            // Held for a beat, not for the whole flash.
+            //
+            // The crack animates on its own once the engine has applied it, so
+            // waiting out the full flash before the next event bought nothing
+            // and put a sixth of a second on the end of every move that damaged
+            // anything — which is every move. The flash clears itself, the way
+            // the dust and the tile press already do.
             await sleep(event.displayDuration)
-            flashingTiles.subtract(changes.keys)
+            clearFlashLater(changes.keys)
 
         case let .shadowSpawned(point, plane, _):
             playEffect(.astralBloom, at: point, on: plane)
@@ -1354,16 +1585,27 @@ final class GameSession {
             // than snapping back the instant it leaves.
             releasePressLater(to)
 
-        case let .pieceStepped(from, to, plane):
+        case let .pieceStepped(from, to, plane, style):
             leaveAfterimage(at: from, on: plane)
             hopDistance = max(from.manhattanDistance(to: to), 1)
             hopCount += 1
             hopStartedAt = .now
+
+            // The style comes with the step — see `GameEvent.pieceStepped`. It
+            // decides the pace, whether the sprite arcs, whether the ground
+            // gives on arrival, and whether the squares crossed press down under
+            // the piece. Every one of those was previously answered as though a
+            // step were always a hop.
             beginMovement(
-                .hop,
+                style,
                 direction: stepDirection(from: from, to: to),
-                duration: hopDuration
+                duration: style.paceMultiplier * hopDuration
             )
+
+            if style.travelsTheGround {
+                pressedTiles.insert(to)
+                releasePressLater(to)
+            }
 
             // The ground gives when the piece reaches it, not when it sets off —
             // so the dip is scheduled for the end of the hop rather than fired
@@ -1417,14 +1659,26 @@ final class GameSession {
                let drawn = EffectSprite.longJump(for: zodiac) {
                 playEffect(drawn, at: from, on: plane)
             }
-            withAnimation(.spring(response: hopDuration * 1.6, dampingFraction: 0.72)) {
+            // Paced by the style, like everything else about the step. A charge
+            // is quick because it is a run; watching one crossed at hop speed a
+            // square at a time is watching the same hop five times.
+            let pace = style.paceMultiplier * hopDuration
+            withAnimation(.spring(response: pace * 1.6, dampingFraction: 0.72)) {
                 engine.apply(event)
             }
-            await sleep(hopDuration)
+            await sleep(pace)
 
-            // Dust on the *landing*, not the launch. Firing it with the step
-            // put the puff at the destination before the piece got there.
-            kickUpDust(at: to, on: plane, magnitude: 1)
+            // Dust on the arrival, not the launch, and only for a style that
+            // arrives. A charge is still running — it throws up its fire as it
+            // goes and puffs when it finally stops, which is the settle at the
+            // end rather than every square on the way.
+            //
+            // Where it lands is the sign's business — see `landingDust`. Libra
+            // breaks the ground either side of her rather than under her, and
+            // the dust follows the damage.
+            if style.bouncesOnArrival {
+                kickUpLandingDust(at: to, on: plane)
+            }
 
         case let .gameOver(reason) where reason == .fellThroughTerra:
             // The same spin-and-shrink as any other hole. There is simply
@@ -1551,13 +1805,13 @@ final class GameSession {
                 // it happens to have hit has nothing to do with what it is made
                 // of.
                 if SmokeSpriteView.hasArt(on: .astra) {
-                    smoke = SmokePuff(
+                    smoke.append(SmokePuff(
                         point: point,
                         plane: plane,
                         magnitude: GameRules.cloudPoofMagnitude,
                         start: .now,
                         cloudstuff: true
-                    )
+                    ))
                 }
 
                 let poof = CloudPoof(point: point, start: .now)
@@ -1579,7 +1833,7 @@ final class GameSession {
         // applied before this event — so by the time the teleport is presented
         // the arrow is already gone and the guard never passed. The archer has
         // exactly one way to teleport, so the sign is the whole condition.
-        case let .pieceTeleported(from, _, fromPlane, _) where zodiac == .sagittarius:
+        case let .pieceTeleported(from, _, fromPlane, _, _) where zodiac == .sagittarius:
             // The archer does not warp to the arrow, he *jumps* to it.
             //
             // A beam is the right picture for Astral Breeze, where the board
@@ -1589,8 +1843,23 @@ final class GameSession {
             // hard where the arrow is standing.
             await launchToArrow(event, from: from, plane: fromPlane)
 
-        case let .pieceTeleported(from, _, fromPlane, toPlane):
+        case let .pieceTeleported(_, _, _, toPlane, style) where style == .rise:
+            // Pisces swimming up. Not a warp — the fish breaks the surface, the
+            // sky is shoved aside where it comes through, and it comes down a
+            // square along. See `TeleportStyle.rise`.
+            await animateRise(event, to: toPlane)
+
+        case let .pieceTeleported(from, _, fromPlane, toPlane, _):
             await animateWarp(event, from: from, fromPlane: fromPlane, toPlane: toPlane)
+
+        case let .pickupRevealed(_, _, point, thrownFrom) where thrownFrom != nil:
+            // Only a bubble that was *thrown* flies. One surfacing out of the
+            // glow phase has nowhere to have come from, and treating those as
+            // spills is what made the board re-throw itself on every step.
+            throwBubble(to: point, from: thrownFrom!)
+            playEffect(.waterSplash, at: thrownFrom!, on: engine.piece.plane)
+            engine.apply(event)
+            await sleep(event.displayDuration)
 
         default:
             withAnimation(.easeInOut(duration: max(event.displayDuration, 0.01))) {
@@ -1598,6 +1867,43 @@ final class GameSession {
             }
             await sleep(event.displayDuration)
         }
+    }
+
+    /// A piece climbing to the plane above under its own power.
+    ///
+    /// The reverse of a fall, and built from the same parts: the piece rises out
+    /// of frame, the plane changes behind a flash, and it drops the last of the
+    /// way onto its square. The cloud is pushed aside where it surfaces, which
+    /// is the tell that something came *through* rather than appearing.
+    private func animateRise(_ event: GameEvent, to plane: Plane) async {
+        ascentRiseStartedAt = .now
+        withAnimation(.easeIn(duration: GameRules.ascentRiseDuration)) {
+            ascentFlash = GameRules.ascentFlashOpacity
+        }
+        await sleep(GameRules.ascentRiseDuration)
+
+        guard !Task.isCancelled else {
+            ascentRiseStartedAt = nil
+            ascentFlash = 0
+            return
+        }
+
+        engine.apply(event)
+        ascentRiseStartedAt = nil
+
+        // The sky comes apart where the fish broke through, at the square it is
+        // arriving on rather than the one it left — that hole is below it now.
+        disturbClouds(at: engine.piece.point)
+
+        withAnimation(.easeOut(duration: GameRules.fallArrivalDuration)) {
+            ascentFlash = 0
+        }
+        fallArrivalStartedAt = .now
+        await sleep(GameRules.fallArrivalDuration)
+        fallArrivalStartedAt = nil
+
+        bounceSurface(at: engine.piece.point, on: engine.piece.plane)
+        kickUpLandingDust(at: engine.piece.point, on: engine.piece.plane)
     }
 
     /// Sagittarius launching after his own arrow.
@@ -1640,7 +1946,7 @@ final class GameSession {
     private func animateDescent(duration: TimeInterval) async {
         withAnimation(.easeIn(duration: duration)) {
             isFalling = true
-            fallSpin += GameRules.fallSpinDegrees / 2
+            fallSpin += GameRules.fallSpinDegrees / 2 * tumbleDirection
         }
         await sleep(duration)
     }
@@ -1699,7 +2005,7 @@ final class GameSession {
                 to: to, context: engine.passiveSnapshot
             )
         }()
-        let tumble = controlled ? 0 : GameRules.fallSpinDegrees / 2
+        let tumble = controlled ? 0 : GameRules.fallSpinDegrees / 2 * tumbleDirection
 
         // Going down through the sky pushes it aside. Only leaving Astra: a fall
         // out of Terra is a fall out of the world and there is no cloud there to
@@ -1816,10 +2122,6 @@ final class GameSession {
     /// Input is already locked for the duration — the whole replay runs in
     /// `resolvingMove`, and `acceptsInput` is false throughout.
     private func animateAscent(_ event: GameEvent) async {
-        // The island is a great deal bigger than a piece, and it goes through
-        // the same hole.
-        disturbClouds(at: GameRules.nexysPoint)
-
         ascentRiseStartedAt = .now
         withAnimation(.easeIn(duration: GameRules.ascentRiseDuration)) {
             ascentFlash = GameRules.ascentFlashOpacity
@@ -1834,6 +2136,10 @@ final class GameSession {
 
         engine.apply(event)
         ascentRiseStartedAt = nil
+
+        // Astra is on screen now, which is the only moment the sky being shoved
+        // aside can actually be seen — see `animateNexysTravel`.
+        disturbClouds(at: GameRules.nexysPoint)
 
         ascentGrowStartedAt = .now
         withAnimation(.easeOut(duration: GameRules.ascentGrowDuration)) {
@@ -1861,8 +2167,15 @@ final class GameSession {
 
     private func animateNexysTravel(_ event: GameEvent, goingUp: Bool) async {
         // The island is a great deal bigger than a piece, and it goes through
-        // the same hole.
-        disturbClouds(at: GameRules.nexysPoint)
+        // the same hole — on the way up as well as the way down.
+        //
+        // Fired on the beat when Astra is the plane being *looked at*, which is
+        // the departure going down and the arrival coming up. Doing it at the
+        // start either way meant a rise shoved the sky aside while the player
+        // was still looking at Terra, and by the time Astra came into view the
+        // wake had already run out. The clouds part when the island comes
+        // through them, whichever direction it is travelling.
+        if !goingUp { disturbClouds(at: GameRules.nexysPoint) }
 
         nexysTravellingUp = goingUp
         if case let .nexysMoved(_, carrying) = event { nexysCarryingPiece = carrying }
@@ -1880,6 +2193,8 @@ final class GameSession {
 
         engine.apply(event)
         nexysDepartStartedAt = nil
+
+        if goingUp { disturbClouds(at: GameRules.nexysPoint) }
 
         nexysArriveStartedAt = .now
         await sleep(goingUp ? GameRules.ascentGrowDuration : GameRules.fallArrivalDuration)
@@ -2088,6 +2403,21 @@ extension GameSession {
     /// events — and this says which two, in order, with the plane and square.
     ///
     /// Remove once the cause is known.
+    /// Prints every change to the meter, with what the meter was before it.
+    ///
+    /// ## Delete me
+    ///
+    /// Here to settle one question: whether a Pentacle's charge is actually
+    /// landing. `zodiactionMeterChanged` is a *whole-value* event, so a grant
+    /// and a drain arriving in the same turn are indistinguishable from the
+    /// outside — the meter simply ends up somewhere. This makes the sequence
+    /// visible: three coins on Terra should read as three jumps with the walk
+    /// draining between them, and anything else is the bug.
+    private func logMeter(_ event: GameEvent) {
+        guard case let .zodiactionMeterChanged(to) = event else { return }
+        print("[zc] \(engine.zodiactionMeter) -> \(to) / \(engine.zodiactionMeterMax)")
+    }
+
     private func logWear(_ event: GameEvent) {
         func report(_ label: String, _ plane: Plane, _ changes: [GridPoint: TileHealth]) {
             for (point, after) in changes {
@@ -2222,6 +2552,20 @@ extension GameSession {
         }
     }
 
+    /// Lets a damaged square stop flashing, once its animation has run.
+    ///
+    /// Scheduled rather than awaited so the turn can carry on — see the wear
+    /// cases in `present(_:)`.
+    private func clearFlashLater(_ points: some Collection<GridPoint>) {
+        let keys = Set(points)
+        Task { [weak self] in
+            try? await Task.sleep(
+                nanoseconds: UInt64(GameRules.tileDamageDuration * 1_000_000_000)
+            )
+            self?.flashingTiles.subtract(keys)
+        }
+    }
+
     /// Lets a pressed square come back up, shortly.
     private func releasePressLater(_ point: GridPoint) {
         Task { [weak self] in
@@ -2238,6 +2582,26 @@ extension GameSession {
     /// - Parameter tint: Recolours the puff wholesale. Used where the smoke is
     ///   saying something the plane's own dust does not — Taurus' free step is
     ///   earth-green wherever it happens.
+    /// The dust an arrival raises, wherever the sign actually puts its weight.
+    ///
+    /// One puff under the piece for eleven signs; for Libra, one on each square
+    /// her pans trench and none beneath her.
+    func kickUpLandingDust(at point: GridPoint, on plane: Plane) {
+        let placed = engine.piece.zodiac.passives.landingDust(
+            at: point, context: engine.passiveSnapshot
+        )
+
+        guard let placed else {
+            kickUpDust(at: point, on: plane, magnitude: 1)
+            return
+        }
+
+        for puff in placed {
+            guard engine[plane].contains(puff.point) else { continue }
+            kickUpDust(at: puff.point, on: plane, magnitude: puff.magnitude)
+        }
+    }
+
     func kickUpDust(
         at point: GridPoint,
         on plane: Plane,
@@ -2249,12 +2613,11 @@ extension GameSession {
             point: point, plane: plane, magnitude: magnitude,
             start: .now, fromRaisedTile: fromRaisedTile, tint: tint
         )
-        smoke = puff
+        smoke.append(puff)
 
         Task { [weak self] in
             try? await Task.sleep(nanoseconds: UInt64(GameRules.smokeDuration * 1_000_000_000))
-            guard let self, self.smoke?.id == puff.id else { return }
-            self.smoke = nil
+            self?.smoke.removeAll { $0.id == puff.id }
         }
     }
 }
@@ -2585,7 +2948,10 @@ extension GameSession {
     }
 
     /// Records that a slab is on its way in, so its arrival can be drawn.
-    func notePlacedSlab(_ slab: GavelSlab) { placedSlab = slab }
+    func notePlacedSlab(_ slab: GavelSlab, at anchor: GridPoint) {
+        placedSlab = slab
+        slabDrop = SlabDrop(slab: slab, anchor: anchor, plane: visiblePlane, start: .now)
+    }
 
     /// Whether this square is an answer the outstanding question would accept.
     ///
@@ -2675,12 +3041,6 @@ extension GameSession {
     var movesDiagonally: Bool {
         availableDirections.contains { !$0.isCardinal }
     }
-
-    /// True while Sagittarius has an arrow in the ground waiting to be recalled.
-    ///
-    /// The Zodiaction button reads this: with an arrow out the button is no
-    /// longer charging anything, it is a recall, and it says so.
-    var arrowIsPlanted: Bool { engine.signState.arrow != nil }
 
     /// True while Capricorn's shop strip is open.
     var isChoosingShop: Bool { pendingPickupChoice?.kind == .shop }

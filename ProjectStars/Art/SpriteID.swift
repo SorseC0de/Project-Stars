@@ -48,9 +48,22 @@ enum CursorCorner: String, CaseIterable, Hashable {
 /// and takes the other anywhere on the board, so which side of the pair it is
 /// stops meaning anything the moment they separate. A colour keeps its name
 /// wherever it goes.
-enum GeminiHalf: String, Hashable {
+/// Which of Umbra's two floor tones a tile is.
+///
+/// The underworld's ground is drawn as a two-tone check rather than as one
+/// surface, so the eye has something to measure movement against on a plane that
+/// is otherwise flat and dark. Both tones share an edge sprite each.
+enum UmbraTone: String, Hashable, CaseIterable, Codable, Sendable {
+    case light
+    case dark
+}
+
+enum GeminiHalf: String, Hashable, CaseIterable, Codable, Sendable {
     case gold
     case silver
+
+    /// The other one. There are only ever two, and they are always both.
+    var sibling: GeminiHalf { self == .gold ? .silver : .gold }
 }
 
 /// Which pair of Libra's arms is being drawn.
@@ -111,6 +124,28 @@ enum SpriteID: Hashable {
 
     /// One of Gemini's two halves. See `GeminiHalf`.
     case geminiHalf(GeminiHalf)
+
+    // MARK: Umbra
+
+    /// The underworld's floor, in one of its two tones.
+    case umbraFloor(UmbraTone)
+
+    /// The lip below a floor tile, matched to the tone above it.
+    case umbraEdge(UmbraTone)
+
+    /// Scenery scattered at board generation. Two of them, picked between.
+    ///
+    /// Drawn in `Palette.smoke`, which is also the dark floor — so on a dark
+    /// tile it has to be swapped down a step to `coolBlack` or it is invisible.
+    /// See `GameRules.umbraDecorDarkSwap`.
+    case umbraDecor(Int)
+
+    /// The rarer piece of scenery, drawn once and turned to any angle.
+    case umbraDecorRare
+
+    /// The impassable rock. Two cells tall, and the only thing in Umbra that
+    /// blocks Nilyth as well as the player.
+    case umbraRock
 
     /// A stand-in hole for Astra, where there are no tiles to make one out of.
     case astraHole
@@ -206,6 +241,16 @@ enum SpriteID: Hashable {
             "libra_scales_plain"
         case let .geminiHalf(half):
             "gemini_\(half.rawValue)"
+        case let .umbraFloor(tone):
+            "umbra_floor_\(tone.rawValue)"
+        case let .umbraEdge(tone):
+            "umbra_edge_\(tone.rawValue)"
+        case let .umbraDecor(index):
+            "umbra_decor_\(index)"
+        case .umbraDecorRare:
+            "umbra_decor_rare"
+        case .umbraRock:
+            "umbra_rock"
         case .astraHole:
             "astra_hole"
         case .carriedCoin:

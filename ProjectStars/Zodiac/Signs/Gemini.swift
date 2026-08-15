@@ -145,9 +145,11 @@ struct GeminiReflectiveRifts: ZodiacPassive {
         direction: SwipeDirection,
         context: PassiveContext
     ) -> [GridPoint]? {
-        // Endless above, torn and single-use below — see
+        // Endless above; below, only the pair that is still open — see
         // `SignState.terraRifts`.
-        guard context.plane == .astra || context.signState.terraRifts else { return nil }
+        let pair = SignState.RiftAxes.crossed(by: direction)
+        guard context.plane == .astra || context.signState.terraRifts.contains(pair)
+        else { return nil }
 
         return Self.portals(size: context.currentBoard.size)
             .first { $0.edge == direction && $0.from == origin }
@@ -243,11 +245,11 @@ struct GeminiMirroredMandate: Zodiaction {
         }
 
         // Below, the mirror does not only rearrange the ground — it tears a way
-        // through the edges that Gemini has for nothing up above. Shared and
-        // single-use: step through any of the four and all four close.
+        // through the edges that Gemini has for nothing up above. All four open,
+        // and each opposing pair is spent by the first crossing that uses it.
         if context.plane == .terra {
             var state = context.signState
-            state.terraRifts = true
+            state.terraRifts = .both
             events.append(.signStateChanged(state))
         }
 
@@ -295,8 +297,12 @@ struct ReflectiveRiftsView: View {
         .allowsHitTesting(false)
     }
 
+    /// Which pairs are open. `.both` above, where they never close.
+    var open: SignState.RiftAxes = .both
+
     private var portals: [(edge: SwipeDirection, from: GridPoint, to: GridPoint)] {
         GeminiReflectiveRifts.portals(size: metrics.gridSize)
+            .filter { open.contains(.crossed(by: $0.edge)) }
     }
 
     /// One oval, sitting just outside the edge square it serves.

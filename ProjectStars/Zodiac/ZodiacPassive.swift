@@ -34,6 +34,15 @@ import Foundation
 ///
 /// - Note: When a real design needs something these hooks cannot express, add a
 ///   hook here rather than reaching into the engine from a sign file.
+/// One puff of dust a landing throws up.
+struct LandingDust {
+    let point: GridPoint
+
+    /// Against the usual landing puff. Two smaller clouds read as a pair of
+    /// impacts; two full-sized ones read as the screen going grey.
+    let magnitude: CGFloat
+}
+
 protocol ZodiacPassive {
 
     /// Name shown in the info panel.
@@ -329,6 +338,38 @@ protocol ZodiacPassive {
     /// tumbled either way.
     func fallIsControlled(to plane: Plane, context: PassiveContext) -> Bool
 
+    /// Where a landing throws up its dust, and how much of it.
+    ///
+    /// Default is `nil`, meaning the one square the piece came down on. A sign
+    /// answers only if its impact is somewhere else — Libra lands on two pans
+    /// and cracks the squares either side of her, so the dust belongs where the
+    /// ground is actually being broken and not under a body that never touched
+    /// it.
+    ///
+    /// Returned as points rather than as a flag, because "which squares does
+    /// this landing hit" is the same question `additionalWear` answers and
+    /// giving it two answers is how they come apart.
+    func landingDust(
+        at point: GridPoint,
+        context: PassiveContext
+    ) -> [LandingDust]?
+
+    /// The chance, per bubble, that one appears alongside this reveal.
+    ///
+    /// Zero for everybody but Pisces below — see `PiscesAridAquanaut`. Bubbles
+    /// are not part of the hunt and do not displace the coin: they are rolled
+    /// after it, onto the sparkles it did not take.
+    func bubbleChance(context: PassiveContext) -> Double
+
+    /// Whether falling to the plane below spills the meter onto it as bubbles
+    /// rather than simply losing it.
+    ///
+    /// Its own question rather than "would bubbles spawn for me down there",
+    /// because that one is asked of the plane the piece is still standing on and
+    /// answers no every time — and because a sign could reasonably want one of
+    /// these without the other.
+    func spillsMeterOnDescent(context: PassiveContext) -> Bool
+
     /// Whether leaving Astra should repair it.
     ///
     /// True for everyone but Libra, whose whole arrangement is that both boards
@@ -567,6 +608,12 @@ extension ZodiacPassive {
 
     func fallIsControlled(to plane: Plane, context: PassiveContext) -> Bool { false }
 
+    func landingDust(at point: GridPoint, context: PassiveContext) -> [LandingDust]? { nil }
+
+    func bubbleChance(context: PassiveContext) -> Double { 0 }
+
+    func spillsMeterOnDescent(context: PassiveContext) -> Bool { false }
+
     func restoresPlaneOnDescent(context: PassiveContext) -> Bool {
         GameRules.astraRestoresOnDescent
     }
@@ -617,6 +664,22 @@ struct PassiveContext {
 
     /// Current Zodiaction meter, in pips.
     let zodiactionMeter: Int
+
+    /// What a full meter is for this sign on this plane.
+    ///
+    /// Carried alongside the meter because "am I full" is a question a passive
+    /// can act on — Pisces' surf is offered only at the cap — and the cap varies
+    /// by sign and by plane, so a passive cannot work it out from the pip count
+    /// alone.
+    let zodiactionMeterMax: Int
+
+    /// True while a Zodiaction is what is resolving.
+    ///
+    /// The difference between a thing you did and a thing that happened to you,
+    /// which several rules turn on and none could previously ask. Pisces is the
+    /// clear case: going down *on purpose* is a dive, and going down because the
+    /// floor gave way is a fall — same destination, opposite events.
+    let duringZodiaction: Bool
 
     /// True when the piece is arriving on a square the player picked, rather
     /// than one something else carried it to. See
@@ -760,6 +823,23 @@ extension Array where Element == any ZodiacPassive {
 
     func fallIsControlled(to plane: Plane, context: PassiveContext) -> Bool {
         contains { $0.fallIsControlled(to: plane, context: context) }
+    }
+
+    /// The first answer wins. Two passives moving the same dust to two different
+    /// places is a contradiction rather than a sum, and nothing in the game has
+    /// two signs' worth of landing at once.
+    func landingDust(at point: GridPoint, context: PassiveContext) -> [LandingDust]? {
+        compactMap { $0.landingDust(at: point, context: context) }.first
+    }
+
+    /// The best offer, not the sum. Two passives that both want bubbles want
+    /// *bubbles*, not twice as many.
+    func bubbleChance(context: PassiveContext) -> Double {
+        map { $0.bubbleChance(context: context) }.max() ?? 0
+    }
+
+    func spillsMeterOnDescent(context: PassiveContext) -> Bool {
+        contains { $0.spillsMeterOnDescent(context: context) }
     }
 
     /// One refusal is enough: a sign that keeps its Astra keeps it.

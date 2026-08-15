@@ -62,6 +62,14 @@ enum PentacleAppearance: String, CaseIterable, Codable {
     /// a coin at all — see `PickupClass.boon`.
     case droplet
 
+    /// A bubble of water, lighter than a droplet and drawn in numbers. Pisces'
+    /// bubbles only — see `BubbleEffect`.
+    case bubble
+
+    /// Cold and unlit. Polaris on Terra, where it sits like a rock until
+    /// something puts astral energy through it — see `PolarisEffect`.
+    case dormant
+
     /// Libra's gavel. A Pentacle in its own right rather than a coin with a
     /// glyph on it — see `PentacleView.gavel`.
     case gavel
@@ -94,6 +102,15 @@ enum PickupClass: String, Codable {
     /// Something an ability left lying on the board. Persists, ignores the
     /// hunt's rules, and the hunt ignores it.
     case boon
+
+    /// Scattered. Several sit on the board at once and taking one leaves the
+    /// rest standing.
+    ///
+    /// The difference from a boon is only the last part, and it is the whole
+    /// point: eight droplets are a *choice* — take one and the others shatter —
+    /// where scattered things are a **haul**, gathered one at a time over as
+    /// many turns as it takes. Pisces' bubbles are the first of these.
+    case scatter
 }
 
 // MARK: - PickupChoice
@@ -182,6 +199,7 @@ struct PickupContext {
     let zodiactionMeter: Int
     let zodiactionMeterMax: Int
 
+
     /// What the sign remembers between moves. An effect that grants a lasting
     /// state — the Astral Bolt's star — amends this and returns it in a
     /// `signStateChanged`, exactly as a Zodiaction would.
@@ -257,6 +275,19 @@ protocol PickupEffect {
     /// on the board. See `PickupClass`.
     var pickupClass: PickupClass { get }
 
+    /// How this coin is drawn on a given plane.
+    ///
+    /// Defaults to `appearance`. Polaris is the only coin that looks different
+    /// depending on where it is found, for the same reason it *reads*
+    /// differently — below, it is not lit.
+    func appearance(on plane: Plane) -> PentacleAppearance
+
+    /// What this coin says on a given plane.
+    ///
+    /// Defaults to `summary`, which is right for everything but Polaris — the
+    /// one coin that is a different object depending on where it is found.
+    func summary(on plane: Plane) -> String
+
     /// Input this effect needs from the player before it can resolve.
     ///
     /// A *description* of the question, and therefore static. An effect whose
@@ -304,6 +335,10 @@ extension PickupEffect {
     var choice: PickupChoice { .none }
     var arrivalWearsTile: Bool { true }
     var pickupClass: PickupClass { .pentacle }
+
+    func summary(on plane: Plane) -> String { summary }
+
+    func appearance(on plane: Plane) -> PentacleAppearance { appearance }
 
     func rolledChoice(using generator: inout SeededRandom) -> PickupChoice { choice }
 }

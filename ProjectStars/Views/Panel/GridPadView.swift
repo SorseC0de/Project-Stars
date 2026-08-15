@@ -351,7 +351,7 @@ struct GridPadView: View {
         setAim(nil)
 
         if let slab = session.placingSlab {
-            session.notePlacedSlab(slab)
+            session.notePlacedSlab(slab, at: target)
             session.resolvePickupChoice(.place(slab, target))
             return
         }

@@ -71,17 +71,41 @@ extension ZodiacCatalog {
 struct PiscesStarstreamSurfer: ZodiacPassive {
 
     let displayName = "Starstream Surfer"
-    let summary = "Astra: surf to the far wall on any turn, and charge \(GameRules.starstreamCharge) for doing it — ordinary steps give nothing. Terra: −1 charge for every square you leave."
+    let summary = "+1 ZC every step on Astra. The surf is available only on a full meter, and pays nothing itself. Terra: −1 ZC for every square you leave."
 
-    /// Terra has no current to ride.
+    /// The current is not a property of the plane. It is a property of *you*.
     ///
-    /// Arid Aquanaut *replaces* this below — that is the whole shape of the
-    /// sign, rich and mobile up top and stranded down here — so the surf has to
-    /// actually be gone rather than merely unrewarded. It was still offered on
-    /// Terra, which handed the fish its best move on the plane it is supposed to
-    /// be desperate to leave.
+    /// ## Why the surf is now gated
+    ///
+    /// Because the sign had a resource with nothing to want. Steps paid nothing,
+    /// the surf paid three, and the only thing the meter *bought* was a
+    /// Zodiaction that drops the fish on Terra — the worst place it can be. So
+    /// the correct play was to never fill it, which makes a charging passive
+    /// into decoration.
+    ///
+    /// Inverting it gives the meter a second job. Ordinary steps fill it, and a
+    /// full meter is what unlocks the surf — so the fish spends its charge
+    /// *riding* rather than banking, and the decision each turn is whether to
+    /// keep the meter full for another crossing or spend it going down. Being
+    /// full is now a state Pisces wants to be in and to stay in, and the descent
+    /// is the escape hatch pulled deliberately, after as much of Astra has been
+    /// crossed as the player dares.
+    ///
+    /// ## Why the plane is not part of the test
+    ///
+    /// It was: the surf was struck off on Terra outright, on the reasoning that
+    /// a dry plane has no current to ride. But a full meter is what turns *any*
+    /// piece gold, and gold is the state this is really asking about — so the
+    /// rule is one line for both boards, and Terra's dryness shows up as the
+    /// difference in how hard it is to *get* gold rather than as a second rule
+    /// about where you may surf.
+    ///
+    /// That is still the shape of the sign — rich and mobile up top, stranded
+    /// down below — because on Astra the meter fills off ordinary steps and
+    /// below it fills off water and nothing else. Being earthbound does not stop
+    /// Pisces surfing; it stops Pisces charging, and the surf follows.
     func adjustedMovement(base: MovementPattern, context: PassiveContext) -> MovementPattern {
-        guard context.plane == .terra else { return base }
+        guard context.zodiactionMeter < context.zodiactionMeterMax else { return base }
         return MovementPattern(
             name: base.name,
             options: base.options.filter { !$0.reachesWall }
@@ -99,149 +123,191 @@ struct PiscesStarstreamSurfer: ZodiacPassive {
         if move.endingPlane == .astra {
             // A surf is any move that covered more ground than a step. Nothing
             // else in this pattern can.
+            //
+            // It pays nothing now: the meter is what *allows* the surf, so
+            // paying for taking it would refund the price of the thing being
+            // bought. The steps are what fill it — see `adjustedMovement`.
             let surfed = move.origin.manhattanDistance(to: move.destination) > 1
-            return pool + (surfed ? GameRules.starstreamCharge : 0)
+            return pool + (surfed ? 0 : GameRules.starstreamStepCharge)
         }
 
-        // The drain does not apply to a move that ends in water.
+        // Terra pays nothing for moving, and charges nothing for it either.
         //
-        // Otherwise the pool pays one and the plane takes it straight back, and
-        // a foothold that nets zero is not a foothold — it is a square that
-        // *isn't costing you*, which nobody walks across a dry board for. The
-        // spec is 0 to 1: the pool is worth a pip after the toll, not instead
-        // of a pip.
-        if inPool { return pool }
-        return move.startingPlane == .terra ? -1 : 0
+        // The pip-per-move toll is gone. It made the fish poorer the more it
+        // did, which meant the correct play below was to move as little as
+        // possible — on the plane the sign is supposed to be desperate to
+        // *leave*. Terra takes Pisces' mobility instead: no multi-tile movement
+        // without a full meter, and no way to fill one but water. See
+        // `PiscesAridAquanaut` and `adjustedMovement`.
+        return pool
     }
 }
 
 // MARK: - Passive 2: Gaia Geyser
 
-/// Coming down on Terra brings the water with you: eight droplets ring the fish
-/// where it lands, and every square one settles on is mended a stage — holes
-/// included.
+/// Coming down on Terra brings your water with you — as your own charge, spilled
+/// across the board.
 ///
-/// ## Why droplets rather than a number
+/// ## Why a scatter rather than a gift
 ///
-/// The old version simply filled the meter on arrival, which was correct as
-/// balance and dead as a moment: the most dramatic thing Pisces does produced a
-/// bar going up. The ring puts the same value on the board as eight places to
-/// stand, and taking one dismisses the other seven — so arriving on Terra is now
-/// a decision about *where*, made at exactly the moment the fish has the most to
-/// spend and the least time to spend it.
+/// It used to ring the fish with eight droplets, one of which filled the meter
+/// outright. That put the sign's most dramatic moment somewhere good: eight
+/// places to stand, and taking one dismissed the other seven.
 ///
-/// ## The arithmetic is unchanged
+/// The trouble was what it made the *fall* mean. Arriving on Terra was the best
+/// thing that could happen to Pisces — a full meter and a mended ring — on the
+/// plane the whole sign is written to be desperate to leave. The scatter says
+/// the opposite with the same drama: the charge you had is still yours, it is
+/// simply all over the board now, and getting it back is the first thing you
+/// have to do down here. Rings, deliberately.
 ///
-/// A droplet is a full meter and the move that collects it drains one on the way
-/// out, so the fish stands up on nine. That is precisely where the old
-/// fill-on-arrival left it after its first step, which is the number everything
-/// downstream was tuned against.
-///
-/// ## Why the mending reaches holes
-///
-/// Water finds the low ground. A hole mended to badly cracked is still a bad
-/// square, but it is a square — and it means a fall into a wrecked corner of
-/// Terra leaves the fish with somewhere to go rather than nowhere.
+/// It is also a real loss rather than a relocation. A pip whose square turns out
+/// to be a hole is gone, so the more broken the ground below, the more the drop
+/// actually costs — which is the shape the rest of the sign already has.
 struct PiscesGaiaGeyser: ZodiacPassive {
 
-    let displayName = "Gaia Geyser"
-    let summary = "Astra → Terra: arriving rings you with droplets, mending each square they land on. Take one for a full meter; the rest dry up."
+    let displayName = "Gaia Geysers"
+    let summary = "Astra → Terra: your ZC comes down with you, scattered across Terra as bubbles. Any that land over a hole are lost."
 
-    /// The fish dives. See `ZodiacPassive.fallIsControlled(to:context:)`.
+    /// A dive is something the fish *did*. See
+    /// `ZodiacPassive.fallIsControlled(to:context:)`.
+    ///
+    /// Only when it went down on purpose. Dropping through a floor that gave way
+    /// is not a dive however good a swimmer you are, and the serene descent
+    /// belonged to both until it had to sit next to a fish shedding its charge
+    /// across the board like rings — which is not a picture of composure.
     func fallIsControlled(to plane: Plane, context: PassiveContext) -> Bool {
-        plane == .terra
+        plane == .terra && context.duringZodiaction
     }
 
+    /// And the water goes everywhere when it wasn't.
+    ///
+    /// The two are one question asked twice: a controlled descent keeps its
+    /// meter and its dignity, and an uncontrolled one loses both. See
+    /// `GameEngine.scatterMeterAsBubbles(landingOn:clearOf:)`.
+    func spillsMeterOnDescent(context: PassiveContext) -> Bool {
+        !context.duringZodiaction
+    }
+
+    /// Water finds its way up through ground that has just broken.
+    ///
+    /// A hole made *this move* may sprout a geyser, and a geyser throws up a
+    /// droplet worth `GameRules.gaiaDropletCharge`. Only new holes: an old one
+    /// has already drained, and paying for standing ruin would make wrecking the
+    /// board a way to farm charge — which is the one thing this game never does.
+    ///
+    /// It lands beside the hole rather than in it. Nothing can stand on a hole,
+    /// and a droplet that had to be reached across the gap it came out of is a
+    /// reward you can see and never take.
     func amend(_ events: [GameEvent], context: PassiveContext) -> [GameEvent] {
-        guard arrived(in: events, context: context) else { return [] }
+        guard context.plane == .terra else { return [] }
+        guard context.luck < GameRules.gaiaGeyserChance else { return [] }
 
         let board = context.currentBoard
-        let ring = GridOffset.cardinals + GridOffset.diagonals
-
         var produced: [GameEvent] = []
-        for square in ring.map({ context.piecePoint.offset(by: $0) })
-        where board.contains(square) && board[square].kind == .normal {
+        var taken: Set<GridPoint> = []
 
-            // The water mends as it lands, one stage, holes included.
-            if board[square].health != .healthy {
-                produced.append(
-                    .tileHealed(plane: context.plane, point: square, to: board[square].health.healed)
-                )
-            }
+        for hole in Self.holesMade(in: events, on: context.plane, board: board) {
+            let beside = GridOffset.cardinals
+                .map { hole.offset(by: $0) }
+                .filter {
+                    board.contains($0) && board[$0].isSolid
+                        && board[$0].kind == .normal && !taken.contains($0)
+                }
+
+            guard let square = beside.first else { continue }
+            taken.insert(square)
             produced.append(
                 .pickupRevealed(id: .gaiaDroplet, plane: context.plane, point: square)
             )
         }
+
         return produced
     }
 
-    /// True when this move is the one that brought the fish down.
-    ///
-    /// Read off the events rather than from a `MoveSummary`, because `amend` is
-    /// the only hook that runs late enough to place things on the board and it
-    /// is handed the events instead. A fall to Terra is the one that counts;
-    /// bouncing around down there is not.
-    private func arrived(in events: [GameEvent], context: PassiveContext) -> Bool {
-        guard context.plane == .terra else { return false }
-        return events.contains { event in
+    /// The squares these events turned into holes that were not holes already.
+    private static func holesMade(
+        in events: [GameEvent],
+        on plane: Plane,
+        board: Board
+    ) -> [GridPoint] {
+        var made: [GridPoint] = []
+        for event in events {
+            let changes: [GridPoint: TileHealth]
             switch event {
-            case let .pieceFell(_, to, _): to == .terra
-            case let .pieceTeleported(_, _, from, to): from == .astra && to == .terra
-            case let .nexysMoved(to, carrying): to == .terra && carrying
-            default: false
+            case let .tilesWorn(eventPlane, tiles, _) where eventPlane == plane:
+                changes = tiles
+            case let .tilesWornOnExit(eventPlane, tiles, _) where eventPlane == plane:
+                changes = tiles
+            default:
+                continue
+            }
+
+            for (point, health) in changes
+            where health == .hole && board[point].health != .hole {
+                made.append(point)
             }
         }
+        // Sorted, because a dictionary has no order and this list decides where
+        // things are placed — see the note on the retinue's merged wear.
+        return made.sorted { ($0.y, $0.x) < ($1.y, $1.x) }
     }
 }
 
 // MARK: - Passive 3: Arid Aquanaut
 
-/// On Terra, charge is what the board offers up.
+/// On Terra, charge is water and movement is a full meter.
 ///
-/// Z-Charge and the Astral Tear trade places in the roll, so the commonest find
-/// below is the one that fills the meter rather than the one that mends a tile.
+/// Two halves of one idea. Z-Charge is struck from the pool outright — below,
+/// the fish cannot pull charge out of dry air — and **bubbles** surface
+/// alongside the Pentacle instead, several a phase, worth a pip each. That is
+/// the whole of the sign's economy down here.
 ///
-/// ## Why this completes the sign
+/// The other half is what the meter is *for*. Multi-tile movement wants a full
+/// one — see `PiscesStarstreamSurfer` — so on Terra, where filling it means
+/// gathering water a pip at a time, Pisces is locked to single steps until it
+/// has. Being earthbound does not stop the fish surfing; it stops the fish
+/// charging, and the surf follows.
 ///
-/// Everything else about Pisces on Terra is a countdown: Gaia Geyser hands it a
-/// full meter on arrival and Astral Attunement drains a pip for every square it
-/// leaves. Upstream costs the whole meter, so the way home is only ever reached
-/// by finding charge — and a fish that has to go looking for it in a dry place is
-/// the whole picture of the sign down there.
+/// ## Why this replaces a drain
 ///
-/// It mends nothing extra. Pisces on Terra is not supposed to be comfortable; it
-/// is supposed to be leaving.
-///
-/// ## How the swap is written
-///
-/// By reading each other's weights rather than naming numbers, so retuning
-/// either one keeps the swap honest.
+/// The plane used to bill a pip for every move. That made the fish poorer the
+/// more it did, so the correct play below was to sit still — on the plane the
+/// sign is written to be desperate to leave. Taking mobility instead points the
+/// player at the exit rather than away from it: every bubble gathered is a step
+/// closer to crossing the board again.
 struct PiscesAridAquanaut: ZodiacPassive {
 
     let displayName = "Arid Aquanaut"
-    let summary = "Terra: Z-Charge and Astral Tear trade drop rates, and Z-Charge grants \(GameRules.aridAquanautCharge) instead of \(GameRules.zChargePentacleAmount)."
+    let summary = "Terra: no ZC from anything but bubbles, which surface alongside the Pentacle — and no multi-tile movement until the meter is full."
 
+    /// Z-Charge does not exist down here.
+    ///
+    /// Not made rarer — **removed**. Charge on Terra comes from water and from
+    /// nothing else, and a coin that hands you a meter would be the fish pulling
+    /// it out of dry air, which is the exact thing this plane takes away. The
+    /// Tear takes the weight it leaves behind, so the pool stays the same size.
     func pickupWeight(_ base: Int, for id: PickupID, context: PassiveContext) -> Int {
         guard context.plane == .terra else { return base }
 
         switch id {
-        case .zCharge: return PickupCatalog.effect(for: .restoreTile).weight
-        case .restoreTile: return PickupCatalog.effect(for: .zCharge).weight
+        case .zCharge: return 0
+        case .restoreTile: return base + PickupCatalog.effect(for: .zCharge).weight
         default: return base
         }
     }
 
-    /// And a Z-Charge found down there is worth more than it is to anyone else.
+    /// Bubbles surface wherever the sparkles were.
     ///
-    /// Making it *common* was not enough on its own. A coin can spawn across the
-    /// board, and the walk to it costs a pip a square — so an ordinary grant can
-    /// arrive having already paid for itself, and a run of distant spawns leaves
-    /// the meter falling however many coins are opened. The larger grant is what
-    /// makes the trip worth taking.
-    func chargeFromPickup(_ base: Int, id: PickupID, plane: Plane) -> Int {
-        guard plane == .terra, id == .zCharge else { return base }
-        return GameRules.aridAquanautCharge
+    /// This is the whole of Pisces' charge below, so it is generous per phase
+    /// and small per bubble — the sign's problem on Terra is a long errand
+    /// rather than a lucky break. Scaled by the run's luck in the engine, which
+    /// is how Sagittarius' Fortunate Find reaches them.
+    func bubbleChance(context: PassiveContext) -> Double {
+        context.plane == .terra ? GameRules.bubbleSpawnChance : 0
     }
+
+
 }
 
 // MARK: - Zodiaction: Current
@@ -283,6 +349,20 @@ struct PiscesSurgingStream: Zodiaction {
 
     /// Pisces' charge comes entirely from Starstream Surfer and Gaia Geyser.
     func meterGain(from move: MoveSummary, context: PassiveContext) -> Int { 0 }
+
+    /// A deeper meter below, and the number is the sign's own.
+    ///
+    /// Twelve rather than ten, on Terra alone. Everything down there is paid for
+    /// in bubbles a pip at a time, and the meter is not just the super any more
+    /// — it is the surf, and the way home. Making it two pips deeper is the
+    /// difference between a short errand and a real one, without touching what
+    /// a bubble is worth.
+    ///
+    /// Twelve because there are twelve signs. Fifteen would have done the same
+    /// job and meant nothing.
+    func meterMax(on plane: Plane) -> Int {
+        plane == .terra ? GameRules.piscesTerraMeterMax : meterMax
+    }
 
     /// Upstream refuses on the turn the fall brought Pisces down: a descent has
     /// to cost at least one turn on Terra. Downstream has no such condition.
@@ -331,7 +411,16 @@ struct PiscesSurgingStream: Zodiaction {
         // Then up and one square along, so the piece emerges next to the hole it
         // just made rather than hovering over it.
         events.append(
-            .pieceTeleported(from: origin, to: surface, fromPlane: .terra, toPlane: .astra)
+            .pieceTeleported(
+                from: origin,
+                to: surface,
+                fromPlane: .terra,
+                toPlane: .astra,
+                // Not a warp. The fish swims up and breaks the surface, which is
+                // a different picture from blinking out and in — and the one
+                // ascent in the game nobody needs the island for.
+                style: .rise
+            )
         )
 
         return events

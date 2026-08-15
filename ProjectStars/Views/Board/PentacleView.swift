@@ -41,7 +41,38 @@ struct PentacleView: View {
     /// Recolouring applied to the coin, if any. See `ringSwaps`.
     var swaps: [PaletteSwap] = []
 
+    /// True for a coin that is not a coin: cold Polaris on Terra, which sits on
+    /// the ground in the middle of its tile and does nothing at all.
+    ///
+    /// Everything the hover is made of says *this is a prize*: the bob, the
+    /// orbit, the pool of light beneath it, the lift off the tile. A dormant
+    /// fragment is a rock, and a rock that bobs is a rock nobody believes is
+    /// dormant — so it declines all of it rather than doing a quieter version.
+    private var isInert: Bool { appearance == .dormant }
+
     var body: some View {
+        if isInert {
+            ZStack {
+                // An ordinary occluding shadow, not the additive pool the lit
+                // coins throw. It is a rock lying on a tile, and it should sit
+                // on that tile the way anything else resting on the ground does.
+                PieceShadowView(
+                    tileSize: size,
+                    widthFraction: 0.34,
+                    opacity: GameRules.pentacleShadowOpacity
+                )
+                .offset(y: GameRules.pentacleShadowDrop * scale)
+
+                coin(phase: 0)
+            }
+            .transition(.scale(scale: 0.2).combined(with: .opacity))
+            .allowsHitTesting(false)
+        } else {
+            hovering
+        }
+    }
+
+    private var hovering: some View {
         TimelineView(.animation) { timeline in
             // One phase drives everything, so the coin, its orbit and its pool
             // of light can never drift out of step with each other.
@@ -131,7 +162,9 @@ struct PentacleView: View {
         // Its light is the sky it belongs to: Libra is air, and the hammer is a
         // storm front rather than a coin.
         case .gavel: Palette.cyan
-        case .droplet: Palette.cyan
+        case .droplet, .bubble: Palette.cyan
+        // A rock casts a shadow, not a pool of light — see `isInert`.
+        case .dormant: Palette.coolBlack
         }
     }
 
@@ -162,6 +195,12 @@ struct PentacleView: View {
             }
             .rotationEffect(.degrees(spin(at: phase)))
 
+        case .dormant:
+            // No bloom, no spin, no swap. It is the sprite and nothing else,
+            // which is the entire characterisation: everything the other coins
+            // do to announce themselves, this one declines.
+            sprite
+
         case .gavel:
             // Lit hard, and swung. See `gavelSwing(at:)`.
             PaletteGlow(radius: GameRules.pentacleGlowRadius * scale,
@@ -169,20 +208,28 @@ struct PentacleView: View {
                 gavelSprite(at: phase)
             }
 
-        case .droplet:
+        case .droplet, .bubble:
             // Drawn rather than sprited, and drawn as *not a coin*: the whole
             // point of a boon is that it is not part of the hunt, and a player
             // who has to look twice to tell it from a Pentacle has been misled
             // about what is on the board.
+            //
+            // A bubble is the same bead, hollow and paler — it is the same
+            // substance as a droplet and worth a fraction as much, and reading
+            // as *less water* is exactly right.
             droplet
         }
     }
 
     /// A bead of water: a teardrop of colour with a highlight on its shoulder.
+    ///
+    /// A bubble borrows it at a paler tone and hollowed out — the same substance
+    /// as a droplet and worth a fraction as much, so reading as *less water* is
+    /// exactly right.
     private var droplet: some View {
         ZStack {
             Circle()
-                .fill(Palette.blue)
+                .fill(appearance == .bubble ? Palette.lightBlue.opacity(0.5) : Palette.blue)
                 .frame(width: size * 0.44, height: size * 0.44)
 
             Circle()
@@ -331,7 +378,7 @@ struct PentacleView: View {
         switch appearance {
         // Authored 48 across — three cells — like the coins.
         case .standard, .shadow, .gavel: GameRules.pentacleCellSpan
-        case .radiant, .droplet: 1
+        case .radiant, .dormant, .droplet, .bubble: 1
         }
     }
 
@@ -371,7 +418,11 @@ struct PentacleView: View {
         case .standard: Palette.pentacle
         case .shadow: Palette.pentacleShadow
         case .radiant: Palette.pentacleRadiant
+        // The fallback face, for a build with no sprite sheet. Stone, because
+        // that is what a cold fragment reads as.
+        case .dormant: Palette.stone
         case .droplet, .gavel: Palette.lightBlue
+        case .bubble: Palette.cyan
         }
     }
 
@@ -380,7 +431,9 @@ struct PentacleView: View {
         case .standard: Palette.pentacleEdge
         case .shadow: Palette.pentacleShadowEdge
         case .radiant: Palette.lightBlue
+        case .dormant: Palette.iron
         case .droplet, .gavel: Palette.cyan
+        case .bubble: Palette.lightBlue
         }
     }
 }

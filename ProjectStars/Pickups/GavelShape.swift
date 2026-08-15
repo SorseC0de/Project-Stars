@@ -56,16 +56,28 @@ enum GavelShape: String, CaseIterable, Codable, Identifiable {
 
     /// How often this shape comes up.
     ///
-    /// Single heaviest; the three-square elbow, the pair and the block in the
-    /// middle; the long line and the long elbow rarest.
+    /// Single heaviest, then the two straight lines, then the shapes that turn
+    /// a corner.
+    ///
+    /// ## Why the lines sit second
+    ///
+    /// Because a line is the shape Libra can actually aim. Her trenches land on
+    /// the two squares flanking her facing, so the damage she deals is a line
+    /// and the ground she wants back is a line — a pair or a triple drops
+    /// straight onto the pattern the sign spends every turn making. An elbow or
+    /// a block has to be fitted around what happens to be broken, which is a
+    /// puzzle about the board rather than about her.
+    ///
+    /// Both orientations of each line share one weight, since the roll picks a
+    /// shape and turns it afterwards.
     var weight: Int {
         switch self {
         case .single: 40
-        case .elbow3: 15
-        case .line2: 15
-        case .square: 15
-        case .line3: 8
-        case .elbow4: 7
+        case .line2: 22
+        case .line3: 18
+        case .elbow3: 8
+        case .square: 7
+        case .elbow4: 5
         }
     }
 

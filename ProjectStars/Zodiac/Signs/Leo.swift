@@ -57,7 +57,7 @@ extension ZodiacCatalog {
 struct LeoPridefulPlant: ZodiacPassive {
 
     let displayName = "Prideful Plant"
-    let summary = "Astra: +3 charge on landing after a fall to Terra."
+    let summary = "Astra: +3 ZC on landing after a fall to Terra."
 
     /// The lion drops on purpose. See `ZodiacPassive.fallIsControlled(to:context:)`.
     func fallIsControlled(to plane: Plane, context: PassiveContext) -> Bool {
@@ -260,11 +260,17 @@ struct LeoAttractingAten: Zodiaction {
     func activate(context: PassiveContext, generator: inout SeededRandom) -> [GameEvent] {
         var state = context.signState
 
-        // The pool excludes Leo — the lion does not summon itself — and anyone
-        // already following, because two of the same phantom is one phantom and
-        // a wasted pop.
+        // The pool excludes whoever is holding the board — you do not summon
+        // yourself — and anyone already following, because two of the same
+        // phantom is one phantom and a wasted pop.
+        //
+        // `context.zodiac` rather than `.leo`, because the Roar can be borrowed:
+        // a phantom Leo hands it to whoever popped it, and hardcoding the lion
+        // meant Aries firing a borrowed Roar could summon a phantom Aries while
+        // Aries was standing right there. Leo is only the usual answer to this
+        // question, not the rule.
         let taken = Set(state.retinue)
-        let pool = Zodiac.allCases.filter { $0 != .leo && !taken.contains($0) }
+        let pool = Zodiac.allCases.filter { $0 != context.zodiac && !taken.contains($0) }
         guard let summoned = pool.randomElement(using: &generator) else { return [] }
 
         state.retinue.append(summoned)

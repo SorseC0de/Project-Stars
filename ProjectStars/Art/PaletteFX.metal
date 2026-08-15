@@ -186,3 +186,68 @@ half4 paletteMoss(
     float3 moss = float3(args[1 + index * 3], args[2 + index * 3], args[3 + index * 3]);
     return half4(half3(moss * float(color.a)), color.a);
 }
+
+/// Every visible pixel, flattened to one colour, transparency kept.
+///
+/// The silhouette of a sprite rather than the sprite. Used to build outlines:
+/// eight copies of this, each shifted one art pixel, sitting behind the real
+/// drawing — see `View.pixelOutline(_:scale:)`.
+///
+/// Alpha is multiplied through rather than replaced, so a sprite with a soft
+/// edge keeps it. Nothing in this game has one, but a silhouette that hard-cuts
+/// alpha is a silhouette that cannot be used on anything that ever does.
+[[ stitchable ]]
+half4 flatSilhouette(float2 position, half4 color, half4 tint) {
+    if (color.a < 0.004h) { return half4(0.0h); }
+    return half4(tint.rgb * color.a, color.a);
+}
+
+/// Snaps every pixel to the nearest colour in the game's palette.
+///
+/// ## What it is for
+///
+/// Bringing outside art in. A sourced sprite arrives with its own colours and
+/// its own pixel density, and both are what make borrowed work look borrowed —
+/// a fixed forty-seven-colour game is a *style*, and anything off-palette reads
+/// as a sticker from somewhere else no matter how well drawn it is.
+///
+/// This handles the colour half. The grid half is done in the view, by drawing
+/// small with `.interpolation(.none)` and scaling up — see
+/// `View.paletteQuantised(scale:)`.
+///
+/// ## Nearest in straight RGB, on purpose
+///
+/// Not a perceptual distance. The palette is a *ramp* set, and perceptual
+/// nearness happily jumps between ramps — a mid grey landing on a mid blue is
+/// technically closer to the eye and wrong for the art, because the ramp is what
+/// carries form. Straight RGB stays in the neighbourhood the source was already
+/// in, which keeps light and shade where the original put them.
+///
+/// `palette` is r,g,b triples, one after another. Alpha is passed through
+/// untouched, so a cut-out stays cut out.
+[[ stitchable ]]
+half4 paletteQuantise(
+    float2 position,
+    half4 color,
+    device const float *palette,
+    int count
+) {
+    if (color.a < 0.004h) { return half4(0.0h); }
+
+    float3 rgb = straightColor(color);
+
+    float bestDistance = 1e9;
+    float3 best = rgb;
+
+    for (int i = 0; i < count; i += 3) {
+        float3 candidate = float3(palette[i], palette[i + 1], palette[i + 2]);
+        float3 delta = rgb - candidate;
+        float distance = dot(delta, delta);
+        if (distance < bestDistance) {
+            bestDistance = distance;
+            best = candidate;
+        }
+    }
+
+    return half4(half3(best) * color.a, color.a);
+}

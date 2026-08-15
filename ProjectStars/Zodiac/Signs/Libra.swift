@@ -80,6 +80,21 @@ struct LibraEquitableImpact: ZodiacPassive {
 
         return context.facing.perpendicular.map { proposal.point.offset(by: $0.unitOffset) }
     }
+
+    /// And the dust with it.
+    ///
+    /// Nothing under the body: she comes down on the pans, and a puff between
+    /// them says the wrong thing about what just broke. Two smaller clouds
+    /// instead, one on each square the scales trench — the same two squares
+    /// `additionalWear` names, worked out the same way so they cannot drift.
+    func landingDust(at point: GridPoint, context: PassiveContext) -> [LandingDust]? {
+        context.facing.perpendicular.map {
+            LandingDust(
+                point: point.offset(by: $0.unitOffset),
+                magnitude: GameRules.libraPanDustMagnitude
+            )
+        }
+    }
 }
 
 // MARK: - Passive 2: Axial Adjudication

@@ -204,7 +204,9 @@ private extension PentacleAppearance {
         case .standard: "Gold"
         case .shadow: "Shadow"
         case .radiant: "Polaris"
+        case .dormant: "Polaris (cold)"
         case .droplet: "Droplet"
+        case .bubble: "Bubble"
         case .gavel: "Galeforce Gavel"
         }
     }
@@ -218,6 +220,10 @@ private extension PentacleAppearance {
             "Shadow Work only. Spawns in place of an ordinary Pentacle."
         case .radiant:
             "Polaris only. Spawns from a sparkle on the north-middle tile."
+        case .dormant:
+            "Polaris found on Terra. A rock until something puts astral energy through it — it does not bob, glow or hover."
+        case .bubble:
+            "Pisces' charge on Terra. Several at once, and taking one leaves the rest — see PickupClass.scatter."
         case .droplet:
             "Pisces' Gaia Geyser, and a pool boiling off. Not a Pentacle at all — see PickupClass."
         case .gavel:
