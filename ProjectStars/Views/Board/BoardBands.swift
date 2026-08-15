@@ -244,6 +244,27 @@ extension View {
             .position(x: metrics.boardSize / 2, y: band.groundCentreY)
     }
 
+    /// Places a **board-sized** layer so that `row`'s squares land on `row`'s
+    /// band, scaled evenly and not tapered at all.
+    ///
+    /// For art that is already drawn in perspective — Astra's clouds are, so
+    /// putting them through a keystone would foreshorten them twice. All they
+    /// want from the board is how big to be, where to sit, and who covers whom.
+    ///
+    /// The offset is the whole trick. A board-sized layer scales about its own
+    /// centre, so a row away from the middle is carried away from wherever it
+    /// was told to go, by its distance from that centre times the scale. Undoing
+    /// that is what lets the layer keep board coordinates inside — every square
+    /// still paints itself at `metrics.center(of:)` and knows nothing about any
+    /// of this.
+    func asFlatBoardRow(_ row: Int, metrics: PixelArtMetrics) -> some View {
+        let band = BoardBand.at(row: row, metrics: metrics)
+        let middle = metrics.boardSize / 2
+        let flat = (CGFloat(row) + 0.5) * metrics.tileSize
+        return scaleEffect(band.scale)
+            .position(x: middle, y: band.centreY - (flat - middle) * band.scale)
+    }
+
     /// And this view as something *standing* on it: evenly scaled, never
     /// squashed, and sized at the row's centre rather than its front edge —
     /// which is where the object's feet actually are.

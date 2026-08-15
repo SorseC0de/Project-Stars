@@ -68,6 +68,14 @@ struct CloudFieldView: View {
     /// Stops the field's clock. See `GameRules.cloudFrameRate`.
     var isPaused = false
 
+    /// Paint only this row, or every row when `nil`.
+    ///
+    /// The field is one `Canvas` over all forty-nine squares, which is the
+    /// cheapest way to draw them and the one thing that cannot be put on a
+    /// band — a band is a row. Splitting the work by row costs seven canvases
+    /// instead of one and changes nothing about how much is painted.
+    var onlyRow: Int?
+
     /// What each square was before its current state, and when it changed.
     @State private var wearing: [GridPoint: Ease] = [:]
 
@@ -84,6 +92,7 @@ struct CloudFieldView: View {
 
             Canvas { context, _ in
                 for point in board.allPoints {
+                    guard onlyRow == nil || point.y == onlyRow else { continue }
                     guard !excluding.contains(point) else { continue }
 
                     let tile = board[point]
