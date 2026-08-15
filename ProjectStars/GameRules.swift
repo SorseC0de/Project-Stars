@@ -2001,6 +2001,15 @@ enum GameRules {
     /// spends that margin rather than leaving it as a gap.
     static let boardForeshortenScale: CGFloat = 1.25
 
+    /// How hard depth bites on Astra — a magnitude on the shrink itself, where
+    /// `1` is the true camera. See `PixelArtMetrics.projected(_:)`.
+    ///
+    /// Astra is allowed the licence because nothing up there has to tile: the
+    /// clouds are loose shapes drawn foreshortened already, so how much they
+    /// recede is a matter of how deep the sky should feel. Terra stays at `1`,
+    /// where a grid disagreeing with its own geometry would open seams.
+    static let astraDepthEmphasis: CGFloat = 1.02
+
     /// How far the tilted board is lifted back up its square, as a fraction of
     /// the board. A keystone pulls its content toward the near edge, so without
     /// this the board sits lower in the sky than the flat one did.

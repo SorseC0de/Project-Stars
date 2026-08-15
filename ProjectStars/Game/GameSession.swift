@@ -887,7 +887,7 @@ final class GameSession {
     /// How hard Astra's rows shrink with depth. One is the true camera.
     ///
     /// - TODO: **Temporary.** Bake into `GameRules` and delete the dial.
-    var debugAstraDepth: Double = 1.0
+    var debugAstraDepth: Double = Double(GameRules.astraDepthEmphasis)
 
     /// Astra's own framing zoom, kept apart from Terra's.
     ///
