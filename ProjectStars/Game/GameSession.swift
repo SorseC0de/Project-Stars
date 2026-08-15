@@ -883,6 +883,12 @@ final class GameSession {
     /// pixels. See `PieceView`.
     var debugShadowLift = Double(GameRules.pieceShadowPerspectiveLift)
 
+    /// The board's placement model while it is being homed on device.
+    ///
+    /// - TODO: **Temporary.** Fold the settled numbers into
+    ///   `BoardPlacement.initial` and delete the dials.
+    var placement = BoardPlacement.initial
+
     #if DEBUG
     func debugToggleFissure() { debugFissure.toggle() }
     #endif

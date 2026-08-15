@@ -688,7 +688,9 @@ private struct PanelFrontView: View {
     /// anything else on the panel — which it did, because a joystick and a
     /// three-row cross are not naturally the same size.
     private var movementRow: some View {
-        movementControl
+        // - TODO: **Temporary.** The movement control is hidden to make room
+        //   for the homing dials; move with WASD until they come out.
+        Color.clear
             .frame(height: PanelStyle.movementRowHeight)
     }
 
@@ -909,27 +911,23 @@ private struct PanelFrontView: View {
     ///   `debugCarryFollow`.
     private var perspectiveDials: some View {
         VStack(alignment: .leading, spacing: 2) {
-            dial(
-                "DROP",
-                value: Binding(
-                    get: { session.debugFeetDrop },
-                    set: { session.debugFeetDrop = $0 }
-                ),
-                range: -3...8,
-                unit: "px"
-            )
-            dial(
-                "FLOAT",
-                value: Binding(
-                    get: { session.debugCarryFollow },
-                    set: { session.debugCarryFollow = $0 }
-                ),
-                range: 0...2.5,
-                unit: "x"
-            )
+            dial("FAR Y", value: bind(\.farY), range: 0...0.6, unit: "")
+            dial("NEAR Y", value: bind(\.nearY), range: 0.5...1.2, unit: "")
+            dial("FAR GAP", value: bind(\.farSpacing), range: 0.3...1.2, unit: "t")
+            dial("NEAR GAP", value: bind(\.nearSpacing), range: 0.6...1.6, unit: "t")
+            dial("FAR SIZE", value: bind(\.farScale), range: 0.3...1.4, unit: "x")
+            dial("NEAR SIZE", value: bind(\.nearScale), range: 0.6...1.8, unit: "x")
         }
         .padding(8)
         .background(Palette.midnight.opacity(0.85), in: RoundedRectangle(cornerRadius: 8))
+    }
+
+    /// One field of the placement, as something a slider can drive.
+    private func bind(_ key: WritableKeyPath<BoardPlacement, CGFloat>) -> Binding<Double> {
+        Binding(
+            get: { Double(session.placement[keyPath: key]) },
+            set: { session.placement[keyPath: key] = CGFloat($0) }
+        )
     }
 
     private func dial(
@@ -942,10 +940,10 @@ private struct PanelFrontView: View {
             Text(name)
                 .font(.system(size: 9, weight: .heavy, design: .monospaced))
                 .foregroundStyle(Palette.textSecondary)
-                .frame(width: 38, alignment: .leading)
+                .frame(width: 62, alignment: .leading)
 
             Slider(value: value, in: range)
-                .frame(width: 120)
+                .frame(width: 108)
                 .tint(Palette.yellow)
 
             Text(String(format: "%.2f\(unit)", value.wrappedValue))

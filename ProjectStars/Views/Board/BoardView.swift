@@ -39,6 +39,7 @@ struct BoardView: View {
         // rendering fault where a rippling board reads as the world coming
         // apart. See `FractureField`.
         FractureField(isActive: session.isFractured, scale: metrics.scale) {
+            ZStack {
             // The world tilts; the chrome over it does not. See `Foreshortened`.
             layers(board: board, plane: plane, metrics: metrics)
                 .foreshortened(
@@ -51,6 +52,9 @@ struct BoardView: View {
                 // toward the near edge, so an unlifted board sits lower in the
                 // square than the flat one did.
                 .offset(y: -metrics.boardSize * GameRules.boardForeshortenLift)
+
+            floatingPiece(metrics: metrics)
+            }
         }
         .overlay(alignment: .bottomLeading) {
             // With the HUD, above everything on the board.
@@ -599,6 +603,28 @@ struct BoardView: View {
     /// Deliberately gentle, and bounded by the room the board has inside its
     /// square: the whole board stays visible from every row. This is a lean,
     /// not a chase.
+    /// The piece, drawn above the foreshortened floor rather than inside it.
+    ///
+    /// - TODO: **Temporary**, while the placement is homed. Once the numbers
+    ///   settle this is how every object should be drawn — but it needs to
+    ///   depth-sort against the board again first.
+    @ViewBuilder
+    private func floatingPiece(metrics: PixelArtMetrics) -> some View {
+        TimelineView(.animation(paused: session.isPaused)) { timeline in
+            piece(
+                metrics: metrics,
+                bob: nexysBob(at: timeline.date, metrics: metrics),
+                pose: hopPose(at: timeline.date),
+                arrival: arrivalProgress(at: timeline.date),
+                ascent: ascentPose(at: timeline.date, metrics: metrics),
+                sway: cloudSway(at: timeline.date, metrics: metrics),
+                flash: chargeFlash(at: timeline.date),
+                starElement: starElement(at: timeline.date)
+            )
+        }
+        .frame(width: metrics.boardSize, height: metrics.boardSize)
+    }
+
     /// The square the compass sits over: bottom-left of the board.
     private var compassCorner: GridPoint {
         GridPoint(0, session.visibleBoard.size - 1)
@@ -1026,10 +1052,14 @@ struct BoardView: View {
                     }
 
                 case .piece:
-                    piece(
-                        metrics: metrics,
-                        bob: bob,
-                        pose: pose,
+                    // - TODO: **Temporary.** Drawn outside the tilt instead —
+                    //   see `floatingPiece(metrics:)`. It cannot depth-sort with
+                    //   the board while it is being homed.
+                    EmptyView()
+                    let _ = (
+                        metrics,
+                        bob,
+                        pose,
                         arrival: arrival,
                         ascent: ascent,
                         sway: sway,
@@ -1409,15 +1439,13 @@ struct BoardView: View {
         .offset(balk(at: Date(), metrics: metrics))
         // Upright on a floor that is lying down — but still shrinking with the
         // row it stands on. See `upright(row:tileSize:)`.
-        .upright(
-            row: session.engine.piece.point.y,
-            column: session.engine.piece.point.x,
-            tileSize: metrics.tileSize,
-            drop: (CGFloat(session.debugFeetDrop)
-                + (session.engine.isOnNexys ? GameRules.nexysRideDrop : 0))
-                / CGFloat(GameRules.tilePixelSize)
+        // Flat and upright, placed by arithmetic rather than corrected inside
+        // the projection. See `BoardPlacement`.
+        .standing(
+            on: session.engine.piece.point,
+            metrics: metrics,
+            placement: session.placement
         )
-        .position(metrics.center(of: session.engine.piece.point))
         }
         .frame(width: metrics.boardSize, height: metrics.boardSize)
     }

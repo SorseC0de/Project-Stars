@@ -107,6 +107,9 @@ struct PieceView: View {
                 // shadow was already on the ground and had nothing to correct.
                 // It is the figure that needed moving, not the mark under it.
                 .offset(y: (GameRules.pieceShadowDrop - shadowLift) * scale)
+                // - TODO: **Temporary.** Hidden while the piece's placement is
+                //   homed — a shadow is a second thing to judge centring by.
+                .opacity(0)
                 .opacity(isFalling ? 0 : 1)
 
             figure

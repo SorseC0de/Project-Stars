@@ -611,7 +611,10 @@ struct GameEngine {
             point: GameRules.nexysPoint,
             facing: GameRules.startingFacing
         )
-        self.nexysPlane = .terra
+        self.nexysPlane = .astra
+        // - TODO: **Temporary.** Ordinary ground at the home square, so the
+        //   piece is homed against a normal tile rather than the chasm.
+        self.boards[.terra]?[GameRules.nexysPoint] = Tile()
         self.sparkles = nil
         self.pendingPickup = false
         self.revealedPickups = []
