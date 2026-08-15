@@ -1988,6 +1988,13 @@ enum GameRules {
     /// this the board sits lower in the sky than the flat one did.
     static let boardForeshortenLift: CGFloat = 0.05
 
+    /// How far each row of the board overdraws the one behind it.
+    ///
+    /// Seams of sky between rows are the one artefact banded drawing has, and
+    /// overlap is the standard answer: back-to-front order means the row in
+    /// front hides whatever its neighbour reached past. See `BoardBand`.
+    static let boardBandOverlap: CGFloat = 1.12
+
     /// How much night sits over the far edge of a board, fading to nothing at
     /// the near one. Atmospheric perspective — see `BoardView`.
     static let boardHazeFar: Double = 0.2

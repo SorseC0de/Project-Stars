@@ -54,10 +54,24 @@ struct BoardBand {
     /// shorter than the space it has to fill and a gap opens between rows —
     /// wider the further back you look.
     ///
-    /// Squashing the ground by the square closes it, and it is the truth about
-    /// a floor anyway: seen at an angle, a square of ground is shorter than it
-    /// is wide. What must *not* take the squash is anything standing on the
-    /// row, which is why the two scales are separate.
+    /// Squashing the ground closes it, and it is the truth about a floor
+    /// anyway: seen at an angle, a square of ground is shorter than it is wide.
+    /// What must *not* take the squash is anything standing on the row, which is
+    /// why the two scales are separate.
+    ///
+    /// Taken from the **measured distance to the next row**, and then
+    /// overdrawn a little — see `GameRules.boardBandOverlap`.
+    ///
+    /// Measuring alone is not quite enough, because the lean compresses a band
+    /// vertically *before* this scale is applied, so a band sized to the gap
+    /// still lands short of it. Rather than chase that factor, each band simply
+    /// reaches past its neighbour: rows are drawn back to front, so the row in
+    /// front covers the overlap and nothing of it is ever seen.
+    ///
+    /// Not from `1/w²`.
+    /// The square is the right shape but a hair short, and short bands leave
+    /// hairline seams of sky between rows. Measuring the gap the band actually
+    /// has to fill closes them exactly, at every depth and every board size.
     let groundScale: CGFloat
 
     /// Where the row's centre sits, in points down the board.
@@ -103,21 +117,41 @@ struct BoardBand {
         zoom: CGFloat = GameRules.boardForeshortenScale,
         lift: CGFloat = GameRules.boardForeshortenLift
     ) -> BoardBand {
-        let board = metrics.boardSize
         let w = divisor(row: row, gridSize: metrics.gridSize, depth: depth)
 
-        // The row's centre, put through the same three steps the board takes:
-        // the keystone's divide about the near edge, the zoom about it, and the
-        // lift up the square.
-        let flat = (CGFloat(row) + 0.5) * metrics.tileSize
-        let keystoned = board + (flat - board) / w
-        let zoomed = board + (keystoned - board) * zoom
+        let centre = centreY(row: row, metrics: metrics, depth: depth, zoom: zoom, lift: lift)
+        let behind = centreY(row: row - 1, metrics: metrics, depth: depth, zoom: zoom, lift: lift)
+
+        // Exactly the space this band has to fill, so no sky can show between
+        // it and the row behind it. Doubled because the gap is measured to the
+        // neighbour's *centre*, which is half a band away.
+        let reach = abs(centre - behind)
 
         return BoardBand(
             scale: zoom / w,
-            groundScale: zoom / (w * w),
-            centreY: zoomed - board * lift
+            groundScale: reach / metrics.tileSize * GameRules.boardBandOverlap,
+            centreY: centre
         )
+    }
+
+    /// Where a row's centre lands, through the same three steps the board takes:
+    /// the keystone's divide about the near edge, the zoom about it, and the
+    /// lift up the square.
+    ///
+    /// Answers for `-1` too — the row that would sit behind the far edge — which
+    /// is what lets the back band measure its own reach.
+    private static func centreY(
+        row: Int,
+        metrics: PixelArtMetrics,
+        depth: CGFloat,
+        zoom: CGFloat,
+        lift: CGFloat
+    ) -> CGFloat {
+        let board = metrics.boardSize
+        let w = divisor(row: row, gridSize: metrics.gridSize, depth: depth)
+        let flat = (CGFloat(row) + 0.5) * metrics.tileSize
+        let keystoned = board + (flat - board) / w
+        return board + (keystoned - board) * zoom - board * lift
     }
 }
 
