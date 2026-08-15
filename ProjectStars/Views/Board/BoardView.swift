@@ -44,6 +44,7 @@ struct BoardView: View {
                 // - TODO: Terra only while the two are compared. Astra keeps
                 //   the projection below.
                 bandedBoard(board: board, plane: plane, metrics: metrics)
+                layers(board: board, plane: plane, metrics: metrics, ground: false)
             } else {
             // The world tilts; the chrome over it does not. See `Foreshortened`.
             // No keystone above. Astra's clouds and its island are drawn
@@ -83,13 +84,24 @@ struct BoardView: View {
 
     /// Everything in the world, in draw order.
     @ViewBuilder
-    private func layers(board: Board, plane: Plane, metrics: PixelArtMetrics) -> some View {
+    private func layers(
+        board: Board,
+        plane: Plane,
+        metrics: PixelArtMetrics,
+        ground: Bool = true
+    ) -> some View {
         ZStack {
             backdrop(plane: plane, metrics: metrics)
             mirrors(plane: plane, metrics: metrics)
 
-            edgeLayer(board: board, plane: plane, metrics: metrics)
-            faceLayer(board: board, plane: plane, metrics: metrics)
+            // Terra lays its own ground in bands, because it is a grid of
+            // squares and a grid has to tile. Everything *standing* on that
+            // ground is the same problem on both planes — a scale and a place
+            // per row — so it is drawn by the one stack either way.
+            if ground {
+                edgeLayer(board: board, plane: plane, metrics: metrics)
+                faceLayer(board: board, plane: plane, metrics: metrics)
+            }
 
             // Over the ground, under everything that moves: the piece, the
             // coins and the move's own effects all sit above this and stay lit.
@@ -640,13 +652,6 @@ struct BoardView: View {
                 .frame(width: metrics.boardSize, height: metrics.tileSize)
                 .asBoardRow(row, metrics: metrics)
 
-                // And whoever is standing on it — evenly scaled, so the floor's
-                // squash never reaches the figure.
-                if session.engine.piece.point.y == row {
-                    floatingPiece(metrics: metrics)
-                        .frame(width: metrics.boardSize, height: metrics.tileSize)
-                        .standingOnBoardRow(row, metrics: metrics)
-                }
             }
         }
         .frame(width: metrics.boardSize, height: metrics.boardSize)
