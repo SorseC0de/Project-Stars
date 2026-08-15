@@ -928,6 +928,15 @@ private struct PanelFrontView: View {
                 unit: "x"
             )
             dial(
+                "SPACING",
+                value: Binding(
+                    get: { session.debugCloudSpread },
+                    set: { session.debugCloudSpread = $0 }
+                ),
+                range: 0.7...1.4,
+                unit: "x"
+            )
+            dial(
                 "LIFT",
                 value: Binding(
                     get: { session.debugAstraLift },

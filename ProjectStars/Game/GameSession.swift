@@ -904,6 +904,11 @@ final class GameSession {
     /// - TODO: **Temporary.** Bake into `GameRules` and delete the dial.
     var debugAstraLift: Double = Double(GameRules.boardForeshortenLift)
 
+    /// How far apart Astra's clouds sit, with no effect on their size.
+    ///
+    /// - TODO: **Temporary.** Bake into `GameRules` and delete the dial.
+    var debugCloudSpread: Double = 1.0
+
 
     /// How far each row's ground is stretched to meet the row behind it.
     ///

@@ -77,6 +77,15 @@ struct CloudFieldView: View {
     /// And how far up the square it sits.
     var lift: CGFloat = GameRules.boardForeshortenLift
 
+    /// How far apart the clusters sit, independent of how big they are.
+    ///
+    /// Zoom moves them apart *and* grows them, because both come from the same
+    /// scale — which is right for a camera and wrong for deciding how dense the
+    /// field looks. This spreads the squares about the board's middle and leaves
+    /// every cloud the size it was, so coverage can be tuned without retuning
+    /// the perspective.
+    var separation: CGFloat = 1
+
     /// Paint only this row, or every row when `nil`.
     ///
     /// The field is one `Canvas` over all forty-nine squares, which is the
@@ -120,7 +129,12 @@ struct CloudFieldView: View {
                     var square = context
                     CloudCluster.paint(
                         CloudCluster.Brush(
-                            centre: spot.position,
+                            centre: CGPoint(
+                                x: metrics.boardSize / 2
+                                    + (spot.position.x - metrics.boardSize / 2) * separation,
+                                y: metrics.boardSize / 2
+                                    + (spot.position.y - metrics.boardSize / 2) * separation
+                            ),
                             point: point,
                             wear: wear(at: point, health: tile.health, now: now),
                             tones: Palette.cloudTones(shade),

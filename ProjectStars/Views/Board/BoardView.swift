@@ -751,7 +751,8 @@ struct BoardView: View {
                         bounce: surfaceBounce,
                         emphasis: CGFloat(session.debugAstraDepth),
                         zoom: CGFloat(session.debugAstraZoom),
-                        lift: CGFloat(session.debugAstraLift)
+                        lift: CGFloat(session.debugAstraLift),
+                        separation: CGFloat(session.debugCloudSpread)
                     )
                 } else {
                     CloudFieldView(
@@ -763,7 +764,8 @@ struct BoardView: View {
                         isPaused: session.isPaused,
                         emphasis: CGFloat(session.debugAstraDepth),
                         zoom: CGFloat(session.debugAstraZoom),
-                        lift: CGFloat(session.debugAstraLift)
+                        lift: CGFloat(session.debugAstraLift),
+                        separation: CGFloat(session.debugCloudSpread)
                     )
                 }
             }
