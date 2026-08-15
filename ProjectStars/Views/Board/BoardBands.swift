@@ -66,12 +66,9 @@ struct BoardBand {
     /// short bands leave hairline seams of sky between rows. Measuring the gap
     /// the band actually has to fill closes them at every depth and board size.
     ///
-    /// The overlap on top covers what is left: the lean compresses a band
-    /// vertically before this scale is applied, so a band sized to the gap still
-    /// lands a little short. Deriving that factor was tried twice and got it
-    /// wrong in both directions; overdrawing is the standard answer for banded
-    /// drawing and costs nothing, because rows draw back to front and the row in
-    /// front hides whatever its neighbour reached past.
+    /// Plus the art's own two-pixel border — see `GameRules.tileBorderPixels`.
+    /// The tiles are drawn to overlap their neighbours by that much, so the bare
+    /// geometric gap is short by exactly two pixels on every row.
     /// The square is the right shape but a hair short, and short bands leave
     /// hairline seams of sky between rows. Measuring the gap the band actually
     /// has to fill closes them exactly, at every depth and every board size.
@@ -130,9 +127,20 @@ struct BoardBand {
         // neighbour's *centre*, which is half a band away.
         let reach = abs(centre - behind)
 
+        // Two art pixels more than the gap, at this row's own size.
+        //
+        // A **fixed** two pixels, not a percentage. The tiles are drawn with a
+        // two-pixel border meant to overlap its neighbour — that is how the art
+        // tiles seamlessly — so a band sized to the bare geometric gap is short
+        // by exactly that border, every row. A multiplier hides the same seam by
+        // stretching the ground instead, and then the squares are no longer
+        // square, which is worse than the seam it fixed.
+        let rowScale = zoom / w
+        let border = GameRules.tileBorderPixels * metrics.scale * rowScale
+
         return BoardBand(
-            scale: zoom / w,
-            groundScale: reach / metrics.tileSize * GameRules.boardBandOverlap,
+            scale: rowScale,
+            groundScale: (reach + border) / metrics.tileSize,
             centreY: centre
         )
     }

@@ -1990,10 +1990,16 @@ enum GameRules {
 
     /// How far each row of the board overdraws the one behind it.
     ///
-    /// Seams of sky between rows are the one artefact banded drawing has, and
-    /// overlap is the standard answer: back-to-front order means the row in
-    /// front hides whatever its neighbour reached past. See `BoardBand`.
-    static let boardBandOverlap: CGFloat = 1.25
+    /// How far a tile's art is drawn past its own square, in art pixels.
+    ///
+    /// The sprites carry a two-pixel border meant to overlap the neighbour, so
+    /// squares meet with no seam. Any drawing that sizes a tile to its bare
+    /// geometric extent — a row band, for one — comes up exactly this short.
+    ///
+    /// A *fixed* number of pixels, never a percentage: a multiplier closes the
+    /// same seam by stretching the ground, and then the squares are no longer
+    /// square. See `BoardBand`.
+    static let tileBorderPixels: CGFloat = 2
 
     /// How much night sits over the far edge of a board, fading to nothing at
     /// the near one. Atmospheric perspective — see `BoardView`.
