@@ -1988,7 +1988,9 @@ enum GameRules {
     /// dials pulling against each other. Raising this makes the rows taller and
     /// the squares squarer; lowering it lays the board flatter. It does not
     /// touch the widths, so the perspective stays consistent either way.
-    static let boardCamera: CGFloat = 2.2
+    /// Three quarters of a board-width up. Chosen by eye at 1.75, which lays the
+    /// plane down convincingly while keeping the squares close to square.
+    static let boardCamera: CGFloat = 1.75
 
     static let boardForeshorten: CGFloat = 0.45
 

@@ -912,13 +912,13 @@ private struct PanelFrontView: View {
     private var perspectiveDials: some View {
         VStack(alignment: .leading, spacing: 2) {
             dial(
-                "CAMERA",
+                "SCALE",
                 value: Binding(
-                    get: { session.debugCamera },
-                    set: { session.debugCamera = $0 }
+                    get: { session.debugZoom },
+                    set: { session.debugZoom = $0 }
                 ),
-                range: 1.2...4.0,
-                unit: "w"
+                range: 1.0...1.6,
+                unit: "x"
             )
             dial("NEAR Y", value: bind(\.nearY), range: 0.5...1.2, unit: "")
             dial("FAR GAP", value: bind(\.farSpacing), range: 0.3...1.2, unit: "t")

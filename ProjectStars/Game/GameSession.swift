@@ -887,11 +887,11 @@ final class GameSession {
     ///
     /// - TODO: **Temporary.** Fold the settled numbers into
     ///   `BoardPlacement.initial` and delete the dials.
-    /// How high the camera sits above the board, in board-widths — the one real
-    /// shape control left now that the fudge dials are gone.
+    /// How much the whole framed board is scaled up — pure camera zoom, the one
+    /// number still open now that the tilt and the camera height are settled.
     ///
-    /// - TODO: **Temporary.** Bake into `GameRules.boardCamera` and delete.
-    var debugCamera: Double = Double(GameRules.boardCamera)
+    /// - TODO: **Temporary.** Bake into `GameRules.boardForeshortenScale`.
+    var debugZoom: Double = Double(GameRules.boardForeshortenScale)
 
     var placement = BoardPlacement.initial
 

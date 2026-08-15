@@ -128,8 +128,7 @@ struct BoardBand {
         metrics: PixelArtMetrics,
         depth: CGFloat = GameRules.boardForeshorten,
         zoom: CGFloat = GameRules.boardForeshortenScale,
-        lift: CGFloat = GameRules.boardForeshortenLift,
-        camera: CGFloat = GameRules.boardCamera
+        lift: CGFloat = GameRules.boardForeshortenLift
     ) -> BoardBand {
         // A band spans the ground between two **edges**, and its height is the
         // distance between them. Measuring centre-to-centre instead — which is
@@ -138,8 +137,8 @@ struct BoardBand {
         // short. Short by more toward the front, where the difference between
         // neighbouring bands is largest, which is exactly the shape of the seam
         // that no single multiplier could close.
-        let top = edgeY(row, metrics: metrics, depth: depth, zoom: zoom, lift: lift, camera: camera)
-        let bottom = edgeY(row + 1, metrics: metrics, depth: depth, zoom: zoom, lift: lift, camera: camera)
+        let top = edgeY(row, metrics: metrics, depth: depth, zoom: zoom, lift: lift)
+        let bottom = edgeY(row + 1, metrics: metrics, depth: depth, zoom: zoom, lift: lift)
         let height = bottom - top
 
         // The taper is applied by a keystone that divides by `1 + lean`, so the
@@ -161,7 +160,7 @@ struct BoardBand {
         // half. Objects use this; the ground uses its edges.
         let board = metrics.boardSize
         let up = board - (CGFloat(row) + 0.5) * metrics.tileSize
-        let mid = board - camera * depth * up / divisor(row: row, gridSize: metrics.gridSize, depth: depth)
+        let mid = board - GameRules.boardCamera * depth * up / divisor(row: row, gridSize: metrics.gridSize, depth: depth)
 
         return BoardBand(
             scale: zoom / front,
@@ -189,13 +188,12 @@ struct BoardBand {
         metrics: PixelArtMetrics,
         depth: CGFloat = GameRules.boardForeshorten,
         zoom: CGFloat = GameRules.boardForeshortenScale,
-        lift: CGFloat = GameRules.boardForeshortenLift,
-        camera: CGFloat = GameRules.boardCamera
+        lift: CGFloat = GameRules.boardForeshortenLift
     ) -> CGFloat {
         let board = metrics.boardSize
         let up = board - CGFloat(edge) * metrics.tileSize
         let w = edgeDivisor(edge, gridSize: metrics.gridSize, depth: depth)
-        let y = board - camera * depth * up / w
+        let y = board - GameRules.boardCamera * depth * up / w
 
         // Rounded to a whole point, because a band is rasterised, not merely
         // computed. Two neighbours already share this exact edge as a `CGFloat`
@@ -214,11 +212,11 @@ extension View {
     func onBoardRow(
         _ row: Int,
         metrics: PixelArtMetrics,
-        camera: CGFloat = GameRules.boardCamera
+        zoom: CGFloat = GameRules.boardForeshortenScale
     ) -> some View {
         position(
             x: metrics.boardSize / 2,
-            y: BoardBand.at(row: row, metrics: metrics, camera: camera).centreY
+            y: BoardBand.at(row: row, metrics: metrics, zoom: zoom).centreY
         )
     }
 
@@ -227,9 +225,9 @@ extension View {
     func asBoardRow(
         _ row: Int,
         metrics: PixelArtMetrics,
-        camera: CGFloat = GameRules.boardCamera
+        zoom: CGFloat = GameRules.boardForeshortenScale
     ) -> some View {
-        let band = BoardBand.at(row: row, metrics: metrics, camera: camera)
+        let band = BoardBand.at(row: row, metrics: metrics, zoom: zoom)
         return foreshortened(
             band.lean,
             size: CGSize(width: metrics.boardSize, height: metrics.tileSize)
@@ -252,10 +250,10 @@ extension View {
     func standingOnBoardRow(
         _ row: Int,
         metrics: PixelArtMetrics,
-        camera: CGFloat = GameRules.boardCamera
+        zoom: CGFloat = GameRules.boardForeshortenScale
     ) -> some View {
         let w = BoardBand.divisor(row: row, gridSize: metrics.gridSize)
         return scaleEffect(GameRules.boardForeshortenScale / w)
-            .onBoardRow(row, metrics: metrics, camera: camera)
+            .onBoardRow(row, metrics: metrics, zoom: zoom)
     }
 }
