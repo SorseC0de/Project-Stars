@@ -81,6 +81,9 @@ struct CloudSpriteField: View {
         SpriteSheetLoader.hasArt(for: .astraCloud(.light))
     }
 
+    /// How hard depth bites — see `PixelArtMetrics.projected(_:)`.
+    var emphasis: CGFloat = 1
+
     var body: some View {
         TimelineView(.animation) { timeline in
             let now = clock(timeline.date.timeIntervalSinceReferenceDate)
@@ -207,14 +210,20 @@ struct CloudSpriteField: View {
         let wear = GameRules.cloudScale(tile.health)
         let side = cloudSide
 
-        let width = side * wear * stretch(point, now: now, salt: 0,
-                                          period: GameRules.cloudSpriteStretchPeriodH)
-        let height = side * wear * stretch(point, now: now, salt: 97,
-                                           period: GameRules.cloudSpriteStretchPeriodV)
+        // What this cloud's row does to it: how big, and where. A cloud is drawn
+        // foreshortened already, so depth owes it a size and a place and nothing
+        // else — no taper, no shear.
+        let spot = metrics.projected(point, emphasis: emphasis)
+        let depth = spot.scale / GameRules.boardForeshortenScale
+
+        let width = side * wear * depth * stretch(point, now: now, salt: 0,
+                                                  period: GameRules.cloudSpriteStretchPeriodH)
+        let height = side * wear * depth * stretch(point, now: now, salt: 97,
+                                                   period: GameRules.cloudSpriteStretchPeriodV)
 
         // Position: the square's centre, plus this cloud's own wander, plus the
         // lift if a Pentacle is sitting on it.
-        let centre = metrics.center(of: point)
+        let centre = spot.position
         let wander = shift(point, now: now)
         let shove = CloudMotion.shove(
             point, wake: wake, now: impulseNow, scale: metrics.scale

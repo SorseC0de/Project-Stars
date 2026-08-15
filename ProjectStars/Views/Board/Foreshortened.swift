@@ -89,7 +89,14 @@ extension PixelArtMetrics {
         // they recede is a matter of how deep the sky should feel rather than a
         // measurement. On Terra it stays at one, because a grid of squares that
         // does not agree with its own geometry opens seams.
-        let near = 1 + (1 / w - 1) * emphasis
+        // Pivoted on the **middle** row, not the near one. A board that grows
+        // only backwards changes size as well as shape whenever the depth is
+        // retuned, so the middle row is held at exactly `1` and the tuning
+        // opens outward from it: rows 4-6 grow, rows 0-2 shrink, and the board
+        // keeps the footprint it had while its depth changes.
+        let middle = 1 + depth / 2
+        let bite: (CGFloat) -> CGFloat = { 1 + (1 / $0 - 1) * emphasis }
+        let near = bite(w) / bite(middle)
 
         let x = boardSize / 2 + (flat.x - boardSize / 2) * near
 

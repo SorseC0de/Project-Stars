@@ -724,7 +724,8 @@ struct BoardView: View {
                         occupied: occupiedSquares(on: plane, popped: popped),
                         clock: session.ambientClock(at:),
                         wake: cloudWake,
-                        bounce: surfaceBounce
+                        bounce: surfaceBounce,
+                        emphasis: CGFloat(session.debugAstraDepth)
                     )
                 } else {
                     CloudFieldView(
