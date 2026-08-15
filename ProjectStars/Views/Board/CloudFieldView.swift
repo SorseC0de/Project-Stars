@@ -68,6 +68,9 @@ struct CloudFieldView: View {
     /// Stops the field's clock. See `GameRules.cloudFrameRate`.
     var isPaused = false
 
+    /// How hard depth bites — see `PixelArtMetrics.projected(_:)`.
+    var emphasis: CGFloat = 1
+
     /// Paint only this row, or every row when `nil`.
     ///
     /// The field is one `Canvas` over all forty-nine squares, which is the
@@ -106,7 +109,7 @@ struct CloudFieldView: View {
                     // Where this square's row puts it, and how big that row
                     // draws it. A cluster is already drawn in perspective, so
                     // it wants a size and a place and nothing else.
-                    let spot = metrics.projected(point)
+                    let spot = metrics.projected(point, emphasis: emphasis)
 
                     var square = context
                     CloudCluster.paint(

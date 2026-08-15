@@ -884,6 +884,11 @@ final class GameSession {
     var debugShadowLift = Double(GameRules.pieceShadowPerspectiveLift)
 
 
+    /// How hard Astra's rows shrink with depth. One is the true camera.
+    ///
+    /// - TODO: **Temporary.** Bake into `GameRules` and delete the dial.
+    var debugAstraDepth: Double = 1.0
+
     var placement = BoardPlacement.initial
 
     /// How far each row's ground is stretched to meet the row behind it.

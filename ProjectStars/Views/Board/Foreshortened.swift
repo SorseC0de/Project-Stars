@@ -68,7 +68,8 @@ extension PixelArtMetrics {
         depth: CGFloat = GameRules.boardForeshorten,
         zoom: CGFloat = GameRules.boardForeshortenScale,
         lift: CGFloat = GameRules.boardForeshortenLift,
-        camera: CGFloat = GameRules.boardCamera
+        camera: CGFloat = GameRules.boardCamera,
+        emphasis: CGFloat = 1
     ) -> (position: CGPoint, scale: CGFloat) {
         let flat = center(of: point)
 
@@ -80,7 +81,17 @@ extension PixelArtMetrics {
         let up = boardSize - flat.y
         let w = 1 + depth * (up / boardSize)
 
-        let x = boardSize / 2 + (flat.x - boardSize / 2) / w
+        // How hard depth bites, as a magnitude on the shrink itself. One is the
+        // true camera; above it the far rows pull in harder than physics says.
+        //
+        // Astra is allowed that licence because nothing up there has to tile —
+        // the clouds are loose shapes drawn already foreshortened, so how much
+        // they recede is a matter of how deep the sky should feel rather than a
+        // measurement. On Terra it stays at one, because a grid of squares that
+        // does not agree with its own geometry opens seams.
+        let near = 1 + (1 / w - 1) * emphasis
+
+        let x = boardSize / 2 + (flat.x - boardSize / 2) * near
 
         // Height above the near edge is `camera · depth · up / w`, where the old
         // form wrote plain `up / w` — the same expression with the camera pinned
@@ -95,7 +106,7 @@ extension PixelArtMetrics {
                 x: boardSize / 2 + (x - boardSize / 2) * zoom,
                 y: boardSize + (y - boardSize) * zoom - boardSize * lift
             ),
-            zoom / w
+            zoom * near
         )
     }
 }
@@ -106,8 +117,12 @@ extension View {
     ///
     /// The replacement for `.position(metrics.center(of:))` on anything that is
     /// an *object* rather than ground. See `PixelArtMetrics.projected(_:)`.
-    func placed(at point: GridPoint, metrics: PixelArtMetrics) -> some View {
-        let spot = metrics.projected(point)
+    func placed(
+        at point: GridPoint,
+        metrics: PixelArtMetrics,
+        emphasis: CGFloat = 1
+    ) -> some View {
+        let spot = metrics.projected(point, emphasis: emphasis)
         return scaleEffect(spot.scale).position(spot.position)
     }
 
