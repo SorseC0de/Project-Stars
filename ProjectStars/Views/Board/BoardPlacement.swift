@@ -109,3 +109,24 @@ extension View {
         return scaleEffect(spot.scale).position(spot.position)
     }
 }
+
+/// Puts an object on its square using its plane's own camera.
+///
+/// A `ViewModifier` rather than a method so the framing is resolved once, where
+/// the plane is known, instead of at every call site.
+struct PlacedOnPlane: ViewModifier {
+
+    let point: GridPoint
+    let metrics: PixelArtMetrics
+    let framing: (emphasis: CGFloat, zoom: CGFloat, lift: CGFloat)
+
+    func body(content: Content) -> some View {
+        content.placed(
+            at: point,
+            metrics: metrics,
+            emphasis: framing.emphasis,
+            zoom: framing.zoom,
+            lift: framing.lift
+        )
+    }
+}

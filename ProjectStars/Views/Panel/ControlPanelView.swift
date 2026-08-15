@@ -936,23 +936,12 @@ private struct PanelFrontView: View {
                 range: -0.1...0.45,
                 unit: ""
             )
-            dial("NEAR Y", value: bind(\.nearY), range: 0.5...1.2, unit: "")
-            dial("FAR GAP", value: bind(\.farSpacing), range: 0.3...1.2, unit: "t")
-            dial("NEAR GAP", value: bind(\.nearSpacing), range: 0.6...1.6, unit: "t")
-            dial("FAR SIZE", value: bind(\.farScale), range: 0.3...1.4, unit: "x")
-            dial("NEAR SIZE", value: bind(\.nearScale), range: 0.6...1.8, unit: "x")
         }
         .padding(8)
         .background(Palette.midnight.opacity(0.85), in: RoundedRectangle(cornerRadius: 8))
     }
 
     /// One field of the placement, as something a slider can drive.
-    private func bind(_ key: WritableKeyPath<BoardPlacement, CGFloat>) -> Binding<Double> {
-        Binding(
-            get: { Double(session.placement[keyPath: key]) },
-            set: { session.placement[keyPath: key] = CGFloat($0) }
-        )
-    }
 
     private func dial(
         _ name: String,

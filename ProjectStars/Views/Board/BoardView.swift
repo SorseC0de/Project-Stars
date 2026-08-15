@@ -679,6 +679,25 @@ struct BoardView: View {
         .frame(width: metrics.boardSize, height: metrics.boardSize)
     }
 
+    /// Placed on the plane the piece is standing on.
+    private func placedOnPlaneModifier(_ point: GridPoint, metrics: PixelArtMetrics) -> some ViewModifier {
+        let f = planeFraming(session.engine.piece.plane)
+        return PlacedOnPlane(point: point, metrics: metrics, framing: f)
+    }
+
+    /// Puts an object on its square, on whichever plane's camera it stands.
+    ///
+    /// Terra is the true camera; Astra is allowed its own taper, size and
+    /// height because nothing up there has to tile. Everything that stands on
+    /// a square goes through here, so the two can never drift apart.
+    private func planeFraming(_ plane: Plane) -> (emphasis: CGFloat, zoom: CGFloat, lift: CGFloat) {
+        plane == .astra
+            ? (CGFloat(session.debugAstraDepth),
+               CGFloat(session.debugAstraZoom),
+               CGFloat(session.debugAstraLift))
+            : (1, GameRules.boardForeshortenScale, GameRules.boardForeshortenLift)
+    }
+
     /// The square the compass sits over: bottom-left of the board.
     private var compassCorner: GridPoint {
         GridPoint(0, session.visibleBoard.size - 1)
@@ -1112,14 +1131,14 @@ struct BoardView: View {
                     }
 
                 case .piece:
-                    // - TODO: **Temporary.** Drawn outside the tilt instead —
-                    //   see `floatingPiece(metrics:)`. It cannot depth-sort with
-                    //   the board while it is being homed.
-                    EmptyView()
-                    let _ = (
-                        metrics,
-                        bob,
-                        pose,
+                    // Sorted with everything else again. It was drawn outside
+                    // the board while the perspective was being homed, which is
+                    // exactly what stopped it depth-sorting — and there is
+                    // nothing left to home.
+                    piece(
+                        metrics: metrics,
+                        bob: bob,
+                        pose: pose,
                         arrival: arrival,
                         ascent: ascent,
                         sway: sway,
@@ -1502,15 +1521,10 @@ struct BoardView: View {
         .offset(y: hover * metrics.scale)
         // And a move it could not make is still attempted.
         .offset(balk(at: Date(), metrics: metrics))
-        // Upright on a floor that is lying down — but still shrinking with the
-        // row it stands on. See `upright(row:tileSize:)`.
-        // Flat and upright, placed by arithmetic rather than corrected inside
-        // the projection. See `BoardPlacement`.
-        .standing(
-            on: session.engine.piece.point,
-            metrics: metrics,
-            placement: session.placement
-        )
+        // On the same camera as everything else it shares a square with. It
+        // was placed by a separate linear model, which is why it agreed with
+        // the board only where the two happened to cross.
+        .modifier(placedOnPlaneModifier(session.engine.piece.point, metrics: metrics))
         }
         .frame(width: metrics.boardSize, height: metrics.boardSize)
     }
