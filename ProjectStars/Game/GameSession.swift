@@ -909,6 +909,16 @@ final class GameSession {
     /// - TODO: **Temporary.** Bake into `GameRules` and delete the dial.
     var debugCloudSpread: Double = 1.0
 
+    /// How big a cloud is drawn before depth touches it.
+    ///
+    /// - TODO: **Temporary.** Bake into `GameRules` and delete the dial.
+    var debugCloudSize: Double = 1.0
+
+    /// Where the piece sits on its square, in art pixels.
+    ///
+    /// - TODO: **Temporary.** Bake into `GameRules` and delete the dial.
+    var debugPieceY: Double = 0
+
 
     /// How far each row's ground is stretched to meet the row behind it.
     ///

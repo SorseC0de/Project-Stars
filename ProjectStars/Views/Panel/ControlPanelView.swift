@@ -928,6 +928,24 @@ private struct PanelFrontView: View {
                 unit: "x"
             )
             dial(
+                "PIECE Y",
+                value: Binding(
+                    get: { session.debugPieceY },
+                    set: { session.debugPieceY = $0 }
+                ),
+                range: -8...8,
+                unit: "px"
+            )
+            dial(
+                "CLOUD",
+                value: Binding(
+                    get: { session.debugCloudSize },
+                    set: { session.debugCloudSize = $0 }
+                ),
+                range: 0.6...1.6,
+                unit: "x"
+            )
+            dial(
                 "SPACING",
                 value: Binding(
                     get: { session.debugCloudSpread },

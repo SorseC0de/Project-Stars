@@ -752,6 +752,7 @@ struct BoardView: View {
                         emphasis: CGFloat(session.debugAstraDepth),
                         zoom: CGFloat(session.debugAstraZoom),
                         lift: CGFloat(session.debugAstraLift),
+                        baseSize: CGFloat(session.debugCloudSize),
                         separation: CGFloat(session.debugCloudSpread)
                     )
                 } else {
@@ -765,6 +766,7 @@ struct BoardView: View {
                         emphasis: CGFloat(session.debugAstraDepth),
                         zoom: CGFloat(session.debugAstraZoom),
                         lift: CGFloat(session.debugAstraLift),
+                        baseSize: CGFloat(session.debugCloudSize),
                         separation: CGFloat(session.debugCloudSpread)
                     )
                 }
@@ -1147,6 +1149,8 @@ struct BoardView: View {
                         flash: flash,
                         starElement: starElement
                     )
+                    // Where the figure sits on its square, in art pixels.
+                    .offset(y: CGFloat(session.debugPieceY) * metrics.scale)
                 }
             }
         }

@@ -77,6 +77,14 @@ struct CloudFieldView: View {
     /// And how far up the square it sits.
     var lift: CGFloat = GameRules.boardForeshortenLift
 
+    /// How big a cloud is drawn before depth touches it.
+    ///
+    /// The companion to `separation`: that one decides how far apart the
+    /// squares sit, this one how much of its square a cloud fills. Together
+    /// they cover the field however densely it wants to be covered, and neither
+    /// says anything about the camera.
+    var baseSize: CGFloat = 1
+
     /// How far apart the clusters sit, independent of how big they are.
     ///
     /// Zoom moves them apart *and* grows them, because both come from the same
@@ -140,7 +148,7 @@ struct CloudFieldView: View {
                             tones: Palette.cloudTones(shade),
                             speckleTones: Palette.speckleTones(raised: false),
                             scale: metrics.scale * spot.scale,
-                            size: metrics.tileSize * spot.scale,
+                            size: metrics.tileSize * spot.scale * baseSize,
                             isFlashing: flashing.contains(point)
                         ),
                         into: &square,
