@@ -103,16 +103,21 @@ struct CloudFieldView: View {
                     // Each square gets its own copy of the context: `paint`
                     // leaves its transform where it finished, and unwinding that
                     // 48 times is both slower and easier to get wrong.
+                    // Where this square's row puts it, and how big that row
+                    // draws it. A cluster is already drawn in perspective, so
+                    // it wants a size and a place and nothing else.
+                    let spot = metrics.projected(point)
+
                     var square = context
                     CloudCluster.paint(
                         CloudCluster.Brush(
-                            centre: metrics.center(of: point),
+                            centre: spot.position,
                             point: point,
                             wear: wear(at: point, health: tile.health, now: now),
                             tones: Palette.cloudTones(shade),
                             speckleTones: Palette.speckleTones(raised: false),
-                            scale: metrics.scale,
-                            size: metrics.tileSize,
+                            scale: metrics.scale * spot.scale,
+                            size: metrics.tileSize * spot.scale,
                             isFlashing: flashing.contains(point)
                         ),
                         into: &square,
