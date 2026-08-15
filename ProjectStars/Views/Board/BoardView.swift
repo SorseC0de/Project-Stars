@@ -40,6 +40,11 @@ struct BoardView: View {
         // apart. See `FractureField`.
         FractureField(isActive: session.isFractured, scale: metrics.scale) {
             ZStack {
+            if plane == .terra {
+                // - TODO: Terra only while the two are compared. Astra keeps
+                //   the projection below.
+                bandedBoard(board: board, plane: plane, metrics: metrics)
+            } else {
             // The world tilts; the chrome over it does not. See `Foreshortened`.
             layers(board: board, plane: plane, metrics: metrics)
                 .foreshortened(
@@ -54,6 +59,7 @@ struct BoardView: View {
                 .offset(y: -metrics.boardSize * GameRules.boardForeshortenLift)
 
             floatingPiece(metrics: metrics)
+            }
             }
         }
         .overlay(alignment: .bottomLeading) {
@@ -603,6 +609,55 @@ struct BoardView: View {
     /// Deliberately gentle, and bounded by the room the board has inside its
     /// square: the whole board stays visible from every row. This is a lean,
     /// not a chase.
+    /// Terra drawn as seven rows, back to front. See `BoardBand`.
+    ///
+    /// Each row carries its own tiles, its own edge and whatever stands on it,
+    /// scaled as one unit — so nothing inside a row can drift against anything
+    /// else in it, and a nearer row simply covers what is behind it.
+    @ViewBuilder
+    private func bandedBoard(board: Board, plane: Plane, metrics: PixelArtMetrics) -> some View {
+        ZStack {
+            ForEach(0..<metrics.gridSize, id: \.self) { row in
+                ZStack {
+                    // The row's ground, laid edge to edge so no seam can open
+                    // between neighbours however the band is scaled.
+                    HStack(spacing: 0) {
+                        ForEach(0..<metrics.gridSize, id: \.self) { column in
+                            let point = GridPoint(column, row)
+                            ZStack(alignment: .bottom) {
+                                TileView(
+                                    tile: board[point],
+                                    plane: plane,
+                                    shade: .at(point),
+                                    size: metrics.tileSize,
+                                    isPopped: false,
+                                    isFlashing: session.flashingTiles.contains(point),
+                                    healFlash: nil,
+                                    isPressed: session.pressedTiles.contains(point),
+                                    point: point,
+                                    drawnByField: false
+                                )
+                            }
+                            .frame(width: metrics.tileSize, height: metrics.tileSize)
+                        }
+                    }
+
+                }
+                .frame(width: metrics.boardSize, height: metrics.tileSize)
+                .asBoardRow(row, metrics: metrics)
+
+                // And whoever is standing on it — evenly scaled, so the floor's
+                // squash never reaches the figure.
+                if session.engine.piece.point.y == row {
+                    floatingPiece(metrics: metrics)
+                        .frame(width: metrics.boardSize, height: metrics.tileSize)
+                        .standingOnBoardRow(row, metrics: metrics)
+                }
+            }
+        }
+        .frame(width: metrics.boardSize, height: metrics.boardSize)
+    }
+
     /// The piece, drawn above the foreshortened floor rather than inside it.
     ///
     /// - TODO: **Temporary**, while the placement is homed. Once the numbers
