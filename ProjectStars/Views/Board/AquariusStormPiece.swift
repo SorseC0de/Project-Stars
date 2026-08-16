@@ -500,6 +500,13 @@ struct AquariusStormPiece: View {
             .frame(width: 300, height: 300)
             .compositingGroup()
             .scaleEffect(scale * tileSize * GameRules.aquariusStormTiles / 300)
+            // Laid out as a piece, not as the 300-point square it is built in.
+            //
+            // `scaleEffect` does not change layout, so without this the view
+            // still *measures* 300 across — and anything upstream that sizes
+            // itself to its content, or scales a row by what it is given, is
+            // working from a box four times too big.
+            .frame(width: tileSize, height: tileSize * 2)
         }
     }
 }

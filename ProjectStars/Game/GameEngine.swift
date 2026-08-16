@@ -630,7 +630,15 @@ struct GameEngine {
         self.pendingChoice = nil
         self.moveCount = 0
         self.pickupsCollected = 0
-        self.zodiactionMeter = 0
+        // Aquarius starts **full**.
+        //
+        // His meter runs backwards — full at the start, spent at zero — so a
+        // run begins with the tornado at its largest and the sign at its least
+        // able. The gains have not been inverted yet, so this is only the
+        // starting point; see the Aquarius rework.
+        self.zodiactionMeter = zodiac == .aquarius
+            ? zodiac.zodiaction.meterMax(on: GameRules.startingPlane)
+            : 0
         self.signState = SignState()
         self.luck = 0
         self.luckAlt = 0
