@@ -443,8 +443,13 @@ struct AquariusStormGallery: View {
                         .blendMode(blend)
 
                     if showsEyes {
-                        StormEyes(width: 40 * size, spacing: 46 * size, glow: glow)
-                            .offset(y: eyeOffset * size)
+                        // Sized as they were before they were attached to him.
+                        //
+                        // They ride his transform now, which already scales
+                        // them — multiplying by his size as well applied it
+                        // twice, and at 1.5 that is more than double.
+                        StormEyes(width: 40, spacing: 46, glow: glow)
+                            .offset(y: eyeOffset)
                     }
                 }
                 .scaleEffect(breath)
