@@ -110,6 +110,21 @@ extension View {
     }
 }
 
+/// # The rule for anything with a grid position
+///
+/// **If a thing has a grid X and Y, it takes its row's scale and its row's Z.**
+/// Both. Always. On both planes.
+///
+/// Not a guideline applied object by object — that is how the cursor, the
+/// facing arrow, the raised tiles and the edges each ended up needing their own
+/// fix. There is one way onto the board and it is this modifier: it asks the
+/// row how big and where, and `BoardObject.draw` sorts by row so the answer to
+/// "who covers whom" is never written down anywhere else.
+///
+/// Anything that reaches for `metrics.center(of:)` and `.position` directly is
+/// bypassing the rule, and will be right by accident until the perspective
+/// changes.
+///
 /// Puts an object on its square using its plane's own camera.
 ///
 /// A `ViewModifier` rather than a method so the framing is resolved once, where

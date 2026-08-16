@@ -660,27 +660,6 @@ struct BoardView: View {
         .frame(width: metrics.boardSize, height: metrics.boardSize)
     }
 
-    /// The piece, drawn above the foreshortened floor rather than inside it.
-    ///
-    /// - TODO: **Temporary**, while the placement is homed. Once the numbers
-    ///   settle this is how every object should be drawn — but it needs to
-    ///   depth-sort against the board again first.
-    @ViewBuilder
-    private func floatingPiece(metrics: PixelArtMetrics) -> some View {
-        TimelineView(.animation(paused: session.isPaused)) { timeline in
-            piece(
-                metrics: metrics,
-                bob: nexysBob(at: timeline.date, metrics: metrics),
-                pose: hopPose(at: timeline.date),
-                arrival: arrivalProgress(at: timeline.date),
-                ascent: ascentPose(at: timeline.date, metrics: metrics),
-                sway: cloudSway(at: timeline.date, metrics: metrics),
-                flash: chargeFlash(at: timeline.date),
-                starElement: starElement(at: timeline.date)
-            )
-        }
-        .frame(width: metrics.boardSize, height: metrics.boardSize)
-    }
 
     /// Placed on the plane the piece is standing on.
     private func placedOnPlaneModifier(_ point: GridPoint, metrics: PixelArtMetrics) -> some ViewModifier {

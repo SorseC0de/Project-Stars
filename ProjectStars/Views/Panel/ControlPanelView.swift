@@ -901,12 +901,7 @@ private struct PanelFrontView: View {
         .frame(width: PanelStyle.retinueColumnWidth)
     }
 
-    /// Live dials for seating the piece on the island. Read the numbers off the
-    /// labels and hand them back; they fold into `GameRules` afterwards.
-    ///
-    /// - TODO: **Temporary.** Delete with `GameSession.debugFeetDrop` and
 
-    /// One field of the placement, as something a slider can drive.
 
     private func dial(
         _ name: String,

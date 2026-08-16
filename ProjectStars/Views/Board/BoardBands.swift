@@ -7,6 +7,12 @@
 
 import SwiftUI
 
+// - TODO: **Falls should use the rows.** Enhance a fall with a zoom-in, a
+//   y-offset and the board going transparent as the piece drops through it.
+//   Per-row Z-ordering was adopted partly to make this possible: a falling
+//   piece can slide down *behind* the row in front of it and be swallowed by
+//   the floor, instead of faking a shrink. See `GameRules.fallDuration`.
+
 /// Where one row of the board sits and how big it is drawn.
 ///
 /// ## Why rows instead of a projection

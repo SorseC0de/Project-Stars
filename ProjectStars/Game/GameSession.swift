@@ -883,41 +883,9 @@ final class GameSession {
 
 
 
-    /// How far each row's ground is stretched to meet the row behind it.
-    ///
-    /// The shortfall grows with the gap between rows, and the gap widens toward
-    /// the viewer — so a fixed number of pixels closes one end of the board and
-    /// not the other. This is the proportional part.
-    ///
-    /// - TODO: **Temporary.** Fold into `GameRules` and delete the dial.
 
-    /// How far apart the rows sit, measured from the near edge.
-    ///
-    /// Scaling this spreads the far rows further and leaves the near edge put,
-    /// so it grows with the row — which is the shape of the error if the bands
-    /// themselves are the right height and only their spacing is wrong.
-    ///
-    /// - TODO: **Temporary.** Fold into `GameRules` and delete the dial.
-    /// Art pixels of extra lift per row of depth — a **constant** screen-space
-    /// step, which is how a flat plane seen at an angle actually spaces its
-    /// rows. Zero leaves the keystone's own (curved) spacing.
-    ///
-    /// - TODO: **Temporary.** Bake into `GameRules` and delete the dial.
 
-    /// Scales each row's distance from the near edge — the *proportional*
-    /// companion to `debugRowSpread`'s constant step. Placement only.
-    ///
-    /// - TODO: **Temporary.** Bake into `GameRules` and delete the dial.
 
-    /// How much of each band's lean is applied.
-    ///
-    /// The lean is a projective taper, and a projective taper divides **both**
-    /// axes — so it squeezes a band vertically as well as narrowing it, by a
-    /// different amount on every row. That is a per-row error no single spacing
-    /// or height number can absorb. At zero the bands should tile exactly, which
-    /// is the test.
-    ///
-    /// - TODO: **Temporary.** Delete with the dial.
 
     #if DEBUG
     func debugToggleFissure() { debugFissure.toggle() }
