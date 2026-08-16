@@ -2654,6 +2654,16 @@ enum GameRules {
     static let aquariusEyeGlowPeak: CGFloat = 2.5
     static let aquariusEyeGlowPeriod: TimeInterval = 6.5
 
+    /// How soft the eyes are at a full meter, in points, falling to nothing by
+    /// phase one.
+    ///
+    /// Applied to the **pair**, after they are placed, rather than to either
+    /// eye — the two smear into one another at full strength, which is what
+    /// makes a storm's eyes read as light in cloud rather than as two shapes
+    /// sitting in front of it. Where the blur goes changes the look, so this is
+    /// only the amount.
+    static let aquariusEyeHaze: CGFloat = 5
+
     /// The whole assembly against a board square.
     static let aquariusStormScale: CGFloat = 0.75
 

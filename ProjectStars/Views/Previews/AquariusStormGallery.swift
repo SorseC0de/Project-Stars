@@ -278,6 +278,9 @@ struct StormEyes: View {
     /// How hard they burn, against the settled look.
     var glow: CGFloat = 1
 
+    /// How soft the pair is, in points. See `GameRules.aquariusEyeHaze`.
+    var haze: CGFloat = 0
+
     /// Purple: air's colour everywhere else in the game.
     var tint: Color = ElementFX.ramp(for: .air).bright
 
@@ -288,6 +291,7 @@ struct StormEyes: View {
             eye(turned: slant)
             eye(turned: -slant)
         }
+        .blur(radius: haze)
     }
 
     private func eye(turned: Double) -> some View {
@@ -464,7 +468,17 @@ struct AquariusStormGallery: View {
                         // have guessed wrong in both directions, so this is the
                         // term itself: 0 keeps them level, 1 rides his centre,
                         // 2 rides his head.
-                        StormEyes(width: 40 * shrink, spacing: 46 * shrink, glow: burn)
+                        // Hazy at ten, sharp by one. He is a shape in weather
+                        // while the storm holds and something looking at you
+                        // when it thins, so the eyes come into focus as the
+                        // cover goes.
+                        StormEyes(
+                            width: 40 * shrink,
+                            spacing: 46 * shrink,
+                            glow: burn,
+                            haze: GameRules.aquariusEyeHaze
+                                * CGFloat(max(strength * 10 - 1, 0) / 9)
+                        )
                             .offset(
                                 y: eyeOffset - height
                                     + (follow - 1) * 132 * size * (1 - shrink)
