@@ -233,12 +233,19 @@ struct AstralTearEffect: PickupEffect {
 
     /// Two tiles: **here**, and one elsewhere.
     ///
-    /// The one under your feet is the point of the change. A single random
-    /// repair is a coin whose value you find out about after the fact, and on a
-    /// board that is mostly whole it often mends something you were never going
-    /// to stand on. Healing where you are is the half you can aim: cross to the
-    /// square that is about to give way, and the Tear is worth taking there
-    /// rather than anywhere.
+    /// The one under your feet answers a real complaint. Testers kept being
+    /// forced onto a crumbling tile because that is where the coin was, and
+    /// then punished for it by falling — the board made them take a risk and
+    /// then charged them for taking it. Healing where you stand means the tile
+    /// you had to reach is the tile the coin repairs.
+    ///
+    /// It is also simply a bigger board than the one this borrows from. Knight
+    /// Move had a single item, a one-tile repair, on a smaller grid; the same
+    /// coin on a seven-square board mends a proportionally smaller share of it,
+    /// so paying out twice keeps it worth what it used to be.
+    ///
+    /// The random half stays because a coin whose whole value you can see before
+    /// taking it is a coin with no reason to be a surprise.
     ///
     /// The random one must be a **different** tile, or a coin taken while
     /// standing on the only damaged square would spend both halves on it and
