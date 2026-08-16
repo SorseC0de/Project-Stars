@@ -69,6 +69,16 @@ struct AquariusStorm: View {
     /// A multiplier on every plate's width.
     var bladeScale: CGFloat = 1
 
+    /// Widens the funnel without making the plates taller — the plates are
+    /// square, so scaling them alone raises the column as much as it spreads it.
+    var width: CGFloat = 1
+
+    /// How far the eye plates turn, either way.
+    var eyeTurn: Double = 4
+
+    /// How big the second eye plate is against the first.
+    var eyeTwinScale: CGFloat = 0.75
+
     /// How much wider an eye plate is than the widest of the stack.
     var eyeScale: CGFloat = 0.75
 
@@ -119,11 +129,18 @@ struct AquariusStorm: View {
                 // the stack rather than drawn darker, so it reads as depth
                 // through the wall of air instead of as a hole cut in it.
                 if bands > 0 {
-                    eyePlate(blend: eyeBlend, at: eyeY, turn: 4, speed: 0.9, at: now)
-                    eyePlate(blend: eyeTwinBlend, at: eyeTwinY, turn: -5, speed: 1.3, at: now)
+                    eyePlate(
+                        blend: eyeBlend, at: eyeY, size: 1,
+                        turn: eyeTurn, speed: 0.9, at: now
+                    )
+                    eyePlate(
+                        blend: eyeTwinBlend, at: eyeTwinY, size: eyeTwinScale,
+                        turn: -eyeTurn * 1.3, speed: 1.3, at: now
+                    )
                 }
             }
             .frame(width: side, height: side)
+            .scaleEffect(x: width, y: 1)
         }
     }
 
@@ -148,13 +165,14 @@ struct AquariusStorm: View {
     private func eyePlate(
         blend: BlendMode,
         at height: CGFloat,
+        size: CGFloat,
         turn: Double,
         speed: Double,
         at now: TimeInterval
     ) -> some View {
         EffectSpriteView(
             effect: .aquariusArmor,
-            tileSize: bandSize(bands - 1) * eyeScale,
+            tileSize: bandSize(bands - 1) * eyeScale * size,
             start: .distantPast,
             loops: true,
             clock: { $0 + self.stagger(bands - 1) * (speed > 1 ? 0.35 : 0.6) },
@@ -162,7 +180,13 @@ struct AquariusStorm: View {
         )
         .colorEffect(ShaderLibrary.flatSilhouette(.color(Palette.midnight)))
         .rotationEffect(.degrees(sin(now * speed) * turn))
-        .offset(y: rise(bands - 1) + side * height)
+        // Riding the same sway as the plates around it, and then some: an eye
+        // that holds still while the wall of air moves reads as a hole in the
+        // picture rather than a hole in the storm.
+        .offset(
+            x: sway(bands - 1, at: now) * 1.6,
+            y: rise(bands - 1) + side * height
+        )
         .blendMode(blend)
     }
 
@@ -201,6 +225,9 @@ struct AquariusStorm: View {
         let wide = side * (0.86 + 0.30 * strength)
         return (narrow + (wide - narrow) * up) * bladeScale
     }
+
+    /// The funnel's own horizontal stretch, applied to the stack as a whole.
+    fileprivate var spreadWide: CGFloat { width }
 
     /// Stacked close together — the plates touch, so the stack reads as one
     /// column of air rather than as a set of separate rings.
@@ -272,15 +299,30 @@ struct StormEyes: View {
             .rotationEffect(.degrees(turned))
 
         return ZStack {
+            // Each copy added to the ones under it, not just the finished stack
+            // added to the board. Inside a group the layers composite normally,
+            // so however many were piled up the middle never got past the
+            // purple it started at — which is why turning the knob up only ever
+            // grew the halo.
             ForEach(0..<3, id: \.self) { step in
                 shape
                     .blur(radius: width * (0.18 + CGFloat(step) * 0.35) * max(glow, 0))
                     .opacity(Double(glow) / Double(step + 1))
+                    .blendMode(.plusLighter)
             }
+
+            shape.blendMode(.plusLighter)
+
+            // A white core that comes up with the knob, so the middle burns out
+            // rather than merely getting a brighter surround. Purple added to
+            // purple is a brighter purple and stops there; reaching white takes
+            // the other two channels.
             shape
+                .foregroundStyle(Palette.white)
+                .opacity(max(Double(glow) - 0.6, 0) * 0.5)
+                .blendMode(.plusLighter)
         }
         .compositingGroup()
-        .blendMode(.plusLighter)
     }
 }
 
@@ -296,16 +338,19 @@ struct AquariusStormGallery: View {
     @State private var showsSilhouette = true
     @State private var glow: Double = 1
     @State private var eyeScale: Double = 0.75
-    @State private var eyeBlend: BlendMode = .multiply
-    @State private var figureScale: Double = 1.25
+    @State private var eyeBlend: BlendMode = .hardLight
+    @State private var figureScale: Double = 1.5
     @State private var figureTurn: Double = 5
     @State private var groupScale: Double = 0.75
-    @State private var figureY: Double = -74
-    @State private var eyeY: Double = 0
-    @State private var eyeTwinY: Double = 0.06
-    @State private var eyeTwinBlend: BlendMode = .multiply
+    @State private var width: Double = 1
+    @State private var eyeTurn: Double = 8
+    @State private var eyeTwinScale: Double = 0.75
+    @State private var figureY: Double = -125
+    @State private var eyeY: Double = -0.05
+    @State private var eyeTwinY: Double = -0.1
+    @State private var eyeTwinBlend: BlendMode = .plusDarker
     @State private var spread: Double = 2
-    @State private var height: Double = 0.1
+    @State private var height: Double = 0.15
     @State private var taper: Double = 5
     @State private var bladeScale: Double = 0.8
 
@@ -422,6 +467,9 @@ struct AquariusStormGallery: View {
                 spread: spread,
                 taper: Int(taper.rounded()),
                 bladeScale: CGFloat(bladeScale),
+                width: CGFloat(width),
+                eyeTurn: eyeTurn,
+                eyeTwinScale: CGFloat(eyeTwinScale),
                 eyeScale: CGFloat(eyeScale),
                 eyeBlend: eyeBlend,
                 eyeTwinBlend: eyeTwinBlend,
@@ -544,6 +592,9 @@ struct AquariusStormGallery: View {
             knob("EYE", $eyeScale, 0.8...2.2, "x")
             knob("FIGURE", $figureScale, 0.6...2.4, "x")
             knob("TURN", $figureTurn, 0...40, "°")
+            knob("WIDTH", $width, 0.6...2, "x")
+            knob("EYE TURN", $eyeTurn, 0...30, "°")
+            knob("EYE2", $eyeTwinScale, 0.4...1.4, "x")
             knob("EYE Y", $eyeY, -0.3...0.3, "x")
             knob("EYE2 Y", $eyeTwinY, -0.3...0.3, "x")
             knob("BODY Y", $figureY, -160...40, "pt")
