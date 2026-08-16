@@ -48,8 +48,16 @@ struct PieceView: View {
     /// Which drawing this piece is right now.
     private var spriteID: SpriteID {
         if zodiac.hasOwnHalves, let twin { return .geminiHalf(twin) }
+        // Cancer is drawn from every side. Everyone else is one statue seen
+        // from the front, however it is facing.
+        if zodiac == .cancer { return .cancerFacing(facing) }
         return .piece(zodiac)
     }
+
+    /// True when this drawing is the mirror of one on the sheet.
+    ///
+    /// Cancer's east is its west flipped — three drawings covering four sides.
+    private var isMirrored: Bool { zodiac == .cancer && facing == .right }
 
     /// The movement playing out, if any. See `GameSession.Movement`.
     var movement: GameSession.Movement?
@@ -312,6 +320,34 @@ struct PieceView: View {
             PixelSprite(id: spriteID) {
                 placeholder
             }
+            // East is west, mirrored — see `isMirrored`.
+            .scaleEffect(x: isMirrored ? -1 : 1, y: 1)
+            .overlay(alignment: .top) { virgoGems }
+        }
+    }
+
+    /// Virgo's three floating gems.
+    ///
+    /// Drawn on the sheet a cell above and a cell below her and aligned to her
+    /// **upper tile**, so they need no offset of their own — laying them over
+    /// the top half of the figure box puts them exactly where they were drawn.
+    ///
+    /// The outer one is a single drawing used twice, the second mirrored. The
+    /// middle draws in front of both.
+    ///
+    /// - TODO: Static for now. They are meant to move; this is the resting
+    ///   arrangement to check the placement against first.
+    @ViewBuilder
+    private var virgoGems: some View {
+        if zodiac == .virgo {
+            ZStack {
+                PixelSprite(id: .virgoGem(.outer)) { Color.clear }
+                PixelSprite(id: .virgoGem(.outer)) { Color.clear }
+                    .scaleEffect(x: -1, y: 1)
+                PixelSprite(id: .virgoGem(.middle)) { Color.clear }
+            }
+            .frame(width: tileSize, height: tileSize)
+            .allowsHitTesting(false)
         }
     }
 

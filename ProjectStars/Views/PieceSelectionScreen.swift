@@ -35,7 +35,11 @@ struct PieceSelectionScreen: View {
 
             grid
 
-            Spacer(minLength: 12)
+            Spacer(minLength: 8)
+
+            statue
+
+            Spacer(minLength: 8)
 
             detail(definition)
 
@@ -73,6 +77,32 @@ struct PieceSelectionScreen: View {
             }
         }
     }
+
+    /// The chosen sign's statue, standing in the gap between the grid and the
+    /// text about it.
+    ///
+    /// The real board sprite rather than the little icon, at a size where the
+    /// art can actually be read — which is the only place in the game the
+    /// statues are ever seen still and up close.
+    private var statue: some View {
+        PixelSprite(id: .piece(selection)) {
+            Color.clear
+        }
+        .frame(
+            width: CGFloat(GameRules.tilePixelSize) * statueScale,
+            height: CGFloat(GameRules.tilePixelSize) * 2 * statueScale
+        )
+        // Held at its full height. Between two spacers in a VStack the frame is
+        // a proposal the layout is free to squeeze, and it did — the statue came
+        // out with its legs cut off.
+        .fixedSize()
+        .id(selection)
+        .transition(.opacity)
+        .animation(.easeOut(duration: 0.16), value: selection)
+    }
+
+    /// Whole-pixel, so the art stays on its own grid.
+    private var statueScale: CGFloat { 5 }
 
     private func tile(for sign: Zodiac) -> some View {
         let definition = sign.definition

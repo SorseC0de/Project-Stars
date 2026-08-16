@@ -66,6 +66,15 @@ enum GeminiHalf: String, Hashable, CaseIterable, Codable, Sendable {
     var sibling: GeminiHalf { self == .gold ? .silver : .gold }
 }
 
+/// One of Virgo's two floating gems.
+///
+/// `outer` is a single drawing used twice — once as it is and once mirrored, so
+/// the pair sits either side of her. `middle` draws in front of both.
+enum VirgoGem: String, Hashable, CaseIterable, Codable, Sendable {
+    case outer
+    case middle
+}
+
 /// Which pair of Libra's arms is being drawn.
 ///
 /// Two drawings rather than four: north is south seen from behind and the
@@ -124,6 +133,16 @@ enum SpriteID: Hashable {
 
     /// One of Gemini's two halves. See `GeminiHalf`.
     case geminiHalf(GeminiHalf)
+
+    /// Cancer seen from a given side.
+    ///
+    /// The only sign drawn from more than one angle, because the claw swings
+    /// sideways and stops where you tap, so it is genuinely looked at from all
+    /// four. East is west mirrored — three drawings, four facings.
+    case cancerFacing(SwipeDirection)
+
+    /// One of Virgo's floating gems. See `VirgoGem`.
+    case virgoGem(VirgoGem)
 
     // MARK: Umbra
 
@@ -241,6 +260,10 @@ enum SpriteID: Hashable {
             "libra_scales_plain"
         case let .geminiHalf(half):
             "gemini_\(half.rawValue)"
+        case let .cancerFacing(facing):
+            "cancer_\(facing.rawValue)"
+        case let .virgoGem(gem):
+            "virgo_gem_\(gem.rawValue)"
         case let .umbraFloor(tone):
             "umbra_floor_\(tone.rawValue)"
         case let .umbraEdge(tone):
