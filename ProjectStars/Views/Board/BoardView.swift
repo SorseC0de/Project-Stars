@@ -428,7 +428,16 @@ struct BoardView: View {
     private func actionDim(metrics: PixelArtMetrics) -> some View {
         Rectangle()
             .fill(Palette.coolBlack)
-            .frame(width: metrics.boardSize * 3, height: metrics.boardSize * 3)
+            .frame(width: metrics.boardSize, height: metrics.boardSize)
+            // Drawn three times its size, but **laid out** at one.
+            //
+            // Framing it larger grew the stack it sits in, and everything in
+            // that stack is placed with `.position` — which is measured against
+            // the container. The board kept its own frame, so the damage showed
+            // up as objects flung toward a corner rather than as a bigger board.
+            // `scaleEffect` does not touch layout, so the dim can cover the
+            // screen without moving anything that shares the stack with it.
+            .scaleEffect(3)
             .opacity(session.isResolvingAction ? GameRules.actionDim : 0)
             .animation(.easeOut(duration: 0.14), value: session.isResolvingAction)
             .allowsHitTesting(false)
