@@ -1272,15 +1272,26 @@ struct BoardView: View {
         }
 
         return AnyView(
-            TileView(
-                tile: board[point],
-                plane: plane,
-                shade: .at(point),
-                size: metrics.tileSize,
-                isPopped: true,
-                isFlashing: session.flashingTiles.contains(point),
-                point: point
-            )
+            ZStack(alignment: .top) {
+                // Its own side, drawn with it.
+                //
+                // The edge pass lies under the bands, where it is meant to be
+                // uncovered by whatever lifts in front of it — so a tile that
+                // lifts has a side everywhere except under itself. Lifted, it
+                // is the one tile whose side is the point.
+                TileEdgeView(plane: plane, shade: .at(point), size: metrics.tileSize)
+                    .offset(y: GameRules.tileEdgeDrop * metrics.scale)
+
+                TileView(
+                    tile: board[point],
+                    plane: plane,
+                    shade: .at(point),
+                    size: metrics.tileSize,
+                    isPopped: true,
+                    isFlashing: session.flashingTiles.contains(point),
+                    point: point
+                )
+            }
             // Ground, not an object. It was taking the object treatment —
             // one even scale — so a lifted tile came out flat while the floor
             // it rose from was lying down.

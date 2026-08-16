@@ -284,13 +284,28 @@ extension View {
         let band = BoardBand.at(row: point.y, metrics: metrics)
         let middle = metrics.boardSize / 2
         let flat = metrics.center(of: point)
+        // The lean pulls toward the **board's** centre, not the square's.
+        //
+        // A whole row is one box `boardSize` wide, so its keystone narrows
+        // everything toward the middle of the board. The same keystone over a
+        // box one tile wide narrows toward the middle of that tile — which is
+        // no movement at all for the tile itself, and leaves a square in an
+        // outer column sitting further out than the ground it belongs to. The
+        // further from centre, the further out, which is why it read as the
+        // outer columns drifting.
+        //
+        // Measured at the square's own middle height, where the taper is half
+        // applied: the band's near edge is untouched and its far edge takes the
+        // whole lean, so the centre takes half.
+        let drawnIn = 1 + band.lean / 2
+
         return foreshortened(
             band.lean,
             size: CGSize(width: metrics.tileSize, height: metrics.tileSize)
         )
             .scaleEffect(x: band.scale, y: band.groundScale, anchor: .bottom)
             .position(
-                x: middle + (flat.x - middle) * band.scale,
+                x: middle + (flat.x - middle) * band.scale / drawnIn,
                 y: band.groundCentreY
             )
     }
