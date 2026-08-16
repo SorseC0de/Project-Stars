@@ -912,7 +912,7 @@ private struct PanelFrontView: View {
                 get: { session.debugSkyFade },
                 set: { session.debugSkyFade = $0 }
             ),
-            range: 0...1,
+            range: 0...2.5,
             unit: ""
         )
     }

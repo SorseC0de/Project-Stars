@@ -62,6 +62,10 @@ struct SkyView: View {
             LinearGradient(
                 stops: [
                     .init(color: Palette.coolBlack, location: 0),
+                    .init(
+                        color: Palette.coolBlack,
+                        location: max(0, skyFade - GameRules.astraSkyFadeWidth)
+                    ),
                     .init(color: Palette.sky, location: skyFade),
                     .init(color: Palette.sky, location: 1)
                 ],
@@ -100,8 +104,16 @@ struct SkyView: View {
                 LinearGradient(
                     stops: [
                         .init(color: .black, location: 0),
-                        .init(color: .black, location: skyFade * 0.7 * 0.5),
-                        .init(color: .clear, location: skyFade * 0.7)
+                        // Out by the time the dark itself starts to go, so a
+                        // star is never left hanging in the blue.
+                        .init(
+                            color: .black,
+                            location: max(0, skyFade - GameRules.astraSkyFadeWidth) * 0.5
+                        ),
+                        .init(
+                            color: .clear,
+                            location: max(0.01, skyFade - GameRules.astraSkyFadeWidth)
+                        )
                     ],
                     startPoint: .top,
                     endPoint: .bottom

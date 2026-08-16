@@ -1984,6 +1984,15 @@ enum GameRules {
     /// gradient rather than being the far half of one sky.
     static var astraStarFade: CGFloat { astraSkyFade * 0.7 }
 
+    /// How long the turn from space to daylight takes, as a fraction of the
+    /// square.
+    ///
+    /// Fixed, so `astraSkyFade` moves the band rather than stretching it. With
+    /// the ramp pinned to the top of the square instead, raising the fade made
+    /// the transition longer and softer — which looks like the sky changing
+    /// strength rather than the horizon changing height.
+    static let astraSkyFadeWidth: CGFloat = 0.35
+
     /// How far off each edge of the screen it is held, as a fraction of the
     /// square. Run edge to edge it reads as a fitted carpet; inset, as a
     /// landmass with sky either side.
