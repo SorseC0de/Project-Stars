@@ -88,6 +88,7 @@ struct CancerCrabtitude: ZodiacPassive {
 struct CancerSeafoamScuttle: ZodiacPassive {
 
     let displayName = "Seafoam Scuttle"
+    let icon: String? = "cancer_scuttle"
     let summary = "Astra & Terra: a full 2-tile sidestep does not change the way you are facing."
 
     func retainsFacing(
@@ -112,6 +113,7 @@ struct CancerSeafoamScuttle: ZodiacPassive {
 struct CancerHomeboundHarvest: ZodiacPassive {
 
     let displayName = "Homebound Harvest"
+    let icon: String? = "cancer_harvest"
     let summary = "Astra & Terra: +3 ZC when you reach the Nexys by anything other than ordinary movement."
 
     func meterBonus(from move: MoveSummary, context: PassiveContext) -> Int {
@@ -130,6 +132,7 @@ struct CancerHomeboundHarvest: ZodiacPassive {
 struct CancerHeavenlyHoarder: ZodiacPassive {
 
     let displayName = "Heavenly Hoarder"
+    let icon: String? = "cancer_hoarder"
     let summary = "Open a Pentacle adjacent to the Nexys: +half meter on Terra, +full meter on Astra."
 
     func meterBonus(from move: MoveSummary, context: PassiveContext) -> Int {

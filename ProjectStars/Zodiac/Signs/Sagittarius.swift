@@ -94,6 +94,7 @@ struct SagittariusVulcanVault: ZodiacPassive {
     static let vaultingKey = "sagittarius.vaulting"
 
     let displayName = "Vulcan Vault"
+    let icon: String? = "saggitarius_vulcan_vault"
     let summary = "Astra & Terra: leap two squares in any direction, wearing the tile you push off from. Not twice in a row, and a landing sometimes spares a badly cracked tile."
 
     /// The archer draws before it looses.
@@ -185,6 +186,7 @@ struct SagittariusLuckyLanding: ZodiacPassive {
     static let chance = 0.12
 
     let displayName = "Lucky Landing"
+    let icon: String? = "saggitarius_lucky"
     let summary = "Astra: small chance that falling to Terra fully restores the tile you land on."
 
     func restoresTileOnFallArrival(

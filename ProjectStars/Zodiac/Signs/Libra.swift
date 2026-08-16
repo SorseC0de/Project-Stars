@@ -121,6 +121,7 @@ struct LibraEquitableImpact: ZodiacPassive {
 struct LibraAxialAdjudication: ZodiacPassive {
 
     let displayName = "Axial Adjudication"
+    let icon: String? = "libra_axial"
     let summary = "Astra & Terra: any row or column at one uniform wear is fully restored."
 
     func amend(_ events: [GameEvent], context: PassiveContext) -> [GameEvent] {
@@ -202,6 +203,7 @@ struct LibraAxialAdjudication: ZodiacPassive {
 struct LibraJudicatorElevator: ZodiacPassive {
 
     let displayName = "Judicator Elevator"
+    let icon: String? = "libra_judicator"
     let summary = "Astra & Terra: stand on the Nexys to travel between planes at will. In exchange, Astra never repairs itself for you."
 
     func ridesNexysDown(context: PassiveContext) -> Bool { true }

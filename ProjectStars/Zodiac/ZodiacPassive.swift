@@ -389,6 +389,14 @@ protocol ZodiacPassive {
     /// Capricorn's Celestial Commerce alone. The engine puts the coin in
     /// `SignState.purse` and skips its effect entirely; Z-Charge is exempt at
     /// the engine, since charge cannot be saved as charge. Default: false.
+    /// The drawn mark for this passive, by asset name, or `nil`.
+    ///
+    /// Same arrangement as `PickupEffect.icon`: named rather than drawn here, so
+    /// illustrating one is dropping a file in and writing a string. A passive
+    /// with no icon simply is not shown in the row, which is the right default
+    /// — a row of placeholders says less than a shorter row of real marks.
+    var icon: String? { get }
+
     func banksPickups(_ id: PickupID, context: PassiveContext) -> Bool
 }
 
@@ -471,6 +479,10 @@ struct WearProposal: Equatable {
 // MARK: - Default implementations
 
 extension ZodiacPassive {
+
+    /// No mark drawn yet. See `icon`.
+    var icon: String? { nil }
+
     func splitsOnDescent(context: PassiveContext) -> Bool { false }
 
     func adjustedMovement(base: MovementPattern, context: PassiveContext) -> MovementPattern {

@@ -65,6 +65,7 @@ extension ZodiacCatalog {
 struct TaurusHooves: ZodiacPassive {
 
     let displayName = "Heavy / Hasty Hooves"
+    let icon: String? = "taurus_heavy_hooves"
     let summary = "Astra: landings damage 2 stages. Terra: two landings to damage 1 stage."
 
     func modifyWear(_ proposal: WearProposal, context: PassiveContext) -> WearProposal {

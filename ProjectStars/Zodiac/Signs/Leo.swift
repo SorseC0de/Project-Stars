@@ -57,6 +57,7 @@ extension ZodiacCatalog {
 struct LeoPridefulPlant: ZodiacPassive {
 
     let displayName = "Prideful Plant"
+    let icon: String? = "leo_prideful"
     let summary = "Astra: +3 ZC on landing after a fall to Terra."
 
     /// The lion drops on purpose. See `ZodiacPassive.fallIsControlled(to:context:)`.
@@ -87,6 +88,7 @@ struct LeoPridefulPlant: ZodiacPassive {
 struct LeoMagneticMane: ZodiacPassive {
 
     let displayName = "Magnetic Mane"
+    let icon: String? = "leo_mane"
     let summary = "Astra & Terra: a chance each step that the Pentacle drifts a square toward you."
 
     func magneticPullChance(context: PassiveContext) -> Double {
@@ -132,6 +134,7 @@ struct LeoCourageousCharge: ZodiacPassive {
     static let chanceTerra = 0.50
 
     let displayName = "Courageous Charge"
+    let icon: String? = "leo_brave"
     let summary = "Astra: a quarter chance that a hole you step into on purpose mends and fills your meter. Terra: half."
 
     func preventsFall(

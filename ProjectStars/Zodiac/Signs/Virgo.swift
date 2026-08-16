@@ -99,6 +99,7 @@ struct VirgoControlledCompensation: ZodiacPassive {
 struct VirgoScrupulousStep: ZodiacPassive {
 
     let displayName = "Scrupulous Step"
+    let icon: String? = "virgo_step"
     let summary = "Astra & Terra: step one square in any direction, diagonals included. A badly cracked tile breaks as you leave it, never as you arrive."
 
     /// A diagonal step does not turn her.

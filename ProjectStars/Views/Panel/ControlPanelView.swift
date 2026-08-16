@@ -74,6 +74,10 @@ enum PanelStyle {
     static let signWatermarkTint = Palette.outline
 
     /// The element's mark, small and lit, at full strength.
+    /// The passive marks under the sign's name.
+    static let passiveMarkSize: CGFloat = 16
+    static let passiveMarkSpacing: CGFloat = 6
+
     static let elementMarkSize: CGFloat = 28
 
     /// How much of a mark's box the glyph fills.
@@ -442,6 +446,7 @@ struct ControlPanelView: View {
                     SignBadge(zodiac: session.zodiac).scaleEffect(showingInfo ? 3 : 1),
                     alignment: showingInfo ? .center : .topLeading)
                 .overlay(
+                    VStack(alignment: .leading, spacing: PanelStyle.passiveMarkSpacing) {
                     HStack {
                         Image("Elements/\(session.zodiac.element.rawValue)")
                             .resizable()
@@ -460,7 +465,35 @@ struct ControlPanelView: View {
                             .minimumScaleFactor(PanelStyle.signNameMinScale)
                             .layoutPriority(1)
                             .animation(.bouncy(extraBounce: 0.2), value: nameSize)
-                    }.padding(),
+                        }
+                        .padding(.horizontal)
+                        .padding(.top)
+
+                        // The sign's passives, as marks rather than controls.
+                        //
+                        // Flat, untinted and unpressable on purpose: everything
+                        // else in this panel that looks like a face with an
+                        // edge does something when touched, so a row of
+                        // buttons here would promise an interaction that does
+                        // not exist. These are a statement of what the sign
+                        // *is* — the same category as the name above them.
+                        HStack(spacing: PanelStyle.passiveMarkSpacing) {
+                            ForEach(
+                                Array(session.zodiac.passives.compactMap(\.icon).enumerated()),
+                                id: \.offset
+                            ) { _, mark in
+                                Image(mark)
+                                    .renderingMode(.template)
+                                    .resizable()
+                                    .scaledToFit()
+                                    .frame(width: PanelStyle.passiveMarkSize,
+                                           height: PanelStyle.passiveMarkSize)
+                                    .foregroundStyle(Palette.textSecondary)
+                            }
+                        }
+                        .padding(.horizontal)
+                    }
+                    .padding(.bottom),
                     alignment: .topLeading
                 )
             
@@ -632,7 +665,17 @@ private struct PanelFrontView: View {
             spawnerButton
             #endif
 
-            chromeButton("info", tint: Palette.sky, action: onInfo)
+            // The sign's own writing, not a lowercase i. A scroll says "read
+            // about this" where the SF glyph says "there is a caveat here".
+            CelButton(tint: Palette.sky, action: onInfo) {
+                Image("scroll")
+                    .renderingMode(.template)
+                    .resizable()
+                    .scaledToFit()
+                    .frame(width: PanelStyle.chromeGlyphSize * 1.3)
+            }
+            .frame(width: PanelStyle.chromeButtonWidth,
+                   height: PanelStyle.chromeButtonHeight)
             chromeButton("pause.fill", tint: Palette.stone) { session.togglePause() }
         }
     }
@@ -845,8 +888,11 @@ private struct PanelFrontView: View {
     /// the only thing this button does is call it back. A bow says that in less
     /// space than a sentence would.
     private var recallLabel: some View {
-        Image(systemName: "figure.archery")
-            .font(.system(size: PanelStyle.zodiactionRecallGlyphSize, weight: .black))
+        Image("saggitarius_zaction")
+            .renderingMode(.template)
+            .resizable()
+            .scaledToFit()
+            .frame(width: PanelStyle.zodiactionRecallGlyphSize * 1.4)
             .foregroundStyle(Palette.warmBlack)
     }
 

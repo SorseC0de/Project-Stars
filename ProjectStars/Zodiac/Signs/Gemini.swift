@@ -123,6 +123,7 @@ struct GeminiMirroredMending: ZodiacPassive {
 struct GeminiReflectiveRifts: ZodiacPassive {
 
     let displayName = "Reflective Rifts"
+    let icon: String? = "gemini_portal"
     let summary = "Astra: step out through the middle of any edge to reappear at the opposite edge. Terra: only after Mirrored Mandate, and only once."
 
     /// The four squares a mirror hangs beyond, and where each one leads.
