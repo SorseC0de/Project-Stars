@@ -103,6 +103,13 @@ struct PieceSelectionScreen: View {
             plane: .astra,
             facing: .down
         )
+        // Seated back down.
+        //
+        // `PieceView` lifts the figure by half a tile plus the piece's own lift
+        // so its feet land on the square it is standing on. There is no square
+        // here, so the same shift just leaves it hanging above its own box —
+        // this puts back exactly what the board takes off.
+        .offset(y: cell / 2 + GameRules.pieceLift * statueScale)
         .fixedSize()
         .id(selection)
         .transition(.opacity)
@@ -111,11 +118,10 @@ struct PieceSelectionScreen: View {
 
     /// Whole-pixel, so the art stays on its own grid.
     ///
-    /// Three rather than five, because the size has to suit the **widest** sign
-    /// rather than the average one — Libra's arms and pans span three tiles
-    /// across and reach above her head, so a scale that flatters Aries puts her
-    /// through the grid.
-    private var statueScale: CGFloat { 3 }
+    /// Five. The slight overlap into the grid above is wanted — the statue is
+    /// the thing being chosen, so it standing proud of the panel is the point
+    /// rather than a fault to size away.
+    private var statueScale: CGFloat { 5 }
 
     /// One art cell at the statue's scale.
     private var cell: CGFloat { CGFloat(GameRules.tilePixelSize) * statueScale }
