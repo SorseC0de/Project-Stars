@@ -1605,6 +1605,11 @@ final class GameSession {
                     at: point,
                     on: plane
                 )
+                // And the impact, in front of the piece rather than on the
+                // ground: the Bolt is the one Essence that does nothing to the
+                // board, so an effect that stays underfoot says the opposite of
+                // what happened.
+                playEffect(.lightningMisc, at: point, on: plane)
             }
             withAnimation(.spring(response: 0.28, dampingFraction: 0.6)) {
                 engine.apply(event)
@@ -1940,6 +1945,24 @@ final class GameSession {
             throwBubble(to: point, from: thrownFrom!)
             playEffect(.waterSplash, at: thrownFrom!, on: engine.piece.plane)
             engine.apply(event)
+            await sleep(event.displayDuration)
+
+        case let .caughtOnReveal(plane, point):
+            // The snipe: a coin taken on the move it appeared. Overhead rather
+            // than on the square, because the square already has the coin's own
+            // collection burst on it and two flourishes in one place read as one
+            // messy flourish.
+            playEffect(.bonus, at: point, on: plane)
+            engine.apply(event)
+            await sleep(event.displayDuration)
+
+        case let .zodiactionMeterChanged(to: target) where target > engine.zodiactionMeter:
+            // Charge arriving, wherever it came from. Drawn over the piece, in
+            // greys the element tints — see `EffectSprite.absorb`.
+            playEffect(.absorb, at: engine.piece.point, on: engine.piece.plane)
+            withAnimation(.easeInOut(duration: max(event.displayDuration, 0.01))) {
+                engine.apply(event)
+            }
             await sleep(event.displayDuration)
 
         default:
