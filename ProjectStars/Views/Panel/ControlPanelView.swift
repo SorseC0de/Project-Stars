@@ -287,7 +287,7 @@ enum PanelStyle {
     /// Capricorn's meter, drawn as coins. Ten of them on Astra, so they are
     /// small — but round and rimmed, which is enough to read as money at a
     /// glance and to be counted without reading anything.
-    static let meterCoinSize: CGFloat = 22
+    static let meterCoinSize: CGFloat = 16.5
     static let meterCoinSpacing: CGFloat = 3
     static let meterCoinRim: CGFloat = 1.5
 
