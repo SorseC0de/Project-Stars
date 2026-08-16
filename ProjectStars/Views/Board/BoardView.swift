@@ -76,8 +76,11 @@ struct BoardView: View {
             strength: session.shakeStrength
         )
         // An illegal swipe shoves the board a few points and springs back.
-        .offset(nudgeOffset)
-        .animation(.spring(response: 0.22, dampingFraction: 0.35), value: session.blockedNudge)
+        //
+        // One tree either way, paused when idle — see `ScreenShake`. A branch
+        // here would put the board's resting layout at the mercy of whether a
+        // nudge happened to be running.
+        .modifier(BoardNudge(offset: nudgeOffset(at:), settled: nudgeSettled))
         // Not clipped: the cursor may hang past the edge when the projected move
         // would leave the grid, and the Nexys overhangs its square.
     }
@@ -2118,16 +2121,30 @@ struct BoardView: View {
         }
     }
 
-    /// A small shove in the direction of a rejected swipe.
-    private var nudgeOffset: CGSize {
-        guard let direction = session.blockedDirection, session.blockedNudge % 2 == 1 else {
+    /// A small shove in the direction of a rejected swipe, out and back.
+    ///
+    /// `sin` over half a period: zero at both ends, so however the timing falls
+    /// the board can only come to rest where it started.
+    private func nudgeOffset(at date: Date) -> CGSize {
+        guard let direction = session.blockedDirection, let started = session.blockedAt else {
             return .zero
         }
+        let elapsed = date.timeIntervalSince(started)
+        guard elapsed >= 0, elapsed < GameRules.blockedNudgeDuration else { return .zero }
+
+        let travel = CGFloat(sin(elapsed / GameRules.blockedNudgeDuration * .pi))
+        let distance = GameRules.blockedNudgeDistance * travel
+
         // Derived from the offset rather than enumerated, so a diagonal shove
         // leans into the corner it was aimed at.
-        let distance: CGFloat = 6
         let step = direction.unitOffset
         return CGSize(width: CGFloat(step.dx) * distance,
                       height: CGFloat(step.dy) * distance)
+    }
+
+    /// True once the shove has run itself out.
+    private var nudgeSettled: Bool {
+        guard let started = session.blockedAt else { return true }
+        return Date().timeIntervalSince(started) >= GameRules.blockedNudgeDuration
     }
 }

@@ -2800,6 +2800,12 @@ enum GameRules {
     //
     // The jolt of a heavy landing.
 
+    /// Seconds the shove for a rejected swipe takes, out and back.
+    static let blockedNudgeDuration: TimeInterval = 0.22
+
+    /// How far that shove travels, in points.
+    static let blockedNudgeDistance: CGFloat = 6
+
     /// Seconds a shake takes to die away.
     static let shakeDuration: TimeInterval = 0.38
 

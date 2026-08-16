@@ -90,3 +90,23 @@ extension View {
         modifier(ScreenShake(startedAt: startedAt, strength: strength, scale: scale))
     }
 }
+
+/// Shoves its content and brings it back, for a move that could not be made.
+///
+/// The same shape as `ScreenShake` and for the same reason: one view tree
+/// always, a paused schedule when there is nothing to play, and an offset
+/// derived from elapsed time so there is no state to leave behind.
+struct BoardNudge: ViewModifier {
+
+    /// Where the board should be at a given moment.
+    let offset: (Date) -> CGSize
+
+    /// True once the shove has run itself out.
+    let settled: Bool
+
+    func body(content: Content) -> some View {
+        TimelineView(.animation(paused: settled)) { timeline in
+            content.offset(offset(timeline.date))
+        }
+    }
+}

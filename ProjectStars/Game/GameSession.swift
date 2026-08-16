@@ -188,6 +188,15 @@ final class GameSession {
     private(set) var hopStartedAt: Date?
 
     /// Bumped whenever an illegal swipe is rejected, so the board can nudge.
+    /// When the last rejected swipe was, or `nil` for none.
+    ///
+    /// A timestamp rather than a counter. The shove used to be drawn while the
+    /// counter was **odd**, which made it a toggle rather than a pulse: the
+    /// first rejected swipe pushed the board six points and left it there until
+    /// the next one pushed it back. The board genuinely rested in two different
+    /// places on alternating nudges.
+    private(set) var blockedAt: Date?
+
     private(set) var blockedNudge: Int = 0
 
     /// The direction of the most recent rejected swipe, for the nudge offset.
@@ -2398,6 +2407,7 @@ final class GameSession {
     /// Records a rejected swipe so the board can nudge in that direction.
     private func reportBlocked(_ direction: SwipeDirection) {
         blockedDirection = direction
+        blockedAt = Date()
         blockedNudge += 1
 
         // The piece tries anyway. A board that shakes while the piece stands
