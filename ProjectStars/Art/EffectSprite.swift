@@ -103,6 +103,38 @@ enum EffectSprite: String, CaseIterable, Hashable {
     /// as long as the arrow is out there.
     case sagittariusTeleTile
 
+    // MARK: New art
+
+    /// Wind, for anything gusty without a drawing of its own. Replaces the
+    /// programmatic gust behind Astral Breeze.
+    case windMisc
+
+    /// The lightning that plays in front of a piece struck by an Astral Bolt.
+    case lightningMisc
+
+    /// Aquarius' Zodiaction. Wired ahead of the effect it will decorate.
+    case aquariusZodiaction
+
+    /// One band of Aquarius' storm — stacked, scaled and turned to build the
+    /// funnel around the silhouette. See `AquariusStormView`.
+    case aquariusArmor
+
+    /// The glow phase, replacing the rendered version.
+    case glowPhase
+
+    /// Sparkles, for the glow phase and anything else that wants them.
+    case sparkles
+
+    /// Played over the piece on any ZC gain. Drawn in greys on purpose, so the
+    /// four tones can be swapped for whichever element earned it.
+    case absorb
+
+    /// The overhead flourish for a sniped Pentacle.
+    case bonus
+
+    /// Cancer's scuttle bubbles.
+    case cancerScuttle
+
     // MARK: - Where the art is
 
     /// Which element this belongs to, or `nil` for the ones outside the wheel.
@@ -117,8 +149,15 @@ enum EffectSprite: String, CaseIterable, Hashable {
         // to a folder it is not in simply does not draw, and says nothing about
         // why.
         if self == .droplet { return nil }
+        // The new astral set: none of these belong to a sign either.
+        if Self.astral.contains(self) { return nil }
         return elementalFamily
     }
+
+    /// The strips that belong to no element, and so live in `Astral/`.
+    private static let astral: Set<EffectSprite> = [
+        .lightningMisc, .glowPhase, .sparkles, .absorb, .bonus,
+    ]
 
     /// The asset-catalog folder this strip lives in.
     var folder: String {
@@ -137,8 +176,12 @@ enum EffectSprite: String, CaseIterable, Hashable {
             .water
         // Libra is air, and the diamonds were filed under water only because the
         // first draft of them was drawn in blue.
-        case .libraZodiaction:
+        case .libraZodiaction, .windMisc, .aquariusZodiaction, .aquariusArmor:
             .air
+        case .cancerScuttle:
+            .water
+        case .lightningMisc, .glowPhase, .sparkles, .absorb, .bonus:
+            .air  // Unreachable: `element` short-circuits these to nil.
         case .astralBloom:
             .earth
         // Astral rather than elemental: the Tear belongs to no sign.
@@ -176,6 +219,15 @@ enum EffectSprite: String, CaseIterable, Hashable {
         case .sagittariusArrow: "saggitarius_arrow"
         case .sagittariusArrowHit: "saggitarius_arrowhit"
         case .sagittariusTeleTile: "saggitarius_teletile"
+        case .windMisc: "misc"
+        case .lightningMisc: "lightning_misc"
+        case .aquariusZodiaction: "aquarius_zaction"
+        case .aquariusArmor: "aquarius_armor"
+        case .glowPhase: "glow_phase"
+        case .sparkles: "sparkles"
+        case .absorb: "absorb"
+        case .bonus: "bonus"
+        case .cancerScuttle: "cancer_scuttle"
         }
     }
 
@@ -197,6 +249,13 @@ enum EffectSprite: String, CaseIterable, Hashable {
         switch self {
         case .explosion, .sagittariusArrow: CGSize(width: 96, height: 96)
         case .waterSplash: CGSize(width: 48, height: 48)
+        // Wide rather than square: the flourish spans four tiles so it can be
+        // read from across the board without sitting on top of the coin.
+        case .bonus: CGSize(width: 256, height: 96)
+        case .windMisc, .absorb, .cancerScuttle:
+            CGSize(width: 128, height: 128)
+        case .lightningMisc, .aquariusZodiaction, .glowPhase, .sparkles:
+            CGSize(width: 96, height: 96)
         // Tall and narrow: a bolt reaches from the sky to the ground, and its
         // frame is the only one here that is not square.
         case .lightning1, .lightning2, .lightning3, .lightning4:
@@ -224,6 +283,13 @@ enum EffectSprite: String, CaseIterable, Hashable {
         case .sagittariusArrowHit: 12
         case .leoZodiactionOne, .leoZodiactionTwo,
              .cancerZodiaction, .cancerZodiactionAlternate, .libraZodiaction: 22
+        case .windMisc, .lightningMisc, .aquariusZodiaction: 10
+        case .glowPhase: 12
+        case .aquariusArmor: 16
+        case .sparkles: 24
+        case .absorb: 31
+        case .cancerScuttle: 40
+        case .bonus: 44
         }
     }
 
@@ -258,6 +324,10 @@ enum EffectSprite: String, CaseIterable, Hashable {
         // Aries Activation 15 -> 24. The early and late frames are very similar
         case .ariesActivation: .fps24
         case .lightning1, .lightning2, .lightning3, .lightning4: GameRules.lightningRate
+        // The long ones, at sixty. Forty-four frames at 24fps is close to two
+        // seconds, which outlasts the move it is decorating; at 60 they land
+        // inside it.
+        case .absorb, .cancerScuttle, .bonus, .sparkles: .fps60
         default: frames >= 20 ? .fps24 : .fps15
         }
     }
@@ -301,6 +371,16 @@ enum EffectSprite: String, CaseIterable, Hashable {
         case .sagittariusArrow: 0
         // Water landing on a square, so it belongs to the square.
         case .droplet: 0
+        // Over the piece rather than at its feet: the absorb is the charge
+        // arriving in the statue, and the lightning strikes the figure itself.
+        case .absorb, .lightningMisc: 8
+        // The flourish hangs overhead, clear of the coin that earned it.
+        case .bonus: 20
+        // Ground-level: wind blows across a square, the glow phase is the
+        // square lighting up, and the scuttle's bubbles come off the floor.
+        case .windMisc, .glowPhase, .sparkles, .cancerScuttle: 0
+        // Around the whole figure, not under it.
+        case .aquariusZodiaction, .aquariusArmor: 8
         }
     }
 
