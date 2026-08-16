@@ -271,6 +271,30 @@ extension View {
             .position(x: middle, y: band.centreY - (flat - middle) * band.scale)
     }
 
+    /// One **square** of ground, taking its row's shape.
+    ///
+    /// The band treatment for a single tile rather than a whole row: same lean,
+    /// same squash, same near-edge anchor. Anything that is *ground* wants this
+    /// — a lifted tile is still ground, and so is a mark painted on it.
+    ///
+    /// The difference from `standingOnBoardRow` is the vertical squash. A figure
+    /// standing on a row must never take it or it comes out squat; a tile must
+    /// always take it or it comes out flat against a floor that is lying down.
+    func asBoardSquare(_ point: GridPoint, metrics: PixelArtMetrics) -> some View {
+        let band = BoardBand.at(row: point.y, metrics: metrics)
+        let middle = metrics.boardSize / 2
+        let flat = metrics.center(of: point)
+        return foreshortened(
+            band.lean,
+            size: CGSize(width: metrics.tileSize, height: metrics.tileSize)
+        )
+            .scaleEffect(x: band.scale, y: band.groundScale, anchor: .bottom)
+            .position(
+                x: middle + (flat.x - middle) * band.scale,
+                y: band.groundCentreY
+            )
+    }
+
     /// And this view as something *standing* on it: evenly scaled, never
     /// squashed, and sized at the row's centre rather than its front edge —
     /// which is where the object's feet actually are.

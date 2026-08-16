@@ -43,6 +43,11 @@ struct BoardView: View {
             if plane == .terra {
                 // - TODO: Terra only while the two are compared. Astra keeps
                 //   the projection below.
+                // Under the bands, because an edge is the side of the tile in
+                // front of it. It takes scale and placement only — an edge is a
+                // vertical face, so squashing it with the floor would be
+                // squashing the one surface that is not lying down.
+                edgeLayer(board: board, plane: plane, metrics: metrics)
                 bandedBoard(board: board, plane: plane, metrics: metrics)
                 layers(board: board, plane: plane, metrics: metrics, ground: false)
             } else {
@@ -106,10 +111,15 @@ struct BoardView: View {
                 faceLayer(board: board, plane: plane, metrics: metrics)
             }
 
-            // Over the ground, under everything that moves: the piece, the
-            // coins and the move's own effects all sit above this and stay lit.
+            // Full width, under everything that moves and over all the ground.
+            //
+            // It was board-sized, which left the sky either side of the board
+            // undimmed — the board went dark and the world around it did not,
+            // which reads as the board being covered rather than the moment
+            // being someone else's.
             actionDim(metrics: metrics)
             choiceDim(metrics: metrics)
+
 
 
             pools(board: board, plane: plane, metrics: metrics)
@@ -418,7 +428,7 @@ struct BoardView: View {
     private func actionDim(metrics: PixelArtMetrics) -> some View {
         Rectangle()
             .fill(Palette.coolBlack)
-            .frame(width: metrics.boardSize, height: metrics.boardSize)
+            .frame(width: metrics.boardSize * 3, height: metrics.boardSize * 3)
             .opacity(session.isResolvingAction ? GameRules.actionDim : 0)
             .animation(.easeOut(duration: 0.14), value: session.isResolvingAction)
             .allowsHitTesting(false)
@@ -978,7 +988,11 @@ struct BoardView: View {
             corners: corners,
             showsWarning: showsWarning
         )
-            .modifier(placedOnPlaneModifier(point, metrics: metrics))
+            // A mark painted on the floor, not a thing standing on it — so it
+            // takes the row's squash and lean like any other ground, on both
+            // planes. Placing it as an object is what kept it looking like a
+            // sticker laid flat over a board that is lying down.
+            .asBoardSquare(point, metrics: metrics)
             .offset(
                 y: -GameRules.cursorLift * metrics.scale
                     + surfaceOffset(of: point, bob: bob, metrics: metrics)
@@ -1086,7 +1100,9 @@ struct BoardView: View {
                         scale: metrics.scale,
                         clock: session.ambientClock(at:)
                     )
-                    .modifier(placedOnPlaneModifier(session.engine.piece.point, metrics: metrics))
+                    // Ground, like the cursor: it is a mark on the square
+                    // ahead, not something standing there.
+                    .asBoardSquare(session.engine.piece.point, metrics: metrics)
                     .offset(y: surfaceOffset(
                         of: session.engine.piece.point, bob: bob, metrics: metrics
                     ))
@@ -1235,6 +1251,11 @@ struct BoardView: View {
                     swaps: CloudSpriteView.raisedSwaps,
                     glows: true
                 )
+                // The same base size the field draws every other cloud at.
+                // The promoted square is a view rather than a stamp in the
+                // canvas, so it never went through `cloudBaseSize` and came out
+                // a tenth larger than its neighbours.
+                .scaleEffect(GameRules.cloudBaseSize)
                 .offset(y: -GameRules.cloudSpriteRaiseLift * metrics.scale)
                 .modifier(placedOnPlaneModifier(point, metrics: metrics))
                 .transition(.opacity)
@@ -1251,8 +1272,11 @@ struct BoardView: View {
                 isFlashing: session.flashingTiles.contains(point),
                 point: point
             )
+            // Ground, not an object. It was taking the object treatment —
+            // one even scale — so a lifted tile came out flat while the floor
+            // it rose from was lying down.
+            .asBoardSquare(point, metrics: metrics)
             .offset(y: -GameRules.tilePopLift * metrics.scale)
-            .modifier(placedOnPlaneModifier(point, metrics: metrics))
             .transition(.opacity)
         )
     }
