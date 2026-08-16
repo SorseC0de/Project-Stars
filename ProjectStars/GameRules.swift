@@ -2638,7 +2638,10 @@ enum GameRules {
     ///
     /// Slower than the pair and on its own count, so the three never line up
     /// into a single pulse.
-    static let virgoGemFloat: CGFloat = 3
+    /// Twice the pair's travel. The middle gem hangs alone with nothing beside
+    /// it to read against, so the same distance the outer two share reads as
+    /// almost still on it.
+    static let virgoGemFloat: CGFloat = 6
     static let virgoGemFloatPeriod: TimeInterval = 2.3
 
     static let facingArrowLift: CGFloat = 4
