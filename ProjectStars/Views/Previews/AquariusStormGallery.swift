@@ -53,50 +53,46 @@ struct AquariusStorm: View {
     var phase: Int = 10
 
     /// How tall the column stands, as a fraction of the square.
-    var height: CGFloat = 0.3
+    var height: CGFloat = GameRules.aquariusStormHeight
 
     /// How far apart in the strip consecutive plates start. `1` spreads them
     /// evenly across the whole strip.
-    var spread: Double = 1
+    var spread: Double = GameRules.aquariusStormSpread
 
     /// How many frames to drop off the **end** of the band's strip.
     ///
     /// The tail cells thin out to nothing, and a nearly-empty frame in a looped
     /// stack is a hole that comes round again. One drops the blank; more trims
     /// back into the thinning frames before it.
-    var taper: Int = 0
+    var taper: Int = GameRules.aquariusStormTaper
 
     /// A multiplier on every plate's width.
-    var bladeScale: CGFloat = 1
-
-    /// Widens the funnel without making the plates taller — the plates are
-    /// square, so scaling them alone raises the column as much as it spreads it.
-    var width: CGFloat = 1
+    var bladeScale: CGFloat = GameRules.aquariusStormBlade
 
     /// How far the eye plates turn, either way.
-    var eyeTurn: Double = 4
+    var eyeTurn: Double = GameRules.aquariusEyeTurn
 
     /// What fraction of the stack's sway the eye plates take.
     ///
     /// A fraction rather than all of it: the eye is deeper in the column than
     /// the wall around it, and things further away move less.
-    var eyeSway: CGFloat = 0.35
+    var eyeSway: CGFloat = GameRules.aquariusEyeSway
 
     /// How big the second eye plate is against the first.
-    var eyeTwinScale: CGFloat = 0.75
+    var eyeTwinScale: CGFloat = GameRules.aquariusEyeTwinScale
 
     /// How much wider an eye plate is than the widest of the stack.
-    var eyeScale: CGFloat = 0.75
+    var eyeScale: CGFloat = GameRules.aquariusEyeScale
 
     /// How each eye plate sits against the rest. Two of them, because one
     /// darkening pass reads as a stain and two crossing at different heights
     /// read as a gap you are looking through.
-    var eyeBlend: BlendMode = .multiply
+    var eyeBlend: BlendMode = .hardLight
     var eyeTwinBlend: BlendMode = .multiply
 
     /// Where each sits, as a fraction of the square.
-    var eyeY: CGFloat = 0
-    var eyeTwinY: CGFloat = 0.06
+    var eyeY: CGFloat = GameRules.aquariusEyeY
+    var eyeTwinY: CGFloat = GameRules.aquariusEyeTwinY
 
     /// Size of the square this fills, in points.
     var side: CGFloat = 96
@@ -146,7 +142,6 @@ struct AquariusStorm: View {
                 }
             }
             .frame(width: side, height: side)
-            .scaleEffect(x: width, y: 1)
         }
     }
 
@@ -232,8 +227,6 @@ struct AquariusStorm: View {
         return (narrow + (wide - narrow) * up) * bladeScale
     }
 
-    /// The funnel's own horizontal stretch, applied to the stack as a whole.
-    fileprivate var spreadWide: CGFloat { width }
 
     /// Stacked close together — the plates touch, so the stack reads as one
     /// column of air rather than as a set of separate rings.
@@ -342,25 +335,23 @@ struct AquariusStormGallery: View {
     @State private var blend: BlendMode = .exclusion
     @State private var showsEyes = true
     @State private var showsSilhouette = true
-    @State private var glow: Double = 1
-    @State private var eyeScale: Double = 0.75
+    @State private var eyeScale: Double = Double(GameRules.aquariusEyeScale)
     @State private var eyeBlend: BlendMode = .hardLight
-    @State private var figureScale: Double = 1.5
-    @State private var figureTurn: Double = 5
-    @State private var groupScale: Double = 0.75
-    @State private var width: Double = 1
-    @State private var eyeTurn: Double = 8
-    @State private var eyeTwinScale: Double = 0.75
-    @State private var eyeSway: Double = 0.35
-    @State private var eyeOffset: Double = -54
-    @State private var figureY: Double = -125
-    @State private var eyeY: Double = -0.05
-    @State private var eyeTwinY: Double = -0.1
-    @State private var eyeTwinBlend: BlendMode = .plusDarker
-    @State private var spread: Double = 2
-    @State private var height: Double = 0.15
-    @State private var taper: Double = 5
-    @State private var bladeScale: Double = 0.8
+    @State private var figureScale: Double = Double(GameRules.aquariusFigureScale)
+    @State private var figureTurn: Double = GameRules.aquariusFigureTurn
+    @State private var groupScale: Double = Double(GameRules.aquariusStormScale)
+    @State private var eyeTurn: Double = GameRules.aquariusEyeTurn
+    @State private var eyeTwinScale: Double = Double(GameRules.aquariusEyeTwinScale)
+    @State private var eyeSway: Double = Double(GameRules.aquariusEyeSway)
+    @State private var eyeOffset: Double = Double(GameRules.aquariusEyeGlowY)
+    @State private var figureY: Double = Double(GameRules.aquariusFigureY)
+    @State private var eyeY: Double = Double(GameRules.aquariusEyeY)
+    @State private var eyeTwinY: Double = Double(GameRules.aquariusEyeTwinY)
+    @State private var eyeTwinBlend: BlendMode = .multiply
+    @State private var spread: Double = GameRules.aquariusStormSpread
+    @State private var height: Double = Double(GameRules.aquariusStormHeight)
+    @State private var taper: Double = Double(GameRules.aquariusStormTaper)
+    @State private var bladeScale: Double = Double(GameRules.aquariusStormBlade)
 
     private let blends: [(String, BlendMode)] = [
         ("LIGHTEN", .plusLighter),
@@ -417,14 +408,17 @@ struct AquariusStormGallery: View {
         /// not the storm's, and eyes that stay level while the head they belong
         /// to leans are the fastest way to make something look pasted on.
         var showsEyes = true
-        var glow: CGFloat = 1
-        var eyeOffset: CGFloat = -54
+        var eyeOffset: CGFloat = GameRules.aquariusEyeGlowY
 
         /// How far he turns either way, in degrees.
         var turn: Double = 12
 
         /// How big he is drawn, against the storm around him.
         var size: CGFloat = 1
+
+        /// `0`…`1`, how full the meter is. The figure shrinks as it fills —
+        /// see `GameRules.aquariusFigureShrink`.
+        var strength: Double = 1
 
         /// Where he hangs, as points from the middle.
         var height: CGFloat = -74
@@ -436,9 +430,18 @@ struct AquariusStormGallery: View {
                 let lift = sin(now / 3.7 * 2 * .pi) * 14
                 let breath = 1 + sin(now / 4.3 * 2 * .pi) * 0.1
 
+                // The bluff. A full storm hides the smallest figure, so the most
+                // frightening it looks is the moment it can do the least.
+                let shrink = GameRules.aquariusFigureShrink
+                    + (1 - GameRules.aquariusFigureShrink) * CGFloat(1 - strength)
+                // Swinging all the way to nothing and back: a light that never
+                // goes out is a lamp, one that does is something blinking.
+                let pulse = (1 - cos(now / GameRules.aquariusEyeGlowPeriod * 2 * .pi)) / 2
+                let burn = GameRules.aquariusEyeGlowPeak * CGFloat(pulse)
+
                 ZStack {
                     PixelSprite(id: .piece(.aquarius)) { Color.clear }
-                        .frame(width: 132 * size, height: 264 * size)
+                        .frame(width: 132 * size * shrink, height: 264 * size * shrink)
                         .colorEffect(ShaderLibrary.flatSilhouette(.color(Palette.midnight)))
                         .blendMode(blend)
 
@@ -455,7 +458,7 @@ struct AquariusStormGallery: View {
                         // so they should not be carried up by it. The bob and
                         // the turn they *do* take, because those are him
                         // moving rather than him being put somewhere.
-                        StormEyes(width: 40, spacing: 46, glow: glow)
+                        StormEyes(width: 40 * shrink, spacing: 46 * shrink, glow: burn)
                             .offset(y: eyeOffset - height)
                     }
                 }
@@ -503,7 +506,6 @@ struct AquariusStormGallery: View {
                 spread: spread,
                 taper: Int(taper.rounded()),
                 bladeScale: CGFloat(bladeScale),
-                width: CGFloat(width),
                 eyeTurn: eyeTurn,
                 eyeSway: CGFloat(eyeSway),
                 eyeTwinScale: CGFloat(eyeTwinScale),
@@ -531,10 +533,10 @@ struct AquariusStormGallery: View {
                 FloatingSilhouette(
                     blend: blend,
                     showsEyes: showsEyes,
-                    glow: CGFloat(glow),
                     eyeOffset: CGFloat(eyeOffset),
                     turn: figureTurn,
                     size: CGFloat(figureScale),
+                    strength: Double(min(max(phase, 0), 10)) / 10,
                     height: CGFloat(figureY)
                 )
             }
@@ -617,7 +619,6 @@ struct AquariusStormGallery: View {
             }
 
             // Homed on the settled values, with room either side of each.
-            knob("GLOW", $glow, 0...3, "x")
             knob("STAGGER", $spread, 0.5...3.5, "x")
             knob("HEIGHT", $height, 0.02...0.3, "x")
             knob("BLADE", $bladeScale, 0.4...1.2, "x")
@@ -625,7 +626,6 @@ struct AquariusStormGallery: View {
             knob("EYE", $eyeScale, 0.8...2.2, "x")
             knob("FIGURE", $figureScale, 0.6...2.4, "x")
             knob("TURN", $figureTurn, 0...40, "°")
-            knob("WIDTH", $width, 0.6...2, "x")
             knob("EYE TURN", $eyeTurn, 0...30, "°")
             knob("EYE2", $eyeTwinScale, 0.4...1.4, "x")
             knob("EYE SWAY", $eyeSway, 0...1, "x")

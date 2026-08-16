@@ -2619,6 +2619,51 @@ enum GameRules {
     /// — and each pairing needed a different amount of that undone. With the
     /// double gone the four collapse into one, which is the tell that they were
     /// never four different quantities.
+    // MARK: - Aquarius' storm
+
+    /// The funnel, settled. Everything here is a proportion of the square the
+    /// storm is drawn in, so the assembly scales as one — see
+    /// `aquariusStormScale`.
+    static let aquariusStormHeight: CGFloat = 0.15
+    static let aquariusStormBlade: CGFloat = 0.8
+    static let aquariusStormSpread: Double = 2
+    static let aquariusStormTaper: Int = 5
+
+    /// The eye: two plates, the smaller two thirds of the larger, taking half
+    /// the stack's sway because the eye sits deeper in the column than the wall
+    /// around it.
+    static let aquariusEyeScale: CGFloat = 0.75
+    static let aquariusEyeTwinScale: CGFloat = 0.66
+    static let aquariusEyeTurn: Double = 10
+    static let aquariusEyeSway: CGFloat = 0.5
+    static let aquariusEyeY: CGFloat = -0.05
+    static let aquariusEyeTwinY: CGFloat = -0.15
+
+    /// The figure inside, and where his eyes sit in the picture.
+    static let aquariusFigureScale: CGFloat = 1.5
+    static let aquariusFigureTurn: Double = 5
+    static let aquariusFigureY: CGFloat = -125
+    static let aquariusEyeGlowY: CGFloat = -55
+
+    /// How hard the eyes burn at the top of their breath, and how long one
+    /// breath takes.
+    ///
+    /// They swing all the way to nothing and back rather than pulsing about a
+    /// middle: a light that never fully goes out reads as a lamp, and one that
+    /// does reads as something blinking at you.
+    static let aquariusEyeGlowPeak: CGFloat = 2.5
+    static let aquariusEyeGlowPeriod: TimeInterval = 6.5
+
+    /// The whole assembly against a board square.
+    static let aquariusStormScale: CGFloat = 0.75
+
+    /// How much smaller the figure and his eyes are at an empty meter.
+    ///
+    /// The bluff, stated as a number: the storm grows as it fills and the thing
+    /// inside it shrinks, so the most frightening it ever looks is the moment
+    /// it can do the least. See the Aquarius rework.
+    static let aquariusFigureShrink: CGFloat = 0.45
+
     // MARK: - Virgo's gems
 
     /// How far the outer gems travel, in art pixels.
