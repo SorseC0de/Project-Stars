@@ -64,7 +64,13 @@ struct AquariusStorm: View {
     /// The tail cells thin out to nothing, and a nearly-empty frame in a looped
     /// stack is a hole that comes round again. One drops the blank; more trims
     /// back into the thinning frames before it.
-    var taper: Int = GameRules.aquariusStormTaper
+    /// Frames dropped from the end of each plate's strip, thinning with the
+    /// meter — see `GameRules.aquariusStormTaperLeast`.
+    var taper: Int {
+        let least = Double(GameRules.aquariusStormTaperLeast)
+        let most = Double(GameRules.aquariusStormTaperMost)
+        return Int((least + (most - least) * strength).rounded())
+    }
 
     /// A multiplier on every plate's width.
     var bladeScale: CGFloat = GameRules.aquariusStormBlade

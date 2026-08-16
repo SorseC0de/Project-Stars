@@ -2646,6 +2646,18 @@ enum GameRules {
     static let aquariusStormHeight: CGFloat = 0.15
     static let aquariusStormBlade: CGFloat = 0.8
     static let aquariusStormSpread: Double = 2
+    /// How many frames come off the end of a plate's strip, at a full meter and
+    /// at an empty one.
+    ///
+    /// The tail of the strip is where the gust thins out and breaks up, so
+    /// keeping more of it is how a storm comes apart. A full meter trims all
+    /// five and every plate is a solid sheet; near empty only two come off, the
+    /// ragged frames play, and the gaps between blades start showing — which is
+    /// the picture of something about to run out of wind rather than a smaller
+    /// copy of something that is not.
+    static let aquariusStormTaperMost: Int = 5
+    static let aquariusStormTaperLeast: Int = 2
+
     static let aquariusStormTaper: Int = 5
 
     /// The eye: two plates, the smaller two thirds of the larger, taking half
@@ -2744,7 +2756,7 @@ enum GameRules {
     /// out of where the topmost one lands. So the eye of the storm does not
     /// come down as the storm weakens, and neither should he. Half, so he
     /// settles a little without following a floor that is not there.
-    static let aquariusFigureSink: CGFloat = 0.5
+    static let aquariusFigureSink: CGFloat = 0.75
 
     /// How many plates the funnel has, at an empty meter and at a full one.
     ///
