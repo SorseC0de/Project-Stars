@@ -2015,7 +2015,7 @@ enum GameRules {
     /// The plane rides higher and is framed slightly smaller than the ground
     /// below it, which is what puts a piece's feet at the same height on both.
     static let astraForeshortenScale: CGFloat = 1.0
-    static let astraForeshortenLift: CGFloat = 0.15 + 0.5 / CGFloat(gridSize)
+    static let astraForeshortenLift: CGFloat = 0.15 + 0.25 / CGFloat(gridSize)
 
     /// How much of its square a cloud fills, and how far apart the squares sit.
     ///
@@ -2047,7 +2047,7 @@ enum GameRules {
     /// Both boards ride one whole tile higher than the framing alone puts them,
     /// which is what `1 / gridSize` is: the lift is a fraction of the board, and
     /// a board is `gridSize` tiles.
-    static let boardForeshortenLift: CGFloat = 0.05 + 0.5 / CGFloat(gridSize)
+    static let boardForeshortenLift: CGFloat = 0.05 + 0.25 / CGFloat(gridSize)
 
     /// How far each row of the board overdraws the one behind it.
     ///
