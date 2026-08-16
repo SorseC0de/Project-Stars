@@ -188,13 +188,14 @@ struct StormEyes: View {
     /// How far apart they sit, centre to centre.
     var spacing: CGFloat = 20
 
-    /// Slanted so the **inner** ends drop, which is a scowl. Slanting the outer
-    /// ends down instead reads as sad, and the two are the same number with the
-    /// sign flipped — which is why this is stated rather than eyeballed.
-    var slant: Double = 34
+    /// Slanted so the **inner** ends drop, which is a scowl. Settled at 35.
+    var slant: Double = 35
 
-    /// How narrow the eye is closed, as a fraction of its width.
-    var slit: CGFloat = 0.34
+    /// How narrow the eye is closed, as a fraction of its width. Settled.
+    var slit: CGFloat = 0.35
+
+    /// How hard they burn, against the settled look.
+    var glow: CGFloat = 1
 
     /// Purple: air's colour everywhere else in the game.
     var tint: Color = ElementFX.ramp(for: .air).bright
@@ -215,8 +216,9 @@ struct StormEyes: View {
             .fill(tint)
             .frame(width: width, height: width * slit)
             .rotationEffect(.degrees(turned))
-            .shadow(color: tint.opacity(0.9), radius: width * 0.35)
-            .shadow(color: tint.opacity(0.6), radius: width * 0.8)
+            .shadow(color: tint.opacity(0.9 * Double(glow)), radius: width * 0.35 * glow)
+            .shadow(color: tint.opacity(0.6 * Double(glow)), radius: width * 0.8 * glow)
+            .shadow(color: tint.opacity(0.35 * Double(glow)), radius: width * 1.6 * glow)
     }
 }
 
@@ -227,15 +229,14 @@ struct StormEyes: View {
 struct AquariusStormGallery: View {
 
     @State private var phase = 10
-    @State private var blend: BlendMode = .plusLighter
+    @State private var blend: BlendMode = .exclusion
     @State private var showsEyes = true
     @State private var showsSilhouette = true
-    @State private var slant: Double = 34
-    @State private var slit: Double = 0.34
-    @State private var spread: Double = 1
-    @State private var height: Double = 0.3
-    @State private var taper: Double = 1
-    @State private var bladeScale: Double = 1
+    @State private var glow: Double = 1
+    @State private var spread: Double = 2
+    @State private var height: Double = 0.1
+    @State private var taper: Double = 5
+    @State private var bladeScale: Double = 0.8
 
     private let blends: [(String, BlendMode)] = [
         ("LIGHTEN", .plusLighter),
@@ -269,6 +270,36 @@ struct AquariusStormGallery: View {
         .padding(20)
         .frame(maxWidth: .infinity, maxHeight: .infinity)
         .background(Palette.background)
+    }
+
+    /// The figure, carried by the storm rather than standing in it.
+    ///
+    /// Turning, rising and breathing, all on their own periods so none of the
+    /// three ever lines up with another — three motions in step read as one
+    /// motion, which is the thing that makes something look mechanical.
+    private struct FloatingSilhouette: View {
+
+        let blend: BlendMode
+
+        var body: some View {
+            TimelineView(.animation) { timeline in
+                let now = timeline.date.timeIntervalSinceReferenceDate
+                let turn = sin(now / 5.2 * 2 * .pi) * 35
+                let lift = sin(now / 3.7 * 2 * .pi) * 14
+                let breath = 1 + sin(now / 4.3 * 2 * .pi) * 0.1
+
+                PixelSprite(id: .piece(.aquarius)) { Color.clear }
+                    .frame(width: 132, height: 264)
+                    .colorEffect(ShaderLibrary.flatSilhouette(.color(Palette.midnight)))
+                    .scaleEffect(breath)
+                    .rotationEffect(.degrees(turn))
+                    // Raised: he hangs in the funnel rather than standing under
+                    // it, which is the whole picture — something held up by the
+                    // storm, not something the storm is happening around.
+                    .offset(y: -74 + lift)
+                    .blendMode(blend)
+            }
+        }
     }
 
     /// A patch of Terra at board scale, to judge the storm against.
@@ -321,17 +352,13 @@ struct AquariusStormGallery: View {
                 // Big. The storm is a bluff about how large the thing inside
                 // it is, and a small silhouette gives that away before the
                 // reveal does.
-                PixelSprite(id: .piece(.aquarius)) { Color.clear }
-                    .frame(width: 132, height: 264)
-                    .colorEffect(ShaderLibrary.flatSilhouette(.color(Palette.midnight)))
-                    .offset(y: -32)
-                    .blendMode(blend)
+                FloatingSilhouette(blend: blend)
             }
 
             // Over both, and never blended: the eyes are the one thing meant to
             // be seen through the storm rather than sunk into it.
             if showsEyes {
-                StormEyes(width: 40, spacing: 46, slant: slant, slit: CGFloat(slit))
+                StormEyes(width: 40, spacing: 46, glow: CGFloat(glow))
                     .offset(y: -54)
             }
         }
@@ -405,19 +432,19 @@ struct AquariusStormGallery: View {
                 .tint(Palette.cyan)
             }
 
-            knob("SLANT", $slant, 0...70, "°")
-            knob("SLIT", $slit, 0.08...1, "x")
-            knob("STAGGER", $spread, 0...3, "x")
-            knob("HEIGHT", $height, 0.1...0.9, "x")
-            knob("BLADE", $bladeScale, 0.2...1.6, "x")
-            knob("TAPER", $taper, 0...8, "f", step: 1)
+            // Homed on the settled values, with room either side of each.
+            knob("GLOW", $glow, 0...3, "x")
+            knob("STAGGER", $spread, 0.5...3.5, "x")
+            knob("HEIGHT", $height, 0.02...0.3, "x")
+            knob("BLADE", $bladeScale, 0.4...1.2, "x")
+            knob("TAPER", $taper, 2...8, "f", step: 1)
 
             Picker("Blend", selection: $blend) {
-                ForEach(blends, id: \.1) { name, mode in
-                    Text(name).tag(mode)
+                ForEach(BlendMode.allCases, id: \.self) { mode in
+                    Text(String(describing: mode)).tag(mode)
                 }
             }
-            .pickerStyle(.segmented)
+            //.pickerStyle(.segmented)
 
             HStack(spacing: 16) {
                 Toggle("EYES", isOn: $showsEyes)
@@ -427,6 +454,29 @@ struct AquariusStormGallery: View {
             .fixedSize()
         }
     }
+}
+
+extension BlendMode: CaseIterable {
+    public static var allCases: [BlendMode] = [
+        .normal,
+        .multiply,
+        .screen,
+        .overlay,
+        .darken,
+        .lighten,
+        .colorDodge,
+        .colorBurn,
+        .softLight,
+        .hardLight,
+        .difference,
+        .exclusion,
+        .hue,
+        .saturation,
+        .color,
+        .luminosity,
+        .plusDarker,
+        .plusLighter
+    ]
 }
 
 #Preview {
