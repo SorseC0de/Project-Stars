@@ -91,6 +91,11 @@ struct PieceSelectionScreen: View {
         PixelSprite(id: .piece(selection)) {
             Color.clear
         }
+        // The signs that are more than one drawing are more than one drawing
+        // here too — a Libra without her scales or a Virgo without her gems is
+        // not what the player is about to pick up.
+        .overlay(alignment: .top) { loosePartsTop }
+        .overlay(alignment: .center) { loosePartsCentre }
         .frame(
             width: CGFloat(GameRules.tilePixelSize) * statueScale,
             height: CGFloat(GameRules.tilePixelSize) * 2 * statueScale
@@ -106,6 +111,41 @@ struct PieceSelectionScreen: View {
 
     /// Whole-pixel, so the art stays on its own grid.
     private var statueScale: CGFloat { 5 }
+
+    /// Parts drawn against the figure's **upper** tile, which is the cell they
+    /// were authored against.
+    @ViewBuilder
+    private var loosePartsTop: some View {
+        switch selection {
+        case .virgo:
+            ZStack {
+                PixelSprite(id: .virgoGem(.outer)) { Color.clear }
+                PixelSprite(id: .virgoGem(.outer)) { Color.clear }
+                    .scaleEffect(x: -1, y: 1)
+                PixelSprite(id: .virgoGem(.middle)) { Color.clear }
+            }
+            .frame(width: cell, height: cell)
+
+        case .libra:
+            PixelSprite(id: .libraScalesPlain) { Color.clear }
+                .frame(width: cell, height: cell)
+
+        default:
+            EmptyView()
+        }
+    }
+
+    /// And the ones that hang across her middle.
+    @ViewBuilder
+    private var loosePartsCentre: some View {
+        if selection == .libra {
+            PixelSprite(id: .libraArm(.northSouth)) { Color.clear }
+                .frame(width: cell, height: cell)
+        }
+    }
+
+    /// One art cell at the statue's scale.
+    private var cell: CGFloat { CGFloat(GameRules.tilePixelSize) * statueScale }
 
     private func tile(for sign: Zodiac) -> some View {
         let definition = sign.definition
