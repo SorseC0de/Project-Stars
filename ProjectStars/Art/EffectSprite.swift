@@ -328,6 +328,9 @@ enum EffectSprite: String, CaseIterable, Hashable {
         // seconds, which outlasts the move it is decorating; at 60 they land
         // inside it.
         case .absorb, .cancerScuttle, .bonus, .sparkles: .fps60
+        // The storm's band ends on an empty cell, so it is a gust rather than a
+        // loop. Slow, and staggered by whoever stacks it — see `AquariusStorm`.
+        case .aquariusArmor: .fps10
         default: frames >= 20 ? .fps24 : .fps15
         }
     }
