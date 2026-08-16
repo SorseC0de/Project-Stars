@@ -52,6 +52,18 @@ struct EffectSpriteView: View {
     /// when the game is waiting on the player.
     var clock: (TimeInterval) -> TimeInterval = { $0 }
 
+    /// Play only the first this-many frames, or `nil` for the whole strip.
+    ///
+    /// For strips whose tail is not wanted — a gust that ends on empty cells is
+    /// fine played once and wrong looped, because the gap becomes a hole that
+    /// comes round again.
+    var frameCount: Int?
+
+    /// How many frames are actually played.
+    private var playing: Int {
+        min(max(frameCount ?? effect.frames, 1), effect.frames)
+    }
+
     var body: some View {
         TimelineView(.animation) { timeline in
             let now = clock(timeline.date.timeIntervalSinceReferenceDate)
@@ -59,9 +71,9 @@ struct EffectSpriteView: View {
                 ? now
                 : timeline.date.timeIntervalSince(start)
             let step = Int(elapsed / effect.rate.frameDuration)
-            let frame = loops ? ((step % effect.frames) + effect.frames) % effect.frames : step
+            let frame = loops ? ((step % playing) + playing) % playing : step
 
-            if elapsed >= 0, frame < effect.frames {
+            if elapsed >= 0, frame < playing {
                 let art = recoloured(
                     PixelSprite(id: .effect(effect), frame: frame) { EmptyView() }
                         .frame(width: side, height: height),

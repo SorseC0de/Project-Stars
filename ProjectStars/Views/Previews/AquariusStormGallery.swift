@@ -59,6 +59,16 @@ struct AquariusStorm: View {
     /// evenly across the whole strip.
     var spread: Double = 1
 
+    /// How many frames to drop off the **end** of the band's strip.
+    ///
+    /// The tail cells thin out to nothing, and a nearly-empty frame in a looped
+    /// stack is a hole that comes round again. One drops the blank; more trims
+    /// back into the thinning frames before it.
+    var taper: Int = 0
+
+    /// A multiplier on every plate's width.
+    var bladeScale: CGFloat = 1
+
     /// Size of the square this fills, in points.
     var side: CGFloat = 96
 
@@ -81,7 +91,8 @@ struct AquariusStorm: View {
                         // The band ends on an empty cell, so plates in step all
                         // vanish on the same frame and the tornado blinks. Held
                         // apart, there is always something at every height.
-                        clock: { $0 + self.stagger(band) }
+                        clock: { $0 + self.stagger(band) },
+                        frameCount: self.played
                     )
                     .rotationEffect(.degrees(turn(band, at: now) + self.tilt(band)))
                     .offset(x: sway(band, at: now), y: rise(band))
@@ -103,13 +114,20 @@ struct AquariusStorm: View {
         phase <= 0 ? 0 : max(Int((strength * 13).rounded()), 3)
     }
 
+    /// Frames actually played, after the taper.
+    private var played: Int {
+        max(EffectSprite.aquariusArmor.frames - max(taper, 0), 1)
+    }
+
     /// Where in the strip this plate starts, in seconds.
     ///
     /// Spread across the strip's whole length rather than by a fixed step, so
     /// however many plates there are they still cover it evenly.
     private func stagger(_ band: Int) -> TimeInterval {
-        let length = Double(EffectSprite.aquariusArmor.frames)
-            * EffectSprite.aquariusArmor.rate.frameDuration
+        // Measured on what is *played*, not on what was drawn — trimming the
+        // tail shortens the loop, and a stagger spread over the old length
+        // would leave the plates bunched.
+        let length = Double(played) * EffectSprite.aquariusArmor.rate.frameDuration
         return length * spread * Double(band) / Double(max(bands, 1))
     }
 
@@ -129,7 +147,7 @@ struct AquariusStorm: View {
         let up = CGFloat(band) / CGFloat(max(bands - 1, 1))
         let narrow = side * 0.30
         let wide = side * (0.86 + 0.30 * strength)
-        return narrow + (wide - narrow) * up
+        return (narrow + (wide - narrow) * up) * bladeScale
     }
 
     /// Stacked close together — the plates touch, so the stack reads as one
@@ -216,6 +234,8 @@ struct AquariusStormGallery: View {
     @State private var slit: Double = 0.34
     @State private var spread: Double = 1
     @State private var height: Double = 0.3
+    @State private var taper: Double = 1
+    @State private var bladeScale: Double = 1
 
     private let blends: [(String, BlendMode)] = [
         ("LIGHTEN", .plusLighter),
@@ -257,6 +277,8 @@ struct AquariusStormGallery: View {
                 phase: phase,
                 height: CGFloat(height),
                 spread: spread,
+                taper: Int(taper.rounded()),
+                bladeScale: CGFloat(bladeScale),
                 side: 180,
                 scale: 3
             )
@@ -335,6 +357,8 @@ struct AquariusStormGallery: View {
             knob("SLIT", $slit, 0.08...1, "x")
             knob("STAGGER", $spread, 0...3, "x")
             knob("HEIGHT", $height, 0.1...0.9, "x")
+            knob("BLADE", $bladeScale, 0.2...1.6, "x")
+            knob("TAPER", $taper, 0...8, "f")
 
             Picker("Blend", selection: $blend) {
                 ForEach(blends, id: \.1) { name, mode in
