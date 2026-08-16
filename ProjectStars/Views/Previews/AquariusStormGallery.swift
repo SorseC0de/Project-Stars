@@ -69,6 +69,12 @@ struct AquariusStorm: View {
     /// A multiplier on every plate's width.
     var bladeScale: CGFloat = 1
 
+    /// How much wider the eye plate is than the widest of the stack.
+    var eyeScale: CGFloat = 1.25
+
+    /// How the eye plate sits against the rest. Something darkening.
+    var eyeBlend: BlendMode = .multiply
+
     /// Size of the square this fills, in points.
     var side: CGFloat = 96
 
@@ -96,6 +102,26 @@ struct AquariusStorm: View {
                     )
                     .rotationEffect(.degrees(turn(band, at: now) + self.tilt(band)))
                     .offset(x: sway(band, at: now), y: rise(band))
+                }
+
+                // The eye of the storm.
+                //
+                // One more plate, wider than any below it, near the top, and
+                // deliberately **still** — everything else shakes, so the one
+                // thing that does not is where the eye goes. Darkened against
+                // the stack rather than drawn darker, so it reads as depth
+                // through the wall of air instead of as a hole cut in it.
+                if bands > 0 {
+                    EffectSpriteView(
+                        effect: .aquariusArmor,
+                        tileSize: bandSize(bands - 1) * eyeScale,
+                        start: .distantPast,
+                        loops: true,
+                        clock: { $0 + self.stagger(bands - 1) / 2 },
+                        frameCount: self.played
+                    )
+                    .offset(y: rise(bands - 1) + side * 0.02)
+                    .blendMode(eyeBlend)
                 }
             }
             .frame(width: side, height: side)
@@ -233,6 +259,8 @@ struct AquariusStormGallery: View {
     @State private var showsEyes = true
     @State private var showsSilhouette = true
     @State private var glow: Double = 1
+    @State private var eyeScale: Double = 1.25
+    @State private var eyeBlend: BlendMode = .multiply
     @State private var spread: Double = 2
     @State private var height: Double = 0.1
     @State private var taper: Double = 5
@@ -336,6 +364,8 @@ struct AquariusStormGallery: View {
                 spread: spread,
                 taper: Int(taper.rounded()),
                 bladeScale: CGFloat(bladeScale),
+                eyeScale: CGFloat(eyeScale),
+                eyeBlend: eyeBlend,
                 side: 300,
                 scale: 4
             )
@@ -438,8 +468,15 @@ struct AquariusStormGallery: View {
             knob("HEIGHT", $height, 0.02...0.3, "x")
             knob("BLADE", $bladeScale, 0.4...1.2, "x")
             knob("TAPER", $taper, 2...8, "f", step: 1)
+            knob("EYE", $eyeScale, 0.8...2.2, "x")
 
             Picker("Blend", selection: $blend) {
+                ForEach(BlendMode.allCases, id: \.self) { mode in
+                    Text(String(describing: mode)).tag(mode)
+                }
+            }
+
+            Picker("Eye blend", selection: $eyeBlend) {
                 ForEach(BlendMode.allCases, id: \.self) { mode in
                     Text(String(describing: mode)).tag(mode)
                 }
