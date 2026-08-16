@@ -1450,10 +1450,14 @@ enum GameRules {
 
     /// How many times each after-image is drawn on top of itself.
     ///
-    /// A gem is three or four pixels; blurred once it is barely there. Additive
-    /// blending means restacking the same copy is simply brighter, which is the
-    /// cheapest way to make a small light carry across a whole square.
-    static let gemTrailBoost = 3
+    /// **One.** It was three, to carry a three-pixel gem across a whole square
+    /// after the blur had been cut off square at the piece's frame and lost most
+    /// of its reach. With the trail given room to spread, the same three copies
+    /// summed additively blew the piece out to white.
+    ///
+    /// Left as a knob rather than removed: restacking is still the cheapest way
+    /// to make a small light carry, if a sign ever needs one that does.
+    static let gemTrailBoost = 1
 
     /// A single hop between tiles.
     static let hopDuration: TimeInterval = 0.12
