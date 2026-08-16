@@ -1440,7 +1440,12 @@ enum GameRules {
     static let gemTrailRadius: CGFloat = 2.4
 
     /// What fraction of the previous copy's brightness each one keeps.
-    static let gemTrailFalloff: Double = 0.88
+    ///
+    /// Seven copies at 0.88 keep more than half their brightness all the way to
+    /// the end of the trail, and additively that is most of the light. Dropping
+    /// it puts the weight on the copies nearest the piece, which is where a
+    /// streak should be brightest anyway.
+    static let gemTrailFalloff: Double = 0.72
 
     /// Seconds of spring response per step of lag.
     ///
