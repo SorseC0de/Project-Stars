@@ -497,7 +497,10 @@ struct AquariusStormPiece: View {
                     strength: Double(min(max(phase, 0), 10)) / 10
                 )
             }
-            .frame(width: 300, height: 300)
+            .frame(
+                width: GameRules.aquariusStormCanvas,
+                height: GameRules.aquariusStormCanvas
+            )
             // Flattened to one texture per frame.
             //
             // Thirteen plates, two eye plates, the silhouette and three glow

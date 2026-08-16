@@ -2679,6 +2679,15 @@ enum GameRules {
     /// squares across by design.
     static let aquariusStormTiles: CGFloat = 3
 
+    /// The square the assembly is flattened into, in points.
+    ///
+    /// Bigger than the 300 the storm's proportions are measured against,
+    /// because the figure is 264 tall before his scale and the outer plates
+    /// reach most of the way across — flattening into the measuring square cut
+    /// both off. The extra is headroom for the group's bounds and costs nothing
+    /// but texture.
+    static let aquariusStormCanvas: CGFloat = 620
+
     /// How much smaller the figure and his eyes are at an **empty** meter.
     ///
     /// The bluff, and it runs the way the storm does rather than against it:

@@ -64,6 +64,16 @@ struct AquariusQuirkyCaper: ZodiacPassive {
         .onExit
     }
 
+    /// Blown rather than walking, for as long as there is a storm.
+    ///
+    /// A hop is a thing with feet deciding to leave the ground. Aquarius above
+    /// zero has no feet on show and no say in it — the funnel moves and he goes
+    /// with it, which is a slide. At zero the pot is on the floor and hops like
+    /// anyone else.
+    func adjustedMovement(base: MovementPattern, context: PassiveContext) -> MovementPattern {
+        context.zodiactionMeter > 0 ? base.blown() : base
+    }
+
     /// And a fall costs the ground nothing either.
     ///
     /// Quirky Caper charges every landing to the square being *left*, but a
@@ -75,6 +85,30 @@ struct AquariusQuirkyCaper: ZodiacPassive {
         var weightless = proposal
         weightless.stages = 0
         return weightless
+    }
+}
+
+/// How the storm carries him.
+///
+/// With any storm at all he does not walk — he is **blown**, so a move is a
+/// slide rather than a hop, and it trails wind behind it. Spent to nothing, the
+/// statue walks like every other sign's.
+///
+/// It hangs off the meter rather than off a flag because the storm does: the
+/// same number that decides how much funnel there is decides whether there is
+/// enough of it to carry him. There is no state to keep in step.
+extension MovementPattern {
+
+    /// The same options, made into slides.
+    func blown() -> MovementPattern {
+        MovementPattern(
+            name: name,
+            options: options.map {
+                var blown = $0
+                blown.style = .slide
+                return blown
+            }
+        )
     }
 }
 
