@@ -2032,6 +2032,15 @@ struct BoardView: View {
         }
 
         guard let started = session.hopStartedAt else { return .rest }
+
+        // Only a style that leaves the ground gets the arc and the squash.
+        //
+        // Every step sets `hopStartedAt`, whatever it is — the style rides on
+        // the event rather than deciding whether it fired — so a slide was
+        // being posed as a hop. `arcs` is already the question, and it is the
+        // same one `bouncesOnArrival` asks a few lines further down.
+        guard session.movement?.style.arcs ?? true else { return .rest }
+
         var pose = HopPose.at(
             progress: date.timeIntervalSince(started) / session.hopDuration,
             distance: session.hopDistance
