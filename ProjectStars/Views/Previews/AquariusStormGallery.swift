@@ -468,12 +468,12 @@ struct AquariusStormGallery: View {
                         // so they should not be carried up by it. The bob and
                         // the turn they *do* take, because those are him
                         // moving rather than him being put somewhere.
-                        // Scaled *and* moved with him. A sprite is centred in
-                        // its frame, so shrinking it brings its face down
-                        // toward the middle — eyes left at the full-size height
-                        // end up below the pot they belong to.
+                        // Smaller with him, but falling only as far as he
+                        // does. The drop already comes from the stack they
+                        // share, so scaling their height as well moved them
+                        // twice and they sank past him.
                         StormEyes(width: 40 * shrink, spacing: 46 * shrink, glow: burn)
-                            .offset(y: eyeOffset * shrink - height)
+                            .offset(y: eyeOffset - height)
                     }
                 }
                 .scaleEffect(breath)
