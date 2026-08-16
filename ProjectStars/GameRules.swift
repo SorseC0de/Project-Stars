@@ -1487,6 +1487,14 @@ enum GameRules {
     /// only thing that distinguishes Scorpio's hole-clearing jump on sight.
     static let hopArcHeightPerExtraTile: CGFloat = 1
 
+    /// How much higher a hop arcs when it ends **on the island**.
+    ///
+    /// The Nexys stands proud of the board, so a hop onto it is a climb rather
+    /// than a step across. At the ordinary arc the piece skims the rock's face
+    /// and appears on top of it; the taller arc clears the edge, which is what
+    /// makes the landing read as getting *up* there.
+    static let hopArcHeightOntoNexys: CGFloat = 1.1
+
     /// Extra hop time per tile travelled beyond the first, as a fraction of
     /// `hopDuration`.
     ///
@@ -1967,7 +1975,7 @@ enum GameRules {
     /// Just above the top of the faux Terra below, so the light has arrived by
     /// the time the ground does. Derived from `groundBelowHeight` rather than
     /// written twice, so moving the horizon moves the gradient with it.
-    static var astraSkyFade: CGFloat { groundBelowHeight + 0.05 }
+    static var astraSkyFade: CGFloat { 1 - groundBelowHeight * 0.4 }
 
     /// Where Astra's stars have finished fading out, down the upper square.
     ///

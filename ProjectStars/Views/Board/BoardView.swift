@@ -1326,6 +1326,7 @@ struct BoardView: View {
                 // face as it had been before the tile moved.
                 TileEdgeView(plane: plane, shade: .at(point), size: metrics.tileSize)
                     .offset(y: (GameRules.tileEdgeDrop + GameRules.tilePopLift) * metrics.scale)
+                    .zIndex(-1)
 
                 TileView(
                     tile: board[point],
@@ -1929,10 +1930,17 @@ struct BoardView: View {
         }
 
         guard let started = session.hopStartedAt else { return .rest }
-        return .at(
+        var pose = HopPose.at(
             progress: date.timeIntervalSince(started) / session.hopDuration,
             distance: session.hopDistance
         )
+        // Landing on the island is a climb, not a step. See
+        // `GameRules.hopArcHeightOntoNexys`.
+        if session.engine.piece.point == GameRules.nexysPoint,
+           session.engine.nexysPlane == session.engine.piece.plane {
+            pose.lift *= (1 + GameRules.hopArcHeightOntoNexys)
+        }
+        return pose
     }
 
     /// How far through an arrival the piece is, `0` at the top of its fall and
