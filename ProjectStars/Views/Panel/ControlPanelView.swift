@@ -707,8 +707,7 @@ private struct PanelFrontView: View {
             .contentShape(Rectangle())
         } row: { id, isSelected in
             HStack(spacing: 12) {
-                Text(PickupCatalog.effect(for: id).glyph)
-                    .font(.system(size: 22))
+                PickupIconView(effect: PickupCatalog.effect(for: id), size: 22)
 
                 Text(PickupCatalog.effect(for: id).displayName)
                     .font(.system(size: 17, weight: .semibold, design: .rounded))

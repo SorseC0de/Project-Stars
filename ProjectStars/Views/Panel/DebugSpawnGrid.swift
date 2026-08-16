@@ -29,8 +29,7 @@ struct DebugSpawnGrid: View {
         VStack(spacing: 6) {
             HStack(spacing: 6) {
                 if let holding = session.debugSpawning {
-                    Text(PickupCatalog.effect(for: holding).glyph)
-                        .font(.system(size: 15))
+                    PickupIconView(effect: PickupCatalog.effect(for: holding), size: 15)
 
                     Text(PickupCatalog.effect(for: holding).displayName.uppercased())
                         .font(.system(size: 10, weight: .heavy, design: .monospaced))

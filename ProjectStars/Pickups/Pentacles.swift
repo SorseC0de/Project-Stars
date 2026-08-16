@@ -120,6 +120,7 @@ struct ZChargeEffect: PickupEffect {
     let displayName = "Z-Charge"
     let summary = "Gain \(GameRules.zChargePentacleAmount) ZC."
     let glyph = "⚡"
+    let icon: String? = "charge"
 
     /// Commonest thing in the tier.
     func plan(
@@ -225,26 +226,48 @@ struct AstralTearEffect: PickupEffect {
     /// tile is small enough to be the ordinary case and still worth crossing the
     /// board for.
     let weight = 3
-    let displayName = "Astral Tear"
-    let summary = "Fully restores one damaged tile at random."
+    let displayName = "Astral Tears"
+    let summary = "Fully restores the tile you are standing on and one other at random."
     let glyph = "✚"
+    let icon: String? = "heart_drop"
 
+    /// Two tiles: **here**, and one elsewhere.
+    ///
+    /// The one under your feet is the point of the change. A single random
+    /// repair is a coin whose value you find out about after the fact, and on a
+    /// board that is mostly whole it often mends something you were never going
+    /// to stand on. Healing where you are is the half you can aim: cross to the
+    /// square that is about to give way, and the Tear is worth taking there
+    /// rather than anywhere.
+    ///
+    /// The random one must be a **different** tile, or a coin taken while
+    /// standing on the only damaged square would spend both halves on it and
+    /// read as having done nothing. The Nexys and its chasm are structural and
+    /// were never candidates — `repairablePoints` excludes them already.
     func plan(
         context: PickupContext,
         choice: PickupChoiceResult?,
         generator: inout SeededRandom
     ) -> [GameEvent] {
-        // The Nexys and its chasm are structural and never candidates —
-        // `repairablePoints` already excludes them.
-        let candidates = context.currentBoard.repairablePoints
+        let here = context.piecePoint
+        var events: [GameEvent] = []
 
-        guard let target = candidates.randomElement(using: &generator) else {
-            let meter = context.meter(afterGaining: GameRules.defaultZodiactionMeterMax)
-            guard meter != context.zodiactionMeter else { return [] }
-            return [.zodiactionMeterChanged(to: meter)]
+        if context.currentBoard.repairablePoints.contains(here) {
+            events.append(.tileHealed(plane: context.plane, point: here, to: .healthy))
         }
 
-        return [.tileHealed(plane: context.plane, point: target, to: .healthy)]
+        let elsewhere = context.currentBoard.repairablePoints.filter { $0 != here }
+        if let target = elsewhere.randomElement(using: &generator) {
+            events.append(.tileHealed(plane: context.plane, point: target, to: .healthy))
+        }
+
+        // Nothing left to mend anywhere: pay out as charge instead, which is
+        // what it did before when the board was whole.
+        guard events.isEmpty else { return events }
+
+        let meter = context.meter(afterGaining: GameRules.defaultZodiactionMeterMax)
+        guard meter != context.zodiactionMeter else { return [] }
+        return [.zodiactionMeterChanged(to: meter)]
     }
 }
 
@@ -271,6 +294,7 @@ struct AstralBrookEffect: PickupEffect {
     let displayName = "Astral Essence ✧ Brook"
     let summary = "An Astral water current carries you forward, passing over holes along the way."
     let glyph = "≈"
+    let icon: String? = "Element_Water"
     let element: ZodiacElement? = .water
 
     /// The slide applies its own wear square by square, so the engine must not
@@ -400,6 +424,7 @@ struct AstralBoltEffect: PickupEffect {
     let displayName = "Astral Essence ✧ Bolt"
     let summary = "Struck by Astral lightning, you are super-charged for \(GameRules.starMoves) turns. You do not damage tiles or fall in holes, and gain 1 ZC each turn."
     let glyph = "⚡︎"
+    let icon: String? = "Element_Wind"
 
     /// Nothing is worn while the star runs anyway, but the coin's own square is
     /// the first thing that would have been.
@@ -437,6 +462,7 @@ struct AstralBreezeEffect: PickupEffect {
     let displayName = "Astral Essence ✧ Breeze"
     let summary = "An Astral wind carries you to a tile of choice within this plane."
     let glyph = "❁"
+    let icon: String? = "breeze"
 
     /// The player picks the destination, so this effect suspends the move.
     let element: ZodiacElement? = .air
@@ -487,6 +513,7 @@ struct AstralBlazeEffect: PickupEffect {
     let displayName = "Astral Essence ✧ Blaze"
     let summary = "The ring of tiles around you loses one stage. Gain 1 ZC per tile damaged, 2 per tile broken."
     let glyph = "✷"
+    let icon: String? = "Element_Fire"
     let element: ZodiacElement? = .fire
 
     func plan(
@@ -549,6 +576,7 @@ struct AstralBlossomEffect: PickupEffect {
     let displayName = "Astral Essence ✧ Blossom"
     let summary = "A ring of Astral energy blooms in a ring around you, fully healing all damaged tiles except holes."
     let glyph = "✽"
+    let icon: String? = "Element_Earth"
 
     func plan(
         context: PickupContext,
@@ -597,6 +625,7 @@ struct CornerWarpEffect: PickupEffect {
     let displayName = "Corner-Cut"
     let summary = "An Astral gust takes you to a random corner of the plane."
     let glyph = "⟀"
+    let icon: String? = "corner_cut"
 
     func plan(
         context: PickupContext,
@@ -657,6 +686,7 @@ struct NexysShiftEffect: PickupEffect {
     let displayName = "Nexys Node"
     let summary = "Return to the Nexys. Summon it if on a different plane."
     let glyph = "◈"
+    let icon: String? = "nexys_node"
 
     func plan(
         context: PickupContext,
@@ -699,6 +729,7 @@ struct ForcedFateEffect: PickupEffect {
     let displayName = "Forced Fate"
     let summary = "The stars have ordeigned your sign has changed."
     let glyph = "✦"
+    let icon: String? = "forced_fate"
 
     /// ## Why company takes the hit
     ///
@@ -754,6 +785,7 @@ struct AlignmentEffect: PickupEffect {
     let displayName = "Alignment"
     let summary = "When fully aligned, even the stars reaarange to your will."
     let glyph = "✧"
+    let icon: String? = "alignment"
 
     /// The player picks, so this effect suspends the move.
     let choice: PickupChoice = .piece

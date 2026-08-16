@@ -168,9 +168,16 @@ struct ShopBarView: View {
                 }
                 .offset(y: isDown ? Style.coinDepth : 0)
 
-            Text(effect.glyph)
-                .font(.system(size: Style.glyphSize))
-                .offset(y: isDown ? Style.coinDepth : 0)
+            // Drawn icon where there is one, glyph where there is not — see
+            // `PickupIconView`. No disc behind it: the coin it sits on is the
+            // ground already.
+            PickupIconView(
+                effect: effect,
+                size: Style.glyphSize,
+                tint: Palette.warmBlack,
+                background: nil
+            )
+            .offset(y: isDown ? Style.coinDepth : 0)
         }
         .overlay(alignment: .bottomTrailing) {
             // Only when there is more than one. A "1" on every slot is noise on

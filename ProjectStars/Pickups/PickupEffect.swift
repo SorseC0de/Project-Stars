@@ -263,6 +263,15 @@ protocol PickupEffect {
     /// Stand-in glyph for the first-encounter strip, until art arrives.
     var glyph: String { get }
 
+    /// The drawn icon, by asset name, or `nil` while there is only a glyph.
+    ///
+    /// Named rather than drawn here so replacing a glyph with art is dropping a
+    /// file into the catalogue and writing one string — not editing this effect,
+    /// its strip, its shop row and every other place it is shown. Anything
+    /// asking for an icon falls back to `glyph` on its own, so a half-illustrated
+    /// catalogue is a normal state rather than a broken one.
+    var icon: String? { get }
+
     /// How it looks on the board. Defaults to the anonymous gold coin.
     var appearance: PentacleAppearance { get }
 
@@ -335,6 +344,10 @@ protocol PickupEffect {
 // MARK: - Defaults
 
 extension PickupEffect {
+
+    /// No art yet. See `icon`.
+    var icon: String? { nil }
+
     var appearance: PentacleAppearance { .standard }
     var element: ZodiacElement? { nil }
     var weight: Int { 1 }
