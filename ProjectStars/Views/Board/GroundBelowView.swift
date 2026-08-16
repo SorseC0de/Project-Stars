@@ -91,6 +91,8 @@ struct GroundBelowView: View {
             size: CGSize(width: bandWidth, height: side * GameRules.groundBelowHeight)
         )
         .blur(radius: GameRules.groundBelowBlur * metrics.scale)
+        // Past the bottom edge — see `GameRules.groundBelowOvershoot`.
+        .offset(y: side * GameRules.groundBelowOvershoot)
         .frame(width: side, height: side, alignment: .bottom)
         .allowsHitTesting(false)
     }

@@ -1969,13 +1969,21 @@ enum GameRules {
     /// How much of the sky's height the world below occupies, from the bottom.
     static let groundBelowHeight: CGFloat = 0.25
 
+    /// How far past the bottom of the square the ground below is pushed.
+    ///
+    /// The keystone pulls its content toward the near edge, so the band ends
+    /// slightly short of the bottom and leaves a seam of sky under the world.
+    /// A floor has no far side from here — it runs off the bottom of the
+    /// screen — so overshooting costs nothing and closes it.
+    static let groundBelowOvershoot: CGFloat = 0.04
+
     /// Where Astra's sky has finished turning from the dark of space into
     /// Terra's daylight, measured down the upper square.
     ///
     /// Just above the top of the faux Terra below, so the light has arrived by
     /// the time the ground does. Derived from `groundBelowHeight` rather than
     /// written twice, so moving the horizon moves the gradient with it.
-    static var astraSkyFade: CGFloat { 1 - groundBelowHeight * 0.4 }
+    static var astraSkyFade: CGFloat { 2.25 }
 
     /// Where Astra's stars have finished fading out, down the upper square.
     ///
@@ -1991,7 +1999,7 @@ enum GameRules {
     /// the ramp pinned to the top of the square instead, raising the fade made
     /// the transition longer and softer — which looks like the sky changing
     /// strength rather than the horizon changing height.
-    static let astraSkyFadeWidth: CGFloat = 0.35
+    static let astraSkyFadeWidth: CGFloat = 1.5
 
 
     /// How far off each edge of the screen it is held, as a fraction of the
@@ -2156,7 +2164,7 @@ enum GameRules {
 
     /// How much night is laid over it. **Opaque** — the ground is solid, and
     /// fading it let the stars shine through the world.
-    static let groundBelowShade: Double = 0.55
+    static let groundBelowShade: Double = 0.65
 
     // ── Nilyth's eyes, through the umbra hole ─────────────────────────────
     //
