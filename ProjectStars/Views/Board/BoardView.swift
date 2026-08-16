@@ -743,38 +743,6 @@ struct BoardView: View {
         }
     }
 
-    /// The screen-space step from `point` toward the square it faces, taken to
-    /// `GameRules.facingArrowReach` of the way.
-    ///
-    /// Measured between the two squares as the board actually draws them, so it
-    /// is short between the far rows and long between the near ones — which a
-    /// fraction of a tile can never be, and is why the arrow drifted off its
-    /// square at the back of the board.
-    private func strideToward(
-        _ facing: SwipeDirection,
-        from point: GridPoint,
-        metrics: PixelArtMetrics
-    ) -> CGSize {
-        let framing = planeFraming(session.visiblePlane)
-        let place: (GridPoint) -> CGPoint = { spot in
-            metrics.projected(
-                spot,
-                zoom: framing.zoom,
-                lift: framing.lift,
-                emphasis: framing.emphasis,
-                pivot: framing.pivot,
-                spacing: framing.spacing
-            ).position
-        }
-
-        let here = place(point)
-        let ahead = place(point.offset(by: facing.unitOffset))
-        return CGSize(
-            width: (ahead.x - here.x) * GameRules.facingArrowReach,
-            height: (ahead.y - here.y) * GameRules.facingArrowReach
-        )
-    }
-
     /// How much its row shrinks whatever stands on `point`.
     ///
     /// Needed because an `.offset` applied *after* a placement is in screen
@@ -1222,20 +1190,11 @@ struct BoardView: View {
                             facing: session.engine.piece.facing,
                             tileSize: metrics.tileSize,
                             scale: metrics.scale,
-                            // Placed by the board below, which is the only thing
-                            // that knows how far away the next square actually
-                            // is once the plane is lying down.
-                            reach: 0,
                             clock: session.ambientClock(at:)
                         ),
                         at: session.engine.piece.point,
                         metrics: metrics
                     )
-                    .offset(strideToward(
-                        session.engine.piece.facing,
-                        from: session.engine.piece.point,
-                        metrics: metrics
-                    ))
                     // Ground, like the cursor: it is a mark on the square
                     // ahead, not something standing there.
                     .offset(
