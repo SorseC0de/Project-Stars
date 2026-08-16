@@ -448,8 +448,15 @@ struct AquariusStormGallery: View {
                         // They ride his transform now, which already scales
                         // them — multiplying by his size as well applied it
                         // twice, and at 1.5 that is more than double.
+                        // The float is cancelled, the bob is not.
+                        //
+                        // `height` is where he hangs in the funnel, and the
+                        // eyes are placed in the picture rather than on him —
+                        // so they should not be carried up by it. The bob and
+                        // the turn they *do* take, because those are him
+                        // moving rather than him being put somewhere.
                         StormEyes(width: 40, spacing: 46, glow: glow)
-                            .offset(y: eyeOffset)
+                            .offset(y: eyeOffset - height)
                     }
                 }
                 .scaleEffect(breath)
