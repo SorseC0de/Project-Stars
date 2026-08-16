@@ -399,17 +399,17 @@ struct AquariusStormGallery: View {
         var floor: CGFloat = GameRules.aquariusFigureShrink
 
         /// How far he turns either way, in degrees.
-        var turn: Double = 12
+        var turn: Double = GameRules.aquariusFigureTurn
 
         /// How big he is drawn, against the storm around him.
-        var size: CGFloat = 1
+        var size: CGFloat = GameRules.aquariusFigureScale
 
         /// `0`…`1`, how full the meter is. The figure shrinks as it fills —
         /// see `GameRules.aquariusFigureShrink`.
         var strength: Double = 1
 
         /// Where he hangs, as points from the middle.
-        var height: CGFloat = -74
+        var height: CGFloat = GameRules.aquariusFigureY
 
         var body: some View {
             TimelineView(.animation) { timeline in
