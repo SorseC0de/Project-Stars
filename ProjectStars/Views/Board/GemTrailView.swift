@@ -60,6 +60,14 @@ struct GemTrailView: View {
                     )
             }
         }
+        // Room for the blur before it is flattened.
+        //
+        // Every copy in the stack is framed at exactly the piece's box, and
+        // `drawingGroup` rasterises into the layout bounds — so the blur was cut
+        // off square at that box and the streak came out as a hard-edged
+        // rectangle the size of the sprite's frame, standing behind a charged
+        // piece. The padding is the widest blur this copy will draw.
+        .padding(GameRules.gemTrailRadius * scale * (1 + CGFloat(step) * 0.45) * 3)
         // One offscreen pass for the whole stack, for the same reason
         // `PaletteGlow` needs it: this is the sprite re-shaded and re-blurred
         // once per copy, and a charged piece draws several of these at once.
