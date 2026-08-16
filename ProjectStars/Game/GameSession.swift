@@ -47,6 +47,17 @@ final class GameSession {
     /// `GameEngine.isZodiactionCharged`.
     private(set) var isZodiactionCharged = false
 
+    #if DEBUG
+    /// A Pentacle chosen in the spawner, waiting for a square.
+    ///
+    /// Not in `#if DEBUG` on its own would be tidier, but `@Observable` does not
+    /// generate accessors for stored properties inside a conditional block — so
+    /// a flag declared that way changes without the view ever hearing about it.
+    /// This one is outside for that reason; the *uses* are gated instead.
+    /// - TODO: **Debug only.** Never ships.
+    #endif
+    var debugSpawning: PickupID?
+
     /// Aquarius' storm, drawn once per phase and played back. See
     /// `AquariusStormFilm`.
     let stormFilm = AquariusStormFilm()
@@ -972,6 +983,18 @@ final class GameSession {
     /// still arrives cold on Terra.
     func debugStagePolaris() {
         engine.debugNextPickup = .polaris
+    }
+
+    /// Puts the chosen Pentacle on `point`, now. Debug builds only.
+    ///
+    /// Unlike `debugStagePolaris`, this places rather than stages — which is the
+    /// point of a spawner: to get a coin onto a named square without waiting for
+    /// the hunt to offer one. It goes through the reveal event so the view
+    /// animates it in like any other, and it lands on the plane you are looking
+    /// at.
+    func debugSpawn(_ id: PickupID, at point: GridPoint) {
+        debugSpawning = nil
+        run(engine.debugPlacePickup(id, at: point))
     }
 
     /// Sends the Nexys to the other plane. Debug builds only.

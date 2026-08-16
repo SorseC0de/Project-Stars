@@ -1539,6 +1539,16 @@ struct GameEngine {
     ///
     /// Exposed for the debug key; the Pentacle goes through
     /// `applyEffect(_:choice:)` as usual.
+    /// Puts `id` on `point` of the plane the piece is on. Debug builds only.
+    ///
+    /// Places rather than stages — the point of a spawner is to get a coin onto
+    /// a named square without waiting for the hunt to offer one. It still goes
+    /// out as the ordinary reveal event, so the view animates it in like any
+    /// other coin and nothing downstream has to know it was conjured.
+    func debugPlacePickup(_ id: PickupID, at point: GridPoint) -> [GameEvent] {
+        [.pickupRevealed(id: id, plane: piece.plane, point: point)]
+    }
+
     mutating func planNexysShift() -> [GameEvent] {
         guard !isGameOver else { return [] }
 

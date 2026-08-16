@@ -160,6 +160,10 @@ struct GameScreen: View {
         .animation(.spring(response: 0.32, dampingFraction: 0.82), value: session.isChoosingShop)
         .animation(.spring(response: 0.32, dampingFraction: 0.82), value: session.purse)
         .statusBarHidden()
+        // The picker's overlay renders here rather than at the button, because
+        // a button inside the panel cannot draw outside the panel's bounds.
+        // See `iMAPicker`.
+        .iMAPickerHost()
     }
 
     /// Hardware-keyboard shortcuts, for testing on the simulator and on iPad.

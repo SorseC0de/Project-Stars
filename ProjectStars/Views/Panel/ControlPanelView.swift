@@ -516,6 +516,13 @@ struct ControlPanelView: View {
 /// The controls, in the order they appear on screen.
 private struct PanelFrontView: View {
 
+    #if DEBUG
+    /// What the spawner is holding, before a square is picked.
+    ///
+    /// - TODO: **Debug only.** Never ships.
+    @State private var spawning: PickupID?
+    #endif
+
     let session: GameSession
     @Binding var liveDirection: SwipeDirection?
     @Binding var liveReach: Int
@@ -621,6 +628,10 @@ private struct PanelFrontView: View {
 
             Spacer(minLength: 0)
 
+            #if DEBUG
+            spawnerButton
+            #endif
+
             chromeButton("info", tint: Palette.sky, action: onInfo)
             chromeButton("pause.fill", tint: Palette.stone) { session.togglePause() }
         }
@@ -668,6 +679,56 @@ private struct PanelFrontView: View {
         case .grid: "grid"
         }
     }
+
+    #if DEBUG
+    /// Puts any Pentacle anywhere, for testing.
+    ///
+    /// Deliberately off the panel's palette — purple face, yellow-green plane,
+    /// blue side — because every other button here derives its three faces from
+    /// one tint. A control that will never ship should be visible as *not part
+    /// of the set* without having to be read.
+    ///
+    /// - TODO: **Debug only.** Never ships.
+    private var spawnerButton: some View {
+        iMAPicker(items: PickupID.allCases, selection: $spawning) {
+            CelButton(
+                tint: Palette.purple,
+                highlight: Palette.yellowGreen,
+                shadow: Palette.blue
+            ) {
+                // The picker's own Button drives this; nothing to do here.
+            } label: {
+                Image(systemName: "wand.and.sparkles")
+                    .font(.system(size: PanelStyle.chromeGlyphSize, weight: .black))
+            }
+            .frame(width: PanelStyle.chromeButtonWidth,
+                   height: PanelStyle.chromeButtonHeight)
+            .allowsHitTesting(false)
+        } row: { id, isSelected in
+            HStack(spacing: 12) {
+                Text(PickupCatalog.effect(for: id).glyph)
+                    .font(.system(size: 22))
+
+                Text(PickupCatalog.effect(for: id).displayName)
+                    .font(.system(size: 17, weight: .semibold, design: .rounded))
+                    .foregroundStyle(Palette.white)
+
+                Spacer(minLength: 0)
+
+                if isSelected {
+                    Image(systemName: "checkmark")
+                        .foregroundStyle(Palette.lime)
+                }
+            }
+            .padding(.vertical, 6)
+        }
+        .onChange(of: spawning) { _, chosen in
+            // Choosing what does not place it. The board comes up next, and the
+            // square is the second half of the answer.
+            session.debugSpawning = chosen
+        }
+    }
+    #endif
 
     private func chromeButton(
         _ systemImage: String,
@@ -1775,6 +1836,15 @@ struct CelButton<Label: View>: View {
     var depth: CGFloat = PanelStyle.buttonDepth
     var isEnabled: Bool = true
 
+    /// The lit plane and the side, when they should not come off the tint.
+    ///
+    /// Every button in the panel derives both from its face, which is what
+    /// keeps them looking like one set. A button that is deliberately not part
+    /// of that set — the debug spawner — says so by not obeying the rule, and
+    /// that is easier to read at a glance than any label would be.
+    var highlight: Color?
+    var shadow: Color?
+
     /// Whether a touch would land *right now*.
     ///
     /// Separate from `isEnabled` because they answer different questions. A
@@ -1796,7 +1866,7 @@ struct CelButton<Label: View>: View {
             // The rim, standing proud below the face. Its own shape rather than
             // a border, so the button has a genuine side.
             RoundedRectangle(cornerRadius: PanelStyle.buttonCorner)
-                .fill(face.celShadow)
+                .fill(isEnabled ? (shadow ?? face.celShadow) : face.celShadow)
                 .offset(y: depth)
 
             RoundedRectangle(cornerRadius: PanelStyle.buttonCorner)
@@ -1804,7 +1874,7 @@ struct CelButton<Label: View>: View {
                 .overlay {
                     // One hard-edged lighter plane across the top, not a sheen.
                     RoundedRectangle(cornerRadius: PanelStyle.buttonCorner)
-                        .fill(face.celHighlight)
+                        .fill(isEnabled ? (highlight ?? face.celHighlight) : face.celHighlight)
                         .padding(PanelStyle.buttonHighlightInset)
                         .mask(alignment: .top) {
                             Rectangle().frame(maxHeight: PanelStyle.buttonHighlightHeight)
