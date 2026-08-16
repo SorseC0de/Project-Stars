@@ -24,6 +24,19 @@ struct GemTones {
     /// Swapped in when charged, and the entry the glow keys on.
     let lit: Color
 
+    /// What the gem is *shown* as at rest, when that is not the entry the art
+    /// uses for it.
+    ///
+    /// The distinction matters and getting it wrong breaks the sign silently.
+    /// `dim` is not a colour choice — it is the **identifier** the sprite is
+    /// drawn with, and every swap and glow mask keys on it. Recolouring a gem by
+    /// editing `dim` therefore does not recolour anything: the swap stops
+    /// matching the art, the gem never lights, and the only thing left glowing
+    /// is whatever body pixels happen to share the lit colour.
+    ///
+    /// So the resting look is its own entry, swapped in over the top.
+    var resting: Color?
+
     /// - Note: The dim entries are fixed by the art — 44 water, 27 fire, 35
     ///   earth, 20 air. The lit entries are a choice, and each is the nearest
     ///   brighter entry of the same hue, so a gem reads as the same stone
@@ -35,11 +48,10 @@ struct GemTones {
             GemTones(dim: Palette.darkBlue, lit: Palette.sky)
 
         case .fire:
-            // Dim is **coffee**, not dark red. Against the green of the vines a
-            // dark red gem read as blood on the statue rather than as a stone
-            // at rest. Only the dim entry moves — lit still flares red, which is
-            // the whole point of a fire sign's gem catching light.
-            GemTones(dim: Palette.coffee, lit: Palette.red)
+            // Drawn as `darkRed` — index 27, fixed by the art — and *shown* as
+            // coffee at rest. Against the vines' green a dark red gem read as
+            // blood on the statue; coffee reads as a stone that is not lit.
+            GemTones(dim: Palette.darkRed, lit: Palette.red, resting: Palette.coffee)
 
         case .earth:
             // `forest` is reserved for this and kept out of the moss, which uses

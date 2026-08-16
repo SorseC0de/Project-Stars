@@ -169,6 +169,10 @@ struct PieceView: View {
                 // planes — while the body stays gold.
                 material.paletteSwap([PaletteSwap(gem.dim, gem.lit)])
             }
+        } else if let resting = gem.resting {
+            // Shown as its resting colour, which is not the entry it is drawn
+            // with — see `GemTones.resting`.
+            material.paletteSwap([PaletteSwap(gem.dim, resting)])
         } else {
             material
         }
