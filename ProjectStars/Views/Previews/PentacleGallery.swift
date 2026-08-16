@@ -208,6 +208,7 @@ private extension PentacleAppearance {
         case .droplet: "Droplet"
         case .bubble: "Bubble"
         case .gavel: "Galeforce Gavel"
+        case .still: "Gold (still)"
         }
     }
 
@@ -216,6 +217,8 @@ private extension PentacleAppearance {
         switch self {
         case .standard:
             "Every common, uncommon and rare. The coin is a loot box — it must not hint at what is inside."
+        case .still:
+            "The same coin, not spinning. For counting what is carried — Capricorn's purse — where ten in step would read as a bank of lights rather than a tally."
         case .shadow:
             "Shadow Work only. Spawns in place of an ordinary Pentacle."
         case .radiant:

@@ -68,7 +68,7 @@ struct ShopBarView: View {
             if let asked, isLive {
                 description(of: asked)
             } else {
-                Text(isLive ? "COSMIC CASH-IN" : "PURSE")
+                Text(isLive ? "COSMIC CASH-IN" : "PENTACLES")
                     .font(.system(size: Style.captionSize, weight: .heavy, design: .rounded))
                     .tracking(Style.captionTracking)
                     .foregroundStyle(Palette.pentacle)

@@ -70,6 +70,13 @@ enum PentacleAppearance: String, CaseIterable, Codable {
     /// something puts astral energy through it — see `PolarisEffect`.
     case dormant
 
+    /// The coin, drawn once and holding still.
+    ///
+    /// The board's Pentacle is an eight-frame spin, which is right on a tile and
+    /// wrong in a row of ten in the panel — ten coins all turning in step is a
+    /// bank of lights rather than a count of what you are carrying.
+    case still
+
     /// Libra's gavel. A Pentacle in its own right rather than a coin with a
     /// glyph on it — see `PentacleView.gavel`.
     case gavel

@@ -156,7 +156,7 @@ struct PentacleView: View {
     /// light is an absence.
     private var poolColor: Color {
         switch appearance {
-        case .standard: Palette.white
+        case .standard, .still: Palette.white
         case .shadow: Palette.midnight
         case .radiant: Palette.sky
         // Its light is the sky it belongs to: Libra is air, and the hammer is a
@@ -179,6 +179,10 @@ struct PentacleView: View {
                         intensity: GameRules.pentacleGlowIntensity) {
                 sprite
             }
+
+        // No bloom and no spin. It is a tally mark, not a coin on the floor.
+        case .still:
+            sprite
 
         case .shadow:
             // The same sheet as the gold coin, five entries swapped. No bloom:
@@ -378,7 +382,7 @@ struct PentacleView: View {
         switch appearance {
         // Authored 48 across — three cells — like the coins.
         case .standard, .shadow, .gavel: GameRules.pentacleCellSpan
-        case .radiant, .dormant, .droplet, .bubble: 1
+        case .radiant, .dormant, .droplet, .bubble, .still: 1
         }
     }
 
@@ -415,7 +419,7 @@ struct PentacleView: View {
 
     private var faceColor: Color {
         switch appearance {
-        case .standard: Palette.pentacle
+        case .standard, .still: Palette.pentacle
         case .shadow: Palette.pentacleShadow
         case .radiant: Palette.pentacleRadiant
         // The fallback face, for a build with no sprite sheet. Stone, because
@@ -428,7 +432,7 @@ struct PentacleView: View {
 
     private var edgeColor: Color {
         switch appearance {
-        case .standard: Palette.pentacleEdge
+        case .standard, .still: Palette.pentacleEdge
         case .shadow: Palette.pentacleShadowEdge
         case .radiant: Palette.sky
         case .dormant: Palette.iron

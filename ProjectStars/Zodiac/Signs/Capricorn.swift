@@ -148,7 +148,17 @@ struct CapricornCelestialCommerce: ZodiacPassive {
     /// spent the day opening coins on touch with an empty belt. Z-Charge is
     /// excluded by the engine rather than here, because "charge cannot be stored
     /// as charge" is a fact about charge, not about this sign.
-    func banksPickups(_ id: PickupID, context: PassiveContext) -> Bool { true }
+    /// Everything but Polaris.
+    ///
+    /// Polaris already **is** a carried decision — it goes dormant or charged
+    /// and waits for your word, which is the same shape as the purse. Banking
+    /// it gives one item two carrying systems, and the player two different
+    /// places to look for the same thing. Whichever fires first makes the other
+    /// a dead end.
+    ///
+    /// It keeps its own, because it is the one the item was written with and it
+    /// works for all twelve signs rather than for one.
+    func banksPickups(_ id: PickupID, context: PassiveContext) -> Bool { id != .polaris }
 }
 
 // MARK: - Zodiaction: Cosmic Cash-in

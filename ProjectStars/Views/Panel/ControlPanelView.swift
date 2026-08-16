@@ -1641,25 +1641,27 @@ struct ZodiactionButton: View {
         let filled = session.zodiactionMeter
 
         if session.zodiac == .capricorn {
+            // **Always ten slots, on both planes.**
+            //
+            // Terra only asks for eight, and shortening the row to match hides
+            // the discount instead of showing it — the player sees a smaller
+            // purse rather than a cheaper one. Ten slots with the last two
+            // greened says the same fact the other way round: this is what it
+            // costs everywhere else, and down here you keep these.
+            let slots = GameRules.capricornPurseAstra
+            let needed = session.zodiactionMeterMax
+
             HStack(spacing: PanelStyle.meterCoinSpacing) {
-                ForEach(0..<session.zodiactionMeterMax, id: \.self) { index in
-                    Circle()
-                        .fill(index < filled
-                            ? Palette.pentacle
-                            : Palette.warmBlack.opacity(PanelStyle.meterEmptyOpacity))
-                        .overlay {
-                            // A rim only on the coins that are actually there,
-                            // so an empty slot stays a hole rather than becoming
-                            // a second, duller coin.
-                            if index < filled {
-                                Circle().strokeBorder(
-                                    Palette.pentacleEdge,
-                                    lineWidth: PanelStyle.meterCoinRim
-                                )
-                            }
-                        }
+                ForEach(0..<slots, id: \.self) { index in
+                    PixelSprite(id: .pentacle(.still)) { Color.clear }
                         .frame(width: PanelStyle.meterCoinSize,
                                height: PanelStyle.meterCoinSize)
+                        .modifier(
+                            MeterCoin(
+                                held: index < filled,
+                                free: index >= needed
+                            )
+                        )
                 }
             }
             .animation(.easeOut(duration: 0.18), value: filled)
@@ -1676,6 +1678,34 @@ struct ZodiactionButton: View {
                 }
             }
             .animation(.easeOut(duration: 0.18), value: filled)
+        }
+    }
+
+    /// How one of Capricorn's coins is drawn: held, spent, or free.
+    private struct MeterCoin: ViewModifier {
+
+        /// True once the purse has reached this slot.
+        let held: Bool
+
+        /// True for the slots Terra never charges for.
+        let free: Bool
+
+        func body(content: Content) -> some View {
+            if !held {
+                // A silhouette, not a dimmed coin. Faded gold still reads as
+                // gold and so as *something you have*, which is the one thing
+                // an empty slot must not say.
+                content
+                    .colorEffect(ShaderLibrary.flatSilhouette(.color(Palette.iron)))
+            } else if free {
+                content.paletteSwap([
+                    PaletteSwap(Palette.pentacleHighlight, Palette.yellowGreen),
+                    PaletteSwap(Palette.pentacle, Palette.lime),
+                    PaletteSwap(Palette.pentacleEdge, Palette.darkGreen)
+                ])
+            } else {
+                content
+            }
         }
     }
 
