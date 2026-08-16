@@ -157,6 +157,7 @@ struct BoardView: View {
                 )
             }
 
+            aquariusProof(metrics: metrics)
             constellation(metrics: metrics)
             warpBeam(metrics: metrics)
             fallingCloud(metrics: metrics)
@@ -2258,6 +2259,21 @@ struct BoardView: View {
         return smoke.fromRaisedTile
             ? SmokeSpriteView.raisedCloudSwaps
             : SmokeSpriteView.cloudSwaps
+    }
+
+    /// Aquarius' storm, standing on a square so it can be judged against the
+    /// board rather than against a gallery's black square.
+    ///
+    /// - TODO: **Temporary.** Comes out when the sign is wired to its meter.
+    @ViewBuilder
+    private func aquariusProof(metrics: PixelArtMetrics) -> some View {
+        AquariusStormPiece(
+            phase: Int(session.debugAquariusPhase.rounded()),
+            tileSize: metrics.tileSize,
+            scale: CGFloat(session.debugAquariusScale)
+        )
+        .modifier(placedOnPlaneModifier(GridPoint(3, 6), metrics: metrics))
+        .allowsHitTesting(false)
     }
 
     /// Sparkles thrown off by an opened Pentacle.

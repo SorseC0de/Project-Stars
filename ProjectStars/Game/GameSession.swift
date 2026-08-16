@@ -905,6 +905,12 @@ final class GameSession {
     var debugArrowYTerraNS: Double = 1
     var debugArrowYAstraNS: Double = 1
 
+    /// A storm standing on (3,6) to hold against the plain sprite beside it.
+    ///
+    /// - TODO: **Temporary.** Delete once Aquarius is wired to his meter.
+    var debugAquariusPhase: Double = 10
+    var debugAquariusScale: Double = Double(GameRules.aquariusStormScale)
+
     #if DEBUG
     func debugToggleFissure() { debugToggleFissureImpl() }
     private func debugToggleFissureImpl() { debugFissure.toggle() }
