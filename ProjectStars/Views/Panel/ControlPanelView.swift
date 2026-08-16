@@ -1636,7 +1636,11 @@ struct ZodiactionButton: View {
             // "charge" was in the tooltips and nowhere they were looking. Two
             // letters against the meter itself is the cheapest place to put it,
             // and it is why every Pentacle now says ZC too.
-            Text("ZC")
+            // Capricorn's meter is a purse, and the coins in it are spent
+            // rather than discharged. Calling them charge is the one label that
+            // could make a player think the shop runs on the same stuff every
+            // other sign's Zodiaction does.
+            Text(session.zodiac == .capricorn ? "P" : "ZC")
                 .font(.system(size: PanelStyle.meterLabelSize,
                               weight: .black, design: .rounded))
                 .foregroundStyle(Palette.warmBlack.opacity(PanelStyle.meterLabelOpacity))

@@ -35,7 +35,15 @@ struct PolarisBadgeView: View {
                 id: .pentacle(polaris == .charged ? .radiant : .dormant)
             ) { Color.clear }
                 .frame(width: Style.size, height: Style.size)
-                .pixelOutline(scale: scale)
+                // Ringed at **this** view's pixel size, not the board's.
+                //
+                // The frame stretches sixteen art pixels to fill `Style.size`,
+                // so a pixel here is `Style.size / 16` points — while `scale` is
+                // points per art pixel *on the board*, which is a different
+                // number everywhere except by coincidence. Offsetting the ring
+                // by the board's figure is what made the outline stop being one
+                // pixel thick.
+                .pixelOutline(scale: Style.size / CGFloat(GameRules.tilePixelSize))
                 // Dimmed while it is a rock. Still worth showing — half the
                 // interest of finding one below is knowing you are carrying
                 // something you cannot use yet — but it must not read as ready.
