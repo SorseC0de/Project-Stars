@@ -96,7 +96,7 @@ struct AquariusStormView: View {
                         point: GameRules.nexysPoint,
                         tileSize: tileSize,
                         scale: scale,
-                        tint: Palette.lightBlue,
+                        tint: Palette.sky,
                         cycle: Style.eyeCycle,
                         dwell: Style.eyeDwell
                     )

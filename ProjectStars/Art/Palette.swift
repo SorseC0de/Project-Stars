@@ -55,7 +55,7 @@ enum Palette {
     static func planeTint(_ plane: Plane) -> Color {
         switch plane {
         case .astra: darkBlue
-        case .terra: plum
+        case .terra: coffee
         }
     }
 
@@ -171,13 +171,13 @@ enum Palette {
     /// possibly be is unmistakable from across the screen.
     static let healFlashRamps: [[Color]] = [
         [white, lightGray, gray],
-        [ice, cyan, lightBlue],
-        [cyan, lightBlue, blue],
-        [grass, lime, green],
+        [ice, cyan, sky],
+        [cyan, sky, blue],
+        [neonGreen, lime, green],
         [yellowGreen, lime, darkGreen],
         [sakura, blush, red],
         [blush, red, darkRed],
-        [lightBlue, blue, darkBlue],
+        [sky, blue, darkBlue],
         [lightGray, gray, darkGray],
     ]
 
@@ -223,7 +223,7 @@ enum Palette {
     /// added on top of them.
     static func sparkleGlow(on plane: Plane) -> Color {
         switch plane {
-        case .astra: lightBlue
+        case .astra: sky
         case .terra: gold
         }
     }
@@ -274,7 +274,7 @@ enum Palette {
     /// The two entries that are *not* in the magenta run, so they read as
     /// something caught in the cloud rather than as more of it. Same pairing
     /// Polaris' sparks use.
-    static let cloudSpeckleTones: [Color] = [lightBlue, yellow]
+    static let cloudSpeckleTones: [Color] = [sky, yellow]
 
     /// The same flecks on a raised cloud.
     ///
@@ -294,7 +294,7 @@ enum Palette {
     /// thing on the board that has to be readable at a glance. Pale blues down to a
     /// deep one: far enough from either chequer tone to be unmistakable, close
     /// enough to still belong to Astra.
-    static let cloudRaised: [Color] = [cyan, lightBlue, darkBlue]
+    static let cloudRaised: [Color] = [cyan, sky, darkBlue]
 
     /// The route each layer takes from its resting tone to its raised one.
     ///
@@ -312,14 +312,14 @@ enum Palette {
     static func cloudRaiseRamp(_ shade: TileShade) -> [[Color]] {
         switch shade {
         case .light: [
-            [pink, lightBlue, cyan],
-            [magenta, blue, lightBlue],
-            [purple, navy, darkBlue],
+            [pink, sky, cyan],
+            [magenta, blue, sky],
+            [purple, pewter, darkBlue],
         ]
         case .dark: [
-            [darkMagenta, magenta, lightBlue, cyan],
-            [purple, blue, lightBlue],
-            [dusk, navy, darkBlue],
+            [darkMagenta, magenta, sky, cyan],
+            [purple, blue, sky],
+            [dusk, pewter, darkBlue],
         ]
         }
     }
@@ -378,7 +378,7 @@ enum Palette {
     ///
     /// Sampled from the Pisces sprite, not guessed. The gem entry is
     /// deliberately absent — it must survive into the stone form untouched.
-    static let pieceGoldTones: [Color] = [gold, brown, plum, midnight]
+    static let pieceGoldTones: [Color] = [gold, brown, coffee, midnight]
 
     /// The stone form's entries, in the same order.
     ///
@@ -413,7 +413,7 @@ enum Palette {
     /// cannot make anything brighter or darker than what it covers.
     ///
     /// Swapping the entries instead gives the element's full range — its bright
-    /// on the gold, its mid on the brown, its deep on the plum — which is how
+    /// on the gold, its mid on the brown, its deep on the coffee — which is how
     /// the stone form is already built, and how pixel art is recoloured
     /// generally.
     ///
@@ -451,7 +451,7 @@ enum Palette {
     /// Shadow Work's coin: the same five entries, swapped one for one.
     ///
     /// Ordered to match `pentacleTones`, so the two lists zip into the swap.
-    static let pentacleShadowTones: [Color] = [midnight, steel, navy, dusk, smoke]
+    static let pentacleShadowTones: [Color] = [midnight, steel, pewter, dusk, smoke]
 
     /// Entries that bloom on the gold coin.
     static let pentacleGlowTones: [Color] = [white, yellowGreen, yellow]
@@ -471,11 +471,11 @@ enum Palette {
         (sakura, blush),    // 24 → 25
         (blush, red),       // 25 → 26
         (lime, green),      // 32 → 33
-        (cyan, lightBlue),  // 41 → 42
+        (cyan, sky),  // 41 → 42
     ]
 
     /// Polaris' sparks.
-    static let polarisSparkTones: [Color] = [yellow, pink, lightBlue]
+    static let polarisSparkTones: [Color] = [yellow, pink, sky]
 
     /// The gavel's own light.
     ///
@@ -504,7 +504,7 @@ enum Palette {
 
     /// Astra's version: not dust but disturbed cloudstuff, in the same tones the
     /// plane is built from plus the gold that runs through it.
-    static let astraSmokeTones: [Color] = [magenta, yellow, lightBlue, pink, cyan]
+    static let astraSmokeTones: [Color] = [magenta, yellow, sky, pink, cyan]
 
     /// Warning colour for the game-over state.
     static var danger: Color { red }

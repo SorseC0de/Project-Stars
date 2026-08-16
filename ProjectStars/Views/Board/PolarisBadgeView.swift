@@ -135,7 +135,7 @@ private struct PolarisChargeBurst: View {
 
         /// Polaris' own five, in the order they ring outward.
         static let colours: [Color] = [
-            Palette.yellow, Palette.lightBlue, Palette.pink,
+            Palette.yellow, Palette.sky, Palette.pink,
             Palette.magenta, Palette.purple,
         ]
     }

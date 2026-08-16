@@ -44,7 +44,7 @@ struct PoolView: View {
                     .padding(size * 0.08)
 
                 RoundedRectangle(cornerRadius: size * 0.16)
-                    .fill(Palette.lightBlue)
+                    .fill(Palette.sky)
                     .padding(size * 0.16)
                     .opacity(0.55)
 

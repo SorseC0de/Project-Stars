@@ -194,7 +194,7 @@ extension CloudSpriteView {
     /// `bodySwaps`.
     static let raisedSwaps: [PaletteSwap] = [
         // Stars: light blue becomes white.
-        PaletteSwap(Palette.lightBlue, Palette.white),
+        PaletteSwap(Palette.sky, Palette.white),
 
         // Body: the four violets become four blues, in order — and a tint
         // lighter than the obvious mapping. The violets sit near the dark end of
@@ -211,7 +211,7 @@ extension CloudSpriteView {
         // without any part of it turning to light.
         PaletteSwap(Palette.pink, Palette.cyan),
         PaletteSwap(Palette.magenta, Palette.cyan),
-        PaletteSwap(Palette.darkMagenta, Palette.lightBlue),
+        PaletteSwap(Palette.darkMagenta, Palette.sky),
         PaletteSwap(Palette.purple, Palette.blue),
     ]
 }

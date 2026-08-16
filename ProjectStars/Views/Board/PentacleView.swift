@@ -158,7 +158,7 @@ struct PentacleView: View {
         switch appearance {
         case .standard: Palette.white
         case .shadow: Palette.midnight
-        case .radiant: Palette.lightBlue
+        case .radiant: Palette.sky
         // Its light is the sky it belongs to: Libra is air, and the hammer is a
         // storm front rather than a coin.
         case .gavel: Palette.cyan
@@ -229,11 +229,11 @@ struct PentacleView: View {
     private var droplet: some View {
         ZStack {
             Circle()
-                .fill(appearance == .bubble ? Palette.lightBlue.opacity(0.5) : Palette.blue)
+                .fill(appearance == .bubble ? Palette.sky.opacity(0.5) : Palette.blue)
                 .frame(width: size * 0.44, height: size * 0.44)
 
             Circle()
-                .fill(Palette.lightBlue)
+                .fill(Palette.sky)
                 .frame(width: size * 0.30, height: size * 0.30)
                 .offset(y: size * 0.02)
 
@@ -421,7 +421,7 @@ struct PentacleView: View {
         // The fallback face, for a build with no sprite sheet. Stone, because
         // that is what a cold fragment reads as.
         case .dormant: Palette.stone
-        case .droplet, .gavel: Palette.lightBlue
+        case .droplet, .gavel: Palette.sky
         case .bubble: Palette.cyan
         }
     }
@@ -430,10 +430,10 @@ struct PentacleView: View {
         switch appearance {
         case .standard: Palette.pentacleEdge
         case .shadow: Palette.pentacleShadowEdge
-        case .radiant: Palette.lightBlue
+        case .radiant: Palette.sky
         case .dormant: Palette.iron
         case .droplet, .gavel: Palette.cyan
-        case .bubble: Palette.lightBlue
+        case .bubble: Palette.sky
         }
     }
 }

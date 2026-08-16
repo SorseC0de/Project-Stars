@@ -121,6 +121,6 @@ extension SmokeSpriteView {
     /// squares, one of them somewhere behind the other.
     static let raisedCloudSwaps: [PaletteSwap] = zip(
         sourceTones,
-        [Palette.cyan, Palette.lightBlue, Palette.blue]
+        [Palette.cyan, Palette.sky, Palette.blue]
     ).map(PaletteSwap.init)
 }

@@ -50,7 +50,7 @@ struct StingLanceView: View {
                 // afterwards swings the whole thing around the board instead.
                 ZStack {
                     Lance(headLength: tileSize * 0.7)
-                        .fill(Palette.lightBlue)
+                        .fill(Palette.sky)
                         .frame(width: tileSize * 0.52, height: length)
                         // Grows out of the piece's end, so the shaft reads as
                         // being pushed rather than as stretching.

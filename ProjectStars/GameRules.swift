@@ -950,8 +950,8 @@ enum GameRules {
             // last state before a hole is the one with nothing left in it, and
             // it reads as worse precisely because the warm stage came first.
             target = shade == .light
-                ? [Palette.dusk, Palette.navy, Palette.lavender]
-                : [Palette.mocha, Palette.dusk, Palette.navy]
+                ? [Palette.dusk, Palette.pewter, Palette.lavender]
+                : [Palette.mocha, Palette.dusk, Palette.pewter]
 
         default:
             return []

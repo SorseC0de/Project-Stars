@@ -47,7 +47,7 @@ extension Palette {
     static let brown = Color(hex: 0xBF7958)          // 14
     static let darkBrown = Color(hex: 0xA05B53)      // 15
     static let maroon = Color(hex: 0x7A444A)         // 16
-    static let plum = Color(hex: 0x5E3643)           // 17
+    static let coffee = Color(hex: 0x5E3643)           // 17
     static let mocha = Color(hex: 0x472D3C)          // 18
 
     // MARK: Violets — indices 19–24
@@ -81,10 +81,10 @@ extension Palette {
 
     static let teal = Color(hex: 0x00A383)           // 37
     static let jade = Color(hex: 0x3FC778)           // 38
-    static let grass = Color(hex: 0xA1EF79)          // 39
+    static let neonGreen = Color(hex: 0xA1EF79)          // 39
     static let ice = Color(hex: 0xDFF6F5)            // 40
     static let cyan = Color(hex: 0x92F4FF)           // 41
-    static let lightBlue = Color(hex: 0x42CAFD)      // 42
+    static let sky = Color(hex: 0x42CAFD)      // 42
 
     // MARK: Blues — indices 43–47
 
@@ -92,7 +92,7 @@ extension Palette {
     static let darkBlue = Color(hex: 0x243F72)       // 44
     static let dusk = Color(hex: 0x564064)           // 45
     static let lavender = Color(hex: 0x827094)       // 46
-    static let navy = Color(hex: 0x4F546B)           // 47
+    static let pewter = Color(hex: 0x4F546B)           // 47
 }
 
 // MARK: - Indexed access

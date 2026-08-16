@@ -138,7 +138,7 @@ enum PanelStyle {
     static let guideSpacing: CGFloat = 2
 
     /// Arrow colours: the direction being pushed, and the rest.
-    static let guideArrowLit = Palette.lightBlue
+    static let guideArrowLit = Palette.sky
     static let guideArrowDim = Palette.blue
 
     /// The tap-a-square pad. See `GridPadView`.
@@ -163,7 +163,7 @@ enum PanelStyle {
     /// is still made of the forty-seven.
     static let seamTones: [Color] = [
         Palette.gold, Palette.orange, Palette.magenta,
-        Palette.purple, Palette.lightBlue,
+        Palette.purple, Palette.sky,
     ]
 
     /// How much bigger the slab's type token is than a square on the pad.
@@ -179,7 +179,7 @@ enum PanelStyle {
 
     /// Chevron colours: lit only once the drag has passed the ordinary step.
     static let guideChevronLit = Palette.magenta
-    static let guideChevronDim = Palette.plum
+    static let guideChevronDim = Palette.coffee
 
     /// Overall strength of a guide, pushed and idle.
     static let guideOpacityLit: Double = 1
@@ -621,7 +621,7 @@ private struct PanelFrontView: View {
 
             Spacer(minLength: 0)
 
-            chromeButton("info", tint: Palette.lightBlue, action: onInfo)
+            chromeButton("info", tint: Palette.sky, action: onInfo)
             chromeButton("pause.fill", tint: Palette.stone) { session.togglePause() }
         }
     }
@@ -1786,7 +1786,7 @@ private struct PanelBackView: View {
         ZStack(alignment: .topTrailing) {
             rules
 
-            CelButton(tint: Palette.lightBlue, action: onBack) {
+            CelButton(tint: Palette.sky, action: onBack) {
                 //Text("BACK")
                 Image(systemName: "arrowkeys.fill")
                     .font(.system(size: PanelStyle.backLabelSize, weight: .heavy, design: .rounded))
@@ -1839,7 +1839,7 @@ private struct PanelBackView: View {
                     Capsule().frame(height: 2).opacity(0.5)
                     Spacer()
                 }
-                .foregroundStyle(Palette.lightBlue)
+                .foregroundStyle(Palette.sky)
             }
 
             Text(name)

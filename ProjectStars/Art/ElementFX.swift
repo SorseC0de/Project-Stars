@@ -33,7 +33,7 @@ struct ElementFX {
         switch element {
         case .water:
             // Blues, from deep water up to sea spray.
-            ElementFX(deep: Palette.blue, mid: Palette.lightBlue, bright: Palette.cyan)
+            ElementFX(deep: Palette.blue, mid: Palette.sky, bright: Palette.cyan)
 
         case .air:
             // Purple. It was teals through lime into yellow-green, on the idea
@@ -46,7 +46,7 @@ struct ElementFX {
         case .earth:
             // Green, kept clear of the darkest end: earth energy is growth, and
             // `forest` reads as shadow rather than as life.
-            ElementFX(deep: Palette.darkGreen, mid: Palette.green, bright: Palette.grass)
+            ElementFX(deep: Palette.darkGreen, mid: Palette.green, bright: Palette.neonGreen)
 
         case .fire:
             // Reds up through the heat into the flame's edge.

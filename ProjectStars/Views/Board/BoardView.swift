@@ -225,7 +225,7 @@ struct BoardView: View {
                     .opacity(GameRules.shedSkinOpacity)
                     // Washed towards the water it belongs to, so the husk is
                     // unmistakably *not* the piece even at a glance.
-                    .colorMultiply(Palette.lightBlue)
+                    .colorMultiply(Palette.sky)
             }
             .frame(width: metrics.tileSize, height: metrics.tileSize * 2)
             .modifier(placedOnPlaneModifier(skin.point, metrics: metrics))

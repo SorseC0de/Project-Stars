@@ -117,7 +117,7 @@ struct SkyView: View {
     /// Daylight, in two flat bands with clouds drifting across them.
     private var day: some View {
         ZStack {
-            Palette.lightBlue
+            Palette.sky
 
             // A paler band up top, where the sky would be brightest. A hard edge
             // rather than a gradient keeps it on-palette.
