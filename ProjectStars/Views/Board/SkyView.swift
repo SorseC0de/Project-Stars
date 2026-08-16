@@ -46,10 +46,8 @@ struct SkyView: View {
         let top = min(max(start, 0), 1)
         let bottom = min(max(end, top), 1)
         return [
-            .init(color: Palette.coolBlack, location: 0),
-            .init(color: Palette.coolBlack, location: top),
-            .init(color: Palette.sky, location: bottom),
-            .init(color: Palette.sky, location: 1)
+            .init(color: Palette.coolBlack, location: 0.6),
+            .init(color: Palette.blue, location: 1)
         ]
     }
 
@@ -95,6 +93,18 @@ struct SkyView: View {
                         // dropped frame rather than as twinkling.
                         let brightness = 0.45 + 0.55 * (twinkle + 1) / 2
 
+                        // Faded by how far down the sky it sits, computed here
+                        // rather than by masking the canvas.
+                        //
+                        // A `.mask` forces the whole thing through an offscreen
+                        // pass, and this canvas redraws every frame — so it cost
+                        // an extra full-size render sixty times a second for a
+                        // fade that is one multiply per star. That is where
+                        // Astra's frame rate went.
+                        let gone = max(0.01, skyFade - skyWidth)
+                        let depth = 1 - min(max((star.y - gone * 0.5) / (gone * 0.5), 0), 1)
+                        guard depth > 0 else { continue }
+
                         let point = CGPoint(x: star.x * size.width, y: star.y * size.height)
                         let radius = star.size * (0.85 + 0.3 * brightness)
 
@@ -103,27 +113,10 @@ struct SkyView: View {
                                 x: point.x - radius, y: point.y - radius,
                                 width: radius * 2, height: radius * 2
                             )),
-                            with: .color(star.colour.opacity(brightness))
+                            with: .color(star.colour.opacity(brightness * depth))
                         )
                     }
                 }
-            }
-            // Gone before the blue arrives. Masked rather than filtered by
-            // position so a star near the boundary dims out instead of
-            // popping, and so the two fades are described by one number each
-            // rather than by a rule repeated in both places.
-            .mask {
-                LinearGradient(
-                    stops: [
-                        .init(color: .black, location: 0),
-                        // Out by the time the dark itself starts to go, so a
-                        // star is never left hanging in the blue.
-                        .init(color: .black, location: max(0, skyFade - skyWidth) * 0.5),
-                        .init(color: .clear, location: max(0.01, skyFade - skyWidth))
-                    ],
-                    startPoint: .top,
-                    endPoint: .bottom
-                )
             }
         }
     }

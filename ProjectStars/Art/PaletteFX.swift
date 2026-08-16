@@ -118,15 +118,19 @@ struct PaletteGlow<Content: View>: View {
                 // The blend has to stay outside the group so the finished bloom
                 // still adds to the board behind it.
                 //
-                // Padded first, because `drawingGroup` rasterises into a buffer
-                // the size of the view's **bounds** and a blur spreads past
-                // them. Unpadded, the bloom fills the sprite's box and is cut
-                // off square at its edges — which does not read as a glow that
-                // is slightly clipped, it reads as a glowing rectangle standing
-                // behind the piece. Room for the widest step of the trail is
-                // enough for every step inside it.
-                .padding(radius * (1 + CGFloat(max(trail, 0)) * 0.9) * 2)
-                .drawingGroup()
+                // **Compositing**, not drawing. `drawingGroup` flattens into an
+                // offscreen texture the size of the view's bounds, and a blur
+                // spreads past them — so the bloom was cut off square at the
+                // sprite's edges and read as a glowing rectangle standing
+                // behind the piece. Padding the buffer only moved the edges out;
+                // the rectangle was still there, just bigger.
+                //
+                // `compositingGroup` is the primitive this actually wants: it
+                // makes the stack blend as one unit without rasterising it or
+                // clipping it to anything. The shader is still cached once, on
+                // `mask` — which is where the cost the old comment worried about
+                // actually lives.
+                .compositingGroup()
                 .blendMode(.plusLighter)
                 .allowsHitTesting(false)
             }

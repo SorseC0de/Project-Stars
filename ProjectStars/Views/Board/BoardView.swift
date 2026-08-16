@@ -743,6 +743,25 @@ struct BoardView: View {
         }
     }
 
+    /// How much its row shrinks whatever stands on `point`.
+    ///
+    /// Needed because an `.offset` applied *after* a placement is in screen
+    /// points, not board ones — the placement's own `scaleEffect` has already
+    /// happened, so the offset never shrinks with the row. A lift of four
+    /// pixels is four pixels on the near row and four on the far one, which is
+    /// why the marks came apart from their squares at the back of the board.
+    private func rowScale(at point: GridPoint, metrics: PixelArtMetrics) -> CGFloat {
+        let framing = planeFraming(session.visiblePlane)
+        return metrics.projected(
+            point,
+            zoom: framing.zoom,
+            lift: framing.lift,
+            emphasis: framing.emphasis,
+            pivot: framing.pivot,
+            spacing: framing.spacing
+        ).scale
+    }
+
     /// Puts an object on its square, on whichever plane's camera it stands.
     ///
     /// Terra is the true camera; Astra is allowed its own taper, size and
@@ -1063,9 +1082,11 @@ struct BoardView: View {
             // takes the row's squash and lean like any other ground, on both
             // planes. Placing it as an object is what kept it looking like a
             // sticker laid flat over a board that is lying down.
+            // In board pixels, brought back to screen ones by the row.
             .offset(
-                y: -GameRules.cursorLift * metrics.scale
-                    + surfaceOffset(of: point, bob: bob, metrics: metrics)
+                y: (-GameRules.cursorLift * metrics.scale
+                    + surfaceOffset(of: point, bob: bob, metrics: metrics))
+                    * rowScale(at: point, metrics: metrics)
             )
             .animation(.spring(response: 0.18, dampingFraction: 0.8), value: point)
     }
@@ -1176,9 +1197,11 @@ struct BoardView: View {
                     )
                     // Ground, like the cursor: it is a mark on the square
                     // ahead, not something standing there.
-                    .offset(y: surfaceOffset(
-                        of: session.engine.piece.point, bob: bob, metrics: metrics
-                    ))
+                    .offset(
+                        y: surfaceOffset(
+                            of: session.engine.piece.point, bob: bob, metrics: metrics
+                        ) * rowScale(at: session.engine.piece.point, metrics: metrics)
+                    )
                     .offset(sway)
 
                 case .follower:

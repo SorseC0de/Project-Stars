@@ -83,7 +83,7 @@ struct GroundBelowView: View {
         // It was faded instead, which let the stars shine straight through the
         // ground — nonsense for a solid world below you. Midnight over the top
         // darkens it to the same distance while leaving it opaque.
-        .overlay(Palette.midnight.opacity(GameRules.groundBelowShade))
+        .overlay(Palette.coolBlack.opacity(GameRules.groundBelowShade))
         // The same tilt as the board. It is the same kind of surface seen from
         // the same eye — left flat while the board lay down, it read as a wall
         // behind the world rather than a floor beneath it.
