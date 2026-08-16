@@ -706,12 +706,15 @@ struct BoardView: View {
         if session.visiblePlane == .terra {
             view.asBoardSquare(point, metrics: metrics)
         } else {
+            // Still in the tile layer — same squash, same lean, so it reads as
+            // painted on the cloud rather than standing on it. Only the
+            // *placement* comes from Astra, because that is the half Terra's
+            // bands cannot answer for another plane.
             view
-                .scaleEffect(
-                    x: 1,
-                    y: 1 + GameRules.astraMarkStretch
-                        * CGFloat(point.y) / CGFloat(max(metrics.gridSize - 1, 1)),
-                    anchor: .bottom
+                .shapedAsGround(
+                    row: point.y,
+                    metrics: metrics,
+                    stretch: GameRules.astraMarkStretch
                 )
                 .modifier(placedOnPlaneModifier(point, metrics: metrics))
         }

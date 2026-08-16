@@ -280,6 +280,27 @@ extension View {
     /// The difference from `standingOnBoardRow` is the vertical squash. A figure
     /// standing on a row must never take it or it comes out squat; a tile must
     /// always take it or it comes out flat against a floor that is lying down.
+    /// The **shape** of ground at a row, without saying where the square is.
+    ///
+    /// Split out from `asBoardSquare` because the shape and the placement come
+    /// from different places on Astra: a mark up there still lies on the ground
+    /// and still wants the squash and the lean, but it must be *put* where
+    /// Astra's own camera says, not where Terra's rows do.
+    func shapedAsGround(
+        row: Int,
+        metrics: PixelArtMetrics,
+        stretch: CGFloat = 0
+    ) -> some View {
+        let band = BoardBand.at(row: row, metrics: metrics)
+        let last = CGFloat(max(metrics.gridSize - 1, 1))
+        let stood = 1 + stretch * CGFloat(row) / last
+        return foreshortened(
+            band.lean,
+            size: CGSize(width: metrics.tileSize, height: metrics.tileSize)
+        )
+            .scaleEffect(x: 1, y: band.groundScale / band.scale * stood, anchor: .bottom)
+    }
+
     func asBoardSquare(
         _ point: GridPoint,
         metrics: PixelArtMetrics,
