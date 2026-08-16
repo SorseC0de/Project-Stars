@@ -2665,7 +2665,11 @@ enum GameRules {
     static let aquariusEyeHaze: CGFloat = 5
 
     /// The whole assembly against a board square.
-    static let aquariusStormScale: CGFloat = 0.75
+    /// One. The storm is allowed to be as big as it is — which is the sign's
+    /// whole claim — so long as the square he is standing on stays readable.
+    /// That is what the cursor, his shadow and the facing arrow are for, and
+    /// they all sit on the ground rather than inside the funnel.
+    static let aquariusStormScale: CGFloat = 1.0
 
     /// How many board squares the tuned assembly is meant to span.
     ///
