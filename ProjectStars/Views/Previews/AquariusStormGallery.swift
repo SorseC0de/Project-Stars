@@ -318,7 +318,7 @@ struct AquariusStormGallery: View {
     ]
 
     var body: some View {
-        VStack(spacing: 16) {
+        VStack(spacing: 10) {
             Text("AQUARIUS — STORM")
                 .font(.system(size: 11, weight: .heavy, design: .monospaced))
                 .tracking(4)
@@ -336,7 +336,13 @@ struct AquariusStormGallery: View {
             .frame(width: 330, height: 330)
             .clipShape(RoundedRectangle(cornerRadius: 10))
 
-            controls
+            // The knobs scroll; the storm does not.
+            //
+            // Every knob added pushed the thing being judged further off the
+            // screen, which is the one part of a gallery that must never move.
+            ScrollView {
+                controls.padding(.bottom, 24)
+            }
         }
         .padding(20)
         .frame(maxWidth: .infinity, maxHeight: .infinity)
@@ -511,7 +517,7 @@ struct AquariusStormGallery: View {
     }
 
     private var controls: some View {
-        VStack(spacing: 12) {
+        VStack(spacing: 6) {
             HStack {
                 Text("PHASE \(phase)")
                     .font(.system(size: 10, weight: .heavy, design: .monospaced))
