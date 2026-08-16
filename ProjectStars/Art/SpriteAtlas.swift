@@ -339,8 +339,9 @@ enum SpriteAtlas {
         // The cell to its left: the same fragment, cold.
         map[.pentacle(.dormant)] = .cells(column: 11 + sheetShift, row: 5)
 
-        // And the cell to its right: an ordinary coin, not spinning.
-        map[.pentacle(.still)] = .cells(column: 13 + sheetShift, row: 5)
+        // An ordinary coin, not spinning — (17, 6) on the sheet, a row below
+        // the two Polaris cells rather than beside them.
+        map[.pentacle(.still)] = .cells(column: 11 + sheetShift, row: 6)
 
         map[.pentacle(.standard)] = .cells(
             sheet: pentacleSheet,
