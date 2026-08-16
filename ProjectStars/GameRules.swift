@@ -1416,7 +1416,11 @@ enum GameRules {
     /// completely — which is how it went missing. The piece's opaque pixels end
     /// about two art pixels below the tile's centre, so the shadow has to clear
     /// that to be seen at all.
-    static let pieceShadowDrop: CGFloat = 2
+    /// How far the shadow sits below the piece's own middle, in art pixels.
+    ///
+    /// Four rather than two: it has been riding two pixels high all along,
+    /// which reads as the piece hovering rather than standing.
+    static let pieceShadowDrop: CGFloat = 4
 
     /// How much smaller the piece's shadow gets at the top of a hop, as a
     /// fraction of its resting size.
@@ -2413,6 +2417,12 @@ enum GameRules {
     static let smokeFallMagnitude: CGFloat = 2.1
 
     /// Puffs kicked up by a landing.
+    /// How far a tinted puff is lifted before its colour is multiplied in.
+    ///
+    /// See `SmokeSpriteView.recoloured` — a multiply cannot brighten, so the
+    /// art has to be brought up to meet the tint.
+    static let smokeTintLift: Double = 0.3
+
     static let smokePuffCount = 7
 
     /// Diameter of a puff at its largest, in art pixels.

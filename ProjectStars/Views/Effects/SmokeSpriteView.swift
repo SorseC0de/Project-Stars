@@ -75,7 +75,14 @@ struct SmokeSpriteView: View {
     @ViewBuilder
     private func recoloured(_ art: some View) -> some View {
         if let tint {
-            art.colorMultiply(tint)
+            // Lifted before it is multiplied.
+            //
+            // `colorMultiply` can only ever *darken* — grey art times a green
+            // is a dark green however bright the green is, which is why picking
+            // a lighter one never helped and the puff kept reading as poison.
+            // Raising the art toward white first means the multiply lands near
+            // the colour asked for instead of somewhere under it.
+            art.brightness(GameRules.smokeTintLift).colorMultiply(tint)
         } else if swaps.isEmpty {
             art
         } else {
