@@ -449,6 +449,7 @@ struct FloatingAquarius: View {
                         .offset(
                             y: eyeOffset - height
                                 + (follow - 1) * 132 * size * (1 - shrink)
+                                    * GameRules.aquariusFigureSink
                         )
                 }
             }
