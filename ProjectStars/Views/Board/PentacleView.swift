@@ -109,6 +109,9 @@ struct PentacleView: View {
                 }
 
                 coin(phase: phase)
+                    // And shrinks as it goes, by the same reasoning the pool
+                    // grows: at the top of the bob it is further away.
+                    .scaleEffect(1 - GameRules.pentacleRiseScaleSwing * rise)
                     // Floats clear of its own glow, then drifts — the gap
                     // between coin and pool is what sells the hover.
                     .offset(

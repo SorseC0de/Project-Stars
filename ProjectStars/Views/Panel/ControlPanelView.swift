@@ -287,7 +287,7 @@ enum PanelStyle {
     /// Capricorn's meter, drawn as coins. Ten of them on Astra, so they are
     /// small — but round and rimmed, which is enough to read as money at a
     /// glance and to be counted without reading anything.
-    static let meterCoinSize: CGFloat = 11
+    static let meterCoinSize: CGFloat = 22
     static let meterCoinSpacing: CGFloat = 3
     static let meterCoinRim: CGFloat = 1.5
 
@@ -738,9 +738,15 @@ private struct PanelFrontView: View {
             // nothing that was not already there.
             // The column holds the borrowed supers *and* the arrow recall, so
             // the main button gives up its third for either.
+            // `canFirePolaris`, not `polaris != nil`.
+            //
+            // The column *draws* the fragment only when it can be spent, so
+            // asking a different question here meant carrying a dormant Polaris
+            // shrank the Zodiaction button to make room for a button that was
+            // not there. The two must ask the same thing.
             let hasColumn = !session.retinue.isEmpty
                 || session.canRecallArrow
-                || session.polaris != nil
+                || session.canFirePolaris
 
             ZodiactionButton(session: session, isCompact: hasColumn)
                 .frame(maxWidth: .infinity)
@@ -797,7 +803,12 @@ private struct PanelFrontView: View {
                     .frame(width: PanelStyle.polarisButtonSize,
                            height: PanelStyle.polarisButtonSize)
                     .colorEffect(ShaderLibrary.flatSilhouette(.color(Palette.purple)))
-                    .offset(y: PanelStyle.buttonDepth)
+                    // South-**west**, not straight down. A pentacle is a star
+                    // rather than a slab, so a shadow directly beneath it reads
+                    // as a doubled sprite; offset on both axes it reads as one
+                    // shape lit from the upper right, which is where every
+                    // other face in the panel is lit from.
+                    .offset(x: -PanelStyle.buttonDepth, y: PanelStyle.buttonDepth)
 
                 PixelSprite(id: .pentacle(.radiant)) { Color.clear }
                     .frame(width: PanelStyle.polarisButtonSize,

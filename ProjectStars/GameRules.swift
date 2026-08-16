@@ -1711,6 +1711,14 @@ enum GameRules {
     /// How much smaller the pool gets at the top of the coin's float, as a
     /// fraction of its resting size. Shrinking as the coin rises is what sells
     /// the height rather than a flat drift.
+    /// How much smaller the coin is drawn at the top of its bob.
+    ///
+    /// Its pool of light already narrows as it rises, but the coin itself held
+    /// one size the whole way up — so the two halves of the hover disagreed
+    /// about whether anything had moved away. Small: it is a hand's height off
+    /// a tile, not a departure.
+    static let pentacleRiseScaleSwing: CGFloat = 0.08
+
     static let pentacleShadowScaleSwing: CGFloat = 0.3
 
     /// How far the coin's glow orbits the tile centre, in art pixels.
