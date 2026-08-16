@@ -753,7 +753,8 @@ struct BoardView: View {
                         zoom: CGFloat(session.debugAstraZoom),
                         lift: CGFloat(session.debugAstraLift),
                         baseSize: CGFloat(session.debugCloudSize),
-                        separation: CGFloat(session.debugCloudSpread)
+                        separationX: CGFloat(session.debugCloudSpreadX),
+                        separationY: CGFloat(session.debugCloudSpreadY)
                     )
                 } else {
                     CloudFieldView(
@@ -767,7 +768,8 @@ struct BoardView: View {
                         zoom: CGFloat(session.debugAstraZoom),
                         lift: CGFloat(session.debugAstraLift),
                         baseSize: CGFloat(session.debugCloudSize),
-                        separation: CGFloat(session.debugCloudSpread)
+                        separationX: CGFloat(session.debugCloudSpreadX),
+                        separationY: CGFloat(session.debugCloudSpreadY)
                     )
                 }
             }

@@ -2008,7 +2008,27 @@ enum GameRules {
     /// clouds are loose shapes drawn foreshortened already, so how much they
     /// recede is a matter of how deep the sky should feel. Terra stays at `1`,
     /// where a grid disagreeing with its own geometry would open seams.
-    static let astraDepthEmphasis: CGFloat = 1.02
+    static let astraDepthEmphasis: CGFloat = 0.9
+
+    /// Astra's own framing zoom and lift, kept apart from Terra's.
+    ///
+    /// The plane rides higher and is framed slightly smaller than the ground
+    /// below it, which is what puts a piece's feet at the same height on both.
+    static let astraForeshortenScale: CGFloat = 1.0
+    static let astraForeshortenLift: CGFloat = 0.19
+
+    /// How much of its square a cloud fills, and how far apart the squares sit.
+    ///
+    /// **Two spacings, not one.** A cloud is wider than it is tall and the rows
+    /// are closer together than the columns, so one number for both had to be
+    /// wrong on one axis to be right on the other — which is why the field kept
+    /// reading as either too gappy across or too crowded down.
+    static let cloudBaseSize: CGFloat = 0.9
+    static let cloudSpacingX: CGFloat = 1.0
+    static let cloudSpacingY: CGFloat = 1.0
+
+    /// Where the figure sits on its square, in art pixels.
+    static let pieceSeatDrop: CGFloat = 4
 
     /// How far the tilted board is lifted back up its square, as a fraction of
     /// the board. A keystone pulls its content toward the near edge, so without

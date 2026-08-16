@@ -83,7 +83,7 @@ struct CloudFieldView: View {
     /// squares sit, this one how much of its square a cloud fills. Together
     /// they cover the field however densely it wants to be covered, and neither
     /// says anything about the camera.
-    var baseSize: CGFloat = 1
+    var baseSize: CGFloat = GameRules.cloudBaseSize
 
     /// How far apart the clusters sit, independent of how big they are.
     ///
@@ -92,7 +92,8 @@ struct CloudFieldView: View {
     /// field looks. This spreads the squares about the board's middle and leaves
     /// every cloud the size it was, so coverage can be tuned without retuning
     /// the perspective.
-    var separation: CGFloat = 1
+    var separationX: CGFloat = GameRules.cloudSpacingX
+    var separationY: CGFloat = GameRules.cloudSpacingY
 
     /// Paint only this row, or every row when `nil`.
     ///
@@ -139,9 +140,9 @@ struct CloudFieldView: View {
                         CloudCluster.Brush(
                             centre: CGPoint(
                                 x: metrics.boardSize / 2
-                                    + (spot.position.x - metrics.boardSize / 2) * separation,
+                                    + (spot.position.x - metrics.boardSize / 2) * separationX,
                                 y: metrics.boardSize / 2
-                                    + (spot.position.y - metrics.boardSize / 2) * separation
+                                    + (spot.position.y - metrics.boardSize / 2) * separationY
                             ),
                             point: point,
                             wear: wear(at: point, health: tile.health, now: now),

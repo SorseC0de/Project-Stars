@@ -96,7 +96,7 @@ struct CloudSpriteField: View {
     /// squares sit, this one how much of its square a cloud fills. Together
     /// they cover the field however densely it wants to be covered, and neither
     /// says anything about the camera.
-    var baseSize: CGFloat = 1
+    var baseSize: CGFloat = GameRules.cloudBaseSize
 
     /// How far apart the clusters sit, independent of how big they are.
     ///
@@ -105,7 +105,8 @@ struct CloudSpriteField: View {
     /// field looks. This spreads the squares about the board's middle and leaves
     /// every cloud the size it was, so coverage can be tuned without retuning
     /// the perspective.
-    var separation: CGFloat = 1
+    var separationX: CGFloat = GameRules.cloudSpacingX
+    var separationY: CGFloat = GameRules.cloudSpacingY
 
     var body: some View {
         TimelineView(.animation) { timeline in
@@ -248,8 +249,8 @@ struct CloudSpriteField: View {
         // lift if a Pentacle is sitting on it.
         let middle = metrics.boardSize / 2
         let centre = CGPoint(
-            x: middle + (spot.position.x - middle) * separation,
-            y: middle + (spot.position.y - middle) * separation
+            x: middle + (spot.position.x - middle) * separationX,
+            y: middle + (spot.position.y - middle) * separationY
         )
         let wander = shift(point, now: now)
         let shove = CloudMotion.shove(

@@ -897,27 +897,28 @@ final class GameSession {
     /// this is the one that has to move to meet it.
     ///
     /// - TODO: **Temporary.** Bake into `GameRules` and delete the dial.
-    var debugAstraZoom: Double = Double(GameRules.boardForeshortenScale)
+    var debugAstraZoom: Double = Double(GameRules.astraForeshortenScale)
 
     /// How far up the square Astra sits, as a fraction of the board.
     ///
     /// - TODO: **Temporary.** Bake into `GameRules` and delete the dial.
-    var debugAstraLift: Double = Double(GameRules.boardForeshortenLift)
+    var debugAstraLift: Double = Double(GameRules.astraForeshortenLift)
 
     /// How far apart Astra's clouds sit, with no effect on their size.
     ///
     /// - TODO: **Temporary.** Bake into `GameRules` and delete the dial.
-    var debugCloudSpread: Double = 1.0
+    var debugCloudSpreadX: Double = Double(GameRules.cloudSpacingX)
+    var debugCloudSpreadY: Double = Double(GameRules.cloudSpacingY)
 
     /// How big a cloud is drawn before depth touches it.
     ///
     /// - TODO: **Temporary.** Bake into `GameRules` and delete the dial.
-    var debugCloudSize: Double = 1.0
+    var debugCloudSize: Double = Double(GameRules.cloudBaseSize)
 
     /// Where the piece sits on its square, in art pixels.
     ///
     /// - TODO: **Temporary.** Bake into `GameRules` and delete the dial.
-    var debugPieceY: Double = 0
+    var debugPieceY: Double = Double(GameRules.pieceSeatDrop)
 
 
     /// How far each row's ground is stretched to meet the row behind it.
