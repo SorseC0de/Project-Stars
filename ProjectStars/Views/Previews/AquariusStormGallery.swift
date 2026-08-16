@@ -433,7 +433,7 @@ struct AquariusStormGallery: View {
                 // The bluff. A full storm hides the smallest figure, so the most
                 // frightening it looks is the moment it can do the least.
                 let shrink = GameRules.aquariusFigureShrink
-                    + (1 - GameRules.aquariusFigureShrink) * CGFloat(1 - strength)
+                    + (1 - GameRules.aquariusFigureShrink) * CGFloat(strength)
                 // Swinging all the way to nothing and back: a light that never
                 // goes out is a lamp, one that does is something blinking.
                 let pulse = (1 - cos(now / GameRules.aquariusEyeGlowPeriod * 2 * .pi)) / 2

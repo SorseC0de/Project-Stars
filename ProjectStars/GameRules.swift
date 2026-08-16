@@ -2657,11 +2657,14 @@ enum GameRules {
     /// The whole assembly against a board square.
     static let aquariusStormScale: CGFloat = 0.75
 
-    /// How much smaller the figure and his eyes are at an empty meter.
+    /// How much smaller the figure and his eyes are at an **empty** meter.
     ///
-    /// The bluff, stated as a number: the storm grows as it fills and the thing
-    /// inside it shrinks, so the most frightening it ever looks is the moment
-    /// it can do the least. See the Aquarius rework.
+    /// The bluff, and it runs the way the storm does rather than against it:
+    /// a full storm holds something huge, and what is left when the storm goes
+    /// is a little gold pot. The shape inside grows *with* the funnel, which is
+    /// what makes the reveal at zero land — the tornado was never hiding
+    /// something small, it was hiding something that shrank as it lost its
+    /// cover. See the Aquarius rework.
     static let aquariusFigureShrink: CGFloat = 0.45
 
     // MARK: - Virgo's gems
