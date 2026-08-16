@@ -69,11 +69,18 @@ struct AquariusStorm: View {
     /// A multiplier on every plate's width.
     var bladeScale: CGFloat = 1
 
-    /// How much wider the eye plate is than the widest of the stack.
-    var eyeScale: CGFloat = 1.25
+    /// How much wider an eye plate is than the widest of the stack.
+    var eyeScale: CGFloat = 0.75
 
-    /// How the eye plate sits against the rest. Something darkening.
+    /// How each eye plate sits against the rest. Two of them, because one
+    /// darkening pass reads as a stain and two crossing at different heights
+    /// read as a gap you are looking through.
     var eyeBlend: BlendMode = .multiply
+    var eyeTwinBlend: BlendMode = .multiply
+
+    /// Where each sits, as a fraction of the square.
+    var eyeY: CGFloat = 0
+    var eyeTwinY: CGFloat = 0.06
 
     /// Size of the square this fills, in points.
     var side: CGFloat = 96
@@ -112,17 +119,8 @@ struct AquariusStorm: View {
                 // the stack rather than drawn darker, so it reads as depth
                 // through the wall of air instead of as a hole cut in it.
                 if bands > 0 {
-                    EffectSpriteView(
-                        effect: .aquariusArmor,
-                        tileSize: bandSize(bands - 1) * eyeScale,
-                        start: .distantPast,
-                        loops: true,
-                        clock: { $0 + self.stagger(bands - 1) / 2 },
-                        frameCount: self.played
-                    )
-                    .colorEffect(ShaderLibrary.flatSilhouette(.color(Palette.midnight)))
-                    .offset(y: rise(bands - 1) + side * 0.02)
-                    .blendMode(eyeBlend)
+                    eyePlate(blend: eyeBlend, at: eyeY, turn: 4, speed: 0.9, at: now)
+                    eyePlate(blend: eyeTwinBlend, at: eyeTwinY, turn: -5, speed: 1.3, at: now)
                 }
             }
             .frame(width: side, height: side)
@@ -139,6 +137,33 @@ struct AquariusStorm: View {
     /// raising it.
     private var bands: Int {
         phase <= 0 ? 0 : max(Int((strength * 13).rounded()), 3)
+    }
+
+    /// One of the two plates that make the eye of the storm.
+    ///
+    /// They turn, but barely and out of step with each other — immobile was
+    /// wrong, because the stack behind them never stops and a still shape in
+    /// front of moving ones reads as a decal rather than as a part of it.
+    @ViewBuilder
+    private func eyePlate(
+        blend: BlendMode,
+        at height: CGFloat,
+        turn: Double,
+        speed: Double,
+        at now: TimeInterval
+    ) -> some View {
+        EffectSpriteView(
+            effect: .aquariusArmor,
+            tileSize: bandSize(bands - 1) * eyeScale,
+            start: .distantPast,
+            loops: true,
+            clock: { $0 + self.stagger(bands - 1) * (speed > 1 ? 0.35 : 0.6) },
+            frameCount: played
+        )
+        .colorEffect(ShaderLibrary.flatSilhouette(.color(Palette.midnight)))
+        .rotationEffect(.degrees(sin(now * speed) * turn))
+        .offset(y: rise(bands - 1) + side * height)
+        .blendMode(blend)
     }
 
     /// Frames actually played, after the taper.
@@ -237,15 +262,25 @@ struct StormEyes: View {
     }
 
     private func eye(turned: Double) -> some View {
-        // Narrower than the frame it is given, so the curve closes to a slit
-        // rather than a leaf.
-        Vesica(fullness: 0.72)
+        // A flat fill with blurred copies of *itself* stacked behind it,
+        // additively. `shadow` could only ever darken outward from the shape,
+        // which is why turning the knob up did nothing to the purple in the
+        // middle — the fill was never part of what was glowing.
+        let shape = Vesica(fullness: 0.72)
             .fill(tint)
             .frame(width: width, height: width * slit)
             .rotationEffect(.degrees(turned))
-            .shadow(color: tint.opacity(0.9 * Double(glow)), radius: width * 0.35 * glow)
-            .shadow(color: tint.opacity(0.6 * Double(glow)), radius: width * 0.8 * glow)
-            .shadow(color: tint.opacity(0.35 * Double(glow)), radius: width * 1.6 * glow)
+
+        return ZStack {
+            ForEach(0..<3, id: \.self) { step in
+                shape
+                    .blur(radius: width * (0.18 + CGFloat(step) * 0.35) * max(glow, 0))
+                    .opacity(Double(glow) / Double(step + 1))
+            }
+            shape
+        }
+        .compositingGroup()
+        .blendMode(.plusLighter)
     }
 }
 
@@ -260,11 +295,15 @@ struct AquariusStormGallery: View {
     @State private var showsEyes = true
     @State private var showsSilhouette = true
     @State private var glow: Double = 1
-    @State private var eyeScale: Double = 1.25
+    @State private var eyeScale: Double = 0.75
     @State private var eyeBlend: BlendMode = .multiply
     @State private var figureScale: Double = 1.25
-    @State private var figureTurn: Double = 12
-    @State private var groupScale: Double = 1
+    @State private var figureTurn: Double = 5
+    @State private var groupScale: Double = 0.75
+    @State private var figureY: Double = -74
+    @State private var eyeY: Double = 0
+    @State private var eyeTwinY: Double = 0.06
+    @State private var eyeTwinBlend: BlendMode = .multiply
     @State private var spread: Double = 2
     @State private var height: Double = 0.1
     @State private var taper: Double = 5
@@ -319,6 +358,9 @@ struct AquariusStormGallery: View {
         /// How big he is drawn, against the storm around him.
         var size: CGFloat = 1
 
+        /// Where he hangs, as points from the middle.
+        var height: CGFloat = -74
+
         var body: some View {
             TimelineView(.animation) { timeline in
                 let now = timeline.date.timeIntervalSinceReferenceDate
@@ -334,7 +376,7 @@ struct AquariusStormGallery: View {
                     // Raised: he hangs in the funnel rather than standing under
                     // it, which is the whole picture — something held up by the
                     // storm, not something the storm is happening around.
-                    .offset(y: -74 + lift)
+                    .offset(y: height + lift)
                     .blendMode(blend)
             }
         }
@@ -376,6 +418,9 @@ struct AquariusStormGallery: View {
                 bladeScale: CGFloat(bladeScale),
                 eyeScale: CGFloat(eyeScale),
                 eyeBlend: eyeBlend,
+                eyeTwinBlend: eyeTwinBlend,
+                eyeY: CGFloat(eyeY),
+                eyeTwinY: CGFloat(eyeTwinY),
                 side: 300,
                 scale: 4
             )
@@ -392,7 +437,12 @@ struct AquariusStormGallery: View {
                 // Big. The storm is a bluff about how large the thing inside
                 // it is, and a small silhouette gives that away before the
                 // reveal does.
-                FloatingSilhouette(blend: blend, turn: figureTurn, size: CGFloat(figureScale))
+                FloatingSilhouette(
+                    blend: blend,
+                    turn: figureTurn,
+                    size: CGFloat(figureScale),
+                    height: CGFloat(figureY)
+                )
             }
 
             // Over both, and never blended: the eyes are the one thing meant to
@@ -488,6 +538,9 @@ struct AquariusStormGallery: View {
             knob("EYE", $eyeScale, 0.8...2.2, "x")
             knob("FIGURE", $figureScale, 0.6...2.4, "x")
             knob("TURN", $figureTurn, 0...40, "°")
+            knob("EYE Y", $eyeY, -0.3...0.3, "x")
+            knob("EYE2 Y", $eyeTwinY, -0.3...0.3, "x")
+            knob("BODY Y", $figureY, -160...40, "pt")
             knob("ALL", $groupScale, 0.3...2, "x")
 
             Picker("Blend", selection: $blend) {
@@ -497,6 +550,12 @@ struct AquariusStormGallery: View {
             }
 
             Picker("Eye blend", selection: $eyeBlend) {
+                ForEach(BlendMode.allCases, id: \.self) { mode in
+                    Text(String(describing: mode)).tag(mode)
+                }
+            }
+
+            Picker("Eye 2 blend", selection: $eyeTwinBlend) {
                 ForEach(BlendMode.allCases, id: \.self) { mode in
                     Text(String(describing: mode)).tag(mode)
                 }
