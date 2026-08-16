@@ -37,40 +37,20 @@ struct SkyView: View {
     /// colours, kept apart from where the turn sits.
     var skyWidth: CGFloat = GameRules.astraSkyFadeWidth
 
-    /// The turn from space to daylight, in flat bands.
+    /// The turn from space to daylight.
     ///
-    /// Each band is two stops at the same colour, so the gradient holds it and
-    /// then jumps — a posterised ramp rather than a smooth one. See
-    /// `GameRules.astraSkySteps`.
-    private static func steppedSky(from start: CGFloat, to end: CGFloat) -> [Gradient.Stop] {
-        let steps = max(GameRules.astraSkySteps, 1)
+    /// Smooth, deliberately. The palette's discipline is about the things in
+    /// the world — a background is allowed to be continuous, and banding this
+    /// one only drew attention to the bands.
+    private static func skyStops(from start: CGFloat, to end: CGFloat) -> [Gradient.Stop] {
         let top = min(max(start, 0), 1)
         let bottom = min(max(end, top), 1)
-        let span = bottom - top
-
-        var stops: [Gradient.Stop] = [.init(color: Palette.coolBlack, location: 0)]
-        for step in 0..<steps {
-            let shade = Double(step) / Double(max(steps - 1, 1))
-            let colour = mix(Palette.coolBlack, Palette.sky, shade)
-            stops.append(.init(color: colour, location: top + span * CGFloat(step) / CGFloat(steps)))
-            stops.append(
-                .init(color: colour, location: top + span * CGFloat(step + 1) / CGFloat(steps))
-            )
-        }
-        stops.append(.init(color: Palette.sky, location: 1))
-        return stops
-    }
-
-    /// Straight component blend of two palette entries.
-    private static func mix(_ a: Color, _ b: Color, _ t: Double) -> Color {
-        let one = UIColor(a).cgColor.components ?? [0, 0, 0, 1]
-        let two = UIColor(b).cgColor.components ?? [0, 0, 0, 1]
-        guard one.count >= 3, two.count >= 3 else { return a }
-        return Color(
-            red: Double(one[0] + (two[0] - one[0]) * CGFloat(t)),
-            green: Double(one[1] + (two[1] - one[1]) * CGFloat(t)),
-            blue: Double(one[2] + (two[2] - one[2]) * CGFloat(t))
-        )
+        return [
+            .init(color: Palette.coolBlack, location: 0),
+            .init(color: Palette.coolBlack, location: top),
+            .init(color: Palette.sky, location: bottom),
+            .init(color: Palette.sky, location: 1)
+        ]
     }
 
 
@@ -100,7 +80,7 @@ struct SkyView: View {
             // backdrop the board was placed on; a sky that darkens with depth
             // reads as the same air the board is standing in.
             LinearGradient(
-                stops: Self.steppedSky(from: skyFade - skyWidth, to: skyFade),
+                stops: Self.skyStops(from: skyFade - skyWidth, to: skyFade),
                 startPoint: .top,
                 endPoint: .bottom
             )

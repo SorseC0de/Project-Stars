@@ -1993,13 +1993,6 @@ enum GameRules {
     /// strength rather than the horizon changing height.
     static let astraSkyFadeWidth: CGFloat = 0.35
 
-    /// How many flat bands the sky's turn is drawn in.
-    ///
-    /// Stepped rather than smooth, because a continuous ramp is the one thing
-    /// on screen that could not exist in the art: everything else lands on a
-    /// palette entry and a whole pixel. A banded sky reads as the same picture
-    /// as the sprites in front of it.
-    static let astraSkySteps: Int = 6
 
     /// How far off each edge of the screen it is held, as a fraction of the
     /// square. Run edge to edge it reads as a fitted carpet; inset, as a
