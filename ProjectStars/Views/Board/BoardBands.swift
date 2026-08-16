@@ -289,7 +289,8 @@ extension View {
     func shapedAsGround(
         row: Int,
         metrics: PixelArtMetrics,
-        stretch: CGFloat = 0
+        stretch: CGFloat = 0,
+        squashed: Bool = true
     ) -> some View {
         let band = BoardBand.at(row: row, metrics: metrics)
         let last = CGFloat(max(metrics.gridSize - 1, 1))
@@ -298,13 +299,18 @@ extension View {
             band.lean,
             size: CGSize(width: metrics.tileSize, height: metrics.tileSize)
         )
-            .scaleEffect(x: 1, y: band.groundScale / band.scale * stood, anchor: .bottom)
+            .scaleEffect(
+                x: 1,
+                y: squashed ? band.groundScale / band.scale * stood : stood,
+                anchor: .bottom
+            )
     }
 
     func asBoardSquare(
         _ point: GridPoint,
         metrics: PixelArtMetrics,
-        stretch: CGFloat = 0
+        stretch: CGFloat = 0,
+        squashed: Bool = true
     ) -> some View {
         let band = BoardBand.at(row: point.y, metrics: metrics)
 
@@ -333,7 +339,11 @@ extension View {
             band.lean,
             size: CGSize(width: metrics.tileSize, height: metrics.tileSize)
         )
-            .scaleEffect(x: band.scale, y: band.groundScale * stood, anchor: .bottom)
+            .scaleEffect(
+                x: band.scale,
+                y: (squashed ? band.groundScale : band.scale) * stood,
+                anchor: .bottom
+            )
             .position(
                 x: middle + (flat.x - middle) * band.scale / drawnIn,
                 y: band.groundCentreY

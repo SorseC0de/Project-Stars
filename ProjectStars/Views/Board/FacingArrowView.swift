@@ -47,6 +47,36 @@ struct FacingArrowView: View {
     /// Whole-pixel scale, for art-pixel offsets.
     let scale: CGFloat
 
+    /// How far off the ground it floats, in art pixels.
+    ///
+    /// Passed in rather than read from `GameRules`, because it is four numbers:
+    /// the arrow lies along a different axis of the same tilted plane depending
+    /// on which way it points, so east-west and north-south do not want the same
+    /// gap — and neither do the two planes, whose grounds are spaced differently
+    /// from each other.
+    var lift: CGFloat = GameRules.facingArrowLift
+
+    /// Cancels the row's shrink on the lift alone.
+    ///
+    /// The lift is not a height in the world — it is the gap that keeps the
+    /// marker legible against the square under it. Everything else about the
+    /// arrow should get smaller with depth; this should not, or the arrow sinks
+    /// toward the ground the further back it goes. The caller passes the near
+    /// row's scale over this row's, so the front row is left exactly as it is
+    /// and the back rows are given the difference back.
+    var liftScale: CGFloat = 1
+
+    /// Art pixels of extra lift for how far back this row is — see
+    /// `GameRules.facingArrowDepthLift`.
+    var depthLift: CGFloat = 0
+
+    /// How tall the arrow is drawn, against its own art.
+    ///
+    /// Four of these too, for the same reason as `lift`: pointing along the
+    /// tilt and pointing across it are two different views of the same marker,
+    /// and the two planes squash their ground by different amounts.
+    var yScale: CGFloat = 1
+
     var body: some View {
         TimelineView(.animation) { timeline in
             let out = nudge(at: clock(timeline.date.timeIntervalSinceReferenceDate))
@@ -55,13 +85,13 @@ struct FacingArrowView: View {
                 placeholder
             }
             .frame(width: tileSize, height: tileSize)
-            .scaleEffect(GameRules.facingArrowScale)
+            .scaleEffect(x: GameRules.facingArrowScale, y: GameRules.facingArrowScale * yScale)
             .offset(
                 x: CGFloat(facing.unitOffset.dx)
                     * (tileSize * GameRules.facingArrowReach + out),
                 y: CGFloat(facing.unitOffset.dy)
                     * (tileSize * GameRules.facingArrowReach + out)
-                    - GameRules.facingArrowLift * scale
+                    - (lift * liftScale + depthLift) * scale
             )
             // Follows the turn rather than snapping, so a change of facing is
             // something you see happen — several rules key off it and a silent

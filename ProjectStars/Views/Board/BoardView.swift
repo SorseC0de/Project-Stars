@@ -724,10 +724,11 @@ struct BoardView: View {
     private func groundMark<V: View>(
         _ view: V,
         at point: GridPoint,
-        metrics: PixelArtMetrics
+        metrics: PixelArtMetrics,
+        squashed: Bool = true
     ) -> some View {
         if session.visiblePlane == .terra {
-            view.asBoardSquare(point, metrics: metrics)
+            view.asBoardSquare(point, metrics: metrics, squashed: squashed)
         } else {
             // Still in the tile layer — same squash, same lean, so it reads as
             // painted on the cloud rather than standing on it. Only the
@@ -737,10 +738,45 @@ struct BoardView: View {
                 .shapedAsGround(
                     row: point.y,
                     metrics: metrics,
-                    stretch: GameRules.astraMarkStretch
+                    stretch: GameRules.astraMarkStretch,
+                    squashed: squashed
                 )
                 .modifier(placedOnPlaneModifier(point, metrics: metrics))
         }
+    }
+
+    /// The arrow's lift for the way it is pointing, on the plane it is on.
+    ///
+    /// - TODO: **Temporary.** Fold the four into `GameRules`.
+    /// The arrow's lift. **Not** split by axis — measuring said east-west and
+    /// north-south want the same number, once the arrow stopped being
+    /// foreshortened twice.
+    private var arrowLift: CGFloat {
+        GameRules.facingArrowLift
+            + (session.visiblePlane == .astra ? GameRules.facingArrowAstraLift : 0)
+    }
+
+    /// The per-row half, in art pixels: full at the far row, none at the near.
+    private func arrowDepthLift(at point: GridPoint, metrics: PixelArtMetrics) -> CGFloat {
+        let back = 1 - CGFloat(point.y) / CGFloat(max(metrics.gridSize - 1, 1))
+        return GameRules.facingArrowDepthLift * back
+    }
+
+
+    /// How much a mark's lift must grow on `point`'s row to stay the height it
+    /// is on the near one.
+    ///
+    /// The near row's scale over this row's — so the front of the board is left
+    /// exactly as it was and every row behind is handed back what the
+    /// perspective took off it.
+    private func liftBoost(at point: GridPoint, metrics: PixelArtMetrics) -> CGFloat {
+        let near = rowScale(
+            at: GridPoint(point.x, metrics.gridSize - 1), metrics: metrics
+        )
+        let here = rowScale(at: point, metrics: metrics)
+        guard here > 0 else { return 1 }
+        // Squared — see `GameRules.facingArrowRowPower`.
+        return pow(near / here, GameRules.facingArrowRowPower)
     }
 
     /// How much its row shrinks whatever stands on `point`.
@@ -1190,10 +1226,23 @@ struct BoardView: View {
                             facing: session.engine.piece.facing,
                             tileSize: metrics.tileSize,
                             scale: metrics.scale,
+                            lift: arrowLift,
+                            liftScale: liftBoost(
+                                at: session.engine.piece.point, metrics: metrics
+                            ),
+                            depthLift: arrowDepthLift(
+                                at: session.engine.piece.point, metrics: metrics
+                            ),
                             clock: session.ambientClock(at:)
                         ),
                         at: session.engine.piece.point,
-                        metrics: metrics
+                        metrics: metrics,
+                        // The arrow's art is drawn as a mark already lying on a
+                        // tilted plane, so the floor's squash would foreshorten
+                        // it a second time. That double is exactly what four
+                        // hand-tuned y-scales of 1.25 were cancelling — 1.25
+                        // being 1 / 0.8, and 0.8 being the squash.
+                        squashed: false
                     )
                     // Ground, like the cursor: it is a mark on the square
                     // ahead, not something standing there.

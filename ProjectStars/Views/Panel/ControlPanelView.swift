@@ -919,10 +919,31 @@ private struct PanelFrontView: View {
                 .frame(width: 108)
                 .tint(Palette.yellow)
 
-            Text(String(format: "%.2f\(unit)", value.wrappedValue))
+            // Typed, not dragged.
+            //
+            // A slider cannot reliably stop on a value: 108 points across a
+            // range is a couple of hundredths per pixel, so landing on 1.02
+            // rather than 1.01 or 1.04 is luck. The slider stays for sweeping
+            // to find roughly the right place; the field is for saying exactly
+            // where.
+            TextField("", value: value, format: .number.precision(.fractionLength(0...3)))
+                .textFieldStyle(.plain)
+                .keyboardType(.numbersAndPunctuation)
+                .multilineTextAlignment(.trailing)
                 .font(.system(size: 10, weight: .heavy, design: .monospaced))
                 .foregroundStyle(Palette.white)
-                .frame(width: 56, alignment: .trailing)
+                .frame(width: 44)
+                .padding(.horizontal, 4)
+                .padding(.vertical, 2)
+                .background(
+                    RoundedRectangle(cornerRadius: 4)
+                        .fill(Palette.midnight.opacity(0.6))
+                )
+
+            Text(unit)
+                .font(.system(size: 9, weight: .heavy, design: .monospaced))
+                .foregroundStyle(Palette.textSecondary)
+                .frame(width: 16, alignment: .leading)
         }
     }
 

@@ -889,8 +889,16 @@ final class GameSession {
 
 
 
+
+
+
+
+    var debugArrowYTerraNS: Double = 1
+    var debugArrowYAstraNS: Double = 1
+
     #if DEBUG
-    func debugToggleFissure() { debugFissure.toggle() }
+    func debugToggleFissure() { debugToggleFissureImpl() }
+    private func debugToggleFissureImpl() { debugFissure.toggle() }
     #endif
 
     /// True while the world should look torn — see `FractureField`.

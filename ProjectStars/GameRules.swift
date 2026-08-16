@@ -2604,7 +2604,42 @@ enum GameRules {
     ///
     /// It is a marker rather than a thing lying on the floor, and at ground
     /// level it was being read as debris on the square ahead.
-    static let facingArrowLift: CGFloat = 8
+    ///
+    /// Twelve, not eight. The lift is applied inside the arrow, so the row's
+    /// own scale shrinks it along with everything else — which is right for
+    /// something standing on the ground and wrong for the gap that keeps a
+    /// marker legible, so it read as sitting lower the further back it went.
+    /// Astra stretches the picture further: its rows are spread 1.25 vertically
+    /// against 1.0 across, so the ground under the arrow moved down and the
+    /// lift did not move with it.
+    /// **One** number, for both planes and both axes.
+    ///
+    /// It was briefly four. They were four because the arrow was being
+    /// foreshortened twice — once by its own art and once by the floor's squash
+    /// — and each pairing needed a different amount of that undone. With the
+    /// double gone the four collapse into one, which is the tell that they were
+    /// never four different quantities.
+    static let facingArrowLift: CGFloat = 4
+
+    /// Added on Astra, where the ground is spread further apart vertically.
+    static let facingArrowAstraLift: CGFloat = 2
+
+    /// Pulled back at the **far** row, in art pixels, ramped to nothing at the
+    /// near one.
+    ///
+    /// Negative because the squared correction below slightly overshoots. It is
+    /// a depth term rather than a smaller `facingArrowLift` so the near row,
+    /// which is already right, is left alone.
+    static let facingArrowDepthLift: CGFloat = -6
+
+    /// The row correction goes as the **square** of the row's scale.
+    ///
+    /// Found by measuring, and it says which quantity actually matters: a row's
+    /// scale falls as `1/w`, but the *gap* between rows falls as `1/w²`, and the
+    /// arrow's lift has to clear the gap rather than match the scale. Cancelling
+    /// with the scale could never hold front-to-back, which is exactly how it
+    /// behaved — and is why it wanted a different number on every row.
+    static let facingArrowRowPower: CGFloat = 2
 
     /// Edge length of one cell of the direction guide, in art pixels.
     static let compassPixelSize = 48
