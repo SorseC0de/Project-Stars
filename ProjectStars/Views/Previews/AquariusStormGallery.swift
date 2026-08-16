@@ -154,7 +154,10 @@ struct AquariusStorm: View {
     /// storm — they overlap, so more of them fills the column in as well as
     /// raising it.
     private var bands: Int {
-        phase <= 0 ? 0 : max(Int((strength * 13).rounded()), 3)
+        guard phase > 0 else { return 0 }
+        let least = Double(GameRules.aquariusStormBandsLeast)
+        let most = Double(GameRules.aquariusStormBandsMost)
+        return Int((least + (most - least) * strength).rounded())
     }
 
     /// One of the two plates that make the eye of the storm.
@@ -332,8 +335,6 @@ struct StormEyes: View {
 struct AquariusStormGallery: View {
 
     @State private var phase = 10
-    @State private var eyeFollow: Double = 1
-    @State private var figureFloor: Double = Double(GameRules.aquariusFigureShrink)
     @State private var showsEyes = true
     @State private var showsSilhouette = true
 
@@ -388,7 +389,7 @@ struct AquariusStormGallery: View {
         var eyeOffset: CGFloat = GameRules.aquariusEyeGlowY
 
         /// How much of the figure's shrink the eyes follow. See below.
-        var follow: CGFloat = 1
+        var follow: CGFloat = GameRules.aquariusEyeFollow
 
         /// How small he gets at an empty meter, against `aquariusFigureShrink`.
         ///
@@ -531,8 +532,6 @@ struct AquariusStormGallery: View {
                 FloatingSilhouette(
                     blend: .exclusion,
                     showsEyes: showsEyes,
-                    follow: CGFloat(eyeFollow),
-                    floor: CGFloat(figureFloor),
                     strength: Double(min(max(phase, 0), 10)) / 10
                 )
             }
@@ -547,53 +546,6 @@ struct AquariusStormGallery: View {
         .scaleEffect(GameRules.aquariusStormScale)
     }
 
-    /// One labelled slider with the number beside it.
-    private func knob(
-        _ name: String,
-        _ value: Binding<Double>,
-        _ range: ClosedRange<Double>,
-        _ unit: String,
-        step: Double? = nil
-    ) -> some View {
-        HStack(spacing: 8) {
-            Text(name)
-                .font(.system(size: 9, weight: .heavy, design: .monospaced))
-                .foregroundStyle(Palette.textSecondary)
-                .frame(width: 58, alignment: .leading)
-
-            // A count of frames is a count. Without the step the slider lands
-            // on 1.37 frames, which the taper then has to round anyway — so the
-            // number on screen disagrees with what is being drawn.
-            if let step {
-                Slider(value: value, in: range, step: step).tint(Palette.purple)
-            } else {
-                Slider(value: value, in: range).tint(Palette.purple)
-            }
-
-            // Typed, for the same reason the board's dials needed it: a slider
-            // is a couple of hundredths per pixel across its track, so landing
-            // on a chosen value is luck.
-            TextField(
-                "",
-                value: value,
-                format: .number.precision(.fractionLength(step == nil ? 0...3 : 0...0))
-            )
-            .textFieldStyle(.plain)
-            .keyboardType(.numbersAndPunctuation)
-            .multilineTextAlignment(.trailing)
-            .font(.system(size: 9, weight: .heavy, design: .monospaced))
-            .foregroundStyle(Palette.white)
-            .frame(width: 42)
-            .padding(.horizontal, 4)
-            .padding(.vertical, 2)
-            .background(RoundedRectangle(cornerRadius: 4).fill(Palette.midnight.opacity(0.6)))
-
-            Text(unit)
-                .font(.system(size: 9, weight: .heavy, design: .monospaced))
-                .foregroundStyle(Palette.textSecondary)
-                .frame(width: 12, alignment: .leading)
-        }
-    }
 
     private var controls: some View {
         VStack(spacing: 10) {
@@ -613,12 +565,6 @@ struct AquariusStormGallery: View {
                 )
                 .tint(Palette.cyan)
             }
-
-            // The only number still open. Everything else is settled and lives
-            // in `GameRules` — a knob for a decided value is just something in
-            // the way of the one that is not.
-            knob("EYE FOLLOW", $eyeFollow, 0...2, "x")
-            knob("BODY FLOOR", $figureFloor, 0.3...1, "x")
 
             HStack(spacing: 16) {
                 Toggle("EYES", isOn: $showsEyes)

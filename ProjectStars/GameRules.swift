@@ -2665,7 +2665,21 @@ enum GameRules {
     /// what makes the reveal at zero land — the tornado was never hiding
     /// something small, it was hiding something that shrank as it lost its
     /// cover. See the Aquarius rework.
-    static let aquariusFigureShrink: CGFloat = 0.45
+    static let aquariusFigureShrink: CGFloat = 0.5
+
+    /// How far the eyes follow the figure's shrink — see the gallery. `1` rides
+    /// his centre, `2` his head.
+    static let aquariusEyeFollow: CGFloat = 0.75
+
+    /// How many plates the funnel has, at an empty meter and at a full one.
+    ///
+    /// The floor is high on purpose. A storm is a *wall*, and three plates
+    /// spread over his height are a few bands with the figure showing between
+    /// them — which reads as a costume rather than as something he is inside.
+    /// The stack thins toward the reveal by getting smaller, not by getting
+    /// gappy.
+    static let aquariusStormBandsLeast = 6
+    static let aquariusStormBandsMost = 13
 
     // MARK: - Virgo's gems
 
