@@ -280,8 +280,17 @@ extension View {
     /// The difference from `standingOnBoardRow` is the vertical squash. A figure
     /// standing on a row must never take it or it comes out squat; a tile must
     /// always take it or it comes out flat against a floor that is lying down.
-    func asBoardSquare(_ point: GridPoint, metrics: PixelArtMetrics) -> some View {
+    func asBoardSquare(
+        _ point: GridPoint,
+        metrics: PixelArtMetrics,
+        stretch: CGFloat = 0
+    ) -> some View {
         let band = BoardBand.at(row: point.y, metrics: metrics)
+
+        // Taller toward the front, by `stretch` at the near row and nothing at
+        // the far one. See `GameRules.astraMarkStretch`.
+        let last = CGFloat(max(metrics.gridSize - 1, 1))
+        let stood = 1 + stretch * CGFloat(point.y) / last
         let middle = metrics.boardSize / 2
         let flat = metrics.center(of: point)
         // The lean pulls toward the **board's** centre, not the square's.
@@ -303,7 +312,7 @@ extension View {
             band.lean,
             size: CGSize(width: metrics.tileSize, height: metrics.tileSize)
         )
-            .scaleEffect(x: band.scale, y: band.groundScale, anchor: .bottom)
+            .scaleEffect(x: band.scale, y: band.groundScale * stood, anchor: .bottom)
             .position(
                 x: middle + (flat.x - middle) * band.scale / drawnIn,
                 y: band.groundCentreY

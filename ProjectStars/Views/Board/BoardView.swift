@@ -1001,7 +1001,11 @@ struct BoardView: View {
             // takes the row's squash and lean like any other ground, on both
             // planes. Placing it as an object is what kept it looking like a
             // sticker laid flat over a board that is lying down.
-            .asBoardSquare(point, metrics: metrics)
+            .asBoardSquare(
+                point,
+                metrics: metrics,
+                stretch: session.visiblePlane == .astra ? GameRules.astraMarkStretch : 0
+            )
             .offset(
                 y: -GameRules.cursorLift * metrics.scale
                     + surfaceOffset(of: point, bob: bob, metrics: metrics)
@@ -1111,7 +1115,12 @@ struct BoardView: View {
                     )
                     // Ground, like the cursor: it is a mark on the square
                     // ahead, not something standing there.
-                    .asBoardSquare(session.engine.piece.point, metrics: metrics)
+                    .asBoardSquare(
+                        session.engine.piece.point,
+                        metrics: metrics,
+                        stretch: session.visiblePlane == .astra
+                            ? GameRules.astraMarkStretch : 0
+                    )
                     .offset(y: surfaceOffset(
                         of: session.engine.piece.point, bob: bob, metrics: metrics
                     ))
@@ -1279,8 +1288,12 @@ struct BoardView: View {
                 // uncovered by whatever lifts in front of it — so a tile that
                 // lifts has a side everywhere except under itself. Lifted, it
                 // is the one tile whose side is the point.
+                // Held at the ground while the face rises, so the side spans the
+                // lift instead of travelling up with it. Riding along is why
+                // nothing showed: the edge stayed exactly as hidden behind the
+                // face as it had been before the tile moved.
                 TileEdgeView(plane: plane, shade: .at(point), size: metrics.tileSize)
-                    .offset(y: GameRules.tileEdgeDrop * metrics.scale)
+                    .offset(y: (GameRules.tileEdgeDrop + GameRules.tilePopLift) * metrics.scale)
 
                 TileView(
                     tile: board[point],

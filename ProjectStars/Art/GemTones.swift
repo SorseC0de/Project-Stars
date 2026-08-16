@@ -35,7 +35,11 @@ struct GemTones {
             GemTones(dim: Palette.darkBlue, lit: Palette.lightBlue)
 
         case .fire:
-            GemTones(dim: Palette.darkRed, lit: Palette.red)
+            // Dim is **plum**, not dark red. Against the green of the vines a
+            // dark red gem read as blood on the statue rather than as a stone
+            // at rest. Only the dim entry moves — lit still flares red, which is
+            // the whole point of a fire sign's gem catching light.
+            GemTones(dim: Palette.plum, lit: Palette.red)
 
         case .earth:
             // `forest` is reserved for this and kept out of the moss, which uses

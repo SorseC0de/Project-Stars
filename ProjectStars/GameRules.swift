@@ -2032,6 +2032,17 @@ enum GameRules {
     /// was not.
     static let astraDepthPivot: CGFloat = 1 + boardForeshorten / 2
 
+    /// How much taller a ground marker is drawn on the near rows, on **Astra**.
+    ///
+    /// A mark on a cloud is not lying on a flat plane — the cloud is a mound, so
+    /// the nearer ones present more of their top face to the viewer than the
+    /// squash of a flat floor allows for. Terra takes none of this: its ground
+    /// really is flat, and the band's squash is already exactly right there.
+    ///
+    /// Slight on purpose. It is a correction for the shape of the art, not a
+    /// second perspective.
+    static let astraMarkStretch: CGFloat = 0.15
+
     static let cloudBaseSize: CGFloat = 0.9
     static let cloudSpacingX: CGFloat = 1.0
     /// Wider apart down the screen than across it, because a cloud is wider
