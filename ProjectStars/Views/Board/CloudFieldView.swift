@@ -133,7 +133,7 @@ struct CloudFieldView: View {
                     // Where this square's row puts it, and how big that row
                     // draws it. A cluster is already drawn in perspective, so
                     // it wants a size and a place and nothing else.
-                    let spot = metrics.projected(point, zoom: zoom, lift: lift, emphasis: emphasis)
+                    let spot = metrics.projected(point, zoom: zoom, lift: lift, emphasis: emphasis, pivot: GameRules.astraDepthPivot)
 
                     var square = context
                     CloudCluster.paint(

@@ -2023,6 +2023,15 @@ enum GameRules {
     /// are closer together than the columns, so one number for both had to be
     /// wrong on one axis to be right on the other — which is why the field kept
     /// reading as either too gappy across or too crowded down.
+    /// The row the depth emphasis pivots on, as a divisor.
+    ///
+    /// The middle of the board, so tuning the depth opens outward from a fixed
+    /// centre instead of resizing the plane. **Terra does not pivot** — its
+    /// squares are placed by `BoardBand`, which measures from the near edge, and
+    /// a piece pivoted about the middle would stand 22% too large on ground that
+    /// was not.
+    static let astraDepthPivot: CGFloat = 1 + boardForeshorten / 2
+
     static let cloudBaseSize: CGFloat = 0.9
     static let cloudSpacingX: CGFloat = 1.0
     static let cloudSpacingY: CGFloat = 1.0

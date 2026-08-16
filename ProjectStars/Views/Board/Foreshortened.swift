@@ -69,7 +69,8 @@ extension PixelArtMetrics {
         zoom: CGFloat = GameRules.boardForeshortenScale,
         lift: CGFloat = GameRules.boardForeshortenLift,
         camera: CGFloat = GameRules.boardCamera,
-        emphasis: CGFloat = 1
+        emphasis: CGFloat = 1,
+        pivot: CGFloat = 1
     ) -> (position: CGPoint, scale: CGFloat) {
         let flat = center(of: point)
 
@@ -94,9 +95,8 @@ extension PixelArtMetrics {
         // retuned, so the middle row is held at exactly `1` and the tuning
         // opens outward from it: rows 4-6 grow, rows 0-2 shrink, and the board
         // keeps the footprint it had while its depth changes.
-        let middle = 1 + depth / 2
         let bite: (CGFloat) -> CGFloat = { 1 + (1 / $0 - 1) * emphasis }
-        let near = bite(w) / bite(middle)
+        let near = bite(w) / bite(pivot)
 
         let x = boardSize / 2 + (flat.x - boardSize / 2) * near
 
@@ -129,9 +129,12 @@ extension View {
         metrics: PixelArtMetrics,
         emphasis: CGFloat = 1,
         zoom: CGFloat = GameRules.boardForeshortenScale,
-        lift: CGFloat = GameRules.boardForeshortenLift
+        lift: CGFloat = GameRules.boardForeshortenLift,
+        pivot: CGFloat = 1
     ) -> some View {
-        let spot = metrics.projected(point, zoom: zoom, lift: lift, emphasis: emphasis)
+        let spot = metrics.projected(
+            point, zoom: zoom, lift: lift, emphasis: emphasis, pivot: pivot
+        )
         return scaleEffect(spot.scale).position(spot.position)
     }
 

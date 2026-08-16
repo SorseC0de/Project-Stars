@@ -183,7 +183,7 @@ struct BoardView: View {
     private func pools(board: Board, plane: Plane, metrics: PixelArtMetrics) -> some View {
         ForEach(board.allPoints.filter { board[$0].kind == .pool }, id: \.self) { point in
             PoolView(size: metrics.tileSize, clock: session.ambientClock(at:))
-                .placed(at: point, metrics: metrics, emphasis: CGFloat(session.debugAstraDepth), zoom: CGFloat(session.debugAstraZoom), lift: CGFloat(session.debugAstraLift))
+                .modifier(placedOnPlaneModifier(point, metrics: metrics))
                 .transition(.opacity)
         }
     }
@@ -215,7 +215,7 @@ struct BoardView: View {
                     .colorMultiply(Palette.lightBlue)
             }
             .frame(width: metrics.tileSize, height: metrics.tileSize * 2)
-            .placed(at: skin.point, metrics: metrics, emphasis: CGFloat(session.debugAstraDepth), zoom: CGFloat(session.debugAstraZoom), lift: CGFloat(session.debugAstraLift))
+            .modifier(placedOnPlaneModifier(skin.point, metrics: metrics))
             .allowsHitTesting(false)
             .transition(.opacity)
         }
@@ -302,7 +302,7 @@ struct BoardView: View {
                 tileSize: metrics.tileSize,
                 start: strike.start
             )
-            .placed(at: strike.from, metrics: metrics, emphasis: CGFloat(session.debugAstraDepth), zoom: CGFloat(session.debugAstraZoom), lift: CGFloat(session.debugAstraLift))
+            .modifier(placedOnPlaneModifier(strike.from, metrics: metrics))
         }
     }
 
@@ -344,7 +344,7 @@ struct BoardView: View {
                         bounce: surfaceBounce,
                         healFlash: healFlashes[point]
                     )
-                    .placed(at: point, metrics: metrics, emphasis: CGFloat(session.debugAstraDepth), zoom: CGFloat(session.debugAstraZoom), lift: CGFloat(session.debugAstraLift))
+                    .modifier(placedOnPlaneModifier(point, metrics: metrics))
                 }
             }
         }
@@ -361,7 +361,7 @@ struct BoardView: View {
                 seed: sparkle.point.x &* 31 &+ sparkle.point.y
             )
             .frame(width: metrics.tileSize * 2, height: metrics.tileSize * 2)
-            .placed(at: sparkle.point, metrics: metrics, emphasis: CGFloat(session.debugAstraDepth), zoom: CGFloat(session.debugAstraZoom), lift: CGFloat(session.debugAstraLift))
+            .modifier(placedOnPlaneModifier(sparkle.point, metrics: metrics))
         }
     }
 
@@ -445,7 +445,7 @@ struct BoardView: View {
         if plane == .terra {
             ForEach(board.allPoints, id: \.self) { point in
                 TileEdgeView(plane: plane, shade: .at(point), size: metrics.tileSize)
-                    .placed(at: point, metrics: metrics, emphasis: CGFloat(session.debugAstraDepth), zoom: CGFloat(session.debugAstraZoom), lift: CGFloat(session.debugAstraLift))
+                    .modifier(placedOnPlaneModifier(point, metrics: metrics))
                     .offset(y: GameRules.tileEdgeDrop * metrics.scale)
             }
 
@@ -458,7 +458,7 @@ struct BoardView: View {
             // same strip, dropped just far enough to sit flush underneath.
             ForEach(board.allPoints.filter { $0.y == board.size - 1 }, id: \.self) { point in
                 TileEdgeView(plane: plane, shade: .at(point), size: metrics.tileSize)
-                    .placed(at: point, metrics: metrics, emphasis: CGFloat(session.debugAstraDepth), zoom: CGFloat(session.debugAstraZoom), lift: CGFloat(session.debugAstraLift))
+                    .modifier(placedOnPlaneModifier(point, metrics: metrics))
                     .offset(y: GameRules.tileFrontEdgeDrop * metrics.scale)
             }
         }
@@ -577,7 +577,7 @@ struct BoardView: View {
                     Rectangle()
                         .strokeBorder(Palette.white, lineWidth: GameRules.slabOutline)
                         .frame(width: metrics.tileSize, height: metrics.tileSize)
-                        .placed(at: point, metrics: metrics, emphasis: CGFloat(session.debugAstraDepth), zoom: CGFloat(session.debugAstraZoom), lift: CGFloat(session.debugAstraLift))
+                        .modifier(placedOnPlaneModifier(point, metrics: metrics))
                 }
             }
             .frame(width: metrics.boardSize, height: metrics.boardSize)
@@ -681,8 +681,7 @@ struct BoardView: View {
 
     /// Placed on the plane the piece is standing on.
     private func placedOnPlaneModifier(_ point: GridPoint, metrics: PixelArtMetrics) -> some ViewModifier {
-        let f = planeFraming(session.engine.piece.plane)
-        return PlacedOnPlane(point: point, metrics: metrics, framing: f)
+        PlacedOnPlane(point: point, metrics: metrics, framing: planeFraming(session.visiblePlane))
     }
 
     /// Puts an object on its square, on whichever plane's camera it stands.
@@ -690,12 +689,18 @@ struct BoardView: View {
     /// Terra is the true camera; Astra is allowed its own taper, size and
     /// height because nothing up there has to tile. Everything that stands on
     /// a square goes through here, so the two can never drift apart.
-    private func planeFraming(_ plane: Plane) -> (emphasis: CGFloat, zoom: CGFloat, lift: CGFloat) {
+    private func planeFraming(
+        _ plane: Plane
+    ) -> (emphasis: CGFloat, zoom: CGFloat, lift: CGFloat, pivot: CGFloat) {
         plane == .astra
             ? (CGFloat(session.debugAstraDepth),
                CGFloat(session.debugAstraZoom),
-               CGFloat(session.debugAstraLift))
-            : (1, GameRules.boardForeshortenScale, GameRules.boardForeshortenLift)
+               CGFloat(session.debugAstraLift),
+               GameRules.astraDepthPivot)
+            : (1,
+               GameRules.boardForeshortenScale,
+               GameRules.boardForeshortenLift,
+               1)
     }
 
     /// The square the compass sits over: bottom-left of the board.
@@ -800,7 +805,7 @@ struct BoardView: View {
                 point: point,
                 drawnByField: plane == .astra
             )
-            .placed(at: point, metrics: metrics, emphasis: CGFloat(session.debugAstraDepth), zoom: CGFloat(session.debugAstraZoom), lift: CGFloat(session.debugAstraLift))
+            .modifier(placedOnPlaneModifier(point, metrics: metrics))
         }
     }
 
@@ -840,7 +845,7 @@ struct BoardView: View {
                 tileSize: metrics.tileSize,
                 start: burst.start
             )
-            .placed(at: burst.center, metrics: metrics, emphasis: CGFloat(session.debugAstraDepth), zoom: CGFloat(session.debugAstraZoom), lift: CGFloat(session.debugAstraLift))
+            .modifier(placedOnPlaneModifier(burst.center, metrics: metrics))
         }
     }
 
@@ -921,7 +926,7 @@ struct BoardView: View {
         if let planted = session.visibleArrow {
             ArrowView(tileSize: metrics.tileSize, scale: metrics.scale,
                       clock: session.ambientClock(at:))
-                .placed(at: planted.point, metrics: metrics, emphasis: CGFloat(session.debugAstraDepth), zoom: CGFloat(session.debugAstraZoom), lift: CGFloat(session.debugAstraLift))
+                .modifier(placedOnPlaneModifier(planted.point, metrics: metrics))
                 .transition(.scale(scale: 0.3).combined(with: .opacity))
         }
     }
@@ -931,7 +936,7 @@ struct BoardView: View {
     private func sun(metrics: PixelArtMetrics) -> some View {
         if let burning = session.visibleSun {
             SunView(sun: burning, tileSize: metrics.tileSize)
-                .placed(at: burning.point, metrics: metrics, emphasis: CGFloat(session.debugAstraDepth), zoom: CGFloat(session.debugAstraZoom), lift: CGFloat(session.debugAstraLift))
+                .modifier(placedOnPlaneModifier(burning.point, metrics: metrics))
         }
     }
 
@@ -964,7 +969,7 @@ struct BoardView: View {
                     sway: { surfaceSway(of: point, at: $0, metrics: metrics) },
                     clock: session.ambientClock(at:)
                 )
-                    .placed(at: point, metrics: metrics, emphasis: CGFloat(session.debugAstraDepth), zoom: CGFloat(session.debugAstraZoom), lift: CGFloat(session.debugAstraLift))
+                    .modifier(placedOnPlaneModifier(point, metrics: metrics))
                     .offset(GameRules.sparkleNudge)
             }
             .transition(.opacity)
@@ -995,7 +1000,7 @@ struct BoardView: View {
             corners: corners,
             showsWarning: showsWarning
         )
-            .placed(at: point, metrics: metrics, emphasis: CGFloat(session.debugAstraDepth), zoom: CGFloat(session.debugAstraZoom), lift: CGFloat(session.debugAstraLift))
+            .modifier(placedOnPlaneModifier(point, metrics: metrics))
             .offset(
                 y: -GameRules.cursorLift * metrics.scale
                     + surfaceOffset(of: point, bob: bob, metrics: metrics)
@@ -1103,7 +1108,7 @@ struct BoardView: View {
                         scale: metrics.scale,
                         clock: session.ambientClock(at:)
                     )
-                    .placed(at: session.engine.piece.point, metrics: metrics, emphasis: CGFloat(session.debugAstraDepth), zoom: CGFloat(session.debugAstraZoom), lift: CGFloat(session.debugAstraLift))
+                    .modifier(placedOnPlaneModifier(session.engine.piece.point, metrics: metrics))
                     .offset(y: surfaceOffset(
                         of: session.engine.piece.point, bob: bob, metrics: metrics
                     ))
@@ -1127,7 +1132,7 @@ struct BoardView: View {
                     // than sitting on a square, and nothing may draw across it.
                     if let burning = session.visibleSun {
                         SunView(sun: burning, tileSize: metrics.tileSize)
-                            .placed(at: object.point, metrics: metrics, emphasis: CGFloat(session.debugAstraDepth), zoom: CGFloat(session.debugAstraZoom), lift: CGFloat(session.debugAstraLift))
+                            .modifier(placedOnPlaneModifier(object.point, metrics: metrics))
                             .offset(y: surfaceOffset(
                                 of: object.point, bob: bob, metrics: metrics
                             ))
@@ -1254,7 +1259,7 @@ struct BoardView: View {
                     glows: true
                 )
                 .offset(y: -GameRules.cloudSpriteRaiseLift * metrics.scale)
-                .placed(at: point, metrics: metrics, emphasis: CGFloat(session.debugAstraDepth), zoom: CGFloat(session.debugAstraZoom), lift: CGFloat(session.debugAstraLift))
+                .modifier(placedOnPlaneModifier(point, metrics: metrics))
                 .transition(.opacity)
             )
         }
@@ -1270,7 +1275,7 @@ struct BoardView: View {
                 point: point
             )
             .offset(y: -GameRules.tilePopLift * metrics.scale)
-            .placed(at: point, metrics: metrics, emphasis: CGFloat(session.debugAstraDepth), zoom: CGFloat(session.debugAstraZoom), lift: CGFloat(session.debugAstraLift))
+            .modifier(placedOnPlaneModifier(point, metrics: metrics))
             .transition(.opacity)
         )
     }
@@ -1309,7 +1314,7 @@ struct BoardView: View {
                 flight: scattered(point, at: Date(), metrics: metrics),
                 home: metrics.center(of: point)
             ))
-            .placed(at: point, metrics: metrics, emphasis: CGFloat(session.debugAstraDepth), zoom: CGFloat(session.debugAstraZoom), lift: CGFloat(session.debugAstraLift))
+            .modifier(placedOnPlaneModifier(point, metrics: metrics))
             // Hovering over a cloud that is drifting means drifting with it.
             .offset(surfaceSway(of: point, at: Date(), metrics: metrics))
             .transition(.scale(scale: 0.2).combined(with: .opacity))
@@ -1398,7 +1403,7 @@ struct BoardView: View {
             // a matter of taste — the Nexys is a solid object at a known place,
             // and exaggerating its depth would put it at odds with the piece
             // standing on it.
-            .placed(at: GameRules.nexysPoint, metrics: metrics, zoom: CGFloat(session.debugAstraZoom), lift: CGFloat(session.debugAstraLift))
+            .modifier(placedOnPlaneModifier(GameRules.nexysPoint, metrics: metrics))
         }
     }
 
@@ -1619,7 +1624,7 @@ struct BoardView: View {
                     scale: metrics.scale
                 )
             }
-            .placed(at: shadow.point, metrics: metrics, emphasis: CGFloat(session.debugAstraDepth), zoom: CGFloat(session.debugAstraZoom), lift: CGFloat(session.debugAstraLift))
+            .modifier(placedOnPlaneModifier(shadow.point, metrics: metrics))
             .offset(y: surfaceOffset(of: shadow.point, bob: 0, metrics: metrics))
             .animation(
                 .spring(response: GameRules.hopDuration * 1.4, dampingFraction: 0.75),
@@ -1643,7 +1648,7 @@ struct BoardView: View {
                 twin: half.twin
             )
             .offset(y: -metrics.tileSize / 2 - GameRules.pieceLift * metrics.scale)
-            .placed(at: half.point, metrics: metrics, emphasis: CGFloat(session.debugAstraDepth), zoom: CGFloat(session.debugAstraZoom), lift: CGFloat(session.debugAstraLift))
+            .modifier(placedOnPlaneModifier(half.point, metrics: metrics))
             .offset(y: surfaceOffset(of: half.point, bob: 0, metrics: metrics))
         }
     }
@@ -1710,7 +1715,7 @@ struct BoardView: View {
             // Its own hop, started late — see `followerPose(step:at:)`.
             .scaleEffect(x: ownPose.scaleX, y: ownPose.scaleY, anchor: .bottom)
             .offset(y: -ownPose.lift * metrics.scale)
-            .placed(at: point, metrics: metrics, emphasis: CGFloat(session.debugAstraDepth), zoom: CGFloat(session.debugAstraZoom), lift: CGFloat(session.debugAstraLift))
+            .modifier(placedOnPlaneModifier(point, metrics: metrics))
             .offset(y: ownGround)
             .offset(ownSway)
             // The *same* hop as Leo's, delayed. Not a slower one.
@@ -1808,7 +1813,7 @@ struct BoardView: View {
                         step: step,
                         age: age
                     )
-                    .placed(at: ghost.point, metrics: metrics, emphasis: CGFloat(session.debugAstraDepth), zoom: CGFloat(session.debugAstraZoom), lift: CGFloat(session.debugAstraLift))
+                    .modifier(placedOnPlaneModifier(ghost.point, metrics: metrics))
                 }
             }
             // Pinned, and pinned means pinned: an inherited transaction would
@@ -1833,7 +1838,7 @@ struct BoardView: View {
                     scale: metrics.scale,
                     step: step
                 )
-                .placed(at: session.engine.piece.point, metrics: metrics, emphasis: CGFloat(session.debugAstraDepth), zoom: CGFloat(session.debugAstraZoom), lift: CGFloat(session.debugAstraLift))
+                .modifier(placedOnPlaneModifier(session.engine.piece.point, metrics: metrics))
                 .animation(
                     .spring(
                         response: GameRules.gemTrailLag * Double(step + 2),
@@ -1980,7 +1985,7 @@ struct BoardView: View {
                 tileSize: metrics.tileSize,
                 start: summon.start
             )
-            .placed(at: session.engine.piece.point, metrics: metrics, emphasis: CGFloat(session.debugAstraDepth), zoom: CGFloat(session.debugAstraZoom), lift: CGFloat(session.debugAstraLift))
+            .modifier(placedOnPlaneModifier(session.engine.piece.point, metrics: metrics))
             .offset(y: -GameRules.constellationRise * metrics.scale)
             .id(summon.id)
         }
@@ -1996,7 +2001,7 @@ struct BoardView: View {
                 start: beam.start,
                 isDeparture: beam.isDeparture
             )
-            .placed(at: beam.point, metrics: metrics, emphasis: CGFloat(session.debugAstraDepth), zoom: CGFloat(session.debugAstraZoom), lift: CGFloat(session.debugAstraLift))
+            .modifier(placedOnPlaneModifier(beam.point, metrics: metrics))
             .id(beam.id)
         }
     }
@@ -2018,7 +2023,7 @@ struct BoardView: View {
                         magnitude: GameRules.cloudPoofMagnitude,
                         swaps: SmokeSpriteView.cloudSwaps
                     )
-                    .placed(at: poof.point, metrics: metrics, emphasis: CGFloat(session.debugAstraDepth), zoom: CGFloat(session.debugAstraZoom), lift: CGFloat(session.debugAstraLift))
+                    .modifier(placedOnPlaneModifier(poof.point, metrics: metrics))
                     .id(poof.id)
                 } else {
                     CloudPoofView(
@@ -2027,7 +2032,7 @@ struct BoardView: View {
                         size: metrics.tileSize,
                         start: poof.start
                     )
-                    .placed(at: poof.point, metrics: metrics, emphasis: CGFloat(session.debugAstraDepth), zoom: CGFloat(session.debugAstraZoom), lift: CGFloat(session.debugAstraLift))
+                    .modifier(placedOnPlaneModifier(poof.point, metrics: metrics))
                 }
             }
         }
@@ -2049,7 +2054,7 @@ struct BoardView: View {
                     swaps: smokeSwaps(for: smoke),
                     tint: smoke.tint
                 )
-                .placed(at: smoke.point, metrics: metrics, emphasis: CGFloat(session.debugAstraDepth), zoom: CGFloat(session.debugAstraZoom), lift: CGFloat(session.debugAstraLift))
+                .modifier(placedOnPlaneModifier(smoke.point, metrics: metrics))
                 .id(smoke.id)
             } else {
                 SmokeBurstView(
@@ -2060,7 +2065,7 @@ struct BoardView: View {
                     magnitude: smoke.magnitude,
                     start: smoke.start
                 )
-                .placed(at: smoke.point, metrics: metrics, emphasis: CGFloat(session.debugAstraDepth), zoom: CGFloat(session.debugAstraZoom), lift: CGFloat(session.debugAstraLift))
+                .modifier(placedOnPlaneModifier(smoke.point, metrics: metrics))
                 .id(smoke.id)
             }
         }
@@ -2090,7 +2095,7 @@ struct BoardView: View {
                 scale: metrics.scale,
                 start: burst.start
             )
-            .placed(at: burst.center, metrics: metrics, emphasis: CGFloat(session.debugAstraDepth), zoom: CGFloat(session.debugAstraZoom), lift: CGFloat(session.debugAstraLift))
+            .modifier(placedOnPlaneModifier(burst.center, metrics: metrics))
             .offset(y: -GameRules.tilePopLift * metrics.scale)
             .id(burst.id)
         }

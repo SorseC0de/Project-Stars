@@ -118,7 +118,7 @@ struct PlacedOnPlane: ViewModifier {
 
     let point: GridPoint
     let metrics: PixelArtMetrics
-    let framing: (emphasis: CGFloat, zoom: CGFloat, lift: CGFloat)
+    let framing: (emphasis: CGFloat, zoom: CGFloat, lift: CGFloat, pivot: CGFloat)
 
     func body(content: Content) -> some View {
         content.placed(
@@ -126,7 +126,8 @@ struct PlacedOnPlane: ViewModifier {
             metrics: metrics,
             emphasis: framing.emphasis,
             zoom: framing.zoom,
-            lift: framing.lift
+            lift: framing.lift,
+            pivot: framing.pivot
         )
     }
 }
