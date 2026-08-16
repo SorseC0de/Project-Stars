@@ -505,14 +505,24 @@ struct AquariusStormPiece: View {
                         * Double(reel.count)
                 ) % reel.count
 
-                reel[max(step, 0)]
-                    .resizable()
-                    .frame(
-                        width: GameRules.aquariusStormCanvas,
-                        height: GameRules.aquariusStormCanvas
+                ZStack {
+                    reel[max(step, 0)]
+                        .resizable()
+                        .frame(
+                            width: GameRules.aquariusStormCanvas,
+                            height: GameRules.aquariusStormCanvas
+                        )
+
+                    // Live, on top of the filmed funnel — see
+                    // `AquariusStormStill` for why these two are split.
+                    FloatingAquarius(
+                        blend: .exclusion,
+                        strength: Double(min(max(phase, 0), 10)) / 10
                     )
-                    .scaleEffect(scale * tileSize * GameRules.aquariusStormTiles / 300)
-                    .frame(width: tileSize, height: tileSize * 2)
+                }
+                .compositingGroup()
+                .scaleEffect(scale * tileSize * GameRules.aquariusStormTiles / 300)
+                .frame(width: tileSize, height: tileSize * 2)
             }
         } else {
             // Built at the size it was tuned at, then scaled to the square.

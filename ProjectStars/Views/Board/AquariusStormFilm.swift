@@ -83,11 +83,22 @@ final class AquariusStormFilm {
     }
 }
 
-/// The assembly at one fixed moment, with nothing running.
+/// The **funnel** at one fixed moment, with nothing running.
 ///
-/// Its own view because `ImageRenderer` draws a snapshot: anything reading a
-/// clock renders whatever the clock said at that instant, which is why both
-/// halves take a `frozenAt` rather than reading the timeline themselves.
+/// The figure is deliberately not in here. Caching the whole assembly flattened
+/// the two things it is made of into one, and they want opposite treatment:
+///
+/// - The storm is thirteen blurred, blended plates shaking on periods of about
+///   a second. It is nearly all of the cost and none of it is worth watching
+///   closely, so a two-second loop is indistinguishable from the real thing.
+/// - The figure is one sprite and four small shapes, turning over five seconds,
+///   rising over four and breathing over another, with eyes that swell to white
+///   over six and a half. It is almost free to draw and the slowest thing on
+///   screen — so a two-second loop is exactly where it falls apart.
+///
+/// So the funnel is filmed and the figure is live. That is the whole trick, and
+/// it costs a fraction of what the storm did while keeping the parts a player
+/// actually looks at.
 struct AquariusStormStill: View {
 
     let phase: Int
@@ -95,14 +106,7 @@ struct AquariusStormStill: View {
     let side: CGFloat
 
     var body: some View {
-        ZStack {
-            AquariusStorm(phase: phase, frozenAt: at, side: 300, scale: 4)
-            FloatingAquarius(
-                blend: .exclusion,
-                strength: Double(min(max(phase, 0), 10)) / 10,
-                frozenAt: at
-            )
-        }
-        .frame(width: side, height: side)
+        AquariusStorm(phase: phase, frozenAt: at, side: 300, scale: 4)
+            .frame(width: side, height: side)
     }
 }
