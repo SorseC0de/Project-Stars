@@ -30,13 +30,26 @@ struct ScreenShake: ViewModifier {
     /// Whole-pixel scale, for art-pixel amplitude.
     let scale: CGFloat
 
+    /// True once the current shake has run itself out.
+    private var settled: Bool {
+        guard let startedAt else { return true }
+        return Date().timeIntervalSince(startedAt) >= GameRules.shakeDuration
+    }
+
     func body(content: Content) -> some View {
-        if let startedAt {
-            TimelineView(.animation) { timeline in
-                content.offset(offset(at: timeline.date, from: startedAt))
-            }
-        } else {
-            content
+        // **One tree, always.** Swapping between bare `content` and a
+        // `TimelineView` wrapping it gave SwiftUI two different views to lay
+        // out, so what the board settled into after a shake was not
+        // necessarily what it had before — the board came to rest somewhere
+        // near where it started rather than exactly there.
+        //
+        // Pausing the timeline costs the same as not having one: a paused
+        // schedule does not tick, so an idle board is not redrawn, which was
+        // the only reason for the branch.
+        TimelineView(.animation(paused: settled)) { timeline in
+            content.offset(
+                startedAt.map { offset(at: timeline.date, from: $0) } ?? .zero
+            )
         }
     }
 
