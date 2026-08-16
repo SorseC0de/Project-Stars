@@ -892,6 +892,11 @@ final class GameSession {
     /// - TODO: **Temporary.** Bake into `GameRules.astraSkyFade` and delete.
     var debugSkyFade: Double = Double(GameRules.astraSkyFade)
 
+    /// The distance between the sky's two colours.
+    ///
+    /// - TODO: **Temporary.** Bake into `GameRules.astraSkyFadeWidth` and delete.
+    var debugSkyWidth: Double = Double(GameRules.astraSkyFadeWidth)
+
     #if DEBUG
     func debugToggleFissure() { debugFissure.toggle() }
     #endif
