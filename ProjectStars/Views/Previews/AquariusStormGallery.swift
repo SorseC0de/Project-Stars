@@ -52,6 +52,13 @@ struct AquariusStorm: View {
     /// `0` is the bare pot; `10` is the full tornado.
     var phase: Int = 10
 
+    /// How tall the column stands, as a fraction of the square.
+    var height: CGFloat = 0.3
+
+    /// How far apart in the strip consecutive plates start. `1` spreads them
+    /// evenly across the whole strip.
+    var spread: Double = 1
+
     /// Size of the square this fills, in points.
     var side: CGFloat = 96
 
@@ -103,7 +110,7 @@ struct AquariusStorm: View {
     private func stagger(_ band: Int) -> TimeInterval {
         let length = Double(EffectSprite.aquariusArmor.frames)
             * EffectSprite.aquariusArmor.rate.frameDuration
-        return length * Double(band) / Double(max(bands, 1))
+        return length * spread * Double(band) / Double(max(bands, 1))
     }
 
     /// A fixed few degrees of lean, different for every plate.
@@ -128,7 +135,7 @@ struct AquariusStorm: View {
     /// Stacked close together — the plates touch, so the stack reads as one
     /// column of air rather than as a set of separate rings.
     private func rise(_ band: Int) -> CGFloat {
-        let step = side * 0.46 / CGFloat(max(bands - 1, 1))
+        let step = side * height / CGFloat(max(bands - 1, 1))
         return side * 0.22 - CGFloat(band) * step
     }
 
@@ -168,6 +175,9 @@ struct StormEyes: View {
     /// sign flipped — which is why this is stated rather than eyeballed.
     var slant: Double = 34
 
+    /// How narrow the eye is closed, as a fraction of its width.
+    var slit: CGFloat = 0.34
+
     /// Purple: air's colour everywhere else in the game.
     var tint: Color = ElementFX.ramp(for: .air).bright
 
@@ -185,7 +195,7 @@ struct StormEyes: View {
         // rather than a leaf.
         Vesica(fullness: 0.72)
             .fill(tint)
-            .frame(width: width, height: width * 0.34)
+            .frame(width: width, height: width * slit)
             .rotationEffect(.degrees(turned))
             .shadow(color: tint.opacity(0.9), radius: width * 0.35)
             .shadow(color: tint.opacity(0.6), radius: width * 0.8)
@@ -202,6 +212,10 @@ struct AquariusStormGallery: View {
     @State private var blend: BlendMode = .plusLighter
     @State private var showsEyes = true
     @State private var showsSilhouette = true
+    @State private var slant: Double = 34
+    @State private var slit: Double = 0.34
+    @State private var spread: Double = 1
+    @State private var height: Double = 0.3
 
     private let blends: [(String, BlendMode)] = [
         ("LIGHTEN", .plusLighter),
@@ -239,7 +253,13 @@ struct AquariusStormGallery: View {
     /// passing across it rather than as a decal stuck to it.
     private var stack: some View {
         ZStack {
-            AquariusStorm(phase: phase, side: 180, scale: 3)
+            AquariusStorm(
+                phase: phase,
+                height: CGFloat(height),
+                spread: spread,
+                side: 180,
+                scale: 3
+            )
 
             // **The silhouette is on top and it is the thing that blends.**
             //
@@ -263,11 +283,33 @@ struct AquariusStormGallery: View {
             // Over both, and never blended: the eyes are the one thing meant to
             // be seen through the storm rather than sunk into it.
             if showsEyes {
-                StormEyes(width: 26, spacing: 30)
+                StormEyes(width: 26, spacing: 30, slant: slant, slit: CGFloat(slit))
                     .offset(y: -34)
             }
         }
         .compositingGroup()
+    }
+
+    /// One labelled slider with the number beside it.
+    private func knob(
+        _ name: String,
+        _ value: Binding<Double>,
+        _ range: ClosedRange<Double>,
+        _ unit: String
+    ) -> some View {
+        HStack(spacing: 8) {
+            Text(name)
+                .font(.system(size: 9, weight: .heavy, design: .monospaced))
+                .foregroundStyle(Palette.textSecondary)
+                .frame(width: 62, alignment: .leading)
+
+            Slider(value: value, in: range).tint(Palette.purple)
+
+            Text(String(format: "%.2f\(unit)", value.wrappedValue))
+                .font(.system(size: 9, weight: .heavy, design: .monospaced))
+                .foregroundStyle(Palette.white)
+                .frame(width: 48, alignment: .trailing)
+        }
     }
 
     private var controls: some View {
@@ -288,6 +330,11 @@ struct AquariusStormGallery: View {
                 )
                 .tint(Palette.cyan)
             }
+
+            knob("SLANT", $slant, 0...70, "°")
+            knob("SLIT", $slit, 0.08...1, "x")
+            knob("STAGGER", $spread, 0...3, "x")
+            knob("HEIGHT", $height, 0.1...0.9, "x")
 
             Picker("Blend", selection: $blend) {
                 ForEach(blends, id: \.1) { name, mode in

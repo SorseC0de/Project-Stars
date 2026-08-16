@@ -285,7 +285,10 @@ enum EffectSprite: String, CaseIterable, Hashable {
              .cancerZodiaction, .cancerZodiactionAlternate, .libraZodiaction: 22
         case .windMisc, .lightningMisc, .aquariusZodiaction: 10
         case .glowPhase: 12
-        case .aquariusArmor: 16
+        // Fifteen of sixteen. The last cell is blank, and a blank frame in a
+        // strip that is stacked and looped is a hole in the tornado that walks
+        // up it — cheaper to not play it than to arrange the stack around it.
+        case .aquariusArmor: 15
         case .sparkles: 24
         case .absorb: 31
         case .cancerScuttle: 40
