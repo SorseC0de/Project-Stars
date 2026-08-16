@@ -2619,6 +2619,28 @@ enum GameRules {
     /// — and each pairing needed a different amount of that undone. With the
     /// double gone the four collapse into one, which is the tell that they were
     /// never four different quantities.
+    // MARK: - Virgo's gems
+
+    /// How far the outer gems travel, in art pixels.
+    ///
+    /// The drawn position is the **top** of the path, not its middle: the gems
+    /// swing down toward her and come back, rather than bobbing either side of
+    /// where they were authored. That is what keeps the resting arrangement —
+    /// the one that was checked against the art — as a real position in the
+    /// motion instead of an average of two wrong ones.
+    static let virgoGemSwingX: CGFloat = 3
+    static let virgoGemSwingY: CGFloat = 3
+
+    /// Seconds for one circuit of the oval.
+    static let virgoGemPeriod: TimeInterval = 3.4
+
+    /// How far the middle gem rises and falls, and how long it takes.
+    ///
+    /// Slower than the pair and on its own count, so the three never line up
+    /// into a single pulse.
+    static let virgoGemFloat: CGFloat = 3
+    static let virgoGemFloatPeriod: TimeInterval = 2.3
+
     static let facingArrowLift: CGFloat = 4
 
     /// Added on Astra, where the ground is spread further apart vertically.

@@ -98,6 +98,9 @@ struct PieceView: View {
     /// to lightning, so the star belongs to every element and none.
     var starElement: ZodiacElement?
 
+    /// The ambient clock, which stops while the game waits on the player.
+    var clock: (TimeInterval) -> TimeInterval = { $0 }
+
     var body: some View {
         ZStack {
             // The shadow stays on the tile while the figure rises off it, which
@@ -340,15 +343,41 @@ struct PieceView: View {
     @ViewBuilder
     private var virgoGems: some View {
         if zodiac == .virgo {
-            ZStack {
-                PixelSprite(id: .virgoGem(.outer)) { Color.clear }
-                PixelSprite(id: .virgoGem(.outer)) { Color.clear }
-                    .scaleEffect(x: -1, y: 1)
-                PixelSprite(id: .virgoGem(.middle)) { Color.clear }
+            TimelineView(.animation) { timeline in
+                let now = clock(timeline.date.timeIntervalSinceReferenceDate)
+                let swing = now / GameRules.virgoGemPeriod * 2 * .pi
+                let bob = now / GameRules.virgoGemFloatPeriod * 2 * .pi
+
+                // `1 - cos` rather than `sin`: it is zero at the start of the
+                // circuit and never negative, so the drawn position is the top
+                // of the path and every other moment is below it.
+                let dip = (1 - cos(swing)) / 2
+                let across = sin(swing)
+
+                ZStack {
+                    // The left gem runs anticlockwise, the right one clockwise,
+                    // so the pair opens and closes together rather than sliding
+                    // across her in step.
+                    outerGem(across: -across, dip: dip)
+                    outerGem(across: across, dip: dip, mirrored: true)
+
+                    PixelSprite(id: .virgoGem(.middle)) { Color.clear }
+                        .offset(y: (1 - cos(bob)) / 2 * GameRules.virgoGemFloat * scale)
+                }
             }
             .frame(width: tileSize, height: tileSize)
             .allowsHitTesting(false)
         }
+    }
+
+    /// One of the pair, at a point on its oval.
+    private func outerGem(across: Double, dip: Double, mirrored: Bool = false) -> some View {
+        PixelSprite(id: .virgoGem(.outer)) { Color.clear }
+            .scaleEffect(x: mirrored ? -1 : 1, y: 1)
+            .offset(
+                x: across * GameRules.virgoGemSwingX * scale,
+                y: dip * GameRules.virgoGemSwingY * scale
+            )
     }
 
     private var gem: GemTones { .forElement(zodiac.element) }
