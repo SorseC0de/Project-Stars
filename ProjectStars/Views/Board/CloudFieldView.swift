@@ -133,17 +133,19 @@ struct CloudFieldView: View {
                     // Where this square's row puts it, and how big that row
                     // draws it. A cluster is already drawn in perspective, so
                     // it wants a size and a place and nothing else.
-                    let spot = metrics.projected(point, zoom: zoom, lift: lift, emphasis: emphasis, pivot: GameRules.astraDepthPivot)
+                    let spot = metrics.projected(
+                        point,
+                        zoom: zoom,
+                        lift: lift,
+                        emphasis: emphasis,
+                        pivot: GameRules.astraDepthPivot,
+                        spacing: CGSize(width: separationX, height: separationY)
+                    )
 
                     var square = context
                     CloudCluster.paint(
                         CloudCluster.Brush(
-                            centre: CGPoint(
-                                x: metrics.boardSize / 2
-                                    + (spot.position.x - metrics.boardSize / 2) * separationX,
-                                y: metrics.boardSize / 2
-                                    + (spot.position.y - metrics.boardSize / 2) * separationY
-                            ),
+                            centre: spot.position,
                             point: point,
                             wear: wear(at: point, health: tile.health, now: now),
                             tones: Palette.cloudTones(shade),

@@ -691,16 +691,19 @@ struct BoardView: View {
     /// a square goes through here, so the two can never drift apart.
     private func planeFraming(
         _ plane: Plane
-    ) -> (emphasis: CGFloat, zoom: CGFloat, lift: CGFloat, pivot: CGFloat) {
+    ) -> (emphasis: CGFloat, zoom: CGFloat, lift: CGFloat, pivot: CGFloat, spacing: CGSize) {
         plane == .astra
             ? (CGFloat(session.debugAstraDepth),
                CGFloat(session.debugAstraZoom),
                CGFloat(session.debugAstraLift),
-               GameRules.astraDepthPivot)
+               GameRules.astraDepthPivot,
+               CGSize(width: CGFloat(session.debugCloudSpreadX),
+                      height: CGFloat(session.debugCloudSpreadY)))
             : (1,
                GameRules.boardForeshortenScale,
                GameRules.boardForeshortenLift,
-               1)
+               1,
+               CGSize(width: 1, height: 1))
     }
 
     /// The square the compass sits over: bottom-left of the board.

@@ -70,7 +70,8 @@ extension PixelArtMetrics {
         lift: CGFloat = GameRules.boardForeshortenLift,
         camera: CGFloat = GameRules.boardCamera,
         emphasis: CGFloat = 1,
-        pivot: CGFloat = 1
+        pivot: CGFloat = 1,
+        spacing: CGSize = CGSize(width: 1, height: 1)
     ) -> (position: CGPoint, scale: CGFloat) {
         let flat = center(of: point)
 
@@ -108,10 +109,23 @@ extension PixelArtMetrics {
 
         // Then the two framing steps the board takes afterwards, in order: the
         // zoom about the near edge, and the lift up the square.
+        // Then how far apart the squares are set, about the board's middle.
+        //
+        // This is the plane's, not the clouds'. It was applied inside the cloud
+        // field, which spread the ground out from under everything standing on
+        // it — the piece stayed on the square the camera put it on while the
+        // cloud it was meant to be standing on moved away. Anything placed by
+        // the same call now moves with it.
+        let mid = boardSize / 2
+        let framed = CGPoint(
+            x: mid + (x - mid) * zoom,
+            y: boardSize + (y - boardSize) * zoom - boardSize * lift
+        )
+
         return (
             CGPoint(
-                x: boardSize / 2 + (x - boardSize / 2) * zoom,
-                y: boardSize + (y - boardSize) * zoom - boardSize * lift
+                x: mid + (framed.x - mid) * spacing.width,
+                y: mid + (framed.y - mid) * spacing.height
             ),
             zoom * near
         )
@@ -130,10 +144,11 @@ extension View {
         emphasis: CGFloat = 1,
         zoom: CGFloat = GameRules.boardForeshortenScale,
         lift: CGFloat = GameRules.boardForeshortenLift,
-        pivot: CGFloat = 1
+        pivot: CGFloat = 1,
+        spacing: CGSize = CGSize(width: 1, height: 1)
     ) -> some View {
         let spot = metrics.projected(
-            point, zoom: zoom, lift: lift, emphasis: emphasis, pivot: pivot
+            point, zoom: zoom, lift: lift, emphasis: emphasis, pivot: pivot, spacing: spacing
         )
         return scaleEffect(spot.scale).position(spot.position)
     }

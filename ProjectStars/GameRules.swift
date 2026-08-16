@@ -2037,7 +2037,7 @@ enum GameRules {
     static let cloudSpacingY: CGFloat = 1.0
 
     /// Where the figure sits on its square, in art pixels.
-    static let pieceSeatDrop: CGFloat = 4
+    static let pieceSeatDrop: CGFloat = 0
 
     /// How far the tilted board is lifted back up its square, as a fraction of
     /// the board. A keystone pulls its content toward the near edge, so without
