@@ -458,8 +458,12 @@ struct AquariusStormGallery: View {
                         // so they should not be carried up by it. The bob and
                         // the turn they *do* take, because those are him
                         // moving rather than him being put somewhere.
+                        // Scaled *and* moved with him. A sprite is centred in
+                        // its frame, so shrinking it brings its face down
+                        // toward the middle — eyes left at the full-size height
+                        // end up below the pot they belong to.
                         StormEyes(width: 40 * shrink, spacing: 46 * shrink, glow: burn)
-                            .offset(y: eyeOffset - height)
+                            .offset(y: eyeOffset * shrink - height)
                     }
                 }
                 .scaleEffect(breath)
@@ -467,7 +471,13 @@ struct AquariusStormGallery: View {
                 // Raised: he hangs in the funnel rather than standing under it,
                 // which is the whole picture — something held up by the storm,
                 // not something the storm is happening around.
-                .offset(y: height + lift)
+                // Dropped as he shrinks, so his feet stay where they were.
+                //
+                // The sprite is centred, so half of everything it loses comes
+                // off the bottom — without this he rises out of the funnel as
+                // the meter empties, which is the opposite of settling into a
+                // pot on the floor.
+                .offset(y: height + lift + 132 * size * (1 - shrink))
             }
         }
     }
