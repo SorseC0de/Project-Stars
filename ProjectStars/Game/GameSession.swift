@@ -47,6 +47,10 @@ final class GameSession {
     /// `GameEngine.isZodiactionCharged`.
     private(set) var isZodiactionCharged = false
 
+    /// Aquarius' storm, drawn once per phase and played back. See
+    /// `AquariusStormFilm`.
+    let stormFilm = AquariusStormFilm()
+
     /// Republishes anything derived from the engine.
     ///
     /// Called after every applied event. Cheap, and it cannot go stale.

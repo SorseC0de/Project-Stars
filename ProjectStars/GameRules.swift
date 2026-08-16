@@ -2688,6 +2688,16 @@ enum GameRules {
     /// but texture.
     static let aquariusStormCanvas: CGFloat = 620
 
+    /// How many frames a phase's cached loop holds, and how long it runs.
+    ///
+    /// The storm's motions do not share a period — the plates shake on their
+    /// own counts, the strip loops on another — so a cached loop is a slice of
+    /// something that never exactly repeats. Two seconds is long enough that
+    /// the seam is not a beat you can count, and twenty-four frames is the rate
+    /// the long strips already play at.
+    static let aquariusStormFilmFrames = 24
+    static let aquariusStormFilmPeriod: TimeInterval = 2
+
     /// How much smaller the figure and his eyes are at an **empty** meter.
     ///
     /// The bluff, and it runs the way the storm does rather than against it:

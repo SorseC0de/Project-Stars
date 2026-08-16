@@ -1646,7 +1646,8 @@ struct BoardView: View {
             chargeFlash: flash,
             starElement: starElement,
             clock: session.ambientClock(at:),
-            stormPhase: aquariusPhase
+            stormPhase: aquariusPhase,
+            stormFilm: session.stormFilm
         )
         // The launch itself: a fast climb rather than a spring, because it is
         // meant to leave rather than to arrive somewhere.

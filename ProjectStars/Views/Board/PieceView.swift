@@ -106,6 +106,9 @@ struct PieceView: View {
     /// Zero is the bare statue, which is what every other sign always is.
     var stormPhase: Int = 0
 
+    /// The cached frames of that storm, if there are any yet.
+    var stormFilm: AquariusStormFilm?
+
     var body: some View {
         ZStack {
             // The shadow stays on the tile while the figure rises off it, which
@@ -173,7 +176,7 @@ struct PieceView: View {
         // material path is skipped rather than layered under: no stone, no
         // gold, no gem, because none of those are visible through a funnel.
         if zodiac == .aquarius, stormPhase > 0 {
-            AquariusStormPiece(phase: stormPhase, tileSize: tileSize)
+            AquariusStormPiece(phase: stormPhase, film: stormFilm, tileSize: tileSize)
         } else {
             lit.colorFlash(ElementFX.ramp(for: zodiac.element).mid, amount: chargeFlash)
         }

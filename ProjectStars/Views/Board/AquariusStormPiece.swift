@@ -84,6 +84,13 @@ struct AquariusStorm: View {
     /// How much wider an eye plate is than the widest of the stack.
     var eyeScale: CGFloat = GameRules.aquariusEyeScale
 
+    /// A fixed moment to draw, instead of the running clock.
+    ///
+    /// What makes the assembly cacheable: with time as an input rather than
+    /// something read from the environment, any frame of it can be asked for
+    /// out of order and rendered off-screen.
+    var frozenAt: TimeInterval?
+
     /// How each eye plate sits against the rest. Two of them, because one
     /// darkening pass reads as a stain and two crossing at different heights
     /// read as a gap you are looking through.
@@ -101,8 +108,8 @@ struct AquariusStorm: View {
     var scale: CGFloat = 3
 
     var body: some View {
-        TimelineView(.animation) { timeline in
-            let now = timeline.date.timeIntervalSinceReferenceDate
+        TimelineView(.animation(paused: frozenAt != nil)) { timeline in
+            let now = frozenAt ?? timeline.date.timeIntervalSinceReferenceDate
 
             ZStack {
                 ForEach(0..<bands, id: \.self) { band in
@@ -370,6 +377,9 @@ struct FloatingAquarius: View {
     /// see `GameRules.aquariusFigureShrink`.
     var strength: Double = 1
 
+    /// A fixed moment to draw. See `AquariusStorm.frozenAt`.
+    var frozenAt: TimeInterval?
+
     /// Where he hangs, as points from the middle.
     var height: CGFloat = GameRules.aquariusFigureY
 
@@ -471,6 +481,9 @@ struct AquariusStormPiece: View {
     /// `0`…`10`, how full the meter is.
     var phase: Int = 10
 
+    /// The frames drawn for each phase so far. See `AquariusStormFilm`.
+    var film: AquariusStormFilm?
+
     /// Size of a board cell, in points.
     var tileSize: CGFloat
 
@@ -481,6 +494,26 @@ struct AquariusStormPiece: View {
         if phase <= 0 {
             PixelSprite(id: .piece(.aquarius)) { Color.clear }
                 .frame(width: tileSize, height: tileSize * 2)
+        } else if let film, let reel = film.reel(for: phase), !reel.isEmpty {
+            // The cached loop. Costs a texture swap a frame, whatever the piece
+            // is doing — which is the whole point, since the live version is
+            // rebuilt from scratch the moment anything under it moves.
+            TimelineView(.animation) { timeline in
+                let elapsed = timeline.date.timeIntervalSinceReferenceDate
+                let step = Int(
+                    elapsed / GameRules.aquariusStormFilmPeriod
+                        * Double(reel.count)
+                ) % reel.count
+
+                reel[max(step, 0)]
+                    .resizable()
+                    .frame(
+                        width: GameRules.aquariusStormCanvas,
+                        height: GameRules.aquariusStormCanvas
+                    )
+                    .scaleEffect(scale * tileSize * GameRules.aquariusStormTiles / 300)
+                    .frame(width: tileSize, height: tileSize * 2)
+            }
         } else {
             // Built at the size it was tuned at, then scaled to the square.
             //
@@ -524,6 +557,13 @@ struct AquariusStormPiece: View {
             // itself to its content, or scales a row by what it is given, is
             // working from a box four times too big.
             .frame(width: tileSize, height: tileSize * 2)
+                .onAppear {
+                    film?.prepare(
+                        phase,
+                        side: GameRules.aquariusStormCanvas,
+                        scale: UIScreen.main.scale
+                    )
+                }
         }
     }
 }
