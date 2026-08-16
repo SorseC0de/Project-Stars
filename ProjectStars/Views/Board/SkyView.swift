@@ -52,7 +52,19 @@ struct SkyView: View {
     /// board never sits on a colour the art could not contain.
     private var night: some View {
         ZStack {
-            Palette.coolBlack
+            // Daylight at the top, falling to the palette's darkest entry by the
+            // time the faux Terra comes into view. A flat field read as a
+            // backdrop the board was placed on; a sky that darkens with depth
+            // reads as the same air the board is standing in.
+            LinearGradient(
+                stops: [
+                    .init(color: Palette.coolBlack, location: 0),
+                    .init(color: Palette.sky, location: GameRules.astraSkyFade),
+                    .init(color: Palette.sky, location: 1)
+                ],
+                startPoint: .top,
+                endPoint: .bottom
+            )
 
             TimelineView(.animation) { timeline in
                 Canvas { context, size in
@@ -76,6 +88,21 @@ struct SkyView: View {
                         )
                     }
                 }
+            }
+            // Gone before the blue arrives. Masked rather than filtered by
+            // position so a star near the boundary dims out instead of
+            // popping, and so the two fades are described by one number each
+            // rather than by a rule repeated in both places.
+            .mask {
+                LinearGradient(
+                    stops: [
+                        .init(color: .black, location: 0),
+                        .init(color: .black, location: GameRules.astraStarFade * 0.5),
+                        .init(color: .clear, location: GameRules.astraStarFade)
+                    ],
+                    startPoint: .top,
+                    endPoint: .bottom
+                )
             }
         }
     }
