@@ -375,9 +375,14 @@ struct PieceView: View {
     }
 
     /// One of the pair, at a point on its oval.
+    ///
+    /// Grows as it falls, like the middle one — the near half of the oval is
+    /// the half closest to the viewer, so the swell is what makes the path read
+    /// as a ring rather than as a slide left and right.
     private func outerGem(across: Double, dip: Double, mirrored: Bool = false) -> some View {
         PixelSprite(id: .virgoGem(.outer)) { Color.clear }
             .scaleEffect(x: mirrored ? -1 : 1, y: 1)
+            .scaleEffect(1 + dip * GameRules.virgoGemFloatGrowth)
             .offset(
                 x: across * GameRules.virgoGemSwingX * scale,
                 y: dip * GameRules.virgoGemSwingY * scale

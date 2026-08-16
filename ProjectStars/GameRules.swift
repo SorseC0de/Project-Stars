@@ -2644,7 +2644,7 @@ enum GameRules {
     static let virgoGemFloat: CGFloat = 6
     static let virgoGemFloatPeriod: TimeInterval = 2.3
 
-    /// How much bigger the middle gem is at the bottom of its fall.
+    /// How much bigger a gem is at the bottom of its fall.
     ///
     /// Dropping and growing together is the plainest way to say a thing is
     /// coming *toward* the viewer rather than sliding down a wall — the same
