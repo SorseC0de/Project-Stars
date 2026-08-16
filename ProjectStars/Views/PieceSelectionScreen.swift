@@ -88,21 +88,21 @@ struct PieceSelectionScreen: View {
     /// art can actually be read — which is the only place in the game the
     /// statues are ever seen still and up close.
     private var statue: some View {
-        PixelSprite(id: .piece(selection)) {
-            Color.clear
-        }
-        // The signs that are more than one drawing are more than one drawing
-        // here too — a Libra without her scales or a Virgo without her gems is
-        // not what the player is about to pick up.
-        .overlay(alignment: .top) { loosePartsTop }
-        .overlay(alignment: .center) { loosePartsCentre }
-        .frame(
-            width: CGFloat(GameRules.tilePixelSize) * statueScale,
-            height: CGFloat(GameRules.tilePixelSize) * 2 * statueScale
+        // The board's own view, standing still and facing south.
+        //
+        // Not a sprite plus a hand-assembled set of parts: `PieceView` already
+        // knows that Libra carries arms and pans, that Virgo has gems, that
+        // Gemini is one of three drawings and Cancer one of four. Rebuilding a
+        // subset of that here meant every sign with loose parts had to be
+        // remembered twice, and Libra — who reaches past her own frame in every
+        // direction — was the one that showed it.
+        PieceView(
+            zodiac: selection,
+            tileSize: cell,
+            scale: statueScale,
+            plane: .astra,
+            facing: .down
         )
-        // An overlay is still *proposed* the size of what it covers, and the gap
-        // is shorter than the statue — so without this it is squeezed even
-        // though it is no longer measured into the layout.
         .fixedSize()
         .id(selection)
         .transition(.opacity)
@@ -110,39 +110,12 @@ struct PieceSelectionScreen: View {
     }
 
     /// Whole-pixel, so the art stays on its own grid.
-    private var statueScale: CGFloat { 5 }
-
-    /// Parts drawn against the figure's **upper** tile, which is the cell they
-    /// were authored against.
-    @ViewBuilder
-    private var loosePartsTop: some View {
-        switch selection {
-        case .virgo:
-            ZStack {
-                PixelSprite(id: .virgoGem(.outer)) { Color.clear }
-                PixelSprite(id: .virgoGem(.outer)) { Color.clear }
-                    .scaleEffect(x: -1, y: 1)
-                PixelSprite(id: .virgoGem(.middle)) { Color.clear }
-            }
-            .frame(width: cell, height: cell)
-
-        case .libra:
-            PixelSprite(id: .libraScalesPlain) { Color.clear }
-                .frame(width: cell, height: cell)
-
-        default:
-            EmptyView()
-        }
-    }
-
-    /// And the ones that hang across her middle.
-    @ViewBuilder
-    private var loosePartsCentre: some View {
-        if selection == .libra {
-            PixelSprite(id: .libraArm(.northSouth)) { Color.clear }
-                .frame(width: cell, height: cell)
-        }
-    }
+    ///
+    /// Three rather than five, because the size has to suit the **widest** sign
+    /// rather than the average one — Libra's arms and pans span three tiles
+    /// across and reach above her head, so a scale that flatters Aries puts her
+    /// through the grid.
+    private var statueScale: CGFloat { 3 }
 
     /// One art cell at the statue's scale.
     private var cell: CGFloat { CGFloat(GameRules.tilePixelSize) * statueScale }
