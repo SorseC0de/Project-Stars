@@ -2661,7 +2661,12 @@ enum GameRules {
     /// The figure inside, and where his eyes sit in the picture.
     static let aquariusFigureScale: CGFloat = 1.5
     static let aquariusFigureTurn: Double = 5
-    static let aquariusFigureY: CGFloat = -125
+    /// Where he hangs in the funnel.
+    ///
+    /// High in it rather than at its middle: the funnel is widest at the top
+    /// and the eye of the storm sits up there, so a figure at the centre is
+    /// behind the thickest part of the wall instead of inside the opening.
+    static let aquariusFigureY: CGFloat = -150
     static let aquariusEyeGlowY: CGFloat = -55
 
     /// How hard the eyes burn at the top of their breath, and how long one
@@ -2730,6 +2735,16 @@ enum GameRules {
     /// How far the eyes follow the figure's shrink — see the gallery. `1` rides
     /// his centre, `2` his head.
     static let aquariusEyeFollow: CGFloat = 0.75
+
+    /// How much of his own shrink he sinks by.
+    ///
+    /// Not all of it. Pinning his feet was the wrong model: he is not standing
+    /// in the funnel, he is held up by it — and the funnel's **top edge is at
+    /// the same height whatever the phase**, because the plate spacing divides
+    /// out of where the topmost one lands. So the eye of the storm does not
+    /// come down as the storm weakens, and neither should he. Half, so he
+    /// settles a little without following a floor that is not there.
+    static let aquariusFigureSink: CGFloat = 0.5
 
     /// How many plates the funnel has, at an empty meter and at a full one.
     ///

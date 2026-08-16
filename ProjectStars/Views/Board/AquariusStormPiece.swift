@@ -463,7 +463,10 @@ struct FloatingAquarius: View {
             // off the bottom — without this he rises out of the funnel as
             // the meter empties, which is the opposite of settling into a
             // pot on the floor.
-            .offset(y: height + lift + 132 * size * (1 - shrink))
+            .offset(
+                y: height + lift
+                    + 132 * size * (1 - shrink) * GameRules.aquariusFigureSink
+            )
         }
     }
 }
@@ -508,6 +511,14 @@ struct AquariusStormPiece: View {
                 ZStack {
                     reel[max(step, 0)]
                         .resizable()
+                        // Nearest neighbour, like every other sprite in the
+                        // game. A filmed frame is still pixel art, and the
+                        // default smoothing resampled every blade edge into a
+                        // gradient — which is why the cached storm read as
+                        // muddy next to the live one rather than merely less
+                        // smooth.
+                        .interpolation(.none)
+                        .antialiased(false)
                         .frame(
                             width: GameRules.aquariusStormCanvas,
                             height: GameRules.aquariusStormCanvas
