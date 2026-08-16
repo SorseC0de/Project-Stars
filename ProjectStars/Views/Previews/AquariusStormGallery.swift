@@ -332,35 +332,10 @@ struct StormEyes: View {
 struct AquariusStormGallery: View {
 
     @State private var phase = 10
-    @State private var blend: BlendMode = .exclusion
+    @State private var eyeFollow: Double = 1
     @State private var showsEyes = true
     @State private var showsSilhouette = true
-    @State private var eyeScale: Double = Double(GameRules.aquariusEyeScale)
-    @State private var eyeBlend: BlendMode = .hardLight
-    @State private var figureScale: Double = Double(GameRules.aquariusFigureScale)
-    @State private var figureTurn: Double = GameRules.aquariusFigureTurn
-    @State private var groupScale: Double = Double(GameRules.aquariusStormScale)
-    @State private var eyeTurn: Double = GameRules.aquariusEyeTurn
-    @State private var eyeTwinScale: Double = Double(GameRules.aquariusEyeTwinScale)
-    @State private var eyeSway: Double = Double(GameRules.aquariusEyeSway)
-    @State private var eyeOffset: Double = Double(GameRules.aquariusEyeGlowY)
-    @State private var eyeFollow: Double = 1
-    @State private var figureY: Double = Double(GameRules.aquariusFigureY)
-    @State private var eyeY: Double = Double(GameRules.aquariusEyeY)
-    @State private var eyeTwinY: Double = Double(GameRules.aquariusEyeTwinY)
-    @State private var eyeTwinBlend: BlendMode = .multiply
-    @State private var spread: Double = GameRules.aquariusStormSpread
-    @State private var height: Double = Double(GameRules.aquariusStormHeight)
-    @State private var taper: Double = Double(GameRules.aquariusStormTaper)
-    @State private var bladeScale: Double = Double(GameRules.aquariusStormBlade)
 
-    private let blends: [(String, BlendMode)] = [
-        ("LIGHTEN", .plusLighter),
-        ("NORMAL", .normal),
-        ("SCREEN", .screen),
-        ("OVERLAY", .overlay),
-        ("MULTIPLY", .multiply),
-    ]
 
     var body: some View {
         VStack(spacing: 10) {
@@ -531,23 +506,7 @@ struct AquariusStormGallery: View {
     /// passing across it rather than as a decal stuck to it.
     private var stack: some View {
         ZStack {
-            AquariusStorm(
-                phase: phase,
-                height: CGFloat(height),
-                spread: spread,
-                taper: Int(taper.rounded()),
-                bladeScale: CGFloat(bladeScale),
-                eyeTurn: eyeTurn,
-                eyeSway: CGFloat(eyeSway),
-                eyeTwinScale: CGFloat(eyeTwinScale),
-                eyeScale: CGFloat(eyeScale),
-                eyeBlend: eyeBlend,
-                eyeTwinBlend: eyeTwinBlend,
-                eyeY: CGFloat(eyeY),
-                eyeTwinY: CGFloat(eyeTwinY),
-                side: 300,
-                scale: 4
-            )
+            AquariusStorm(phase: phase, side: 300, scale: 4)
 
             // **The silhouette is on top and it is the thing that blends.**
             //
@@ -562,14 +521,10 @@ struct AquariusStormGallery: View {
                 // it is, and a small silhouette gives that away before the
                 // reveal does.
                 FloatingSilhouette(
-                    blend: blend,
+                    blend: .exclusion,
                     showsEyes: showsEyes,
-                    eyeOffset: CGFloat(eyeOffset),
                     follow: CGFloat(eyeFollow),
-                    turn: figureTurn,
-                    size: CGFloat(figureScale),
-                    strength: Double(min(max(phase, 0), 10)) / 10,
-                    height: CGFloat(figureY)
+                    strength: Double(min(max(phase, 0), 10)) / 10
                 )
             }
         }
@@ -580,7 +535,7 @@ struct AquariusStormGallery: View {
         // can still be the wrong size for a square. Scaling the group keeps
         // every proportion inside it exactly as tuned.
         .compositingGroup()
-        .scaleEffect(CGFloat(groupScale))
+        .scaleEffect(GameRules.aquariusStormScale)
     }
 
     /// One labelled slider with the number beside it.
@@ -632,7 +587,7 @@ struct AquariusStormGallery: View {
     }
 
     private var controls: some View {
-        VStack(spacing: 6) {
+        VStack(spacing: 10) {
             HStack {
                 Text("PHASE \(phase)")
                     .font(.system(size: 10, weight: .heavy, design: .monospaced))
@@ -650,42 +605,10 @@ struct AquariusStormGallery: View {
                 .tint(Palette.cyan)
             }
 
-            // Homed on the settled values, with room either side of each.
-            knob("STAGGER", $spread, 0.5...3.5, "x")
-            knob("HEIGHT", $height, 0.02...0.3, "x")
-            knob("BLADE", $bladeScale, 0.4...1.2, "x")
-            knob("TAPER", $taper, 2...8, "f", step: 1)
-            knob("EYE", $eyeScale, 0.8...2.2, "x")
-            knob("FIGURE", $figureScale, 0.6...2.4, "x")
-            knob("TURN", $figureTurn, 0...40, "°")
-            knob("EYE TURN", $eyeTurn, 0...30, "°")
-            knob("EYE2", $eyeTwinScale, 0.4...1.4, "x")
-            knob("EYE SWAY", $eyeSway, 0...1, "x")
-            knob("GLOW Y", $eyeOffset, -140...20, "pt")
+            // The only number still open. Everything else is settled and lives
+            // in `GameRules` — a knob for a decided value is just something in
+            // the way of the one that is not.
             knob("EYE FOLLOW", $eyeFollow, 0...2, "x")
-            knob("EYE Y", $eyeY, -0.3...0.3, "x")
-            knob("EYE2 Y", $eyeTwinY, -0.3...0.3, "x")
-            knob("BODY Y", $figureY, -160...40, "pt")
-            knob("ALL", $groupScale, 0.3...2, "x")
-
-            Picker("Blend", selection: $blend) {
-                ForEach(BlendMode.allCases, id: \.self) { mode in
-                    Text(String(describing: mode)).tag(mode)
-                }
-            }
-
-            Picker("Eye blend", selection: $eyeBlend) {
-                ForEach(BlendMode.allCases, id: \.self) { mode in
-                    Text(String(describing: mode)).tag(mode)
-                }
-            }
-
-            Picker("Eye 2 blend", selection: $eyeTwinBlend) {
-                ForEach(BlendMode.allCases, id: \.self) { mode in
-                    Text(String(describing: mode)).tag(mode)
-                }
-            }
-            //.pickerStyle(.segmented)
 
             HStack(spacing: 16) {
                 Toggle("EYES", isOn: $showsEyes)
