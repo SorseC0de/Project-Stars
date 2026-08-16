@@ -2479,6 +2479,13 @@ enum GameRules {
     //
     // The pillar of light at each end of a teleport.
 
+    /// Seconds the Breeze takes to carry the piece across.
+    ///
+    /// Longer than a step and shorter than a fall: the distance is the point, so
+    /// it has to be watchable, but it is still one move and the turn is waiting
+    /// on it.
+    static let blownDuration: TimeInterval = 0.42
+
     /// Seconds a pillar of light lasts at each end of a warp.
     static let warpBeamDuration: TimeInterval = 0.30
 

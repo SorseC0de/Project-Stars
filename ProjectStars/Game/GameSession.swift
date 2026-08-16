@@ -1929,6 +1929,9 @@ final class GameSession {
             // hard where the arrow is standing.
             await launchToArrow(event, from: from, plane: fromPlane)
 
+        case let .pieceTeleported(from, to, plane, _, style) where style == .blown:
+            await animateBlown(event, from: from, to: to, on: plane)
+
         case let .pieceTeleported(_, _, _, toPlane, style) where style == .rise:
             // Pisces swimming up. Not a warp — the fish breaks the surface, the
             // sky is shoved aside where it comes through, and it comes down a
@@ -2177,6 +2180,64 @@ final class GameSession {
     ///
     /// Both ends get a beam. Playing one only at the destination would read as
     /// something happening on arrival rather than as a journey.
+    /// Carried across the board by the wind.
+    ///
+    /// Not a warp and not a slide. A slide is square-by-square along a line and
+    /// wears every tile it crosses; this passes *over* the board and touches
+    /// nothing until it lands — so it borrows the slide's travel and none of its
+    /// consequences.
+    ///
+    /// The afterimages are wind-coloured whatever sign is being carried. They
+    /// are the Breeze's trail rather than the piece's: what is doing the moving
+    /// is the air, and a Leo blown across the board leaving a fire trail would
+    /// credit the wrong thing.
+    private func animateBlown(
+        _ event: GameEvent,
+        from origin: GridPoint,
+        to destination: GridPoint,
+        on plane: Plane
+    ) async {
+        playEffect(.windMisc, at: origin, on: plane)
+
+        leaveAfterimage(at: origin, on: plane)
+
+        // The direction is only for the pose — the piece leans the way it is
+        // being carried. Where it *lands* comes from the event, so the nearest
+        // of the eight is close enough and a destination that is dead-on none of
+        // them keeps the facing it had.
+        beginMovement(
+            .slide,
+            direction: Self.heading(from: origin, to: destination)
+                ?? engine.piece.facing,
+            duration: GameRules.blownDuration
+        )
+
+        withAnimation(.easeInOut(duration: GameRules.blownDuration)) {
+            engine.apply(event)
+        }
+        await sleep(GameRules.blownDuration)
+
+        guard !Task.isCancelled else { return }
+
+        // And where it sets you down, so the arrival is the wind's too.
+        playEffect(.windMisc, at: destination, on: plane)
+        endMovement()
+    }
+
+    /// The direction of travel, to the nearest of the eight.
+    ///
+    /// For a **pose**, not for a move: the Breeze goes anywhere, including
+    /// squares no direction points at, so this only has to be close enough for
+    /// the piece to lean the right way.
+    private static func heading(from origin: GridPoint, to destination: GridPoint) -> SwipeDirection? {
+        let dx = destination.x - origin.x
+        let dy = destination.y - origin.y
+        guard dx != 0 || dy != 0 else { return nil }
+
+        let step = GridOffset(dx == 0 ? 0 : (dx > 0 ? 1 : -1), dy == 0 ? 0 : (dy > 0 ? 1 : -1))
+        return SwipeDirection.allCases.first { $0.unitOffset == step }
+    }
+
     private func animateWarp(
         _ event: GameEvent,
         from origin: GridPoint,

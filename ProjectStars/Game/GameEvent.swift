@@ -128,6 +128,15 @@ enum TeleportStyle: String, Codable, Hashable, Sendable {
     /// swimming Upstream — the only piece in the game that climbs under its own
     /// power.
     case rise
+
+    /// **Carried** across the board rather than moved through it.
+    ///
+    /// Astral Breeze. A beam says *out here, in there* — two places and nothing
+    /// between them — which is the wrong sentence for a wind. The piece is blown
+    /// to where it is going and you can see it travel, which also makes the
+    /// distance legible: a warp of one square and a warp of six look identical,
+    /// and being carried does not.
+    case blown
 }
 
 /// randomness is resolved during planning.

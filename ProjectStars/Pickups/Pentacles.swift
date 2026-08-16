@@ -489,7 +489,8 @@ struct AstralBreezeEffect: PickupEffect {
                 from: context.piecePoint,
                 to: destination,
                 fromPlane: context.plane,
-                toPlane: context.plane
+                toPlane: context.plane,
+                style: .blown
             )
         ]
     }
