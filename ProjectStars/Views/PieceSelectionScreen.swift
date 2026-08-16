@@ -35,11 +35,14 @@ struct PieceSelectionScreen: View {
 
             grid
 
-            Spacer(minLength: 8)
-
-            statue
-
-            Spacer(minLength: 8)
+            // In front of the gap, not part of it.
+            //
+            // As a row in the stack the statue had to be sized by the layout,
+            // and between two spacers that meant being squeezed. An overlay is
+            // drawn over the space without being measured into it, so the
+            // figure keeps its own height whatever the screen does.
+            Spacer(minLength: 12)
+                .overlay { statue }
 
             detail(definition)
 
@@ -92,9 +95,9 @@ struct PieceSelectionScreen: View {
             width: CGFloat(GameRules.tilePixelSize) * statueScale,
             height: CGFloat(GameRules.tilePixelSize) * 2 * statueScale
         )
-        // Held at its full height. Between two spacers in a VStack the frame is
-        // a proposal the layout is free to squeeze, and it did — the statue came
-        // out with its legs cut off.
+        // An overlay is still *proposed* the size of what it covers, and the gap
+        // is shorter than the statue — so without this it is squeezed even
+        // though it is no longer measured into the layout.
         .fixedSize()
         .id(selection)
         .transition(.opacity)
