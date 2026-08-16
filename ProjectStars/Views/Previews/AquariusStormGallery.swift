@@ -440,12 +440,22 @@ struct AquariusStormGallery: View {
                 let burn = GameRules.aquariusEyeGlowPeak * CGFloat(pulse)
 
                 ZStack {
+                    // At zero there is no storm, so there is nothing for a
+                    // silhouette to be inside — it is just the statue, gold, as
+                    // any other sign's would be. The whole sign is this swap:
+                    // everything above zero is a shape in weather, and zero is
+                    // the little pot that was in there the whole time.
+                    let bare = strength <= 0
+
                     PixelSprite(id: .piece(.aquarius)) { Color.clear }
                         .frame(width: 132 * size * shrink, height: 264 * size * shrink)
-                        .colorEffect(ShaderLibrary.flatSilhouette(.color(Palette.midnight)))
-                        .blendMode(blend)
+                        .colorEffect(
+                            ShaderLibrary.flatSilhouette(.color(Palette.midnight)),
+                            isEnabled: !bare
+                        )
+                        .blendMode(bare ? .normal : blend)
 
-                    if showsEyes {
+                    if showsEyes, !bare {
                         // Sized as they were before they were attached to him.
                         //
                         // They ride his transform now, which already scales
