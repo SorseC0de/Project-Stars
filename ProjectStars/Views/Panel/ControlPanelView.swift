@@ -951,7 +951,7 @@ private struct PanelFrontView: View {
                     get: { session.debugCloudSpreadX },
                     set: { session.debugCloudSpreadX = $0 }
                 ),
-                range: 0.7...1.4,
+                range: -0.3...2.4,
                 unit: "x"
             )
             dial(
@@ -960,7 +960,7 @@ private struct PanelFrontView: View {
                     get: { session.debugCloudSpreadY },
                     set: { session.debugCloudSpreadY = $0 }
                 ),
-                range: 0.7...1.4,
+                range: -0.3...2.4,
                 unit: "x"
             )
             dial(

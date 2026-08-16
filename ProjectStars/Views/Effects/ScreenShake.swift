@@ -49,10 +49,21 @@ struct ScreenShake: ViewModifier {
         let decay = 1 - elapsed / GameRules.shakeDuration
         let amplitude = GameRules.shakeAmplitude * scale * CGFloat(decay) * strength
 
+        // Both axes on `sin`, so both start at zero.
+        //
+        // The vertical one was `cos`, which is 1 at t=0 — so the board jumped
+        // by six tenths of the amplitude on the first frame of every shake and
+        // oscillated about a position it had never been in. It came home only
+        // when the decay ran out, which is why the jolt read as the board
+        // drifting rather than as an impact.
+        //
+        // The offset ratio still does the work of keeping the motion from being
+        // a tidy diagonal: 0.73 is not a harmonic of 1, so the two axes stay out
+        // of step for far longer than a shake lasts.
         let phase = elapsed * GameRules.shakeFrequency * 2 * .pi
         return CGSize(
             width: amplitude * CGFloat(sin(phase)),
-            height: amplitude * CGFloat(cos(phase * 0.73)) * 0.6
+            height: amplitude * CGFloat(sin(phase * 0.73)) * 0.6
         )
     }
 }
