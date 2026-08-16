@@ -120,6 +120,7 @@ struct AquariusStorm: View {
                         clock: { $0 + self.stagger(bands - 1) / 2 },
                         frameCount: self.played
                     )
+                    .colorEffect(ShaderLibrary.flatSilhouette(.color(Palette.midnight)))
                     .offset(y: rise(bands - 1) + side * 0.02)
                     .blendMode(eyeBlend)
                 }
@@ -261,6 +262,8 @@ struct AquariusStormGallery: View {
     @State private var glow: Double = 1
     @State private var eyeScale: Double = 1.25
     @State private var eyeBlend: BlendMode = .multiply
+    @State private var figureScale: Double = 1.25
+    @State private var figureTurn: Double = 12
     @State private var spread: Double = 2
     @State private var height: Double = 0.1
     @State private var taper: Double = 5
@@ -309,18 +312,24 @@ struct AquariusStormGallery: View {
 
         let blend: BlendMode
 
+        /// How far he turns either way, in degrees.
+        var turn: Double = 12
+
+        /// How big he is drawn, against the storm around him.
+        var size: CGFloat = 1
+
         var body: some View {
             TimelineView(.animation) { timeline in
                 let now = timeline.date.timeIntervalSinceReferenceDate
-                let turn = sin(now / 5.2 * 2 * .pi) * 35
+                let sway = sin(now / 5.2 * 2 * .pi) * turn
                 let lift = sin(now / 3.7 * 2 * .pi) * 14
                 let breath = 1 + sin(now / 4.3 * 2 * .pi) * 0.1
 
                 PixelSprite(id: .piece(.aquarius)) { Color.clear }
-                    .frame(width: 132, height: 264)
+                    .frame(width: 132 * size, height: 264 * size)
                     .colorEffect(ShaderLibrary.flatSilhouette(.color(Palette.midnight)))
                     .scaleEffect(breath)
-                    .rotationEffect(.degrees(turn))
+                    .rotationEffect(.degrees(sway))
                     // Raised: he hangs in the funnel rather than standing under
                     // it, which is the whole picture — something held up by the
                     // storm, not something the storm is happening around.
@@ -382,7 +391,7 @@ struct AquariusStormGallery: View {
                 // Big. The storm is a bluff about how large the thing inside
                 // it is, and a small silhouette gives that away before the
                 // reveal does.
-                FloatingSilhouette(blend: blend)
+                FloatingSilhouette(blend: blend, turn: figureTurn, size: CGFloat(figureScale))
             }
 
             // Over both, and never blended: the eyes are the one thing meant to
@@ -469,6 +478,8 @@ struct AquariusStormGallery: View {
             knob("BLADE", $bladeScale, 0.4...1.2, "x")
             knob("TAPER", $taper, 2...8, "f", step: 1)
             knob("EYE", $eyeScale, 0.8...2.2, "x")
+            knob("FIGURE", $figureScale, 0.6...2.4, "x")
+            knob("TURN", $figureTurn, 0...40, "°")
 
             Picker("Blend", selection: $blend) {
                 ForEach(BlendMode.allCases, id: \.self) { mode in
