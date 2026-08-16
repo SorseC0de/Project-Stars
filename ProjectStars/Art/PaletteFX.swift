@@ -86,8 +86,24 @@ struct PaletteGlow<Content: View>: View {
 
     @ViewBuilder var content: () -> Content
 
+    /// How much room the widest blur needs beyond the sprite.
+    private var headroom: CGFloat { radius * (1 + CGFloat(max(trail, 0)) * 0.9) + radius }
+
     var body: some View {
         content()
+            // Grown **before** the overlay, and given back after.
+            //
+            // An overlay lives in the coordinate space of the view it is
+            // attached to, so padding it from the inside cannot help: the space
+            // it may draw in was already fixed by the sprite's own frame, and
+            // the bloom is cut off square at that frame's edges — a hard-edged
+            // box taller than the sprite, which is what was on screen.
+            //
+            // Padding the content first makes that space larger for everything
+            // that follows, and the negative padding afterwards hands the
+            // original size back to the layout, so nothing around the piece
+            // moves.
+            .padding(headroom)
             .overlay {
                 ZStack {
                     ForEach(0...max(trail, 0), id: \.self) { step in
@@ -133,12 +149,14 @@ struct PaletteGlow<Content: View>: View {
                 // whole bloom is one cached texture instead of a blur and a
                 // composite per trail step, every frame, which is worth tens of
                 // frames a second on its own.
-                .padding(radius * (1 + CGFloat(max(trail, 0)) * 0.9) + radius)
-                .fixedSize()
+                // One cached texture rather than a blur and a composite per
+                // trail step, every frame. It can afford to be a texture now
+                // that the frame it rasterises into is the padded one.
                 .drawingGroup()
                 .blendMode(.plusLighter)
                 .allowsHitTesting(false)
             }
+            .padding(-headroom)
     }
 
     /// The content with everything but the glowing entries removed.

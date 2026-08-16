@@ -113,21 +113,6 @@ half4 luminanceGlowMask(float2 position, half4 color, float threshold) {
 
     if (luma < threshold) { return half4(0.0h); }
 
-    // Bright is not enough — it has to be *colourful* too.
-    //
-    // Brightness alone cannot tell gold from pale stone, and not by a little:
-    // `slate` (#CFC6B8) has a higher luma than `gold` (#F4B41B), so every
-    // threshold that lets the gold glow lets the statue's whole body glow with
-    // it. The body is a slab, so the bloom came out as a rectangle standing
-    // behind the piece — which looked like a clipping fault and was not one.
-    //
-    // Saturation separates them outright: stone sits near 0.1, gold near 0.9.
-    float high = max(rgb.r, max(rgb.g, rgb.b));
-    float low = min(rgb.r, min(rgb.g, rgb.b));
-    float saturation = high > 0.001 ? (high - low) / high : 0.0;
-
-    if (saturation < 0.45) { return half4(0.0h); }
-
     // Weighted by how far past the threshold it is, so the brightest pixels
     // carry the glow and the merely light ones only tint it. A hard cut makes
     // every lit pixel equal and the bloom comes out as a flat silhouette.
