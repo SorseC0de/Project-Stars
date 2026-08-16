@@ -549,6 +549,21 @@ struct GameEngine {
     /// Pips needed to pop the current sign's Zodiaction.
     var zodiactionMeterMax: Int { piece.zodiac.zodiaction.meterMax(on: piece.plane) }
 
+    /// True when the meter is full — or does not apply.
+    ///
+    /// **What the piece looks like, not what it may do.** The gold and the gem
+    /// glow say the sign is charged; whether the square it happens to be
+    /// standing on will accept the Zodiaction is a different question, asked by
+    /// `isZodiactionReady`. Tying the two together meant a statue lost its gold
+    /// by walking somewhere the ability could not be aimed, which reads as the
+    /// charge being spent rather than as the target being wrong.
+    var isZodiactionCharged: Bool {
+        guard !isGameOver else { return false }
+        let zodiaction = piece.zodiac.zodiaction
+        return zodiaction.ignoresMeter(context: passiveContext)
+            || zodiactionMeter >= zodiactionMeterMax
+    }
+
     /// True when the Zodiaction can be popped right now.
     var isZodiactionReady: Bool {
         guard !isGameOver else { return false }

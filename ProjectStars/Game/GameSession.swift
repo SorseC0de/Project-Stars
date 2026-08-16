@@ -42,6 +42,11 @@ final class GameSession {
     private(set) var zodiactionMeterMax = GameRules.defaultZodiactionMeterMax
     private(set) var isZodiactionReady = false
 
+    /// Whether the meter is full, regardless of whether this square will take
+    /// the Zodiaction. What the piece *looks* like — see
+    /// `GameEngine.isZodiactionCharged`.
+    private(set) var isZodiactionCharged = false
+
     /// Republishes anything derived from the engine.
     ///
     /// Called after every applied event. Cheap, and it cannot go stale.
@@ -58,6 +63,10 @@ final class GameSession {
         if phase != .resolvingMove {
             isZodiactionReady = engine.isZodiactionReady
         }
+        // Not held back with it. Being charged does not depend on where the
+        // piece is standing, so there is nothing to strobe — and a meter that
+        // fills mid-move should light the statue the moment it does.
+        isZodiactionCharged = engine.isZodiactionCharged
         purse = engine.signState.purse
     }
 

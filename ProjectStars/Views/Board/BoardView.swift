@@ -1627,7 +1627,7 @@ struct BoardView: View {
             tileSize: metrics.tileSize,
             scale: metrics.scale,
             plane: session.visiblePlane,
-            isCharged: session.engine.isZodiactionReady,
+            isCharged: session.isZodiactionCharged,
             twin: session.engine.piece.twin,
             movement: session.movement,
             facing: session.engine.piece.facing,
@@ -1952,7 +1952,7 @@ struct BoardView: View {
         starring: ZodiacElement?,
         at date: Date
     ) -> some View {
-        let charged = session.engine.isZodiactionReady
+        let charged = session.isZodiactionCharged
 
         // Also while sliding. A sweep is the one move fast enough to leave a
         // trail, and the trail is drawn in the sign's own element — which is how
@@ -1997,7 +1997,7 @@ struct BoardView: View {
     /// transaction — so they arrive late and the gems streak. See `GemTrailView`.
     @ViewBuilder
     private func gemTrail(metrics: PixelArtMetrics) -> some View {
-        if session.engine.isZodiactionReady, !session.isFalling {
+        if session.isZodiactionCharged, !session.isFalling {
             ForEach(0..<GameRules.gemTrailCount, id: \.self) { step in
                 GemTrailView(
                     zodiac: session.zodiac,
