@@ -70,7 +70,12 @@ enum WearCause: String, Equatable, Hashable, Codable {
     /// actually changed. A hoof that scuffed a square and a hoof that broke one
     /// are the same cause, and only one of them is news.
     func smokeTint(changedAnything: Bool) -> Color? {
-        self == .hooves && !changedAnything ? Palette.green : nil
+        // `neonGreen`, two steps up its own ramp from `green` — see
+        // `Palette.ramps`. The tint replaces the puff's colours outright rather
+        // than shading them, so a mid green came out as one flat dark cloud and
+        // read as poison. Two ramps up it reads as new growth, which is what a
+        // hoof that cost the ground nothing is meant to say.
+        self == .hooves && !changedAnything ? Palette.neonGreen : nil
     }
 
     /// Whether the board shudders under it.

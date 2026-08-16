@@ -118,19 +118,24 @@ struct PaletteGlow<Content: View>: View {
                 // The blend has to stay outside the group so the finished bloom
                 // still adds to the board behind it.
                 //
-                // **Compositing**, not drawing. `drawingGroup` flattens into an
-                // offscreen texture the size of the view's bounds, and a blur
-                // spreads past them — so the bloom was cut off square at the
-                // sprite's edges and read as a glowing rectangle standing
-                // behind the piece. Padding the buffer only moved the edges out;
-                // the rectangle was still there, just bigger.
+                // Padded, allowed to keep that size, and *then* flattened.
                 //
-                // `compositingGroup` is the primitive this actually wants: it
-                // makes the stack blend as one unit without rasterising it or
-                // clipping it to anything. The shader is still cached once, on
-                // `mask` — which is where the cost the old comment worried about
-                // actually lives.
-                .compositingGroup()
+                // `drawingGroup` rasterises into a buffer the size of the view's
+                // bounds and a blur spreads past them, so an unpadded bloom is
+                // cut off square at the sprite's edges — a glowing rectangle
+                // rather than a glow. Padding alone did not fix it because an
+                // overlay proposes the underlying view's size and the padding
+                // was simply compressed away; `fixedSize` is what lets the
+                // stack keep the room it asked for.
+                //
+                // It has to be `drawingGroup` and not `compositingGroup`. The
+                // group is not there to make the blend work — it is there so the
+                // whole bloom is one cached texture instead of a blur and a
+                // composite per trail step, every frame, which is worth tens of
+                // frames a second on its own.
+                .padding(radius * (1 + CGFloat(max(trail, 0)) * 0.9) + radius)
+                .fixedSize()
+                .drawingGroup()
                 .blendMode(.plusLighter)
                 .allowsHitTesting(false)
             }
