@@ -30,6 +30,9 @@ struct SkyView: View {
     /// `GameSession.ambientClock(at:)`.
     var clock: (TimeInterval) -> TimeInterval = { $0 }
 
+    /// Where the sky finishes turning into Terra's daylight, down the square.
+    var skyFade: CGFloat = GameRules.astraSkyFade
+
 
     var body: some View {
         ZStack {
@@ -59,7 +62,7 @@ struct SkyView: View {
             LinearGradient(
                 stops: [
                     .init(color: Palette.coolBlack, location: 0),
-                    .init(color: Palette.sky, location: GameRules.astraSkyFade),
+                    .init(color: Palette.sky, location: skyFade),
                     .init(color: Palette.sky, location: 1)
                 ],
                 startPoint: .top,
@@ -97,8 +100,8 @@ struct SkyView: View {
                 LinearGradient(
                     stops: [
                         .init(color: .black, location: 0),
-                        .init(color: .black, location: GameRules.astraStarFade * 0.5),
-                        .init(color: .clear, location: GameRules.astraStarFade)
+                        .init(color: .black, location: skyFade * 0.7 * 0.5),
+                        .init(color: .clear, location: skyFade * 0.7)
                     ],
                     startPoint: .top,
                     endPoint: .bottom

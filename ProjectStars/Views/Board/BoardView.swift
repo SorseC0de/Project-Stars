@@ -652,18 +652,41 @@ struct BoardView: View {
                     HStack(spacing: 0) {
                         ForEach(0..<metrics.gridSize, id: \.self) { column in
                             let point = GridPoint(column, row)
+                            // A lifted tile is **this** tile, raised — not a
+                            // second one drawn over the top with its own
+                            // placement. Anything placed separately has to be
+                            // made to agree with the row it came from, and it
+                            // never quite does; drawn inside the band it cannot
+                            // disagree, because it is the band.
+                            let isRaised = session.visibleRaisedTiles
+                                .contains { $0.point == point }
                             ZStack(alignment: .bottom) {
+                                // Its side, revealed by the rise and left behind
+                                // on the ground the tile came off.
+                                if isRaised {
+                                    TileEdgeView(
+                                        plane: plane,
+                                        shade: .at(point),
+                                        size: metrics.tileSize
+                                    )
+                                    .offset(y: GameRules.tileEdgeDrop * metrics.scale)
+                                }
+
                                 TileView(
                                     tile: board[point],
                                     plane: plane,
                                     shade: .at(point),
                                     size: metrics.tileSize,
-                                    isPopped: false,
+                                    isPopped: isRaised,
                                     isFlashing: session.flashingTiles.contains(point),
                                     healFlash: nil,
                                     isPressed: session.pressedTiles.contains(point),
                                     point: point,
                                     drawnByField: false
+                                )
+                                .offset(
+                                    y: isRaised
+                                        ? -GameRules.tilePopLift * metrics.scale : 0
                                 )
                             }
                             .frame(width: metrics.tileSize, height: metrics.tileSize)
@@ -1311,6 +1334,11 @@ struct BoardView: View {
                 .transition(.opacity)
             )
         }
+
+        // Terra's lifted tile is drawn by its own band — see `bandedBoard`. It
+        // is the same tile, raised, which is the only way it can be guaranteed
+        // to share the row's perspective.
+        if plane == .terra { return AnyView(EmptyView()) }
 
         return AnyView(
             ZStack(alignment: .top) {

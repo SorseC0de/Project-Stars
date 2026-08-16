@@ -577,6 +577,7 @@ private struct PanelFrontView: View {
         }
         .overlay(alignment: .topLeading) {
             #if DEBUG
+            skyDial.padding(.leading, 8).padding(.top, 44)
             #endif
         }
         .overlay(alignment: .bottomLeading) {
@@ -902,6 +903,19 @@ private struct PanelFrontView: View {
     }
 
 
+
+    /// - TODO: **Temporary.** Delete with `GameSession.debugSkyFade`.
+    private var skyDial: some View {
+        dial(
+            "SKY",
+            value: Binding(
+                get: { session.debugSkyFade },
+                set: { session.debugSkyFade = $0 }
+            ),
+            range: 0...1,
+            unit: ""
+        )
+    }
 
     private func dial(
         _ name: String,

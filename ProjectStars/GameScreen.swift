@@ -43,7 +43,8 @@ struct GameScreen: View {
                     SkyView(
                         plane: session.visiblePlane,
                         side: side,
-                        clock: session.ambientClock(at:)
+                        clock: session.ambientClock(at:),
+                        skyFade: CGFloat(session.debugSkyFade)
                     )
                     // Underneath the sky, and underneath the board with it —
                     // so it shows through Astra's holes. See `GroundBelowView`.

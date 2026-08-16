@@ -887,6 +887,11 @@ final class GameSession {
 
 
 
+    /// Where Astra's sky finishes turning into Terra's daylight.
+    ///
+    /// - TODO: **Temporary.** Bake into `GameRules.astraSkyFade` and delete.
+    var debugSkyFade: Double = Double(GameRules.astraSkyFade)
+
     #if DEBUG
     func debugToggleFissure() { debugFissure.toggle() }
     #endif
