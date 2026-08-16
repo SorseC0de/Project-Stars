@@ -18,7 +18,7 @@ struct GameScreen: View {
     /// The sign chosen on the selection screen. Fixed for the whole run.
     let zodiac: Zodiac
 
-    /// Returns to piece selection — the only ordinary way to change sign.
+    /// Returns to piece selection — the only ordinary rway to change sign.
     let onQuit: () -> Void
 
     @State private var session: GameSession

@@ -2008,14 +2008,14 @@ enum GameRules {
     /// clouds are loose shapes drawn foreshortened already, so how much they
     /// recede is a matter of how deep the sky should feel. Terra stays at `1`,
     /// where a grid disagreeing with its own geometry would open seams.
-    static let astraDepthEmphasis: CGFloat = 0.9
+    static let astraDepthEmphasis: CGFloat = 1.0
 
     /// Astra's own framing zoom and lift, kept apart from Terra's.
     ///
     /// The plane rides higher and is framed slightly smaller than the ground
     /// below it, which is what puts a piece's feet at the same height on both.
     static let astraForeshortenScale: CGFloat = 1.0
-    static let astraForeshortenLift: CGFloat = 0.19
+    static let astraForeshortenLift: CGFloat = 0.15
 
     /// How much of its square a cloud fills, and how far apart the squares sit.
     ///
@@ -2034,7 +2034,9 @@ enum GameRules {
 
     static let cloudBaseSize: CGFloat = 0.9
     static let cloudSpacingX: CGFloat = 1.0
-    static let cloudSpacingY: CGFloat = 1.0
+    /// Wider apart down the screen than across it, because a cloud is wider
+    /// than it is tall — one number could only ever be right on one axis.
+    static let cloudSpacingY: CGFloat = 1.25
 
     /// Where the figure sits on its square, in art pixels.
     static let pieceSeatDrop: CGFloat = 0
@@ -2087,7 +2089,14 @@ enum GameRules {
     /// upright, so the same offset is scaled differently for each and they
     /// drift apart over the bob. Measured on device by eye at full speed:
     /// either side of this and the lag is visible within a pixel.
-    static let carryFollow: CGFloat = 0.78
+    /// How much of the island's float the piece standing on it takes.
+    ///
+    /// **All of it.** It was 0.78, which is not a thing a passenger can be: a
+    /// figure standing on a moving object moves with the object. The fraction
+    /// was hiding a placement error underneath it, and now that the piece and
+    /// the island are on one camera there is nothing left to hide — anything
+    /// other than 1 reads as the piece sliding on the rock.
+    static let carryFollow: CGFloat = 1
 
     /// How far the piece's shadow is lifted back, in art pixels, against the
     /// drop that seats the figure. Measured on device — see `PieceView`.

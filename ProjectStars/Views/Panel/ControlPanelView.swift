@@ -577,7 +577,6 @@ private struct PanelFrontView: View {
         }
         .overlay(alignment: .topLeading) {
             #if DEBUG
-            perspectiveDials.padding(.leading, 8).padding(.top, 44)
             #endif
         }
         .overlay(alignment: .bottomLeading) {
@@ -906,76 +905,6 @@ private struct PanelFrontView: View {
     /// labels and hand them back; they fold into `GameRules` afterwards.
     ///
     /// - TODO: **Temporary.** Delete with `GameSession.debugFeetDrop` and
-    ///   `debugCarryFollow`.
-    private var perspectiveDials: some View {
-        VStack(alignment: .leading, spacing: 2) {
-            dial(
-                "ASTRA",
-                value: Binding(
-                    get: { session.debugAstraDepth },
-                    set: { session.debugAstraDepth = $0 }
-                ),
-                range: 0...3,
-                unit: "x"
-            )
-            dial(
-                "ZOOM",
-                value: Binding(
-                    get: { session.debugAstraZoom },
-                    set: { session.debugAstraZoom = $0 }
-                ),
-                range: 0.6...1.5,
-                unit: "x"
-            )
-            dial(
-                "PIECE Y",
-                value: Binding(
-                    get: { session.debugPieceY },
-                    set: { session.debugPieceY = $0 }
-                ),
-                range: -8...8,
-                unit: "px"
-            )
-            dial(
-                "CLOUD",
-                value: Binding(
-                    get: { session.debugCloudSize },
-                    set: { session.debugCloudSize = $0 }
-                ),
-                range: 0.6...1.6,
-                unit: "x"
-            )
-            dial(
-                "SPACE X",
-                value: Binding(
-                    get: { session.debugCloudSpreadX },
-                    set: { session.debugCloudSpreadX = $0 }
-                ),
-                range: -0.3...2.4,
-                unit: "x"
-            )
-            dial(
-                "SPACE Y",
-                value: Binding(
-                    get: { session.debugCloudSpreadY },
-                    set: { session.debugCloudSpreadY = $0 }
-                ),
-                range: -0.3...2.4,
-                unit: "x"
-            )
-            dial(
-                "LIFT",
-                value: Binding(
-                    get: { session.debugAstraLift },
-                    set: { session.debugAstraLift = $0 }
-                ),
-                range: -0.1...0.45,
-                unit: ""
-            )
-        }
-        .padding(8)
-        .background(Palette.midnight.opacity(0.85), in: RoundedRectangle(cornerRadius: 8))
-    }
 
     /// One field of the placement, as something a slider can drive.
 

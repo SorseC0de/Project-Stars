@@ -873,61 +873,14 @@ final class GameSession {
     /// cost. The key that sets it is still debug-only.
     var debugFissure = false
 
-    /// Live dials for seating a piece on the island while the board's
-    /// perspective is tuned.
-    ///
-    /// - `debugFeetDrop` is how far an uprighted object is pushed back down, in
-    ///   *art pixels*, and settles whether the piece is centred in the wreath.
-    /// - `debugCarryFollow` is how much of the island's float the piece takes.
-    ///   The island is fully keystoned and the piece is corrected, so their
-    ///   vertical offsets are scaled differently — this is the factor that puts
-    ///   them back in step.
-    ///
-    /// - TODO: **Temporary.** Fold the settled values into `GameRules` and
-    ///   delete these along with the sliders.
-    var debugFeetDrop = Double(GameRules.uprightFeetDrop)
-    var debugCarryFollow = Double(GameRules.carryFollow)
-
-    /// How far the piece's shadow is lifted against the seating drop, in art
-    /// pixels. See `PieceView`.
-    var debugShadowLift = Double(GameRules.pieceShadowPerspectiveLift)
 
 
-    /// How hard Astra's rows shrink with depth. One is the true camera.
-    ///
-    /// - TODO: **Temporary.** Bake into `GameRules` and delete the dial.
-    var debugAstraDepth: Double = Double(GameRules.astraDepthEmphasis)
 
-    /// Astra's own framing zoom, kept apart from Terra's.
-    ///
-    /// Pivoting the depth on the middle row leaves the near row larger than it
-    /// was, so the two planes no longer agree about how big the board is even
-    /// though both are correct about their own shape. Terra's 1.25 is settled;
-    /// this is the one that has to move to meet it.
-    ///
-    /// - TODO: **Temporary.** Bake into `GameRules` and delete the dial.
-    var debugAstraZoom: Double = Double(GameRules.astraForeshortenScale)
 
-    /// How far up the square Astra sits, as a fraction of the board.
-    ///
-    /// - TODO: **Temporary.** Bake into `GameRules` and delete the dial.
-    var debugAstraLift: Double = Double(GameRules.astraForeshortenLift)
 
-    /// How far apart Astra's clouds sit, with no effect on their size.
-    ///
-    /// - TODO: **Temporary.** Bake into `GameRules` and delete the dial.
-    var debugCloudSpreadX: Double = Double(GameRules.cloudSpacingX)
-    var debugCloudSpreadY: Double = Double(GameRules.cloudSpacingY)
 
-    /// How big a cloud is drawn before depth touches it.
-    ///
-    /// - TODO: **Temporary.** Bake into `GameRules` and delete the dial.
-    var debugCloudSize: Double = Double(GameRules.cloudBaseSize)
 
-    /// Where the piece sits on its square, in art pixels.
-    ///
-    /// - TODO: **Temporary.** Bake into `GameRules` and delete the dial.
-    var debugPieceY: Double = Double(GameRules.pieceSeatDrop)
+
 
 
     /// How far each row's ground is stretched to meet the row behind it.

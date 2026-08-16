@@ -696,12 +696,11 @@ struct BoardView: View {
         _ plane: Plane
     ) -> (emphasis: CGFloat, zoom: CGFloat, lift: CGFloat, pivot: CGFloat, spacing: CGSize) {
         plane == .astra
-            ? (CGFloat(session.debugAstraDepth),
-               CGFloat(session.debugAstraZoom),
-               CGFloat(session.debugAstraLift),
+            ? (GameRules.astraDepthEmphasis,
+               GameRules.astraForeshortenScale,
+               GameRules.astraForeshortenLift,
                GameRules.astraDepthPivot,
-               CGSize(width: CGFloat(session.debugCloudSpreadX),
-                      height: CGFloat(session.debugCloudSpreadY)))
+               CGSize(width: GameRules.cloudSpacingX, height: GameRules.cloudSpacingY))
             : (1,
                GameRules.boardForeshortenScale,
                GameRules.boardForeshortenLift,
@@ -760,12 +759,9 @@ struct BoardView: View {
                         clock: session.ambientClock(at:),
                         wake: cloudWake,
                         bounce: surfaceBounce,
-                        emphasis: CGFloat(session.debugAstraDepth),
-                        zoom: CGFloat(session.debugAstraZoom),
-                        lift: CGFloat(session.debugAstraLift),
-                        baseSize: CGFloat(session.debugCloudSize),
-                        separationX: CGFloat(session.debugCloudSpreadX),
-                        separationY: CGFloat(session.debugCloudSpreadY)
+                        emphasis: GameRules.astraDepthEmphasis,
+                        zoom: GameRules.astraForeshortenScale,
+                        lift: GameRules.astraForeshortenLift
                     )
                 } else {
                     CloudFieldView(
@@ -775,12 +771,9 @@ struct BoardView: View {
                         freeze: session.ambientClock(at: Date().timeIntervalSinceReferenceDate),
                         excluding: popped,
                         isPaused: session.isPaused,
-                        emphasis: CGFloat(session.debugAstraDepth),
-                        zoom: CGFloat(session.debugAstraZoom),
-                        lift: CGFloat(session.debugAstraLift),
-                        baseSize: CGFloat(session.debugCloudSize),
-                        separationX: CGFloat(session.debugCloudSpreadX),
-                        separationY: CGFloat(session.debugCloudSpreadY)
+                        emphasis: GameRules.astraDepthEmphasis,
+                        zoom: GameRules.astraForeshortenScale,
+                        lift: GameRules.astraForeshortenLift
                     )
                 }
             }
@@ -1163,8 +1156,7 @@ struct BoardView: View {
                         starElement: starElement
                     )
                     // Where the figure sits on its square, in art pixels.
-                    .offset(y: CGFloat(session.debugPieceY) * metrics.scale)
-                }
+                                    }
             }
         }
         .frame(width: metrics.boardSize, height: metrics.boardSize)
@@ -1467,7 +1459,6 @@ struct BoardView: View {
             scale: metrics.scale,
             plane: session.visiblePlane,
             isCharged: session.engine.isZodiactionReady,
-            shadowLift: CGFloat(session.debugShadowLift),
             twin: session.engine.piece.twin,
             movement: session.movement,
             facing: session.engine.piece.facing,
@@ -1476,7 +1467,7 @@ struct BoardView: View {
             // The island's carry, plus the climb when the archer has thrown
             // himself off the top of the board after his own arrow.
             carryOffset: (session.engine.isOnNexys
-                ? bob * CGFloat(session.debugCarryFollow)
+                ? bob * GameRules.carryFollow
                     - GameRules.nexysRideLift * metrics.scale
                 : 0) + launchLift(metrics: metrics),
             pose: pose,
