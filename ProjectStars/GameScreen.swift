@@ -176,6 +176,7 @@ struct GameScreen: View {
     /// - **1** fills the Zodiaction meter (debug builds only).
     /// - **X** fills *and* pops it, skipping the hold (debug builds only).
     /// - **L** makes the *next* Pentacle an Astral Bolt (debug builds only).
+    /// - **P** makes the *next* Pentacle a Polaris (debug builds only).
     /// - **2** cycles the control scheme (debug builds only).
     private var keyboardCommands: some View {
         ZStack {
@@ -202,6 +203,9 @@ struct GameScreen: View {
 
             Button("Pop Zodiaction") { session.debugPopZodiaction() }
                 .keyboardShortcut("x", modifiers: [])
+
+            Button("Stage Polaris") { session.debugStagePolaris() }
+                .keyboardShortcut("p", modifiers: [])
 
             Button("Stage lightning") { session.debugStageLightning() }
                 .keyboardShortcut("l", modifiers: [])

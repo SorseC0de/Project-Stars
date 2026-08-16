@@ -963,6 +963,17 @@ final class GameSession {
         engine.debugNextPickup = .astralBolt
     }
 
+    /// Stages Polaris as the next Pentacle. Debug builds only.
+    ///
+    /// Staged rather than placed, like the Bolt, so it arrives through the
+    /// ordinary reveal and is the ordinary thing — a coin that is put on the
+    /// board by hand skips the spawn rules, and the spawn rules are half of what
+    /// makes this one Polaris. It still lands where the sparkles say, and it
+    /// still arrives cold on Terra.
+    func debugStagePolaris() {
+        engine.debugNextPickup = .polaris
+    }
+
     /// Sends the Nexys to the other plane. Debug builds only.
     ///
     /// Goes through `GameEngine.planNexysShift()` rather than firing the event
