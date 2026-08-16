@@ -7,57 +7,32 @@
 
 import SwiftUI
 
-/// A lens: the shape two overlapping circles share.
+/// A pointed oval — a football, the shape two overlapping circles share.
 ///
-/// Drawn as two arcs rather than an ellipse because the point of a vesica is the
-/// two corners — an ellipse tapers to nothing and reads as a cat's eye, where
-/// this comes to a point and reads as something looking at you.
+/// Two curves meeting at a point on the left and a point on the right. The
+/// points are the whole reason for it: an ellipse tapers to a round end and
+/// reads as a bubble, where this comes to a corner and reads as an eye.
 struct Vesica: Shape {
 
-    /// How far apart the two circles sit, as a fraction of their radius.
+    /// How fat the shape is between its points, as a fraction of its height.
     ///
-    /// Lower is fatter. At `1` the circles pass through each other's centres,
-    /// which is the classical vesica piscis.
-    var separation: CGFloat = 1
+    /// One fills the frame. Lower is a narrower, meaner eye.
+    var fullness: CGFloat = 1
 
     func path(in rect: CGRect) -> Path {
-        let height = rect.height
-        let width = max(rect.width, 0.001)
-
-        // Radius of the two circles, from the lens' own proportions: a lens of
-        // this width and height is cut by circles of this radius, sitting this
-        // far either side of the middle.
-        let half = height / 2
-        let radius = (width * width / 4 + half * half) / max(width, 0.001)
-        let centre = CGPoint(x: rect.midX, y: rect.midY)
-        let offset = radius - width / 2
+        let left = CGPoint(x: rect.minX, y: rect.midY)
+        let right = CGPoint(x: rect.maxX, y: rect.midY)
+        // Beyond the frame, because a quadratic curve reaches only half way to
+        // its control point — pulling it to twice the half-height is what makes
+        // the curve actually touch the top and bottom of the rect.
+        let bulge = rect.height * fullness
 
         var path = Path()
-        let sweep = asin(min(max(half / radius, -1), 1))
-
-        path.addArc(
-            center: CGPoint(x: centre.x - offset, y: centre.y),
-            radius: radius,
-            startAngle: .radians(-Double(sweep)),
-            endAngle: .radians(Double(sweep)),
-            clockwise: false
-        )
-        path.addArc(
-            center: CGPoint(x: centre.x + offset, y: centre.y),
-            radius: radius,
-            startAngle: .radians(.pi - Double(sweep)),
-            endAngle: .radians(.pi + Double(sweep)),
-            clockwise: false
-        )
+        path.move(to: left)
+        path.addQuadCurve(to: right, control: CGPoint(x: rect.midX, y: rect.midY - bulge))
+        path.addQuadCurve(to: left, control: CGPoint(x: rect.midX, y: rect.midY + bulge))
         path.closeSubpath()
-
-        // Drawn on its side: the lens' long axis is vertical, so an eye is
-        // taller than it is wide before it is slanted.
-        return path.applying(
-            CGAffineTransform(translationX: -centre.x, y: -centre.y)
-                .concatenating(CGAffineTransform(rotationAngle: .pi / 2))
-                .concatenating(CGAffineTransform(translationX: centre.x, y: centre.y))
-        )
+        return path
     }
 }
 
@@ -76,9 +51,6 @@ struct AquariusStorm: View {
 
     /// `0` is the bare pot; `10` is the full tornado.
     var phase: Int = 10
-
-    /// How the storm sits on the figure.
-    var blend: BlendMode = .plusLighter
 
     /// Size of the square this fills, in points.
     var side: CGFloat = 96
@@ -99,12 +71,11 @@ struct AquariusStorm: View {
                         loops: true
                     )
                     .rotationEffect(.degrees(turn(band, at: now)))
-                    .offset(y: rise(band))
+                    .offset(x: sway(band, at: now), y: rise(band))
                     .opacity(fade(band))
                 }
             }
             .frame(width: side, height: side)
-            .blendMode(blend)
         }
     }
 
@@ -113,29 +84,45 @@ struct AquariusStorm: View {
     /// How much of a storm there is at all, `0`…`1`.
     private var strength: Double { Double(min(max(phase, 0), 10)) / 10 }
 
-    /// More bands the fuller the meter — the funnel thickens rather than simply
-    /// growing, so ten does not read as one at a larger size.
-    private var bands: Int { max(Int((strength * 5).rounded()), phase > 0 ? 1 : 0) }
+    /// How many plates are in the stack. A fuller meter is a taller storm.
+    private var bands: Int {
+        phase <= 0 ? 0 : max(Int((strength * 7).rounded()), 2)
+    }
 
-    /// Each band wider than the one below it, so the stack tapers into a funnel.
+    /// **Widest at the top.** A tornado is a cone standing on its point, so
+    /// band `0` at the bottom is the narrow end and each one above it is wider.
     private func bandSize(_ band: Int) -> CGFloat {
-        let step = 1 + CGFloat(band) * (0.22 + 0.18 * strength)
-        return side * 0.42 * step * (0.7 + 0.3 * strength)
+        let up = CGFloat(band) / CGFloat(max(bands - 1, 1))
+        let narrow = side * 0.22
+        let wide = side * (0.62 + 0.24 * strength)
+        return narrow + (wide - narrow) * up
     }
 
-    /// Higher bands sit higher, which is what makes a cone out of rings.
+    /// Stacked close together — the plates touch, so the stack reads as one
+    /// column of air rather than as a set of separate rings.
     private func rise(_ band: Int) -> CGFloat {
-        side * 0.16 - CGFloat(band) * side * 0.11 * (0.6 + 0.4 * strength)
+        let step = side * 0.075
+        return side * 0.22 - CGFloat(band) * step
     }
 
-    /// Each band turns at its own rate, and the top ones faster.
+    /// **Shaking, not spinning.**
     ///
-    /// One speed for all of them reads as a single object spinning; a gradient
-    /// reads as air moving at different speeds, which is what a funnel is.
+    /// Each plate jitters a few degrees either side of straight, on its own
+    /// count, rather than turning continuously. A spin reads as a solid object
+    /// rotating; a shake reads as the plate being buffeted, and a stack of them
+    /// slightly out of step with each other is what makes the column look like
+    /// it is being driven from below.
     private func turn(_ band: Int, at now: TimeInterval) -> Double {
-        let speed = (40 + Double(band) * 26) * (0.4 + 0.6 * strength)
-        let direction: Double = band.isMultiple(of: 2) ? 1 : -1
-        return now * speed * direction
+        let amplitude = (3 + Double(band) * 0.8) * (0.4 + 0.6 * strength)
+        let speed = 7 + Double(band) * 1.7
+        let phaseOffset = Double(band) * 1.1
+        return sin(now * speed + phaseOffset) * amplitude
+    }
+
+    /// And a matching sway across, so a plate is not shaking on the spot.
+    private func sway(_ band: Int, at now: TimeInterval) -> CGFloat {
+        let amplitude = side * 0.012 * CGFloat(1 + band) * CGFloat(0.4 + 0.6 * strength)
+        return CGFloat(cos(now * (5.5 + Double(band) * 1.3) + Double(band) * 0.7)) * amplitude
     }
 
     /// The outermost band is the thinnest — the storm frays at its edge.
@@ -153,14 +140,18 @@ struct StormEyes: View {
     /// How far apart they sit, centre to centre.
     var spacing: CGFloat = 20
 
-    /// Slanted **toward** each other, which is what makes a pair of shapes read
-    /// as a glare rather than as two marks.
+    /// Slanted so the **inner** ends drop, which is a scowl. Slanting the outer
+    /// ends down instead reads as sad, and the two are the same number with the
+    /// sign flipped — which is why this is stated rather than eyeballed.
     var slant: Double = 18
 
-    var tint: Color = Palette.cyan
+    /// Purple: air's colour everywhere else in the game.
+    var tint: Color = ElementFX.ramp(for: .air).bright
 
     var body: some View {
         HStack(spacing: spacing - width) {
+            // Left eye's inner end is its right one, so a positive turn drops
+            // it. The right eye is the mirror.
             eye(turned: slant)
             eye(turned: -slant)
         }
@@ -223,20 +214,32 @@ struct AquariusStormGallery: View {
     /// passing across it rather than as a decal stuck to it.
     private var stack: some View {
         ZStack {
+            AquariusStorm(phase: phase, side: 180, scale: 3)
+
+            // **The silhouette is on top and it is the thing that blends.**
+            //
+            // Under a mode like multiply a black shape drawn over the funnel
+            // darkens what is behind it instead of covering it, which is what
+            // makes the figure look like it is *inside* the storm rather than
+            // standing in front of a picture of one. Blending the wind instead
+            // — with the piece behind it — can only ever look like weather
+            // painted over a statue.
             if showsSilhouette {
                 PixelSprite(id: .piece(.aquarius)) { Color.clear }
                     .frame(width: 48, height: 96)
                     .colorEffect(ShaderLibrary.flatSilhouette(.color(Palette.midnight)))
                     .offset(y: -12)
+                    .blendMode(blend)
             }
 
+            // Over both, and never blended: the eyes are the one thing meant to
+            // be seen through the storm rather than sunk into it.
             if showsEyes {
                 StormEyes(width: 18, spacing: 24)
                     .offset(y: -26)
             }
-
-            AquariusStorm(phase: phase, blend: blend, side: 180, scale: 3)
         }
+        .compositingGroup()
     }
 
     private var controls: some View {
