@@ -498,6 +498,20 @@ struct AquariusStormPiece: View {
                 )
             }
             .frame(width: 300, height: 300)
+            // Flattened to one texture per frame.
+            //
+            // Thirteen plates, two eye plates, the silhouette and three glow
+            // copies are twenty-odd separately blended layers, and every one of
+            // them is composited on its own every frame. Grouping collapses the
+            // lot into a single offscreen pass — the same fix the gem trail
+            // needed, and the reason the doc note said to flatten once the look
+            // was settled.
+            //
+            // Safe at 300 because that is the space the assembly was built in:
+            // nothing in it reaches past that square, so there is nothing for
+            // the group's bounds to cut off. Flattening *after* the scale would
+            // clip it, which is the mistake the charge bloom made.
+            .drawingGroup()
             .compositingGroup()
             .scaleEffect(scale * tileSize * GameRules.aquariusStormTiles / 300)
             // Laid out as a piece, not as the 300-point square it is built in.
