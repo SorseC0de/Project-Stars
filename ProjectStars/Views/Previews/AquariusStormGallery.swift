@@ -76,6 +76,12 @@ struct AquariusStorm: View {
     /// How far the eye plates turn, either way.
     var eyeTurn: Double = 4
 
+    /// What fraction of the stack's sway the eye plates take.
+    ///
+    /// A fraction rather than all of it: the eye is deeper in the column than
+    /// the wall around it, and things further away move less.
+    var eyeSway: CGFloat = 0.35
+
     /// How big the second eye plate is against the first.
     var eyeTwinScale: CGFloat = 0.75
 
@@ -184,7 +190,7 @@ struct AquariusStorm: View {
         // that holds still while the wall of air moves reads as a hole in the
         // picture rather than a hole in the storm.
         .offset(
-            x: sway(bands - 1, at: now) * 1.6,
+            x: sway(bands - 1, at: now) * eyeSway,
             y: rise(bands - 1) + side * height
         )
         .blendMode(blend)
@@ -345,6 +351,8 @@ struct AquariusStormGallery: View {
     @State private var width: Double = 1
     @State private var eyeTurn: Double = 8
     @State private var eyeTwinScale: Double = 0.75
+    @State private var eyeSway: Double = 0.35
+    @State private var eyeOffset: Double = -54
     @State private var figureY: Double = -125
     @State private var eyeY: Double = -0.05
     @State private var eyeTwinY: Double = -0.1
@@ -403,6 +411,15 @@ struct AquariusStormGallery: View {
 
         let blend: BlendMode
 
+        /// Drawn with him, so they turn, rise and breathe as he does.
+        ///
+        /// Kept outside the blend but inside the transform: the eyes are his,
+        /// not the storm's, and eyes that stay level while the head they belong
+        /// to leans are the fastest way to make something look pasted on.
+        var showsEyes = true
+        var glow: CGFloat = 1
+        var eyeOffset: CGFloat = -54
+
         /// How far he turns either way, in degrees.
         var turn: Double = 12
 
@@ -419,16 +436,23 @@ struct AquariusStormGallery: View {
                 let lift = sin(now / 3.7 * 2 * .pi) * 14
                 let breath = 1 + sin(now / 4.3 * 2 * .pi) * 0.1
 
-                PixelSprite(id: .piece(.aquarius)) { Color.clear }
-                    .frame(width: 132 * size, height: 264 * size)
-                    .colorEffect(ShaderLibrary.flatSilhouette(.color(Palette.midnight)))
-                    .scaleEffect(breath)
-                    .rotationEffect(.degrees(sway))
-                    // Raised: he hangs in the funnel rather than standing under
-                    // it, which is the whole picture — something held up by the
-                    // storm, not something the storm is happening around.
-                    .offset(y: height + lift)
-                    .blendMode(blend)
+                ZStack {
+                    PixelSprite(id: .piece(.aquarius)) { Color.clear }
+                        .frame(width: 132 * size, height: 264 * size)
+                        .colorEffect(ShaderLibrary.flatSilhouette(.color(Palette.midnight)))
+                        .blendMode(blend)
+
+                    if showsEyes {
+                        StormEyes(width: 40 * size, spacing: 46 * size, glow: glow)
+                            .offset(y: eyeOffset * size)
+                    }
+                }
+                .scaleEffect(breath)
+                .rotationEffect(.degrees(sway))
+                // Raised: he hangs in the funnel rather than standing under it,
+                // which is the whole picture — something held up by the storm,
+                // not something the storm is happening around.
+                .offset(y: height + lift)
             }
         }
     }
@@ -469,6 +493,7 @@ struct AquariusStormGallery: View {
                 bladeScale: CGFloat(bladeScale),
                 width: CGFloat(width),
                 eyeTurn: eyeTurn,
+                eyeSway: CGFloat(eyeSway),
                 eyeTwinScale: CGFloat(eyeTwinScale),
                 eyeScale: CGFloat(eyeScale),
                 eyeBlend: eyeBlend,
@@ -493,17 +518,13 @@ struct AquariusStormGallery: View {
                 // reveal does.
                 FloatingSilhouette(
                     blend: blend,
+                    showsEyes: showsEyes,
+                    glow: CGFloat(glow),
+                    eyeOffset: CGFloat(eyeOffset),
                     turn: figureTurn,
                     size: CGFloat(figureScale),
                     height: CGFloat(figureY)
                 )
-            }
-
-            // Over both, and never blended: the eyes are the one thing meant to
-            // be seen through the storm rather than sunk into it.
-            if showsEyes {
-                StormEyes(width: 40, spacing: 46, glow: CGFloat(glow))
-                    .offset(y: -54)
             }
         }
         // Grouped first, then scaled as one.
@@ -595,6 +616,8 @@ struct AquariusStormGallery: View {
             knob("WIDTH", $width, 0.6...2, "x")
             knob("EYE TURN", $eyeTurn, 0...30, "°")
             knob("EYE2", $eyeTwinScale, 0.4...1.4, "x")
+            knob("EYE SWAY", $eyeSway, 0...1, "x")
+            knob("GLOW Y", $eyeOffset, -140...20, "pt")
             knob("EYE Y", $eyeY, -0.3...0.3, "x")
             knob("EYE2 Y", $eyeTwinY, -0.3...0.3, "x")
             knob("BODY Y", $figureY, -160...40, "pt")
