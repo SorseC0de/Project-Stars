@@ -344,6 +344,7 @@ struct AquariusStormGallery: View {
     @State private var eyeTwinScale: Double = Double(GameRules.aquariusEyeTwinScale)
     @State private var eyeSway: Double = Double(GameRules.aquariusEyeSway)
     @State private var eyeOffset: Double = Double(GameRules.aquariusEyeGlowY)
+    @State private var eyeFollow: Double = 1
     @State private var figureY: Double = Double(GameRules.aquariusFigureY)
     @State private var eyeY: Double = Double(GameRules.aquariusEyeY)
     @State private var eyeTwinY: Double = Double(GameRules.aquariusEyeTwinY)
@@ -410,6 +411,9 @@ struct AquariusStormGallery: View {
         var showsEyes = true
         var eyeOffset: CGFloat = GameRules.aquariusEyeGlowY
 
+        /// How much of the figure's shrink the eyes follow. See below.
+        var follow: CGFloat = 1
+
         /// How far he turns either way, in degrees.
         var turn: Double = 12
 
@@ -468,12 +472,19 @@ struct AquariusStormGallery: View {
                         // so they should not be carried up by it. The bob and
                         // the turn they *do* take, because those are him
                         // moving rather than him being put somewhere.
-                        // Smaller with him, but falling only as far as he
-                        // does. The drop already comes from the stack they
-                        // share, so scaling their height as well moved them
-                        // twice and they sank past him.
+                        // How much of the shrink they follow, as a knob.
+                        //
+                        // His feet are pinned, so his **centre** drops by half
+                        // of what he loses and his **head** drops by all of it
+                        // — twice as far. The eyes sit between the two and I
+                        // have guessed wrong in both directions, so this is the
+                        // term itself: 0 keeps them level, 1 rides his centre,
+                        // 2 rides his head.
                         StormEyes(width: 40 * shrink, spacing: 46 * shrink, glow: burn)
-                            .offset(y: eyeOffset - height)
+                            .offset(
+                                y: eyeOffset - height
+                                    + (follow - 1) * 132 * size * (1 - shrink)
+                            )
                     }
                 }
                 .scaleEffect(breath)
@@ -554,6 +565,7 @@ struct AquariusStormGallery: View {
                     blend: blend,
                     showsEyes: showsEyes,
                     eyeOffset: CGFloat(eyeOffset),
+                    follow: CGFloat(eyeFollow),
                     turn: figureTurn,
                     size: CGFloat(figureScale),
                     strength: Double(min(max(phase, 0), 10)) / 10,
@@ -650,6 +662,7 @@ struct AquariusStormGallery: View {
             knob("EYE2", $eyeTwinScale, 0.4...1.4, "x")
             knob("EYE SWAY", $eyeSway, 0...1, "x")
             knob("GLOW Y", $eyeOffset, -140...20, "pt")
+            knob("EYE FOLLOW", $eyeFollow, 0...2, "x")
             knob("EYE Y", $eyeY, -0.3...0.3, "x")
             knob("EYE2 Y", $eyeTwinY, -0.3...0.3, "x")
             knob("BODY Y", $figureY, -160...40, "pt")
