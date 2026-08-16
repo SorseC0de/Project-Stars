@@ -83,7 +83,9 @@ struct SkyView: View {
                 endPoint: .bottom
             )
 
-            TimelineView(.animation) { timeline in
+            TimelineView(
+                .animation(minimumInterval: 1 / GameRules.ambientFrameRate)
+            ) { timeline in
                 Canvas { context, size in
                     let now = clock(timeline.date.timeIntervalSinceReferenceDate)
 

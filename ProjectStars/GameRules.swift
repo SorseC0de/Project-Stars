@@ -1163,6 +1163,15 @@ enum GameRules {
     /// more than they need, and pixel art has never wanted more.
     static let cloudFrameRate: Double = 30
 
+    /// How often the sky redraws itself, in frames a second.
+    ///
+    /// Slow on purpose. A star twinkles over seconds and a cloud drifts over
+    /// several, so drawing either at the display's rate is spending a hundred
+    /// and twenty frames to show twelve frames' worth of change. On a still
+    /// board these are the only things moving, and they were setting the whole
+    /// game's frame rate.
+    static let ambientFrameRate: Double = 12
+
     /// How long the piece takes to pick up its cloud's sway after landing.
     ///
     /// The sway belongs to standing still — mid-hop the piece is off the cloud

@@ -109,7 +109,10 @@ struct CloudSpriteField: View {
     var separationY: CGFloat = GameRules.cloudSpacingY
 
     var body: some View {
-        TimelineView(.animation) { timeline in
+        // Forty-nine clusters, each a sprite with its own wander and breath —
+        // the most expensive still thing on the board, and none of it moves
+        // fast enough to need a frame a frame.
+        TimelineView(.animation(minimumInterval: 1 / GameRules.cloudFrameRate)) { timeline in
             let now = clock(timeline.date.timeIntervalSinceReferenceDate)
 
             // Padded well past the board on every side.
