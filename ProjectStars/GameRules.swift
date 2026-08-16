@@ -2667,6 +2667,14 @@ enum GameRules {
     /// The whole assembly against a board square.
     static let aquariusStormScale: CGFloat = 0.75
 
+    /// How many board squares the tuned assembly is meant to span.
+    ///
+    /// It is built at the 300-point size it was judged at and scaled once, so
+    /// this is the only thing that says how big that is on a board. Scaling it
+    /// to one tile made everything correct and minute; the funnel is a few
+    /// squares across by design.
+    static let aquariusStormTiles: CGFloat = 3
+
     /// How much smaller the figure and his eyes are at an **empty** meter.
     ///
     /// The bluff, and it runs the way the storm does rather than against it:

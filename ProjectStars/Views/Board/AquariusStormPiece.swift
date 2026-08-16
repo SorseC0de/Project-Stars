@@ -499,7 +499,7 @@ struct AquariusStormPiece: View {
             }
             .frame(width: 300, height: 300)
             .compositingGroup()
-            .scaleEffect(scale * tileSize / 300)
+            .scaleEffect(scale * tileSize * GameRules.aquariusStormTiles / 300)
         }
     }
 }
