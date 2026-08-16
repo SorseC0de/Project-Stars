@@ -66,7 +66,7 @@ extension ZodiacCatalog {
 struct CapricornCapableClimber: ZodiacPassive {
 
     let displayName = "Capable Climber"
-    let summary = "Astra & Terra: northward moves may vault 2 tiles instead of 1."
+    let summary = "Astra & Terra: northward moves may vault 2 tiles instead of stepping 1."
 
     func adjustedMovement(base: MovementPattern, context: PassiveContext) -> MovementPattern {
         .mountainClimber

@@ -759,11 +759,24 @@ private struct PanelFrontView: View {
         // scheme is. Aiming a warp with a joystick means projecting a *move*,
         // which is the one thing a free choice of square is not — and the board
         // is at the top of the screen where the answer is hardest to reach.
+        #if DEBUG
+        // The spawner's board takes the row while it is holding something, for
+        // the same reason the real pad does: the question is *which square*,
+        // and the board on screen is at the top where the thumb is not.
+        if session.debugSpawning != nil {
+            DebugSpawnGrid(session: session, side: PanelStyle.movementRowHeight)
+        } else if session.isChoosingTile {
+            GridPadView(session: session, side: PanelStyle.movementRowHeight)
+        } else {
+            movementScheme
+        }
+        #else
         if session.isChoosingTile {
             GridPadView(session: session, side: PanelStyle.movementRowHeight)
         } else {
             movementScheme
         }
+        #endif
     }
 
     @ViewBuilder
