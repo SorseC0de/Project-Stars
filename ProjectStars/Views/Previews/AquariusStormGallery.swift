@@ -264,6 +264,7 @@ struct AquariusStormGallery: View {
     @State private var eyeBlend: BlendMode = .multiply
     @State private var figureScale: Double = 1.25
     @State private var figureTurn: Double = 12
+    @State private var groupScale: Double = 1
     @State private var spread: Double = 2
     @State private var height: Double = 0.1
     @State private var taper: Double = 5
@@ -401,7 +402,14 @@ struct AquariusStormGallery: View {
                     .offset(y: -54)
             }
         }
+        // Grouped first, then scaled as one.
+        //
+        // The whole assembly against the board is a different question from any
+        // of its parts against each other — a funnel that reads right on its own
+        // can still be the wrong size for a square. Scaling the group keeps
+        // every proportion inside it exactly as tuned.
         .compositingGroup()
+        .scaleEffect(CGFloat(groupScale))
     }
 
     /// One labelled slider with the number beside it.
@@ -480,6 +488,7 @@ struct AquariusStormGallery: View {
             knob("EYE", $eyeScale, 0.8...2.2, "x")
             knob("FIGURE", $figureScale, 0.6...2.4, "x")
             knob("TURN", $figureTurn, 0...40, "°")
+            knob("ALL", $groupScale, 0.3...2, "x")
 
             Picker("Blend", selection: $blend) {
                 ForEach(BlendMode.allCases, id: \.self) { mode in
