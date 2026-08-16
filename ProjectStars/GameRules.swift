@@ -1967,14 +1967,14 @@ enum GameRules {
     /// Just above the top of the faux Terra below, so the light has arrived by
     /// the time the ground does. Derived from `groundBelowHeight` rather than
     /// written twice, so moving the horizon moves the gradient with it.
-    static var astraSkyFade: CGFloat { 1 - groundBelowHeight - 0.05 }
+    static var astraSkyFade: CGFloat { groundBelowHeight + 0.05 }
 
     /// Where Astra's stars have finished fading out, down the upper square.
     ///
     /// Above the sky's own fade, so the last star is gone before the blue
     /// arrives. Stars in daylight are the tell that a starfield was laid over a
     /// gradient rather than being the far half of one sky.
-    static var astraStarFade: CGFloat { astraSkyFade - 0.2 }
+    static var astraStarFade: CGFloat { astraSkyFade * 0.7 }
 
     /// How far off each edge of the screen it is held, as a fraction of the
     /// square. Run edge to edge it reads as a fitted carpet; inset, as a
