@@ -691,36 +691,19 @@ private struct PanelFrontView: View {
     /// - TODO: **Debug only.** Never ships.
     private var spawnerButton: some View {
         iMAPicker(items: PickupID.allCases, selection: $spawning) {
-            // The face only — **not** a `CelButton`.
+            // The face, drawn by `CelButton` with no action of its own.
             //
             // A button inside a button never gets the tap it looks like it
-            // should: the inner one takes it, and switching the inner one off
-            // with `allowsHitTesting(false)` takes the whole label out of hit
-            // testing, leaving the outer button with nothing to hit. So the
-            // label here is scenery and the picker is the only control.
-            ZStack {
-                RoundedRectangle(cornerRadius: PanelStyle.buttonCorner)
-                    .fill(Palette.blue)
-                    .offset(y: PanelStyle.buttonDepth)
-
-                RoundedRectangle(cornerRadius: PanelStyle.buttonCorner)
-                    .fill(Palette.purple)
-                    .overlay {
-                        RoundedRectangle(cornerRadius: PanelStyle.buttonCorner)
-                            .fill(Palette.yellowGreen)
-                            .padding(PanelStyle.buttonHighlightInset)
-                            .mask(alignment: .top) {
-                                Rectangle()
-                                    .frame(maxHeight: PanelStyle.buttonHighlightHeight)
-                            }
-                    }
-
+            // should — the inner one takes it — so this one does nothing and
+            // the picker around it is the only control. It still derives its
+            // three faces from the one tint like every other button here.
+            CelButton(tint: Palette.magenta) {} label: {
                 Image(systemName: "wand.and.sparkles")
                     .font(.system(size: PanelStyle.chromeGlyphSize, weight: .black))
-                    .foregroundStyle(Palette.white)
             }
             .frame(width: PanelStyle.chromeButtonWidth,
                    height: PanelStyle.chromeButtonHeight)
+            .disabled(true)
             .contentShape(Rectangle())
         } row: { id, isSelected in
             HStack(spacing: 12) {
@@ -1854,15 +1837,6 @@ struct CelButton<Label: View>: View {
     var depth: CGFloat = PanelStyle.buttonDepth
     var isEnabled: Bool = true
 
-    /// The lit plane and the side, when they should not come off the tint.
-    ///
-    /// Every button in the panel derives both from its face, which is what
-    /// keeps them looking like one set. A button that is deliberately not part
-    /// of that set — the debug spawner — says so by not obeying the rule, and
-    /// that is easier to read at a glance than any label would be.
-    var highlight: Color?
-    var shadow: Color?
-
     /// Whether a touch would land *right now*.
     ///
     /// Separate from `isEnabled` because they answer different questions. A
@@ -1884,7 +1858,7 @@ struct CelButton<Label: View>: View {
             // The rim, standing proud below the face. Its own shape rather than
             // a border, so the button has a genuine side.
             RoundedRectangle(cornerRadius: PanelStyle.buttonCorner)
-                .fill(isEnabled ? (shadow ?? face.celShadow) : face.celShadow)
+                .fill(face.celShadow)
                 .offset(y: depth)
 
             RoundedRectangle(cornerRadius: PanelStyle.buttonCorner)
@@ -1892,7 +1866,7 @@ struct CelButton<Label: View>: View {
                 .overlay {
                     // One hard-edged lighter plane across the top, not a sheen.
                     RoundedRectangle(cornerRadius: PanelStyle.buttonCorner)
-                        .fill(isEnabled ? (highlight ?? face.celHighlight) : face.celHighlight)
+                        .fill(face.celHighlight)
                         .padding(PanelStyle.buttonHighlightInset)
                         .mask(alignment: .top) {
                             Rectangle().frame(maxHeight: PanelStyle.buttonHighlightHeight)
