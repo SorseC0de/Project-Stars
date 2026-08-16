@@ -343,20 +343,46 @@ struct AquariusStormGallery: View {
         _ name: String,
         _ value: Binding<Double>,
         _ range: ClosedRange<Double>,
-        _ unit: String
+        _ unit: String,
+        step: Double? = nil
     ) -> some View {
         HStack(spacing: 8) {
             Text(name)
                 .font(.system(size: 9, weight: .heavy, design: .monospaced))
                 .foregroundStyle(Palette.textSecondary)
-                .frame(width: 62, alignment: .leading)
+                .frame(width: 58, alignment: .leading)
 
-            Slider(value: value, in: range).tint(Palette.purple)
+            // A count of frames is a count. Without the step the slider lands
+            // on 1.37 frames, which the taper then has to round anyway — so the
+            // number on screen disagrees with what is being drawn.
+            if let step {
+                Slider(value: value, in: range, step: step).tint(Palette.purple)
+            } else {
+                Slider(value: value, in: range).tint(Palette.purple)
+            }
 
-            Text(String(format: "%.2f\(unit)", value.wrappedValue))
+            // Typed, for the same reason the board's dials needed it: a slider
+            // is a couple of hundredths per pixel across its track, so landing
+            // on a chosen value is luck.
+            TextField(
+                "",
+                value: value,
+                format: .number.precision(.fractionLength(step == nil ? 0...3 : 0...0))
+            )
+            .textFieldStyle(.plain)
+            .keyboardType(.numbersAndPunctuation)
+            .multilineTextAlignment(.trailing)
+            .font(.system(size: 9, weight: .heavy, design: .monospaced))
+            .foregroundStyle(Palette.white)
+            .frame(width: 42)
+            .padding(.horizontal, 4)
+            .padding(.vertical, 2)
+            .background(RoundedRectangle(cornerRadius: 4).fill(Palette.midnight.opacity(0.6)))
+
+            Text(unit)
                 .font(.system(size: 9, weight: .heavy, design: .monospaced))
-                .foregroundStyle(Palette.white)
-                .frame(width: 48, alignment: .trailing)
+                .foregroundStyle(Palette.textSecondary)
+                .frame(width: 12, alignment: .leading)
         }
     }
 
@@ -384,7 +410,7 @@ struct AquariusStormGallery: View {
             knob("STAGGER", $spread, 0...3, "x")
             knob("HEIGHT", $height, 0.1...0.9, "x")
             knob("BLADE", $bladeScale, 0.2...1.6, "x")
-            knob("TAPER", $taper, 0...8, "f")
+            knob("TAPER", $taper, 0...8, "f", step: 1)
 
             Picker("Blend", selection: $blend) {
                 ForEach(blends, id: \.1) { name, mode in
