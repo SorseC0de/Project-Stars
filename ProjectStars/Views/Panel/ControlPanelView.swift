@@ -577,7 +577,6 @@ private struct PanelFrontView: View {
         }
         .overlay(alignment: .topLeading) {
             #if DEBUG
-            aquariusDials.padding(.leading, 8).padding(.top, 44)
             #endif
         }
         .overlay(alignment: .bottomLeading) {
@@ -903,20 +902,6 @@ private struct PanelFrontView: View {
     }
 
 
-
-    /// - TODO: **Temporary.** Delete with `GameSession.debugAquarius*`.
-    private var aquariusDials: some View {
-        VStack(alignment: .leading, spacing: 2) {
-            dial("PHASE", value: Binding(
-                get: { session.debugAquariusPhase },
-                set: { session.debugAquariusPhase = $0 }
-            ), range: 0...10, unit: "")
-            dial("STORM", value: Binding(
-                get: { session.debugAquariusScale },
-                set: { session.debugAquariusScale = $0 }
-            ), range: 0.2...2, unit: "x")
-        }
-    }
 
     private func dial(
         _ name: String,

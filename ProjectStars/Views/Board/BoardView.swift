@@ -157,7 +157,6 @@ struct BoardView: View {
                 )
             }
 
-            aquariusProof(metrics: metrics)
             constellation(metrics: metrics)
             warpBeam(metrics: metrics)
             fallingCloud(metrics: metrics)
@@ -1646,7 +1645,8 @@ struct BoardView: View {
             shadowScale: shadowScale,
             chargeFlash: flash,
             starElement: starElement,
-            clock: session.ambientClock(at:)
+            clock: session.ambientClock(at:),
+            stormPhase: aquariusPhase
         )
         // The launch itself: a fast climb rather than a spring, because it is
         // meant to leave rather than to arrive somewhere.
@@ -2261,19 +2261,15 @@ struct BoardView: View {
             : SmokeSpriteView.cloudSwaps
     }
 
-    /// Aquarius' storm, standing on a square so it can be judged against the
-    /// board rather than against a gallery's black square.
+    /// How much storm Aquarius is wearing, from his meter.
     ///
-    /// - TODO: **Temporary.** Comes out when the sign is wired to its meter.
-    @ViewBuilder
-    private func aquariusProof(metrics: PixelArtMetrics) -> some View {
-        AquariusStormPiece(
-            phase: Int(session.debugAquariusPhase.rounded()),
-            tileSize: metrics.tileSize,
-            scale: CGFloat(session.debugAquariusScale)
-        )
-        .modifier(placedOnPlaneModifier(GridPoint(3, 6), metrics: metrics))
-        .allowsHitTesting(false)
+    /// - TODO: The sign's meter is meant to read backwards — full at the start,
+    ///   spent at zero — so this will want *readiness* rather than the
+    ///   displayed charge once that lands. See the Aquarius rework.
+    private var aquariusPhase: Int {
+        guard session.zodiac == .aquarius, session.zodiactionMeterMax > 0 else { return 0 }
+        let full = Double(session.zodiactionMeter) / Double(session.zodiactionMeterMax)
+        return Int((full * 10).rounded())
     }
 
     /// Sparkles thrown off by an opened Pentacle.

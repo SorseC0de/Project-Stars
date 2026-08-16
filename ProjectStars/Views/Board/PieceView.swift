@@ -101,6 +101,11 @@ struct PieceView: View {
     /// The ambient clock, which stops while the game waits on the player.
     var clock: (TimeInterval) -> TimeInterval = { $0 }
 
+    /// How much storm Aquarius is wearing, `0`…`10`.
+    ///
+    /// Zero is the bare statue, which is what every other sign always is.
+    var stormPhase: Int = 0
+
     var body: some View {
         ZStack {
             // The shadow stays on the tile while the figure rises off it, which
@@ -161,8 +166,17 @@ struct PieceView: View {
     /// All of it is generated from the one gold sheet. Only Pisces was ever
     /// drawn in stone; every other sign gets its stone form from here, which is
     /// eleven sprites nobody has to draw twice.
+    @ViewBuilder
     private var figure: some View {
-        lit.colorFlash(ElementFX.ramp(for: zodiac.element).mid, amount: chargeFlash)
+        // Aquarius is not a statue with an effect on it — above zero he *is*
+        // the storm, and the statue is what is left when it goes. So the whole
+        // material path is skipped rather than layered under: no stone, no
+        // gold, no gem, because none of those are visible through a funnel.
+        if zodiac == .aquarius, stormPhase > 0 {
+            AquariusStormPiece(phase: stormPhase, tileSize: tileSize)
+        } else {
+            lit.colorFlash(ElementFX.ramp(for: zodiac.element).mid, amount: chargeFlash)
+        }
     }
 
     /// The sprite with its gem lit, before any flash is laid over it.
