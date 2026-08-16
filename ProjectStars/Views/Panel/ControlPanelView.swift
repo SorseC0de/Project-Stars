@@ -691,19 +691,37 @@ private struct PanelFrontView: View {
     /// - TODO: **Debug only.** Never ships.
     private var spawnerButton: some View {
         iMAPicker(items: PickupID.allCases, selection: $spawning) {
-            CelButton(
-                tint: Palette.purple,
-                highlight: Palette.yellowGreen,
-                shadow: Palette.blue
-            ) {
-                // The picker's own Button drives this; nothing to do here.
-            } label: {
+            // The face only — **not** a `CelButton`.
+            //
+            // A button inside a button never gets the tap it looks like it
+            // should: the inner one takes it, and switching the inner one off
+            // with `allowsHitTesting(false)` takes the whole label out of hit
+            // testing, leaving the outer button with nothing to hit. So the
+            // label here is scenery and the picker is the only control.
+            ZStack {
+                RoundedRectangle(cornerRadius: PanelStyle.buttonCorner)
+                    .fill(Palette.blue)
+                    .offset(y: PanelStyle.buttonDepth)
+
+                RoundedRectangle(cornerRadius: PanelStyle.buttonCorner)
+                    .fill(Palette.purple)
+                    .overlay {
+                        RoundedRectangle(cornerRadius: PanelStyle.buttonCorner)
+                            .fill(Palette.yellowGreen)
+                            .padding(PanelStyle.buttonHighlightInset)
+                            .mask(alignment: .top) {
+                                Rectangle()
+                                    .frame(maxHeight: PanelStyle.buttonHighlightHeight)
+                            }
+                    }
+
                 Image(systemName: "wand.and.sparkles")
                     .font(.system(size: PanelStyle.chromeGlyphSize, weight: .black))
+                    .foregroundStyle(Palette.white)
             }
             .frame(width: PanelStyle.chromeButtonWidth,
                    height: PanelStyle.chromeButtonHeight)
-            .allowsHitTesting(false)
+            .contentShape(Rectangle())
         } row: { id, isSelected in
             HStack(spacing: 12) {
                 Text(PickupCatalog.effect(for: id).glyph)
