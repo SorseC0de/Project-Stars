@@ -361,8 +361,12 @@ struct PieceView: View {
                     outerGem(across: -across, dip: dip)
                     outerGem(across: across, dip: dip, mirrored: true)
 
+                    // Falling and swelling together, so it reads as coming
+                    // toward the viewer rather than sliding down.
+                    let drop = (1 - cos(bob)) / 2
                     PixelSprite(id: .virgoGem(.middle)) { Color.clear }
-                        .offset(y: (1 - cos(bob)) / 2 * GameRules.virgoGemFloat * scale)
+                        .scaleEffect(1 + drop * GameRules.virgoGemFloatGrowth)
+                        .offset(y: drop * GameRules.virgoGemFloat * scale)
                 }
             }
             .frame(width: tileSize, height: tileSize)

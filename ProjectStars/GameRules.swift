@@ -2644,6 +2644,14 @@ enum GameRules {
     static let virgoGemFloat: CGFloat = 6
     static let virgoGemFloatPeriod: TimeInterval = 2.3
 
+    /// How much bigger the middle gem is at the bottom of its fall.
+    ///
+    /// Dropping and growing together is the plainest way to say a thing is
+    /// coming *toward* the viewer rather than sliding down a wall — the same
+    /// reading the board's rows get for free from the perspective, which a gem
+    /// hanging in front of everything cannot use.
+    static let virgoGemFloatGrowth: CGFloat = 0.18
+
     static let facingArrowLift: CGFloat = 4
 
     /// Added on Astra, where the ground is spread further apart vertically.
