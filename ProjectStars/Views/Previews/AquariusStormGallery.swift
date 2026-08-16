@@ -254,9 +254,14 @@ struct AquariusStormGallery: View {
 
             ZStack {
                 Palette.coolBlack
+                // Real tiles behind it, at the size the board draws them, so
+                // "how big is this" has an answer in the picture rather than in
+                // a number — a storm that looks right against nothing can still
+                // be three squares wide.
+                boardGrid
                 stack
             }
-            .frame(width: 220, height: 220)
+            .frame(width: 330, height: 330)
             .clipShape(RoundedRectangle(cornerRadius: 10))
 
             controls
@@ -264,6 +269,27 @@ struct AquariusStormGallery: View {
         .padding(20)
         .frame(maxWidth: .infinity, maxHeight: .infinity)
         .background(Palette.background)
+    }
+
+    /// A patch of Terra at board scale, to judge the storm against.
+    private var boardGrid: some View {
+        let tile: CGFloat = 66
+        return VStack(spacing: 0) {
+            ForEach(0..<5, id: \.self) { row in
+                HStack(spacing: 0) {
+                    ForEach(0..<5, id: \.self) { column in
+                        TileView(
+                            tile: Tile(),
+                            plane: .terra,
+                            shade: .at(GridPoint(column, row)),
+                            size: tile
+                        )
+                        .frame(width: tile, height: tile)
+                    }
+                }
+            }
+        }
+        .opacity(0.5)
     }
 
     /// The silhouette under the storm, the storm, and the eyes inside it.
@@ -279,8 +305,8 @@ struct AquariusStormGallery: View {
                 spread: spread,
                 taper: Int(taper.rounded()),
                 bladeScale: CGFloat(bladeScale),
-                side: 180,
-                scale: 3
+                side: 300,
+                scale: 4
             )
 
             // **The silhouette is on top and it is the thing that blends.**
@@ -296,17 +322,17 @@ struct AquariusStormGallery: View {
                 // it is, and a small silhouette gives that away before the
                 // reveal does.
                 PixelSprite(id: .piece(.aquarius)) { Color.clear }
-                    .frame(width: 84, height: 168)
+                    .frame(width: 132, height: 264)
                     .colorEffect(ShaderLibrary.flatSilhouette(.color(Palette.midnight)))
-                    .offset(y: -20)
+                    .offset(y: -32)
                     .blendMode(blend)
             }
 
             // Over both, and never blended: the eyes are the one thing meant to
             // be seen through the storm rather than sunk into it.
             if showsEyes {
-                StormEyes(width: 26, spacing: 30, slant: slant, slit: CGFloat(slit))
-                    .offset(y: -34)
+                StormEyes(width: 40, spacing: 46, slant: slant, slit: CGFloat(slit))
+                    .offset(y: -54)
             }
         }
         .compositingGroup()
