@@ -685,6 +685,38 @@ struct BoardView: View {
         PlacedOnPlane(point: point, metrics: metrics, framing: planeFraming(session.visiblePlane))
     }
 
+    /// A mark painted on a square — the cursor, the facing arrow.
+    ///
+    /// **Terra only takes the band.** `asBoardSquare` is built from
+    /// `BoardBand`, which is Terra's geometry and nothing else: Terra's camera,
+    /// Terra's lift, no spacing. Putting Astra's marks through it placed them by
+    /// Terra's rows while every other thing on the plane used Astra's framing,
+    /// and the two diverge furthest at the back — which is where the arrow's
+    /// offset came apart and the cursor floated off the board.
+    ///
+    /// Astra has no bands to take. Its ground is scale and place, so a mark on
+    /// it is placed exactly like anything else standing there, plus the slight
+    /// stand-up that a cloud's mound wants.
+    @ViewBuilder
+    private func groundMark<V: View>(
+        _ view: V,
+        at point: GridPoint,
+        metrics: PixelArtMetrics
+    ) -> some View {
+        if session.visiblePlane == .terra {
+            view.asBoardSquare(point, metrics: metrics)
+        } else {
+            view
+                .scaleEffect(
+                    x: 1,
+                    y: 1 + GameRules.astraMarkStretch
+                        * CGFloat(point.y) / CGFloat(max(metrics.gridSize - 1, 1)),
+                    anchor: .bottom
+                )
+                .modifier(placedOnPlaneModifier(point, metrics: metrics))
+        }
+    }
+
     /// Puts an object on its square, on whichever plane's camera it stands.
     ///
     /// Terra is the true camera; Astra is allowed its own taper, size and
@@ -990,22 +1022,21 @@ struct BoardView: View {
         showsWarning: Bool
     ) -> some View {
         let cursor = projectedCursor
-        return CursorView(
-            status: cursor.status,
-            size: metrics.tileSize,
-            scale: metrics.scale,
-            corners: corners,
-            showsWarning: showsWarning
+        return groundMark(
+            CursorView(
+                status: cursor.status,
+                size: metrics.tileSize,
+                scale: metrics.scale,
+                corners: corners,
+                showsWarning: showsWarning
+            ),
+            at: point,
+            metrics: metrics
         )
             // A mark painted on the floor, not a thing standing on it — so it
             // takes the row's squash and lean like any other ground, on both
             // planes. Placing it as an object is what kept it looking like a
             // sticker laid flat over a board that is lying down.
-            .asBoardSquare(
-                point,
-                metrics: metrics,
-                stretch: session.visiblePlane == .astra ? GameRules.astraMarkStretch : 0
-            )
             .offset(
                 y: -GameRules.cursorLift * metrics.scale
                     + surfaceOffset(of: point, bob: bob, metrics: metrics)
@@ -1107,20 +1138,18 @@ struct BoardView: View {
                     // square ahead — the arrow's reach is a fraction of a tile,
                     // so it belongs between the two rather than centred on
                     // either.
-                    FacingArrowView(
-                        facing: session.engine.piece.facing,
-                        tileSize: metrics.tileSize,
-                        scale: metrics.scale,
-                        clock: session.ambientClock(at:)
+                    groundMark(
+                        FacingArrowView(
+                            facing: session.engine.piece.facing,
+                            tileSize: metrics.tileSize,
+                            scale: metrics.scale,
+                            clock: session.ambientClock(at:)
+                        ),
+                        at: session.engine.piece.point,
+                        metrics: metrics
                     )
                     // Ground, like the cursor: it is a mark on the square
                     // ahead, not something standing there.
-                    .asBoardSquare(
-                        session.engine.piece.point,
-                        metrics: metrics,
-                        stretch: session.visiblePlane == .astra
-                            ? GameRules.astraMarkStretch : 0
-                    )
                     .offset(y: surfaceOffset(
                         of: session.engine.piece.point, bob: bob, metrics: metrics
                     ))
