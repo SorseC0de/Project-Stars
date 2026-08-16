@@ -333,6 +333,7 @@ struct AquariusStormGallery: View {
 
     @State private var phase = 10
     @State private var eyeFollow: Double = 1
+    @State private var figureFloor: Double = Double(GameRules.aquariusFigureShrink)
     @State private var showsEyes = true
     @State private var showsSilhouette = true
 
@@ -389,6 +390,14 @@ struct AquariusStormGallery: View {
         /// How much of the figure's shrink the eyes follow. See below.
         var follow: CGFloat = 1
 
+        /// How small he gets at an empty meter, against `aquariusFigureShrink`.
+        ///
+        /// The shrink runs the whole way from phase 10 to phase 0, so by phase
+        /// one he is already nearly as small as the pot — which leaves no
+        /// difference between "the storm is nearly gone" and "the storm is
+        /// gone", and the reveal is the whole sign.
+        var floor: CGFloat = GameRules.aquariusFigureShrink
+
         /// How far he turns either way, in degrees.
         var turn: Double = 12
 
@@ -411,8 +420,7 @@ struct AquariusStormGallery: View {
 
                 // The bluff. A full storm hides the smallest figure, so the most
                 // frightening it looks is the moment it can do the least.
-                let shrink = GameRules.aquariusFigureShrink
-                    + (1 - GameRules.aquariusFigureShrink) * CGFloat(strength)
+                let shrink = floor + (1 - floor) * CGFloat(strength)
                 // Swinging all the way to nothing and back: a light that never
                 // goes out is a lamp, one that does is something blinking.
                 let pulse = (1 - cos(now / GameRules.aquariusEyeGlowPeriod * 2 * .pi)) / 2
@@ -524,6 +532,7 @@ struct AquariusStormGallery: View {
                     blend: .exclusion,
                     showsEyes: showsEyes,
                     follow: CGFloat(eyeFollow),
+                    floor: CGFloat(figureFloor),
                     strength: Double(min(max(phase, 0), 10)) / 10
                 )
             }
@@ -609,6 +618,7 @@ struct AquariusStormGallery: View {
             // in `GameRules` — a knob for a decided value is just something in
             // the way of the one that is not.
             knob("EYE FOLLOW", $eyeFollow, 0...2, "x")
+            knob("BODY FLOOR", $figureFloor, 0.3...1, "x")
 
             HStack(spacing: 16) {
                 Toggle("EYES", isOn: $showsEyes)
