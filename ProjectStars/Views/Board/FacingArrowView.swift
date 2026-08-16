@@ -47,6 +47,15 @@ struct FacingArrowView: View {
     /// Whole-pixel scale, for art-pixel offsets.
     let scale: CGFloat
 
+    /// How far toward the next square the arrow sits, as a fraction of a tile.
+    ///
+    /// Zero when the caller is placing it itself. A flat tile-width is only the
+    /// distance to the next square on a board seen face-on: laid down, the gap
+    /// to the row in front is far shorter than a tile and shrinks with depth
+    /// quicker than the row's own scale does, so a fixed reach overshoots — most
+    /// of all at the back, where the rows are closest together.
+    var reach: CGFloat = GameRules.facingArrowReach
+
     var body: some View {
         TimelineView(.animation) { timeline in
             let out = nudge(at: clock(timeline.date.timeIntervalSinceReferenceDate))
@@ -58,9 +67,9 @@ struct FacingArrowView: View {
             .scaleEffect(GameRules.facingArrowScale)
             .offset(
                 x: CGFloat(facing.unitOffset.dx)
-                    * (tileSize * GameRules.facingArrowReach + out),
+                    * (tileSize * reach + out),
                 y: CGFloat(facing.unitOffset.dy)
-                    * (tileSize * GameRules.facingArrowReach + out)
+                    * (tileSize * reach + out)
                     - GameRules.facingArrowLift * scale
             )
             // Follows the turn rather than snapping, so a change of facing is
