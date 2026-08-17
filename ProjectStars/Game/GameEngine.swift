@@ -1819,6 +1819,27 @@ struct GameEngine {
         }
 
         let path = movement.path(from: piece.point, direction: direction, option: option)
+
+        // **The ring outside the board is a legal square, for whoever can use
+        // it.**
+        //
+        // Aquarius above zero floats over every hole, which removes all of the
+        // ways this game kills you *inside* the board — so the rim has to become
+        // one, and it cannot do that while the move is refused. One square out
+        // in any direction is allowed, and standing there is what ends the run.
+        //
+        // Checked here rather than per movement type so it holds for the slide,
+        // the leap, the brook and the breeze alike: they all come through this.
+        if activePassives.mayLeaveTheBoard(context: passiveContext),
+           let last = path.last,
+           !currentBoard.contains(last),
+           path.dropLast().allSatisfy({ currentBoard.contains($0) }),
+           currentBoard.isJustOutside(last) {
+            return ResolvedMove(
+                path: path, style: option.style, option: option, origin: piece.point
+            )
+        }
+
         // The whole path has to fit on the board, not just its end: a slide
         // cannot run off the edge and come back.
         if path.isEmpty || !path.allSatisfy({ currentBoard.contains($0) }) {
@@ -1856,6 +1877,27 @@ struct GameEngine {
         ) else { return nil }
 
         return ResolvedMove(path: path, style: option.style, option: option, origin: piece.point)
+    }
+
+    /// Blown off the edge of the world.
+    ///
+    /// The meter is emptied **first**, and that is not bookkeeping: at zero the
+    /// storm is gone and what is left is the little pot, which is the thing that
+    /// should be seen tumbling. Falling as the funnel would be the sign dying in
+    /// the form that cannot die.
+    private mutating func blowAway(at point: GridPoint, on plane: Plane) -> [GameEvent] {
+        var events: [GameEvent] = []
+
+        if zodiactionMeter != 0 {
+            let drained = GameEvent.zodiactionMeterChanged(to: 0)
+            events.append(drained)
+            apply(drained)
+        }
+
+        let over = GameEvent.gameOver(reason: .blownOffTheBoard)
+        events.append(over)
+        apply(over)
+        return events
     }
 
     /// Dries up any pool that has no business still being there.
@@ -2295,6 +2337,20 @@ struct GameEngine {
     /// what makes a slide dangerous: if a tile gives way underfoot halfway
     /// along, the piece drops there and the remainder of the slide never
     /// happens.
+    /// Which way the last step of a path went, if it went anywhere.
+    ///
+    /// Derived from the path rather than passed down from the input, because it
+    /// has to be the direction actually travelled: a wrap through Gemini's rifts
+    /// or a warp arrives facing somewhere the player never asked for, and a
+    /// current that continued the *asked* direction would carry the piece the
+    /// wrong way out of one.
+    private func heading(of path: [GridPoint], from origin: GridPoint) -> SwipeDirection? {
+        let last = path.last ?? origin
+        let previous = path.count >= 2 ? path[path.count - 2] : origin
+        let step = GridOffset(last.x - previous.x, last.y - previous.y)
+        return SwipeDirection.allCases.first { $0.unitOffset == step }
+    }
+
     private mutating func travel(_ path: [GridPoint], style: MovementStyle) -> LandingResult {
         var result = LandingResult()
         guard !isGameOver else { return result }
@@ -2345,7 +2401,7 @@ struct GameEngine {
             // same call in the slide.
             result.events += openCarriedPickups()
 
-            result.absorb(settle(arrivedByFalling: false))
+            result.absorb(settle(arrivedByFalling: false, heading: heading(of: path, from: piece.point)))
 
         case .hop, .leap:
             // Airborne: touches only where it lands.
@@ -2361,7 +2417,7 @@ struct GameEngine {
             result.covered.append(destination)
             apply(hop)
 
-            result.absorb(settle(arrivedByFalling: false))
+            result.absorb(settle(arrivedByFalling: false, heading: heading(of: path, from: piece.point)))
 
         case .warp:
             // Arrives, and that is all. No push-off, nothing crossed.
@@ -2374,7 +2430,7 @@ struct GameEngine {
             result.events.append(jump)
             result.covered.append(destination)
             apply(jump)
-            result.absorb(settle(arrivedByFalling: false))
+            result.absorb(settle(arrivedByFalling: false, heading: heading(of: path, from: piece.point)))
 
         case .blown:
             // Carried. One square, on the ground, and the ground pays nothing —
@@ -2394,7 +2450,7 @@ struct GameEngine {
             apply(carried)
 
             result.events += openCarriedPickups()
-            result.absorb(settle(arrivedByFalling: false))
+            result.absorb(settle(arrivedByFalling: false, heading: heading(of: path, from: piece.point)))
 
         case .slide:
             // One turn, however far it goes.
@@ -2436,7 +2492,7 @@ struct GameEngine {
             // the fall meant it never got the chance.
             result.events += openCarriedPickups()
 
-            result.absorb(settle(arrivedByFalling: false))
+            result.absorb(settle(arrivedByFalling: false, heading: heading(of: path, from: piece.point)))
         }
 
         return result
@@ -2456,7 +2512,8 @@ struct GameEngine {
     ///   `fallingLandingCausesWear` on, that flag never suppressed anything.
     private mutating func settle(
         arrivedByFalling: Bool,
-        wearsOnArrival: Bool = true
+        wearsOnArrival: Bool = true,
+        heading: SwipeDirection? = nil
     ) -> LandingResult {
         var result = LandingResult()
         var fellAlready = arrivedByFalling
@@ -2609,8 +2666,55 @@ struct GameEngine {
                 }
             }
 
+            // **Off the board is the end.**
+            //
+            // Checked before anything else about the square, because there is no
+            // square: the ring outside the board has no tile to be solid or
+            // otherwise. Only a sign that may leave can be standing here at all
+            // — see `resolvedMove` — so reaching this means the run is over.
+            if !self[plane].contains(point) {
+                result.events += blowAway(at: point, on: plane)
+                return result
+            }
+
             // Walking on air: holes hold the piece up, and so does the chasm.
-            let airborne = signState.walksOnAir || airborneThisMove
+            //
+            // `walksOnHoles` joins them, and differs from both: it is a standing
+            // property of the sign rather than something granted for one move,
+            // and it is what turns every hole on the board into a current — see
+            // `carriedOn`.
+            let airborne = signState.walksOnAir
+                || airborneThisMove
+                || activePassives.walksOnHoles(context: passiveContext)
+
+            // **A hole is a current.**
+            //
+            // Standing on one while floating is not standing: the wind takes you
+            // on, one square at a time, in the direction you were already going,
+            // for as long as the next square is also a hole.
+            //
+            // Straight, never bending. That is not simplicity for its own sake —
+            // it makes the rule *total*. "Keep going while the next square is a
+            // hole" has an answer for every board, including a blob or a branch,
+            // where following the chain needs a tiebreaker the moment two holes
+            // are adjacent — and any tiebreaker is a rule the player must learn
+            // that is nowhere on the board. Straight can be traced by eye from
+            // where you stand, which is what makes stepping in a commitment
+            // rather than a gamble.
+            if !remaining.isSolid,
+               airborne,
+               activePassives.walksOnHoles(context: passiveContext),
+               let heading {
+                let next = point.offset(by: heading.unitOffset)
+                commit(.pieceSlid(from: point, to: next, plane: plane))
+
+                // Round the loop again, at the new square. Every hole asks the
+                // same question of the one in front of it, so the current runs
+                // itself out with no special case for how long it is — and the
+                // off-board check at the top of the loop is what ends one that
+                // reaches the rim.
+                continue
+            }
 
             if remaining.isSolid || hovers || airborne {
                 // Coming to rest on somebody else's work claims it.

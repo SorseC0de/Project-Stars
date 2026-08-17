@@ -525,9 +525,18 @@ enum GameOverReason: String, Codable, Equatable {
     /// Fell through Terra — a hole, or the Nexys chasm, with nothing below it.
     case fellThroughTerra
 
+    /// Carried off the edge of the board.
+    ///
+    /// Its own reason rather than a fall, because it is the opposite failure:
+    /// falling is the ground giving way under you, and this is running out of
+    /// ground to be over. Only reachable by something that floats — see
+    /// `ZodiacPassive.mayLeaveTheBoard`.
+    case blownOffTheBoard
+
     var displayText: String {
         switch self {
         case .fellThroughTerra: "You fell through Terra."
+        case .blownOffTheBoard: "The wind carried you off the board."
         }
     }
 }

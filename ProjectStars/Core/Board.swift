@@ -55,6 +55,17 @@ struct Board: Codable, Equatable {
 
     // MARK: - Queries
 
+    /// True for a square exactly one step outside the board.
+    ///
+    /// The ring, and only the ring: two out is nowhere at all. What makes it a
+    /// place rather than an error is that something can stand there for the
+    /// instant it takes to fall — see `ZodiacPassive.mayLeaveTheBoard`.
+    func isJustOutside(_ point: GridPoint) -> Bool {
+        guard !contains(point) else { return false }
+        return point.x >= -1 && point.x <= size
+            && point.y >= -1 && point.y <= size
+    }
+
     /// Points whose tile satisfies `predicate`.
     func points(where predicate: (Tile) -> Bool) -> [GridPoint] {
         allPoints.filter { predicate(self[$0]) }
