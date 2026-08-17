@@ -113,7 +113,14 @@ struct PieceSelectionScreen: View {
             tileSize: cell,
             scale: statueScale,
             plane: .astra,
-            facing: .down
+            facing: .down,
+            // **Aquarius is shown as the storm.**
+            //
+            // Phase zero is the thing he is hiding, and this is exactly where he
+            // should be hiding it: a player choosing him picks the tornado and
+            // finds the pot later. Every other sign is what it looks like, which
+            // is what makes his being otherwise mean something.
+            stormPhase: selection == .aquarius ? 10 : 0
         )
         // Seated back down.
         //
