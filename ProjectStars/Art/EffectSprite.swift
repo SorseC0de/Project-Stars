@@ -600,7 +600,10 @@ enum EffectSprite: String, CaseIterable, Hashable {
     /// The strip a sign throws when it walks sideways without turning.
     static func sidestep(for zodiac: Zodiac) -> EffectSprite? {
         switch zodiac {
-        case .cancer: .crabWalk
+        // The drawn scuttle. `crabWalk` was the stand-in, and it is being kept
+        // rather than deleted because the big bubble it used is wanted
+        // elsewhere — see the Cancer rework.
+        case .cancer: .cancerScuttle
         default: nil
         }
     }

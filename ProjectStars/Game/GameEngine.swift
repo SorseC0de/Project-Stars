@@ -799,6 +799,25 @@ struct GameEngine {
         let departure = sim.departCurrentTile(force: sweeps)
         events += departure.events
 
+        // 2b. Age the timers this move **began** with.
+        //
+        // Ahead of travel and collection rather than after them, because a
+        // timer granted by a coin opened on this move would otherwise be aged
+        // by the very move that granted it — the pickup step spends one of its
+        // own moves before the player has taken any. That was invisible on the
+        // Astral Bolt at ten moves and glaring on an Essence at three.
+        //
+        // "A move ages what was already running" is also the only version that
+        // can be stated in one sentence. The alternative — everything except
+        // whatever was granted midway — needs a list of exceptions that grows
+        // every time a coin is added.
+        var aging = sim.signState
+        aging.tickTimers()
+        if aging != sim.signState {
+            sim.signState = aging
+            events.append(.signStateChanged(aging))
+        }
+
         // A jump touches nothing it flies over — not the ground, and not what is
         // standing on it. Sailing past a Pentacle is the same rule as sailing
         // past a cracked tile: a leap is *not being there*, and a coin scooped
@@ -918,12 +937,12 @@ struct GameEngine {
         }
 
         // 6. Fold the move into the sign's memory: advance the direction
-        //    streak, then tick every cooldown and buff down by one. Done before
-        //    charging so a streak pays out on the move that extended it.
+        //    streak. Done before charging so a streak pays out on the move that
+        //    extended it. The timers were aged back at 2b, before anything this
+        //    move could grant one.
         var updatedState = sim.signState
         updatedState.recordMove(direction: direction)
         updatedState.recordHoleJumps(landing.holesJumped)
-        updatedState.tickTimers()
         if updatedState != sim.signState {
             commit(.signStateChanged(updatedState))
         }
