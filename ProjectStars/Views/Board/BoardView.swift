@@ -1497,6 +1497,10 @@ struct BoardView: View {
                 size: metrics.tileSize,
                 scale: metrics.scale,
                 clock: session.ambientClock(at:),
+                // Off its own square, so a field of bubbles is a scatter rather
+                // than one thing pulsing. Deterministic: the same square gives
+                // the same offset every time, so nothing shifts under a redraw.
+                phaseOffset: TimeInterval(point.x * 3 + point.y * 5) * 0.37,
                 // A coin dealt by a ring wears the ring's colours, so what it is
                 // worth is readable from across the board rather than remembered.
                 swaps: pickup.fromRing ? PentacleView.ringSwaps : []
@@ -2361,13 +2365,42 @@ struct BoardView: View {
     @ViewBuilder
     private func elementalBurst(metrics: PixelArtMetrics) -> some View {
         if let burst = session.elementalBurst, burst.plane == session.visiblePlane {
+            // **Projected**, not flat.
+            //
+            // This one hides from a search for `.position`: the burst is a
+            // shader over the whole board and takes its origin as a *parameter*,
+            // so it was reading `metrics.center(of:)` — where the square would
+            // be on an untilted board. That is why it drifted up the sprite as
+            // the piece walked back, and why it never shrank with the row.
+            //
+            // Lifted a cell, so it fires where the figure is rather than at its
+            // feet — for Pisces that is exactly where the fish rides.
+            let spot = metrics.projected(
+                burst.center,
+                zoom: planeFraming(session.visiblePlane).zoom,
+                lift: planeFraming(session.visiblePlane).lift,
+                emphasis: planeFraming(session.visiblePlane).emphasis,
+                pivot: planeFraming(session.visiblePlane).pivot
+            )
+
+            // Drawn on a canvas wider than the board, so a ripple at the edge
+            // finishes instead of being cut off at it.
+            //
+            // The shader works in its own view's coordinates, so the origin
+            // moves by exactly the padding — and the board's stack does not
+            // clip, which is what lets the extra reach be seen at all.
+            let pad = metrics.tileSize * 3
+
             ElementalBurstView(
                 kind: burst.kind,
-                center: metrics.center(of: burst.center),
-                radius: metrics.tileSize * 2.6,
+                center: CGPoint(
+                    x: spot.position.x + pad,
+                    y: spot.position.y - metrics.tileSize * spot.scale + pad
+                ),
+                radius: metrics.tileSize * 2.6 * spot.scale,
                 start: burst.start
             )
-            .frame(width: metrics.boardSize, height: metrics.boardSize)
+            .frame(width: metrics.boardSize + pad * 2, height: metrics.boardSize + pad * 2)
             .id(burst.id)
         }
     }

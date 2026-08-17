@@ -38,6 +38,15 @@ struct PentacleView: View {
     /// `GameSession.ambientClock(at:)`.
     var clock: (TimeInterval) -> TimeInterval = { $0 }
 
+    /// Shifts this coin's whole cycle, in seconds.
+    ///
+    /// One coin on the board never needs it. Several do: Pisces' bubbles all
+    /// ride the same clock, so without a shift they rise and fall in unison and
+    /// read as one object with several parts rather than as a scatter. Applied
+    /// to the phase itself, so the bob, the orbit and the pool of light stay in
+    /// step with each other while drifting against the next bubble's.
+    var phaseOffset: TimeInterval = 0
+
     /// Recolouring applied to the coin, if any. See `ringSwaps`.
     var swaps: [PaletteSwap] = []
 
@@ -76,7 +85,7 @@ struct PentacleView: View {
         TimelineView(.animation) { timeline in
             // One phase drives everything, so the coin, its orbit and its pool
             // of light can never drift out of step with each other.
-            let phase = clock(timeline.date.timeIntervalSinceReferenceDate)
+            let phase = clock(timeline.date.timeIntervalSinceReferenceDate) + phaseOffset
             let rise = riseFraction(at: phase)
             let orbit = orbitOffset(at: phase)
 
