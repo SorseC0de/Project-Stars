@@ -24,6 +24,11 @@ import SwiftUI
 ///   `PixelSprite(id: .pentacleFace(id))` in behind the text.
 struct PentacleIntroView: View {
 
+    /// What the run looks like, for summaries that vary — see
+    /// `PickupEffect.summary(in:)`.
+    let context: PickupSummaryContext
+
+
     let id: PickupID
     let accent: Color
     let onDismiss: () -> Void
@@ -90,7 +95,7 @@ struct PentacleIntroView: View {
                     .tracking(1)
                     .foregroundStyle(Palette.pentacle)
 
-                Text(effect.summary)
+                Text(effect.summary(in: context))
                     .font(.system(size: 10, design: .monospaced))
                     .foregroundStyle(Palette.textPrimary)
                     .fixedSize(horizontal: false, vertical: true)

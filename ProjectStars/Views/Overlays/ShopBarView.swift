@@ -29,6 +29,11 @@ import SwiftUI
 /// gold coin proper is a thing you find on the board, not a thing you shop from.
 struct ShopBarView: View {
 
+    /// What the run looks like, for summaries that vary — see
+    /// `PickupEffect.summary(in:)`.
+    let context: PickupSummaryContext
+
+
     /// Everything banked, oldest first.
     let purse: [PickupID]
 
@@ -118,7 +123,7 @@ struct ShopBarView: View {
                 .tracking(Style.captionTracking)
                 .foregroundStyle(Palette.pentacle)
 
-            Text(effect.summary)
+            Text(effect.summary(in: context))
                 .font(.system(size: Style.summarySize, weight: .semibold, design: .rounded))
                 .foregroundStyle(Palette.textSecondary)
                 .multilineTextAlignment(.center)
@@ -265,6 +270,12 @@ struct ShopBarView: View {
     ZStack {
         Palette.background
         ShopBarView(
+            context: PickupSummaryContext(
+                zodiac: .capricorn,
+                plane: .terra,
+                nexysPlane: .astra,
+                signState: SignState()
+            ),
             purse: [.restoreTile, .restoreTile, .restoreTile, .astralBlaze, .polaris],
             accent: Zodiac.capricorn.definition.accentColor,
             onBuy: { _ in }

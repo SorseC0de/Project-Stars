@@ -258,7 +258,23 @@ protocol PickupEffect {
     var displayName: String { get }
 
     /// One-line rules text.
+    ///
+    /// The plain version, for anywhere there is nothing to be specific about —
+    /// a catalogue, a preview, a test.
     var summary: String { get }
+
+    /// The same line, for the run it is being read in.
+    ///
+    /// Several coins now do different things depending on who is holding them
+    /// or where they are: Umbral Essence feeds Scorpio rather than draining
+    /// him, the Nexyial Bastion has nothing to emit from when the island is on
+    /// the other plane, and Match-shift Miasma's second half is a different
+    /// sentence from its first. A coin whose text cannot say that is a coin
+    /// that lies to exactly the player it behaves differently for.
+    ///
+    /// Defaulted to `summary`, so a coin only writes this if it has something
+    /// to vary.
+    func summary(in context: PickupSummaryContext) -> String
 
     /// Stand-in glyph for the first-encounter strip, until art arrives.
     var glyph: String { get }
@@ -351,7 +367,30 @@ protocol PickupEffect {
 
 // MARK: - Defaults
 
+/// What a summary is allowed to know about the run it is being read in.
+///
+/// Deliberately small. A summary is one line of rules text and the moment it can
+/// see everything, it starts describing the board rather than the coin.
+struct PickupSummaryContext {
+
+    let zodiac: Zodiac
+
+    /// The plane the coin is on.
+    let plane: Plane
+
+    /// Where the island is, which is not always here.
+    let nexysPlane: Plane
+
+    /// The sign's own state, for coins whose second half reads differently from
+    /// their first.
+    let signState: SignState
+}
+
 extension PickupEffect {
+
+    /// The plain line, unless the coin says otherwise.
+    func summary(in context: PickupSummaryContext) -> String { summary }
+
 
     /// No art yet. See `icon`.
     var icon: String? { nil }

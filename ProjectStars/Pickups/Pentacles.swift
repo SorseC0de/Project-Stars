@@ -312,6 +312,14 @@ struct AstralBrookEffect: PickupEffect {
     let weight = 3
     let displayName = "Astral Essence ✧ Brook"
     let summary = "An Astral water current carries you forward, passing over holes along the way."
+
+    /// There are no holes on Astra to pass over — up there the sentence is
+    /// promising something the plane cannot offer.
+    func summary(in context: PickupSummaryContext) -> String {
+        context.plane == .terra
+            ? summary
+            : "An Astral water current carries you forward to the edge of the plane."
+    }
     let glyph = "≈"
     let icon: String? = "Element_Water"
     let element: ZodiacElement? = .water
@@ -535,6 +543,13 @@ struct UmbralEssenceEffect: PickupEffect {
 
     let glyph = "◍"
     let icon: String? = "essence"
+
+    /// Scorpio reads a different line, because he gets a different effect.
+    func summary(in context: PickupSummaryContext) -> String {
+        guard context.zodiac == .scorpio else { return summary }
+        return "A mysterious, murky mist surrounds, invigorating movement for the next "
+            + "\(GameRules.essenceMoves) turns. It feels oddly familiar."
+    }
 
     func plan(
         context: PickupContext,
@@ -874,6 +889,15 @@ struct NexysShiftEffect: PickupEffect {
     let weight = 1
     let displayName = "Nexys Node"
     let summary = "Return to the Nexys. Summon it if on a different plane."
+
+    /// Two different moves, depending on where the island is. "Summon it if on a
+    /// different plane" asks the player to work out which half applies; the
+    /// board already knows.
+    func summary(in context: PickupSummaryContext) -> String {
+        context.nexysPlane == context.plane
+            ? "Return to the Nexys."
+            : "Summon the Nexys to this plane, and ride it."
+    }
     let glyph = "◈"
     let icon: String? = "nexys_node"
 
@@ -1023,6 +1047,16 @@ struct PolarisEffect: PickupEffect {
     let rarity: PickupRarity = .legendary
     let displayName = "Polaris"
     let summary = "A fragment of Old Astra, radiating with power. Restores the current plane, on your word."
+
+    /// Found on Terra it arrives **cold**, and the line has to say so — the
+    /// coin's whole Terra characterisation is that it is a rock until something
+    /// puts astral energy through it, and a summary promising power on your word
+    /// would be describing a button the player does not have yet.
+    func summary(in context: PickupSummaryContext) -> String {
+        context.plane == .astra
+            ? summary
+            : "A fragment of Old Astra, cold and silent. It will wake somewhere closer to the stars."
+    }
 
     /// What it says when it is found cold.
     ///

@@ -98,6 +98,7 @@ struct GameScreen: View {
                     // does not summon it, it makes it *live*.
                     if session.isChoosingShop || !session.purse.isEmpty {
                         ShopBarView(
+                            context: session.summaryContext,
                             purse: session.purse,
                             accent: session.zodiac.definition.accentColor,
                             isLive: session.isChoosingShop
@@ -107,7 +108,7 @@ struct GameScreen: View {
                         .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .bottom)
                         .padding(.bottom, 6)
                     } else if let banner = session.pentacleBanner {
-                        PentacleBannerView(id: banner)
+                        PentacleBannerView(context: session.summaryContext, id: banner)
                             .padding(.horizontal, 10)
                             .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .bottom)
                             .padding(.bottom, 6)
@@ -128,6 +129,7 @@ struct GameScreen: View {
             // very move that may have just ended the run.
             if let intro = session.pentacleIntro {
                 PentacleIntroView(
+                    context: session.summaryContext,
                     id: intro,
                     accent: session.zodiac.definition.accentColor,
                     onDismiss: { session.dismissPentacleIntro() }

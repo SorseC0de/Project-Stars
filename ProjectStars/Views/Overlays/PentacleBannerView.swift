@@ -19,6 +19,11 @@ import SwiftUI
 /// on a timer, so it is still there whenever the player looks up.
 struct PentacleBannerView: View {
 
+    /// What the run looks like, for summaries that vary — see
+    /// `PickupEffect.summary(in:)`.
+    let context: PickupSummaryContext
+
+
     let id: PickupID
 
     var body: some View {
@@ -43,7 +48,7 @@ struct PentacleBannerView: View {
                         .foregroundStyle(tint(for: effect))
                 }
 
-                Text(effect.summary)
+                Text(effect.summary(in: context))
                     .font(.system(size: 8, design: .monospaced))
                     .foregroundStyle(Palette.textSecondary)
                     .lineLimit(2)

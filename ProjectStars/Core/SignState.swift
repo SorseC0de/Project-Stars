@@ -193,6 +193,31 @@ struct SignState: Equatable {
     /// Two counters rather than one signed one, so both can run at once and
     /// cancel for as long as they overlap — which is the honest outcome of
     /// drinking both, and free.
+    /// The tile currently shielded by a Nexyial Bastion, and on which plane.
+    ///
+    /// One at a time: a second Bastion moves the aura rather than stacking, so
+    /// the board never has to explain which of two shields absorbed a hit.
+    var bastion: GridPoint?
+    var bastionPlane: Plane?
+
+    /// True while a Stelluna Sprite is riding along.
+    ///
+    /// Spent on the first hole stood on, whenever that is. It has no clock —
+    /// see `BuffsView`, which draws a count only for the buffs that have one.
+    var hasSprite = false
+
+    /// The tile a Match-shift Miasma has marked, and which of the two colours
+    /// it is wearing.
+    ///
+    /// The colour is stored rather than derived so the second coin can be drawn
+    /// as the *other* one, which is the whole tell that they are a pair.
+    var miasmaMark: GridPoint?
+    var miasmaPlane: Plane?
+    var miasmaIsWarm = false
+
+    /// True once a Stardar has promised the next reveal.
+    var stardarPending = false
+
     var astralEssenceMoves = 0
     var umbralEssenceMoves = 0
 
@@ -573,6 +598,13 @@ struct SignState: Equatable {
         copy.terraRifts = terraRifts
         copy.starMoves = starMoves
         copy.astralEssenceMoves = astralEssenceMoves
+        copy.bastion = bastion
+        copy.bastionPlane = bastionPlane
+        copy.hasSprite = hasSprite
+        copy.miasmaMark = miasmaMark
+        copy.miasmaPlane = miasmaPlane
+        copy.miasmaIsWarm = miasmaIsWarm
+        copy.stardarPending = stardarPending
         copy.umbralEssenceMoves = umbralEssenceMoves
         copy.galeMoves = galeMoves
         copy.arrow = arrow

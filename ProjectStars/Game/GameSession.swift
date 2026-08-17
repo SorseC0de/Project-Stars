@@ -3226,6 +3226,16 @@ extension GameSession {
         return sparkles
     }
 
+    /// What a summary is allowed to know. See `PickupSummaryContext`.
+    var summaryContext: PickupSummaryContext {
+        PickupSummaryContext(
+            zodiac: zodiac,
+            plane: visiblePlane,
+            nexysPlane: engine.nexysPlane,
+            signState: engine.signState
+        )
+    }
+
     /// The revealed pickups on the visible plane. Usually one, occasionally two.
     var visiblePickups: [RevealedPickup] {
         engine.revealedPickups.filter { $0.plane == visiblePlane }
