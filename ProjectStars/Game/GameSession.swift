@@ -634,6 +634,15 @@ final class GameSession {
     /// The strip a repair is owed, held until one happens. See `PickupShape`.
     private var mending: EffectSprite?
 
+    /// How hard the next tile-damage should shake the screen, if a tremor is
+    /// what caused it.
+    ///
+    /// Set when the coin opens and spent by the damage it deals, for the same
+    /// reason `mending` is: the event that lands says *what* changed, and only
+    /// the coin knows *why* — and a shake on every crack in the game would make
+    /// the board feel like it was falling apart on an ordinary step.
+    private var pendingTremor: CGFloat?
+
     /// Sparkles flying off a Pentacle that was just opened.
     private(set) var collectBurst: ElementalBurst?
 
@@ -1592,7 +1601,13 @@ final class GameSession {
 
             // Elemental Pentacles throw their burst as they open. Only the four
             // Astral Essences declare an element; everything else is silent.
-            if let element = PickupCatalog.effect(for: id).element {
+            //
+            // The Breeze is out: it has drawn wind now, played when the gust
+            // actually picks the piece up. The generated burst on top of it was
+            // two winds for one event, and the generated one arrived first — so
+            // the coin announced itself with the placeholder and then did the
+            // real thing a beat later.
+            if let element = PickupCatalog.effect(for: id).element, id != .astralBreeze {
                 playBurst(element, at: point, on: plane)
             }
             // The coin's own strip, laid out by what the coin *does* rather
@@ -1626,6 +1641,16 @@ final class GameSession {
             // The Bolt is the exception: it changes no ground, it strikes *you*.
             // One of four drawings, so the rarest thing in the game is not the
             // same picture every time somebody finally finds it.
+            // The ground moving, felt rather than only seen. Sized to the coin:
+            // a Trivial Tremor is a bump and a Shakedown opens a hole, and a
+            // shake that could not tell them apart would leave the summaries as
+            // the only difference between them.
+            switch id {
+            case .trivialTremor: pendingTremor = GameRules.tremorShake
+            case .seismicShakedown: pendingTremor = GameRules.shakedownShake
+            default: break
+            }
+
             if id == .astralBolt {
                 playEffect(
                     EffectSprite.strike(at: engine.moveCount),
@@ -1808,6 +1833,16 @@ final class GameSession {
                 if let drawn = EffectSprite.chargeGain(for: zodiac) {
                     playEffect(drawn, at: engine.piece.point, on: engine.piece.plane)
                 }
+
+                // The absorb, on every gain whatever caused it. Tinted by the
+                // element that earned it — the strip is greys so the tint is
+                // the only thing saying which.
+                playEffect(
+                    .absorb,
+                    at: engine.piece.point,
+                    on: engine.piece.plane,
+                    tint: ElementFX.ramp(for: zodiac.element).bright
+                )
             }
             withAnimation(.easeInOut(duration: max(event.displayDuration, 0.01))) {
                 engine.apply(event)
@@ -1977,6 +2012,21 @@ final class GameSession {
             engine.apply(event)
             await sleep(event.displayDuration)
 
+        case let .tileDamaged(plane, point, health) where pendingTremor != nil:
+            // The ground moving, felt rather than only seen. Sized to the coin:
+            // a Trivial Tremor is a bump and a Shakedown opens a hole, and a
+            // shake that could not tell them apart would make the summaries the
+            // only difference between them.
+            shake(for: GameRules.arrowLandShake, strength: pendingTremor ?? 1)
+            pendingTremor = nil
+            flashingTiles.insert(point)
+            withAnimation(.easeOut(duration: event.displayDuration)) {
+                engine.apply(event)
+            }
+            await sleep(event.displayDuration)
+            flashingTiles.remove(point)
+            _ = health
+
         case let .caughtOnReveal(plane, point):
             // The snipe: a coin taken on the move it appeared. Overhead rather
             // than on the square, because the square already has the coin's own
@@ -1984,22 +2034,6 @@ final class GameSession {
             // messy flourish.
             playEffect(.bonus, at: point, on: plane)
             engine.apply(event)
-            await sleep(event.displayDuration)
-
-        case let .zodiactionMeterChanged(to: target) where target > engine.zodiactionMeter:
-            // Charge arriving, wherever it came from. Drawn over the piece in
-            // the element that earned it — the strip is grey so that the tint
-            // is the only thing saying which, and it glows because charge is
-            // the one resource the player is always watching for.
-            playEffect(
-                .absorb,
-                at: engine.piece.point,
-                on: engine.piece.plane,
-                tint: ElementFX.ramp(for: engine.piece.zodiac.element).bright
-            )
-            withAnimation(.easeInOut(duration: max(event.displayDuration, 0.01))) {
-                engine.apply(event)
-            }
             await sleep(event.displayDuration)
 
         default:

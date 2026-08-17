@@ -1575,7 +1575,13 @@ enum GameRules {
     /// the board actively worse, so it wants to be a *event* rather than a
     /// recurring tax — and the disposal rules only read as clever if you meet
     /// them rarely enough to have to think each time.
-    static let shadowWorkWeight = 1
+    /// - TODO: **Zero, deliberately.** Shadow Work is broken in several ways
+    ///   that want their own session, so it is off the table rather than in
+    ///   front of testers. Zeroed here rather than by deleting the effect: an
+    ///   effect removed is an effect somebody has to rebuild out of the commit
+    ///   log, and the coin still needs to exist for the spawner to place it by
+    ///   hand. Put this back to `1` when it is fixed.
+    static let shadowWorkWeight = 0
 
     /// How solid the double looks. Dark enough to be a shadow, present enough to
     /// be a thing you have to deal with.
@@ -2488,6 +2494,14 @@ enum GameRules {
     /// would land as a repeat of the first, and the loudest moment in the kit
     /// would be the one the player had already seen.
     static let aquariusTransformScale: CGFloat = 0.6
+
+    /// How hard the two tremors shake the screen, against the usual amplitude.
+    ///
+    /// A shake on *every* crack would make an ordinary step feel like the board
+    /// falling apart, so this is only ever set by the coins that are meant to be
+    /// felt — and the two are told apart by how hard rather than by whether.
+    static let tremorShake: CGFloat = 0.45
+    static let shakedownShake: CGFloat = 1.1
 
     /// Seconds between one glowing square starting and the next.
     ///

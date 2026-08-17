@@ -360,6 +360,10 @@ enum EffectSprite: String, CaseIterable, Hashable {
         case .fireMisc: 6
         case .cancerZodiaction, .cancerZodiactionAlternate: 2
         case .explosion, .crabWalk, .waterSplash: 4
+        // A tile and a half up. The bubbles come off the crab rather than off
+        // the ground it is crossing, and at the art's own height they read as
+        // foam on the floor.
+        case .cancerScuttle: CGFloat(GameRules.tilePixelSize) * 1.5
         // The bolt comes down *onto* the square, so its foot sits on the tile
         // and the rest of it towers overhead. Tuned from `GameRules`.
         case .lightning1, .lightning2, .lightning3, .lightning4: GameRules.lightningLift

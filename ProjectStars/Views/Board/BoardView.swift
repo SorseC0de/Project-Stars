@@ -1105,8 +1105,11 @@ struct BoardView: View {
             let stagger = Double(index) * GameRules.glowPhaseStagger
 
             ZStack {
+                // - TODO: **Sampling.** `sparkles` in place of `glowPhase`, to
+                //   see which reads better as the phase itself. Put `glowPhase`
+                //   back here if the answer is the first one.
                 EffectSpriteView(
-                    effect: .glowPhase,
+                    effect: .sparkles,
                     tileSize: metrics.tileSize,
                     start: .distantPast,
                     loops: true,
