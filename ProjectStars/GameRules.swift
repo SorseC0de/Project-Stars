@@ -2524,7 +2524,7 @@ enum GameRules {
     ///
     /// Four art pixels down, measured rather than derived: the art rests across
     /// a cell boundary, so where it sits cannot be read off the sheet.
-    static let piscesFishDrop: CGFloat = 4
+    static let piscesFishDrop: CGFloat = 6
 
     /// How far the archer's arrow rises above where it is drawn, in art pixels,
     /// and how long one rise and fall takes.

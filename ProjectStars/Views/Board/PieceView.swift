@@ -45,6 +45,12 @@ struct PieceView: View {
     /// the turn changes every turn, and either of them can be the one that fell.
     var twin: GeminiHalf?
 
+    /// Whether the pool of shadow under the figure is drawn.
+    ///
+    /// Off for afterimages: a ghost is a picture of the figure, and a trail of
+    /// shadows would be a trail of things claiming to be standing there.
+    var showsShadow = true
+
     /// Which drawing this piece is right now.
     private var spriteID: SpriteID {
         if zodiac.hasOwnHalves, let twin { return .geminiHalf(twin) }
@@ -115,7 +121,8 @@ struct PieceView: View {
             // is what anchors a two-cell-tall sprite to a one-cell square — and
             // during an arrival it is the *only* thing on the destination
             // square, growing to announce where the piece is about to land.
-            PieceShadowView(tileSize: tileSize)
+            if showsShadow {
+                PieceShadowView(tileSize: tileSize)
                 // Two effects multiply: the arrival's swell, and the hop's own
                 // narrowing as the piece leaves the ground.
                 .scaleEffect(shadowScale * hopShadowScale)
@@ -127,6 +134,7 @@ struct PieceView: View {
                 // It is the figure that needed moving, not the mark under it.
                 .offset(y: (GameRules.pieceShadowDrop - shadowLift) * scale)
                 .opacity(isFalling ? 0 : 1)
+            }
 
             figure
             .frame(width: tileSize, height: tileSize * 2)

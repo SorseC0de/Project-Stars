@@ -35,12 +35,14 @@ struct AfterimageView: View {
     let zodiac: Zodiac
 
     /// How much storm Aquarius was wearing, `0` for everyone else.
-    ///
-    /// A ghost is a picture of *what was standing there*, and for Aquarius the
-    /// bare statue has not been standing anywhere since the meter left zero.
-    /// Trailing statues behind a funnel was the one thing on screen still
-    /// admitting there is a figure inside it.
     var stormPhase: Int = 0
+
+    /// Which plane the figure was on, since that decides what it is made of.
+    var plane: Plane = .astra
+
+    /// Whether it was lit, since several signs are assembled differently when
+    /// they are.
+    var isCharged = false
 
     /// The element this copy wears.
     let element: ZodiacElement
@@ -58,26 +60,30 @@ struct AfterimageView: View {
     let age: Double
 
     var body: some View {
-        Group {
-            if zodiac == .aquarius, stormPhase > 0 {
-                // Frozen: a ghost is a still of a moment, and one that kept
-                // running would be a second storm turning out of step with the
-                // real one.
-                AquariusStormStill(
-                    phase: stormPhase,
-                    at: 0,
-                    side: GameRules.aquariusStormCanvas
-                )
-                .scaleEffect(
-                    tileSize * GameRules.aquariusStormTiles
-                        / GameRules.aquariusStormCanvas
-                )
-                .frame(width: tileSize, height: tileSize * 2)
-            } else {
-                PixelSprite(id: .piece(zodiac)) { Color.clear }
-                    .frame(width: tileSize, height: tileSize * 2)
-            }
-        }
+        // **The assembled figure**, not a bare sprite.
+        //
+        // A ghost is a picture of what was standing there, and what is standing
+        // there is rarely just `piece(zodiac)`: Pisces has a fish riding on him,
+        // Virgo has gems, the archer has an arrow, Libra has arms and scales,
+        // Aquarius is a storm. Drawing the base sprite meant every one of those
+        // trailed a figure that does not exist — and it had to be patched sign
+        // by sign as each one grew a part, which is a list that only gets
+        // longer.
+        //
+        // Asking `PieceView` costs a rebuild of the assembly per ghost and is
+        // the only version that cannot fall behind: a sign that gains a part
+        // tomorrow gets correct afterimages for free.
+        PieceView(
+            zodiac: zodiac,
+            tileSize: tileSize,
+            scale: scale,
+            plane: plane,
+            isCharged: isCharged,
+            // A ghost is a mark, not a thing standing on the square.
+            showsShadow: false,
+            stormPhase: stormPhase
+        )
+        .frame(width: tileSize, height: tileSize * 2)
             .paletteSwap(
                 zip(Palette.pieceGoldTones, Palette.trailTones(for: element))
                     .map(PaletteSwap.init)

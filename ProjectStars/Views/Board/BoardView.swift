@@ -2010,12 +2010,11 @@ struct BoardView: View {
 
                     AfterimageView(
                         zodiac: session.zodiac,
-                        // What he **is** right now, not what he was drawn as.
-                        // The storm is derived from the meter, so a ghost built
-                        // from the bare sprite was a trail of statues behind a
-                        // funnel — the one thing on screen still admitting there
-                        // is a figure under there.
+                        // What the piece **is** right now, so the trail is made
+                        // of the same figure that is casting it.
                         stormPhase: aquariusPhase,
+                        plane: session.visiblePlane,
+                        isCharged: session.isZodiactionCharged,
                         element: starring == nil ? session.trailElement : elements[index],
                         tileSize: metrics.tileSize,
                         scale: metrics.scale,
