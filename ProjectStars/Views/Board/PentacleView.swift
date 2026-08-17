@@ -244,9 +244,20 @@ struct PentacleView: View {
     /// exactly right.
     private var droplet: some View {
         ZStack {
-            Circle()
+            // The outer fill only. The highlight, the glint and the bloom
+            // behind it are all left alone — the stack is what makes the thing
+            // read as water, and the shape is the one part of it that was
+            // saying "ball" instead of "drop".
+            Droplet()
                 .fill(appearance == .bubble ? Palette.sky.opacity(0.5) : Palette.blue)
-                .frame(width: size * 0.44, height: size * 0.44)
+                .frame(
+                    width: size * 0.44,
+                    height: size * 0.44 * (1 + GameRules.dropletPull)
+                )
+                // The extra height is all above the ball, so without this the
+                // whole thing sits low by half of it and the highlight drifts
+                // off centre.
+                .offset(y: -size * 0.44 * GameRules.dropletPull / 2)
 
             Circle()
                 .fill(Palette.sky)
@@ -451,5 +462,49 @@ struct PentacleView: View {
         case .droplet, .gavel: Palette.cyan
         case .bubble: Palette.sky
         }
+    }
+}
+
+/// A ball with its top drawn up into a point.
+///
+/// The bottom is a true circle, so anything sitting inside it — the highlight,
+/// the glint — lands where it did when this was a `Circle`. Only the top half
+/// is redrawn, as two curves meeting at an apex above the ball.
+///
+/// A shape rather than a stretched circle because a drop is not an ellipse: the
+/// widest part stays low and the taper is all in the last third, which is what
+/// separates *falling water* from *an egg*.
+struct Droplet: Shape {
+
+    func path(in rect: CGRect) -> Path {
+        let radius = rect.width / 2
+        let centre = CGPoint(x: rect.midX, y: rect.maxY - radius)
+        let apex = CGPoint(x: rect.midX, y: rect.minY)
+
+        var path = Path()
+        path.move(to: apex)
+
+        // Down the right side into the ball, and back up the left. The control
+        // points sit low and close to the centre line, which keeps the curve
+        // hugging the ball until it turns — a control point further out gives a
+        // teardrop that bulges at the shoulders.
+        path.addQuadCurve(
+            to: CGPoint(x: centre.x + radius, y: centre.y),
+            control: CGPoint(x: centre.x + radius * 0.6, y: centre.y - radius * 0.75)
+        )
+        path.addArc(
+            center: centre,
+            radius: radius,
+            startAngle: .degrees(0),
+            endAngle: .degrees(180),
+            clockwise: false
+        )
+        path.addQuadCurve(
+            to: apex,
+            control: CGPoint(x: centre.x - radius * 0.6, y: centre.y - radius * 0.75)
+        )
+
+        path.closeSubpath()
+        return path
     }
 }

@@ -2510,6 +2510,14 @@ enum GameRules {
     /// is the one thing it must not be confused with.
     static let maneBlazeDuration: TimeInterval = 0.55
 
+    /// How far a droplet's point is pulled above its ball, as a fraction of the
+    /// ball's own height.
+    ///
+    /// The ball is left exactly the size it was, so everything stacked inside it
+    /// still lands where it did — the pull adds height on top rather than
+    /// reshaping what is already there.
+    static let dropletPull: CGFloat = 0.55
+
     /// Pisces' energy fish: how wide its circle is in art pixels, how long one
     /// lap takes, and how long one turn takes.
     ///
