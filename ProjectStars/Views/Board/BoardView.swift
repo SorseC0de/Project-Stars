@@ -953,7 +953,8 @@ struct BoardView: View {
             EffectSpriteView(
                 effect: burst.effect,
                 tileSize: metrics.tileSize,
-                start: burst.start
+                start: burst.start,
+                tint: burst.tint
             )
             .modifier(placedOnPlaneModifier(burst.center, metrics: metrics))
         }

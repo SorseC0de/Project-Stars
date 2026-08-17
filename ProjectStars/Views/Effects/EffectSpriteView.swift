@@ -59,6 +59,15 @@ struct EffectSpriteView: View {
     /// comes round again.
     var frameCount: Int?
 
+    /// Recolours the whole strip, for art drawn deliberately colourless.
+    ///
+    /// A flat silhouette rather than a palette swap: the absorb is greys with no
+    /// named light and dark to pair off, and the point of drawing it that way is
+    /// that whatever tints it is the only thing saying which element earned the
+    /// charge. Shading it would mean naming its tones, which is the decision the
+    /// grey art exists to avoid.
+    var tint: Color?
+
     /// How many frames are actually played.
     private var playing: Int {
         min(max(frameCount ?? effect.frames, 1), effect.frames)
@@ -112,7 +121,9 @@ struct EffectSpriteView: View {
     private func recoloured(_ art: some View, frame: Int) -> some View {
         let cycle = effect.recolourCycle
 
-        if let source = effect.sourceTones, !cycle.isEmpty {
+        if let tint {
+            art.colorEffect(ShaderLibrary.flatSilhouette(.color(tint)))
+        } else if let source = effect.sourceTones, !cycle.isEmpty {
             let tone = cycle[frame % cycle.count]
             art.paletteSwap([
                 PaletteSwap(source.light, tone.bright),

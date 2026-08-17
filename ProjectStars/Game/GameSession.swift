@@ -1459,10 +1459,13 @@ final class GameSession {
             flashingTiles.remove(point)
 
         case let .tileHealed(plane, point, _):
-            // Whatever the coin owed this repair, paid where the repair is.
+            // Whatever the coin owed this repair, paid at **every** repair it
+            // makes. It used to be spent on the first, which was fine while no
+            // coin mended twice — Astral Tears does, and the tile you are
+            // standing on got nothing. The token is already cleared once per
+            // move, so consuming it here only ever meant "one tile per coin".
             if let drawn = mending {
                 playEffect(drawn, at: point, on: plane)
-                mending = nil
             }
             flashingTiles.insert(point)
             withAnimation(.easeOut(duration: event.displayDuration)) {
@@ -1960,9 +1963,16 @@ final class GameSession {
             await sleep(event.displayDuration)
 
         case let .zodiactionMeterChanged(to: target) where target > engine.zodiactionMeter:
-            // Charge arriving, wherever it came from. Drawn over the piece, in
-            // greys the element tints — see `EffectSprite.absorb`.
-            playEffect(.absorb, at: engine.piece.point, on: engine.piece.plane)
+            // Charge arriving, wherever it came from. Drawn over the piece in
+            // the element that earned it — the strip is grey so that the tint
+            // is the only thing saying which, and it glows because charge is
+            // the one resource the player is always watching for.
+            playEffect(
+                .absorb,
+                at: engine.piece.point,
+                on: engine.piece.plane,
+                tint: ElementFX.ramp(for: engine.piece.zodiac.element).bright
+            )
             withAnimation(.easeInOut(duration: max(event.displayDuration, 0.01))) {
                 engine.apply(event)
             }
@@ -2887,6 +2897,13 @@ struct EffectBurst: Identifiable, Equatable {
     let center: GridPoint
     let plane: Plane
     let start: Date
+
+    /// What to recolour the strip to, or `nil` to leave the art alone.
+    ///
+    /// For strips drawn deliberately colourless — the absorb is greys precisely
+    /// so that whatever tints it is the thing saying which element earned the
+    /// charge.
+    var tint: Color?
 }
 
 extension GameSession {
@@ -2902,13 +2919,15 @@ extension GameSession {
         _ effect: EffectSprite,
         at point: GridPoint,
         on plane: Plane,
-        delay: TimeInterval = 0
+        delay: TimeInterval = 0,
+        tint: Color? = nil
     ) {
         let burst = EffectBurst(
             effect: effect,
             center: point,
             plane: plane,
-            start: .now.addingTimeInterval(delay)
+            start: .now.addingTimeInterval(delay),
+            tint: tint
         )
         effectBursts.append(burst)
 
