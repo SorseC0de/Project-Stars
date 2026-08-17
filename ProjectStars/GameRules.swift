@@ -2808,6 +2808,15 @@ enum GameRules {
     /// to the ground is placing it five pixels too high.
     static let spriteFeetInset: CGFloat = 5
 
+    /// How far the world travels on a plane change, in screen squares.
+    ///
+    /// Two rather than one. At a single square the departing plane has only
+    /// just cleared the frame when the arriving one is already in it, so what
+    /// the player sees is a swap with a wipe over it. Twice the distance puts
+    /// real sky between them, which is the thing the slide is for: the planes
+    /// are somewhere apart, not two images of one place.
+    static let planeSlideDistance: CGFloat = 2
+
     /// How far a falling piece is driven down before the plane changes, in art
     /// pixels.
     ///

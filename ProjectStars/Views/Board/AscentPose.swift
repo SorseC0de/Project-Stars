@@ -80,12 +80,18 @@ struct AscentPose: Equatable {
     /// dropping into place rather than inflating.
     static func growing(progress: Double, boardSize: CGFloat) -> AscentPose {
         let p = CGFloat(min(max(progress, 0), 1))
-        // Coming down into its row rather than inflating on the spot, for the
-        // same reason. The overshoot stays — it is what makes an arrival land
-        // rather than stop — but it is a distance now instead of a size.
+        // **Up from below**, not down from above.
+        //
+        // This is the arrival on Astra, and you got there by climbing — so you
+        // come through its floor, not down out of its sky. Entering from the top
+        // was drawing the one thing the whole transition exists to contradict:
+        // that the plane above is somewhere you fall into.
+        //
+        // The overshoot stays, as a distance rather than a size: it is what
+        // makes an arrival land rather than merely stop.
         let overshoot = 0.12 * sin(.pi * Double(p))
         return AscentPose(
-            lift: -(1 - p + CGFloat(overshoot)) * boardSize * GameRules.ascentRiseHeight,
+            lift: (1 - p + CGFloat(overshoot)) * boardSize * GameRules.ascentRiseHeight,
             scale: 1
         )
     }

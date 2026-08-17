@@ -68,7 +68,7 @@ struct GameScreen: View {
                         BoardView(session: session, availableSide: side)
                     }
                     // Only the world travels — see `GameSession.planeSlide`.
-                    .offset(y: session.planeSlide * side)
+                    .offset(y: session.planeSlide * side * GameRules.planeSlideDistance)
 
                     // Names what is being looked at, so it belongs with the
                     // thing being looked at rather than among the controls.
