@@ -72,7 +72,7 @@ struct PiscesStarstreamSurfer: ZodiacPassive {
 
     let displayName = "Starstream Surfer"
     let icon: String? = "pisces_surfer"
-    let summary = "+1 ZC every step on Astra. The surf is available only on a full meter, and pays nothing itself. Terra: −1 ZC for every square you leave."
+    let summary = "Flow along the plane using the power of the Astral Current while fully charged with ZC."
 
     /// The current is not a property of the plane. It is a property of *you*.
     ///
@@ -169,7 +169,7 @@ struct PiscesGaiaGeyser: ZodiacPassive {
 
     let displayName = "Delta Distillation"
     let icon: String? = "pisces_distillation"
-    let summary = "Astra → Terra: your ZC comes down with you, scattered across Terra as bubbles. Any that land over a hole are lost."
+    let summary = "Draw Astral Energy from the surrounding plane. Your current ZC, however, is spilled upon landing on Terra, and Distillation requires greater effort there than on Astra."
 
     /// A dive is something the fish *did*. See
     /// `ZodiacPassive.fallIsControlled(to:context:)`.
@@ -226,7 +226,10 @@ struct PiscesAridAquanaut: ZodiacPassive {
 
     let displayName = "Arid Aquanaut"
     let icon: String? = "pisces_aquanaut"
-    let summary = "Terra: no ZC from anything but bubbles, which surface alongside the Pentacle — and no multi-tile movement until the meter is full."
+
+    /// Terra only. Up in the current there is no drought to show.
+    func icon(on plane: Plane) -> String? { plane == .terra ? icon : nil }
+    let summary = "Pisces struggles to flow as freely on Terra, preventing multi-tile movement unless charged with ZC"
 
     /// Z-Charge does not exist down here.
     ///

@@ -187,6 +187,10 @@ struct SagittariusLuckyLanding: ZodiacPassive {
 
     let displayName = "Lucky Landing"
     let icon: String? = "saggitarius_lucky"
+
+    /// Astra only. It is a chance taken on the way *down*, so on Terra it is
+    /// describing something that cannot happen from here.
+    func icon(on plane: Plane) -> String? { plane == .astra ? icon : nil }
     let summary = "Astra: small chance that falling to Terra fully restores the tile you land on."
 
     func restoresTileOnFallArrival(

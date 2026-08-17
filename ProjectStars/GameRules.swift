@@ -2510,6 +2510,13 @@ enum GameRules {
     /// is the one thing it must not be confused with.
     static let maneBlazeDuration: TimeInterval = 0.55
 
+    /// How hard the lion's mane blooms when it is lit.
+    ///
+    /// Above one, unlike every other sign's gem: a gem blooms from two pixels
+    /// and a mane from a hundred, so matching them reads as a glow on one and a
+    /// smudge on the other.
+    static let maneGlowIntensity: Double = 1.6
+
     /// How far a droplet's point is pulled above its ball, as a fraction of the
     /// ball's own height.
     ///

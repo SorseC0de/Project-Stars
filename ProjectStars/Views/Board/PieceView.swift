@@ -199,11 +199,26 @@ struct PieceView: View {
             // wearing two bright pixels.
             PaletteGlow(
                 radius: GameRules.gemGlowRadius * scale,
+                // Brighter for the lion, because there is far more of it to
+                // light: a gem blooms from two pixels and a mane from a hundred,
+                // so the same intensity reads as a glow on one and a smudge on
+                // the other.
+                intensity: zodiac == .leo ? GameRules.maneGlowIntensity : 1,
                 trail: GameRules.gemGlowTrail
             ) {
                 // The eyes keep the old rule — the sign's element, on both
                 // planes — while the body stays gold.
-                material.paletteSwap([PaletteSwap(gem.dim, gem.lit)])
+                //
+                // Leo's mane is gemstone, so it lights through this same swap —
+                // and a mane the colour of a gem is a mane that glows rather
+                // than one that burns. Lit yellow instead, with the element's
+                // red left to the bloom around it: hot in the middle and
+                // cooling outward is what fire looks like, and it is the one
+                // sign whose lit entry is a whole head of hair rather than two
+                // bright pixels.
+                material.paletteSwap([
+                    PaletteSwap(gem.dim, zodiac == .leo ? Palette.yellow : gem.lit)
+                ])
             }
         } else if let resting = gem.resting {
             // Shown as its resting colour, which is not the entry it is drawn

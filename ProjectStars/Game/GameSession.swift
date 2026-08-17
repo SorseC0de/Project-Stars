@@ -397,20 +397,14 @@ final class GameSession {
 
         Task { [weak self] in
             try? await Task.sleep(nanoseconds: UInt64(arrival * 1_000_000_000))
+            // Water, then the burst, then the splash on top.
+            //
+            // Later bursts draw in front, so the order here is the order the
+            // eye reads: the droplet arrives, the water it is made of gives up
+            // its shape, and the ground answers last. Splashing first put the
+            // tile's reaction underneath the thing that caused it.
+            self?.playEffect(.droplet, at: point, on: plane, tint: Palette.cyan)
             self?.playEffect(.waterSplash, at: point, on: plane)
-
-            // And the Tear's own burst over it, in the cold end of the water
-            // ramp. Two strips rather than a bigger splash: the splash is what
-            // the *ground* does when something hits it, and this is what the
-            // droplet does when it arrives — one belongs to the tile and the
-            // other to the water, and playing both is what makes a landing read
-            // as an event rather than as a puddle appearing.
-            self?.playEffect(
-                .droplet,
-                at: point,
-                on: plane,
-                tint: Palette.cyan
-            )
         }
 
         let lifetime = GameRules.bubbleScatterDuration

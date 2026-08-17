@@ -58,6 +58,10 @@ struct LeoPridefulPlant: ZodiacPassive {
 
     let displayName = "Prideful Plant"
     let icon: String? = "leo_prideful"
+
+    /// Astra only, for the same reason as the archer's landing: it pays for a
+    /// fall to Terra, which is not on offer once you are already there.
+    func icon(on plane: Plane) -> String? { plane == .astra ? icon : nil }
     let summary = "Astra: +3 ZC on landing after a fall to Terra."
 
     /// The lion drops on purpose. See `ZodiacPassive.fallIsControlled(to:context:)`.
