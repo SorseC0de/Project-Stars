@@ -188,6 +188,7 @@ struct BubbleEffect: PickupEffect {
     let displayName = "Bubble"
     let summary = "Gain \(GameRules.bubbleCharge) ZC."
     let glyph = "🫧"
+    let icon: String? = "bubbles"
     let element: ZodiacElement? = .water
     let appearance: PentacleAppearance = .bubble
 
@@ -1066,6 +1067,7 @@ struct PolarisEffect: PickupEffect {
         plane == .terra ? .dormant : appearance
     }
     let glyph = "★"
+    let icon: String? = "eclipse_star"
 
     /// Bright and starlit rather than the anonymous gold coin — a legendary is
     /// rare enough that telegraphing it is the point.
@@ -1172,6 +1174,7 @@ struct ShadowWorkEffect: PickupEffect {
     let displayName = "Shadow Work"
     let summary = "Sometimes true power comes from conquering the darknesses avoided within self."
     let glyph = "☾"
+    let icon: String? = "cross_flare"
 
     /// Desaturated and dark, so it is recognisable on sight.
     let appearance: PentacleAppearance = .shadow
@@ -1250,6 +1253,7 @@ struct GaleforceGavelEffect: PickupEffect {
     let displayName = "Galeforce Gavel"
     let summary = "Tip the scales in your favor by placing tiles where you see fit."
     let glyph = "⚖"
+    let icon: String? = "fluffy_swirl"
     let element: ZodiacElement? = .air
 
     /// The slab arrives as ground; the square Libra is standing on to place it
@@ -1312,6 +1316,7 @@ struct GaiaDropletEffect: PickupEffect {
     let displayName = "Gaia Droplet"
     let summary = "Gain \(GameRules.gaiaDropletCharge) ZC."
     let glyph = "💧"
+    let icon: String? = "bubbles2"
     let element: ZodiacElement? = .water
     let appearance: PentacleAppearance = .droplet
 
