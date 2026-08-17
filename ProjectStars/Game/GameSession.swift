@@ -541,6 +541,13 @@ final class GameSession {
     /// is not flashing.
     private(set) var chargeFlashStartedAt: Date?
 
+    /// True once the mane's ring has been thrown this move.
+    ///
+    /// Two coins pulled on one turn is one pull, and two rings on the same
+    /// square at the same instant is a brighter ring rather than a second
+    /// event.
+    private var manePulledThisMove = false
+
     /// Sparkles coming apart as the phase ends, one per square that was lit.
     ///
     /// A list because they all go together — the existing `collectBurst` is a
@@ -1286,6 +1293,7 @@ final class GameSession {
         crabWalkOrigin = nil
         pluming = nil
         mending = nil
+        manePulledThisMove = false
 
         for event in events {
             guard !Task.isCancelled else { return }
@@ -1893,6 +1901,18 @@ final class GameSession {
             await sleep(event.displayDuration)
 
         case let .pickupMoved(_, plane, _, to):
+            // The pull that did it, on the piece rather than on the coin.
+            //
+            // The ring is the same one a bubble throws when it pops, and it
+            // belongs at the *source*: what the player needs to understand is
+            // that the lion is doing this, not that the coin decided to move.
+            // Fired once per move however many coins answer it — see
+            // `manePulledThisMove`.
+            if !manePulledThisMove {
+                manePulledThisMove = true
+                playBurst(zodiac.element, at: engine.piece.point, on: plane)
+            }
+
             // Dragged, so it travels rather than blinking across.
             withAnimation(.spring(response: event.displayDuration * 1.4, dampingFraction: 0.8)) {
                 engine.apply(event)
