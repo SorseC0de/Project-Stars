@@ -75,8 +75,8 @@ enum PanelStyle {
 
     /// The element's mark, small and lit, at full strength.
     /// The passive marks under the sign's name.
-    static let passiveMarkSize: CGFloat = 16
-    static let passiveMarkSpacing: CGFloat = 6
+    static let passiveMarkSize: CGFloat = 48
+    static let passiveMarkSpacing: CGFloat = 10
 
     static let elementMarkSize: CGFloat = 28
 
@@ -1833,10 +1833,15 @@ struct ZodiactionButton: View {
                 content
                     .colorEffect(ShaderLibrary.flatSilhouette(.color(Palette.iron)))
             } else if free {
+                // Bright enough to read as *a different coin* at a glance.
+                // The first pass swapped the gold ramp for greens a step or two
+                // down it, which at this size looked like gold in shadow rather
+                // than like something else — and the whole point of the pair is
+                // that you can see them without counting.
                 content.paletteSwap([
                     PaletteSwap(Palette.pentacleHighlight, Palette.yellowGreen),
-                    PaletteSwap(Palette.pentacle, Palette.lime),
-                    PaletteSwap(Palette.pentacleEdge, Palette.darkGreen)
+                    PaletteSwap(Palette.pentacle, Palette.neonGreen),
+                    PaletteSwap(Palette.pentacleEdge, Palette.green)
                 ])
             } else {
                 content

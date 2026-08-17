@@ -1525,6 +1525,12 @@ final class GameSession {
         case let .tileDamaged(plane, point, _):
             // A trailing effect marks each square as the water reaches it.
             if let plume = pluming { playEffect(plume, at: point, on: plane) }
+
+            // And the ground moving, when a tremor is what moved it.
+            if let strength = pendingTremor {
+                shake(for: GameRules.arrowLandShake, strength: strength)
+                pendingTremor = nil
+            }
             flashingTiles.insert(point)
             withAnimation(.easeOut(duration: event.displayDuration)) {
                 engine.apply(event)
@@ -1935,7 +1941,12 @@ final class GameSession {
             // `manePulledThisMove`.
             if !manePulledThisMove {
                 manePulledThisMove = true
-                playBurst(zodiac.element, at: engine.piece.point, on: plane)
+                // **Air**, not Leo's fire. The ring is standing in for a
+                // magnetic pulse, and tinting it by the sign turned it into a
+                // burning ring — which is a different claim about what just
+                // happened. Air is the neutral one the game already uses for a
+                // coin arriving and a coin going down with its tile.
+                playBurst(.air, at: engine.piece.point, on: plane)
                 blazeMane()
             }
 
@@ -2080,21 +2091,6 @@ final class GameSession {
             playEffect(.waterSplash, at: thrownFrom!, on: engine.piece.plane)
             engine.apply(event)
             await sleep(event.displayDuration)
-
-        case let .tileDamaged(plane, point, health) where pendingTremor != nil:
-            // The ground moving, felt rather than only seen. Sized to the coin:
-            // a Trivial Tremor is a bump and a Shakedown opens a hole, and a
-            // shake that could not tell them apart would make the summaries the
-            // only difference between them.
-            shake(for: GameRules.arrowLandShake, strength: pendingTremor ?? 1)
-            pendingTremor = nil
-            flashingTiles.insert(point)
-            withAnimation(.easeOut(duration: event.displayDuration)) {
-                engine.apply(event)
-            }
-            await sleep(event.displayDuration)
-            flashingTiles.remove(point)
-            _ = health
 
         case let .caughtOnReveal(plane, point):
             // The snipe: a coin taken on the move it appeared. Overhead rather

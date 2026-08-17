@@ -373,7 +373,12 @@ struct PieceView: View {
         if zodiac == .sagittarius {
             TimelineView(.animation) { timeline in
                 let now = clock(timeline.date.timeIntervalSinceReferenceDate)
-                let rise = (1 - cos(now / GameRules.sagittariusArrowPeriod * 2 * .pi)) / 2
+                // Still while he is stone. The float is the shot being *ready*,
+                // and an arrow drifting over a dark statue promises something
+                // the sign cannot do yet.
+                let rise = isCharged
+                    ? (1 - cos(now / GameRules.sagittariusArrowPeriod * 2 * .pi)) / 2
+                    : 0
 
                 PixelSprite(id: .sagittariusArrowRest) { Color.clear }
                     .offset(y: -rise * GameRules.sagittariusArrowFloat * scale)

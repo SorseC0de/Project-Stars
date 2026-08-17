@@ -912,9 +912,13 @@ struct ForcedFateEffect: PickupEffect {
     let id: PickupID = .forcedFate
     let rarity: PickupRarity = .rare
 
-    /// Three against Alignment's one. Being *given* a sign is the lesser of the
-    /// two, because it is luck rather than a decision.
-    let weight = 3
+    /// One, down from three.
+    ///
+    /// Being *given* a Zodea is still the lesser of the pair against Alignment,
+    /// which is a decision — but three made it the commonest rare in the game,
+    /// and a coin that rewrites who you are playing should read as an event
+    /// rather than as a mechanic you plan around.
+    let weight = 1
     let displayName = "Forced Fate"
     let summary = "The stars have ordained your Zodea has changed."
     let glyph = "✦"
