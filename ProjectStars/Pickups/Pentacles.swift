@@ -1047,15 +1047,6 @@ struct PolarisEffect: PickupEffect {
     let displayName = "Polaris"
     let summary = "A fragment of Old Astra, radiating with power. Restores the current plane, on your word."
 
-    /// Found on Terra it arrives **cold**, and the line has to say so — the
-    /// coin's whole Terra characterisation is that it is a rock until something
-    /// puts astral energy through it, and a summary promising power on your word
-    /// would be describing a button the player does not have yet.
-    func summary(in context: PickupSummaryContext) -> String {
-        context.plane == .astra
-            ? summary
-            : "A fragment of Old Astra, cold and silent. It will wake somewhere closer to the stars."
-    }
 
     /// What it says when it is found cold.
     ///
