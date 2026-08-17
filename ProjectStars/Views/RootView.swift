@@ -20,7 +20,22 @@ struct RootView: View {
         case playing(Zodiac)
     }
 
-    @State private var stage: Stage = .choosingPiece
+    /// Straight into a run in debug builds, on `GameRules.debugStartingSign`.
+    ///
+    /// Pre-selecting the sign in the picker was not enough — it still cost the
+    /// tap on BEGIN and looked identical to not having changed anything, which
+    /// is how it went unnoticed. Skipping the screen is the thing that was
+    /// actually wanted.
+    ///
+    /// Quitting still returns to the picker, so every sign is reachable; this
+    /// only decides where a launch lands.
+    @State private var stage: Stage = {
+        #if DEBUG
+        return .playing(GameRules.debugStartingSign)
+        #else
+        return .choosingPiece
+        #endif
+    }()
 
     var body: some View {
         content
