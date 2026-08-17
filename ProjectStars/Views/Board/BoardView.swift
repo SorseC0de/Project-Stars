@@ -2137,7 +2137,7 @@ struct BoardView: View {
         }
         if let growing = session.ascentGrowStartedAt {
             let progress = date.timeIntervalSince(growing) / GameRules.ascentGrowDuration
-            return .growing(progress: progress)
+            return .growing(progress: progress, boardSize: metrics.boardSize)
         }
         return .rest
     }
@@ -2167,7 +2167,7 @@ struct BoardView: View {
                 / (goingUp ? GameRules.ascentGrowDuration : GameRules.fallArrivalDuration)
 
             return goingUp
-                ? .growing(progress: progress)
+                ? .growing(progress: progress, boardSize: metrics.boardSize)
                 : .fallingIn(progress: progress, boardSize: metrics.boardSize)
         }
         return .rest

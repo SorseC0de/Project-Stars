@@ -64,18 +64,29 @@ struct AscentPose: Equatable {
         // No vertical drift. The island is drawn in front of the tiles, so
         // sliding it downward reads as it moving *across* the board rather than
         // away from it — shrinking in place is what says "leaving".
+        // **Down, not smaller.** The board is drawn in depth-sorted rows now,
+        // so a thing leaving by shrinking is being sent away by a trick the
+        // board no longer needs — and one that fights it, since the rows are
+        // already saying how far away everything is. It slides out of its row
+        // instead and the row in front covers it, which is the same exit the
+        // fiction describes.
         _ = goingUp
-        _ = boardSize
-        return AscentPose(lift: 0, scale: 1 - CGFloat(p))
+        return AscentPose(lift: p * boardSize * GameRules.ascentRiseHeight, scale: 1)
     }
 
     /// Arriving on Astra: swells from nothing at the centre of the tile.
     ///
     /// Overshoots very slightly before settling, which reads as the island
     /// dropping into place rather than inflating.
-    static func growing(progress: Double) -> AscentPose {
+    static func growing(progress: Double, boardSize: CGFloat) -> AscentPose {
         let p = CGFloat(min(max(progress, 0), 1))
-        let overshoot = 1 + 0.12 * sin(.pi * Double(p))
-        return AscentPose(lift: 0, scale: p * CGFloat(overshoot))
+        // Coming down into its row rather than inflating on the spot, for the
+        // same reason. The overshoot stays — it is what makes an arrival land
+        // rather than stop — but it is a distance now instead of a size.
+        let overshoot = 0.12 * sin(.pi * Double(p))
+        return AscentPose(
+            lift: -(1 - p + CGFloat(overshoot)) * boardSize * GameRules.ascentRiseHeight,
+            scale: 1
+        )
     }
 }
