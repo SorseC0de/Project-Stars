@@ -2517,13 +2517,13 @@ enum GameRules {
     /// smudge on the other.
     static let maneGlowIntensity: Double = 1.6
 
-    /// The lion's embers: how thickly they land, and the seed they land by.
+    /// How bright a pixel must be before the lion's bloom takes it.
     ///
-    /// Sparse. They are meant to read as heat moving through the mane, and at
-    /// any real density they stop being sparks and become a second colour of
-    /// hair.
-    static let maneEmberCoverage: Float = 0.28
-    static let maneEmberSeed: Float = 91
+    /// Lower than the house threshold, which was set for gold. Red is a dark
+    /// colour by luminance and fell under it, so the mane — the largest lit
+    /// surface in the game — was the one thing that never glowed.
+    static let maneGlowThreshold: Double = 0.22
+
 
     /// How far a droplet's point is pulled above its ball, as a fraction of the
     /// ball's own height.
