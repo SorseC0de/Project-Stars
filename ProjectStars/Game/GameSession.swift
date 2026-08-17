@@ -2346,7 +2346,12 @@ final class GameSession {
                 on: plane,
                 delay: Double(gust) * GameRules.breezeGustStagger,
                 scale: 0.7 + CGFloat(seed) * 0.6,
-                angle: (seed - 0.5) * 2 * GameRules.breezeGustAngle
+                angle: (seed - 0.5) * 2 * GameRules.breezeGustAngle,
+                // Half of them mirrored. One drawing repeated four times reads
+                // as four of the same thing however it is scaled and turned;
+                // flipping some of them is what stops the eye finding the
+                // repeat.
+                mirrored: gust % 2 == 1
             )
         }
 
@@ -3042,6 +3047,9 @@ struct EffectBurst: Identifiable, Equatable {
     /// And how far it is turned, in degrees.
     var angle: Double = 0
 
+    /// True to draw this copy mirrored.
+    var mirrored = false
+
     /// What to recolour the strip to, or `nil` to leave the art alone.
     ///
     /// For strips drawn deliberately colourless — the absorb is greys precisely
@@ -3066,7 +3074,8 @@ extension GameSession {
         delay: TimeInterval = 0,
         tint: Color? = nil,
         scale: CGFloat = 1,
-        angle: Double = 0
+        angle: Double = 0,
+        mirrored: Bool = false
     ) {
         let burst = EffectBurst(
             effect: effect,
@@ -3075,6 +3084,7 @@ extension GameSession {
             start: .now.addingTimeInterval(delay),
             scale: scale,
             angle: angle,
+            mirrored: mirrored,
             tint: tint
         )
         effectBursts.append(burst)

@@ -958,7 +958,7 @@ struct BoardView: View {
                 start: burst.start,
                 tint: burst.tint
             )
-            .scaleEffect(burst.scale)
+            .scaleEffect(x: burst.mirrored ? -burst.scale : burst.scale, y: burst.scale)
             .rotationEffect(.degrees(burst.angle))
             .modifier(placedOnPlaneModifier(burst.center, metrics: metrics))
         }
