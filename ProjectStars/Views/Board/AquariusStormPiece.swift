@@ -500,6 +500,47 @@ struct AquariusStormPiece: View {
     /// The whole assembly against the square.
     var scale: CGFloat = GameRules.aquariusStormScale
 
+    /// One frame of the filmed funnel, lit, with him inside it.
+    ///
+    /// Its own function because the branch above got long enough that the type
+    /// checker gave up inferring the `TimelineView`'s content — and because the
+    /// glow has to be applied *here*, at the canvas's own size, rather than
+    /// around the finished piece. `PaletteGlow` rasterises into its content's
+    /// **layout** bounds, and the piece is laid out at one tile while drawing
+    /// across three, so wrapping the outside clips the mask to a tile-wide
+    /// column. That is the light pillar this has produced before.
+    ///
+    /// Lit the whole time there is a storm, which is the inverse of every other
+    /// sign: his meter runs backwards, so the state worth announcing is *having*
+    /// power rather than being ready to spend it. At zero the glow goes and the
+    /// pot is left plain, which is exactly when he can fire.
+    @ViewBuilder
+    private func filmed(_ frame: Image) -> some View {
+        PaletteGlow(
+            radius: GameRules.stormGlowRadius,
+            intensity: GameRules.stormGlowIntensity
+        ) {
+            ZStack {
+                frame
+                    .resizable()
+                    // Nearest neighbour, like every other sprite in the game.
+                    .interpolation(.none)
+                    .antialiased(false)
+                    .frame(
+                        width: GameRules.aquariusStormCanvas,
+                        height: GameRules.aquariusStormCanvas
+                    )
+
+                // Live, on top of the filmed funnel — see `AquariusStormStill`
+                // for why these two are split.
+                FloatingAquarius(
+                    blend: .exclusion,
+                    strength: Double(min(max(phase, 0), 10)) / 10
+                )
+            }
+        }
+    }
+
     var body: some View {
         if phase <= 0 {
             PixelSprite(id: .piece(.aquarius)) { Color.clear }
@@ -515,29 +556,7 @@ struct AquariusStormPiece: View {
                         * Double(reel.count)
                 ) % reel.count
 
-                ZStack {
-                    reel[max(step, 0)]
-                        .resizable()
-                        // Nearest neighbour, like every other sprite in the
-                        // game. A filmed frame is still pixel art, and the
-                        // default smoothing resampled every blade edge into a
-                        // gradient — which is why the cached storm read as
-                        // muddy next to the live one rather than merely less
-                        // smooth.
-                        .interpolation(.none)
-                        .antialiased(false)
-                        .frame(
-                            width: GameRules.aquariusStormCanvas,
-                            height: GameRules.aquariusStormCanvas
-                        )
-
-                    // Live, on top of the filmed funnel — see
-                    // `AquariusStormStill` for why these two are split.
-                    FloatingAquarius(
-                        blend: .exclusion,
-                        strength: Double(min(max(phase, 0), 10)) / 10
-                    )
-                }
+                filmed(reel[max(step, 0)])
                 .compositingGroup()
                 .scaleEffect(scale * tileSize * GameRules.aquariusStormTiles / 300)
                 .frame(width: tileSize, height: tileSize * 2)

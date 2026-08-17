@@ -1892,6 +1892,31 @@ struct GameEngine {
     private mutating func blowAway(at point: GridPoint, on plane: Plane) -> [GameEvent] {
         var events: [GameEvent] = []
 
+        // **Off Astra is a fall, not a death.**
+        //
+        // There is a whole plane underneath — the same one a hole drops you
+        // onto — and dying in mid-air above it would be the one place in the
+        // game where having somewhere to land does not help.
+        //
+        // Landing square is the edge square nearest where you left, which is
+        // just the off-board point clamped back on. It keeps the direction of
+        // travel: blown off the east edge, you come down on Terra's east edge,
+        // and the picture is falling *through* rather than being moved. The
+        // centre tile was the alternative and is worse for a reason that only
+        // shows up sometimes — it is the Nexys point, so whenever the island is
+        // up, the "safe" square is the chasm.
+        if let below = plane.planeBelow {
+            let landing = GridPoint(
+                min(max(point.x, 0), self[below].size - 1),
+                min(max(point.y, 0), self[below].size - 1)
+            )
+            let fell = GameEvent.pieceFell(from: plane, to: below, at: landing)
+            events.append(fell)
+            apply(fell)
+            events += settle(arrivedByFalling: true).events
+            return events
+        }
+
         if zodiactionMeter != 0 {
             let drained = GameEvent.zodiactionMeterChanged(to: 0)
             events.append(drained)

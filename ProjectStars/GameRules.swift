@@ -2065,6 +2065,23 @@ enum GameRules {
     /// dials pulling against each other. Raising this makes the rows taller and
     /// the squares squarer; lowering it lays the board flatter. It does not
     /// touch the widths, so the perspective stays consistent either way.
+    /// How hard the storm blooms while there is one.
+    ///
+    /// Its own number rather than the gem's: a gem blooms from two pixels, and
+    /// this is a funnel already made of blurred, blended plates. The same
+    /// intensity on top of that is a smear rather than a light.
+    ///
+    /// - TODO: On trial. Delete this and the `PaletteGlow` around
+    ///   `AquariusStormPiece` if it does not earn its place.
+    static let stormGlowIntensity: Double = 0.55
+
+    /// How far the storm's bloom spreads, in the canvas's own points.
+    ///
+    /// Not in art pixels: the glow is applied at the full canvas size and the
+    /// whole assembly is scaled down afterwards, so a radius measured against a
+    /// tile would come out a fraction of what it should be.
+    static let stormGlowRadius: CGFloat = 26
+
     /// Three quarters of a board-width up. Chosen by eye at 1.75, which lays the
     /// plane down convincingly while keeping the squares close to square.
     static let boardCamera: CGFloat = 1.75
