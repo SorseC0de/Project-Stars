@@ -216,6 +216,20 @@ final class GameSession {
     /// Whiteout at the moment the planes swap, `0`…`1`.
     private(set) var ascentFlash: Double = 0
 
+    /// How far the world is slid out of frame, as a fraction of the square.
+    ///
+    /// Negative is up. The two planes are stacked in the fiction — Astra above,
+    /// Terra below — and a white flash was hiding the one moment that could say
+    /// so. Sliding the square out the way you are *leaving* and the new one in
+    /// from the way you are *arriving* puts the relationship on screen: rise and
+    /// the world drops away beneath you, fall and it rushes up past you.
+    ///
+    /// One board rather than two stacked for real. `BoardView` reads the
+    /// visible plane in a dozen places, so drawing both at once is a rewrite —
+    /// and the swap only has to survive the instant it is off-screen, which
+    /// motion hides as well as a curtain does and says something while doing it.
+    private(set) var planeSlide: CGFloat = 0
+
     /// When the island began leaving a plane on its own, or `nil`.
     private(set) var nexysDepartStartedAt: Date?
 
@@ -2167,14 +2181,18 @@ final class GameSession {
         onArrival: @escaping () -> Void
     ) async {
         ascentRiseStartedAt = .now
+
+        // Out the bottom: climbing means the world you were on drops away.
         withAnimation(.easeIn(duration: GameRules.ascentRiseDuration)) {
             ascentFlash = GameRules.ascentFlashOpacity
+            planeSlide = 1
         }
         await sleep(GameRules.ascentRiseDuration)
 
         guard !Task.isCancelled else {
             ascentRiseStartedAt = nil
             ascentFlash = 0
+            planeSlide = 0
             return
         }
 
@@ -2182,10 +2200,16 @@ final class GameSession {
         ascentRiseStartedAt = nil
         onArrival()
 
+        // And the new plane is already overhead, coming down into frame. Set
+        // without animation so it starts from up there rather than sweeping
+        // across from where the last one left.
+        planeSlide = -1
+
         ascentGrowStartedAt = .now
         fallArrivalStartedAt = .now
         withAnimation(.easeOut(duration: arrivalDuration)) {
             ascentFlash = 0
+            planeSlide = 0
         }
         await sleep(arrivalDuration)
 
@@ -2306,14 +2330,20 @@ final class GameSession {
         withAnimation(.easeIn(duration: departure)) {
             isFalling = true
             fallSpin += tumble
+            // Out the top, because you are going down past it.
+            planeSlide = -1
         }
         await sleep(departure)
 
         guard !Task.isCancelled else {
             isFalling = false
+            planeSlide = 0
             return
         }
         engine.apply(event)
+
+        // The plane below is waiting under the frame, and comes up to meet you.
+        planeSlide = 1
 
         // Arrival. The piece is whole again the instant it re-enters — it is
         // falling in, not fading in — so the flag is cleared without animation.
@@ -2321,6 +2351,7 @@ final class GameSession {
         fallArrivalStartedAt = .now
         withAnimation(.linear(duration: GameRules.fallArrivalDuration)) {
             fallSpin += tumble
+            planeSlide = 0
         }
         await sleep(GameRules.fallArrivalDuration)
 

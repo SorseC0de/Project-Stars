@@ -1881,6 +1881,12 @@ struct BoardView: View {
     /// so they land together; the *position* is what lags, and that reads as
     /// following without the two of them ever falling out of step.
     @ViewBuilder
+    /// A phantom of another sign, following the player.
+    ///
+    /// Drawn as the **assembled figure**, for the same reason afterimages are:
+    /// what a sign looks like is rarely just `piece(zodiac)`. Libra summoned by
+    /// an Aten arrived with no arms and no scales, because a bare sprite is all
+    /// the atlas has for her — the rest of her is assembled by `PieceView`.
     private func follower(
         step: Int,
         at point: GridPoint,

@@ -46,8 +46,23 @@ struct RetinueView: View {
     var hovering = false
 
     var body: some View {
-        PixelSprite(id: .piece(zodiac)) { Color.clear }
-            .frame(width: tileSize, height: tileSize * 2)
+        // **The assembled figure**, not the bare sprite.
+        //
+        // Libra summoned by an Aten arrived with no arms and no scales, because
+        // a sprite is all the atlas has for her — the rest of her is assembled
+        // by `PieceView`. Same fault the afterimages had, and the same fix: ask
+        // the thing that knows how a sign is put together rather than reaching
+        // for the one cell that is not the whole of it.
+        //
+        // Its shadow is drawn by the caller, so this one is suppressed.
+        PieceView(
+            zodiac: zodiac,
+            tileSize: tileSize,
+            scale: scale,
+            showsShadow: false,
+            facing: facing
+        )
+        .frame(width: tileSize, height: tileSize * 2)
             // The same treatment as Shadow Work's double, and for the same
             // reason: a summoned figure that keeps its own colours reads as a
             // second player rather than as a thing Leo is projecting.

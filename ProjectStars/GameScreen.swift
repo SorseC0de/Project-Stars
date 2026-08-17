@@ -114,7 +114,12 @@ struct GameScreen: View {
                             .padding(.bottom, 6)
                     }
                 }
+                // The world slides when the plane changes — see
+                // `GameSession.planeSlide`. Offset then clipped, so a departing
+                // plane leaves the frame rather than sliding over the panel.
+                .offset(y: session.planeSlide * side)
                 .frame(width: side, height: side)
+                .clipped()
 
                 // Lower square: information and the input zone.
                 ControlPanelView(session: session, side: side)
@@ -242,5 +247,11 @@ struct GameScreen: View {
 // MARK: - Preview
 
 #Preview {
-    GameScreen(zodiac: .aries, onQuit: {})
+    // Whoever is being worked on — see `GameRules.debugStartingSign`.
+    //
+    // This preview is a real entry point into the game, not a thumbnail: it
+    // skips `RootView` and the picker entirely, so a sign hardcoded here is the
+    // sign anybody testing through it actually gets, whatever the launch path
+    // is set to do.
+    GameScreen(zodiac: GameRules.debugStartingSign, onQuit: {})
 }
