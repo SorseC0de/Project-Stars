@@ -150,10 +150,32 @@ struct PlacedOnPlane: ViewModifier {
                 spacing: framing.spacing
             )
 
+            // Feet on the band's **bottom edge**, not centres together.
+            //
+            // The two shrink at different rates — see `BoardBand.heightY` — so
+            // matching centres leaves an object hanging lower in its tile the
+            // further back it is. Matching the edge it stands on is the only
+            // alignment that holds at every depth, and it is also the true one:
+            // what a piece shares with its square is the ground, not a midpoint.
+            // Centred on the band, plus the one thing the content cannot know.
+            //
+            // A view drawn to stand on a tile already offsets itself by half a
+            // **tile** — `PieceView` does exactly that, and it is right to. But
+            // a band is not a tile: it is shorter, and shorter the further back
+            // it is, because the ground is foreshortened and the sprite is not.
+            //
+            // So the content places itself against `tileSize * scale` while the
+            // ground it is standing on is only `heightY` deep, and the gap
+            // between those two is the whole error — a constant number of
+            // pixels at the front, and a growing share of the tile toward the
+            // back. Handing that difference back is the correction, and it
+            // falls out of the geometry rather than being tuned.
+            let mismatch = (band.heightY - metrics.tileSize * spot.scale) / 2
+
             return AnyView(
                 content
                     .scaleEffect(spot.scale)
-                    .position(x: spot.position.x, y: band.drawnCentreY)
+                    .position(x: spot.position.x, y: band.drawnCentreY + mismatch)
             )
         }
 

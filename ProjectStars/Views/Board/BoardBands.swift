@@ -86,6 +86,15 @@ struct BoardBand {
     /// How much the band's far edge is narrowed, as the keystone wants it.
     let lean: CGFloat
 
+    /// How tall the band is drawn, in points.
+    ///
+    /// Needed by anything standing on it, because this and the object's own
+    /// height shrink at *different rates*: an object is a tile-sized box scaled
+    /// by the row's `1/w`, while a band is the distance between two edges and
+    /// closes as roughly `1/w²`. Centre the two and the object hangs further
+    /// below its tile the further back it stands.
+    let heightY: CGFloat
+
     /// The middle of the drawn band, which is what anything standing on this
     /// row should sit on.
     ///
@@ -184,6 +193,7 @@ struct BoardBand {
             groundScale: height * (1 + lean) / metrics.tileSize,
             centreY: board + (mid - board) * zoom - board * lift,
             lean: lean,
+            heightY: height,
             drawnCentreY: (top + bottom) / 2,
             groundCentreY: bottom - metrics.tileSize / 2
         )

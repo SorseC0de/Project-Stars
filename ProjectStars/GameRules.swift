@@ -2791,6 +2791,14 @@ enum GameRules {
     /// — and each pairing needed a different amount of that undone. With the
     /// double gone the four collapse into one, which is the tell that they were
     /// never four different quantities.
+
+    /// How far above the floor of its cell a sprite is drawn, in art pixels.
+    ///
+    /// A property of the art, not of the board: every piece is authored with
+    /// five pixels of clearance underneath, so anything aligning a sprite's cell
+    /// to the ground is placing it five pixels too high.
+    static let spriteFeetInset: CGFloat = 5
+
     /// How far a falling piece is driven down before the plane changes, in art
     /// pixels.
     ///
