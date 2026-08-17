@@ -54,7 +54,7 @@ struct GameOverOverlay: View {
                         .contentShape(Capsule())
                         .onTapGesture { session.newGame() }
 
-                    Text("CHANGE SIGN")
+                    Text("CHANGE ZODEA")
                         .font(.system(size: 11, weight: .bold, design: .monospaced))
                         .tracking(2)
                         .foregroundStyle(Palette.textSecondary)

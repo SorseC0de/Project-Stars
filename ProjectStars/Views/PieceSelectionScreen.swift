@@ -64,7 +64,7 @@ struct PieceSelectionScreen: View {
                 .tracking(4)
                 .foregroundStyle(Palette.textPrimary)
 
-            Text("CHOOSE YOUR SIGN")
+            Text("CHOOSE YOUR ZODEA")
                 .font(.system(size: 9, weight: .bold, design: .monospaced))
                 .tracking(3)
                 .foregroundStyle(Palette.textSecondary)

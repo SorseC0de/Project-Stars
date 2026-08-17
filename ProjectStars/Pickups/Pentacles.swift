@@ -832,7 +832,7 @@ struct ForcedFateEffect: PickupEffect {
     /// two, because it is luck rather than a decision.
     let weight = 3
     let displayName = "Forced Fate"
-    let summary = "The stars have ordeigned your sign has changed."
+    let summary = "The stars have ordained your Zodea has changed."
     let glyph = "✦"
     let icon: String? = "forced_fate"
 
