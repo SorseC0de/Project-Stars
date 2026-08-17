@@ -36,27 +36,21 @@ struct GameScreen: View {
             VStack(spacing: 0) {
                 // Upper square: the playfield.
                 ZStack {
-                    // The sky fills the whole square, not just the grid — the
-                    // letterboxing either side of a 7x7 board at whole-pixel
-                    // scale is part of the view, and should be sky rather than
-                    // chrome.
-                    SkyView(
-                        plane: session.visiblePlane,
-                        side: side,
-                        clock: session.ambientClock(at:)
-                    )
-                    // Underneath the sky, and underneath the board with it —
-                    // so it shows through Astra's holes. See `GroundBelowView`.
-                    if session.visiblePlane == .astra {
-                        GroundBelowView(
-                            side: side,
-                            metrics: PixelArtMetrics(availableSide: side)
-                        )
-                        .frame(width: side, height: side)
-                        .transition(.opacity)
+                    // **Both planes, actually stacked.**
+                    //
+                    // Astra above Terra, each in its own square, with the one
+                    // being stood on scrolled into frame. Nothing about this
+                    // changes what is seen today — the other plane is off screen
+                    // and clipped away — but it is the difference between a
+                    // transition that can travel between them and one that has
+                    // to hide a swap behind a curtain.
+                    VStack(spacing: 0) {
+                        planeSquare(.astra, side: side)
+                        planeSquare(.terra, side: side)
                     }
-
-                    BoardView(session: session, availableSide: side)
+                    .offset(y: session.visiblePlane == .astra ? 0 : -side)
+                    .frame(width: side, height: side, alignment: .top)
+                    .clipped()
 
                     // Names what is being looked at, so it belongs with the
                     // thing being looked at rather than among the controls.
@@ -170,6 +164,30 @@ struct GameScreen: View {
         // a button inside the panel cannot draw outside the panel's bounds.
         // See `iMAPicker`.
         .iMAPickerHost()
+    }
+
+    /// One plane's square: its sky, and its board.
+    ///
+    /// The sky belongs to the plane rather than to the screen, which is what
+    /// lets the two be stacked at all — Astra's stars and Terra's daylight are
+    /// as much a part of where you are as the ground is.
+    private func planeSquare(_ plane: Plane, side: CGFloat) -> some View {
+        ZStack {
+            // The sky fills the whole square, not just the grid — the
+            // letterboxing either side of a 7x7 board at whole-pixel scale is
+            // part of the view, and should be sky rather than chrome.
+            SkyView(plane: plane, side: side, clock: session.ambientClock(at:))
+
+            // Underneath the sky, and underneath the board with it — so it
+            // shows through Astra's holes. See `GroundBelowView`.
+            if plane == .astra {
+                GroundBelowView(side: side, metrics: PixelArtMetrics(availableSide: side))
+                    .frame(width: side, height: side)
+            }
+
+            BoardView(session: session, plane: plane, availableSide: side)
+        }
+        .frame(width: side, height: side)
     }
 
     /// Hardware-keyboard shortcuts, for testing on the simulator and on iPad.

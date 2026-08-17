@@ -1354,8 +1354,19 @@ struct BoardView: View {
     /// Which objects are on the board right now.
     private func objectsOnBoard(plane: Plane) -> [BoardObject] {
         let cursorPoint = projectedCursor.point
-        var objects: [BoardObject] = [
-            BoardObject(kind: .piece, point: session.engine.piece.point),
+        // Only on the plane it is actually standing on.
+        //
+        // Unconditional was harmless while one board existed; with both on
+        // screen it draws the piece twice, once on ground it is nowhere near.
+        var objects: [BoardObject] = []
+        if session.engine.piece.plane == plane {
+            objects.append(BoardObject(kind: .piece, point: session.engine.piece.point))
+        }
+        // The cursor and the facing arrow belong to the piece, so they follow
+        // it rather than appearing on whichever board is being drawn.
+        guard session.engine.piece.plane == plane else { return objects }
+
+        objects += [
             // At the square it points at, not the square it comes from.
             //
             // Which is what restores north. The depth law sorts by row, so an
