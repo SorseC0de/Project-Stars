@@ -35,7 +35,7 @@ struct PieceChoiceOverlay: View {
                     .tracking(3)
                     .foregroundStyle(Palette.textSecondary)
 
-                Text("CHOOSE A SIGN")
+                Text("CHOOSE A ZODEA")
                     .font(.system(size: 16, weight: .heavy, design: .monospaced))
                     .tracking(2)
                     .foregroundStyle(Palette.pentacle)
@@ -46,7 +46,7 @@ struct PieceChoiceOverlay: View {
                     }
                 }
 
-                Text("Keeping your current sign is a valid choice.")
+                Text("Keeping your current Zodea is a valid choice.")
                     .font(.system(size: 8, design: .monospaced))
                     .foregroundStyle(Palette.textSecondary)
             }

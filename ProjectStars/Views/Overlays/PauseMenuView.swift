@@ -41,7 +41,7 @@ struct PauseMenuView: View {
                 VStack(spacing: 7) {
                     button("RESUME", tint: Palette.textPrimary) { session.resume() }
                     button("RESTART RUN", tint: Palette.pentacle) { session.restart() }
-                    button("CHANGE SIGN", tint: Palette.textSecondary) {
+                    button("CHANGE ZODEA", tint: Palette.textSecondary) {
                         session.resume()
                         onQuit()
                     }

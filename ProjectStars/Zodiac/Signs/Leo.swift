@@ -200,7 +200,7 @@ struct LeoCourageousCharge: ZodiacPassive {
 struct LeoRallyingRoar: ZodiacPassive {
 
     let displayName = "Rallying Roar"
-    let summary = "Terra: step onto the Nexys to change sign instead of riding up. (Not yet implemented.)"
+    let summary = "Terra: step onto the Nexys to change Zodea instead of riding up. (Not yet implemented.)"
 }
 
 // MARK: - Zodiaction: Attracting Aten
@@ -242,7 +242,7 @@ struct LeoRallyingRoar: ZodiacPassive {
 struct LeoAttractingAten: Zodiaction {
 
     let displayName = "Attracting Aten"
-    let summary = "Call a phantom of another sign to follow you. Its movement and its Zodiaction are yours once each, for nothing, and its passives apply the whole time it is with you."
+    let summary = "Call a phantom of another Zodea to follow you. Its movement and its Zodiaction are yours once each, for nothing, and its passives apply the whole time it is with you."
 
     /// Leo's charge comes from Prideful Plant.
     func meterGain(from move: MoveSummary, context: PassiveContext) -> Int { 0 }
