@@ -2503,6 +2503,21 @@ enum GameRules {
     static let tremorShake: CGFloat = 0.45
     static let shakedownShake: CGFloat = 1.1
 
+    /// How long Leo's mane stays lit after the pull fires.
+    ///
+    /// Brief. It is the flare of the thing working, not a state he is in — a
+    /// mane that stayed lit would be indistinguishable from a full meter, which
+    /// is the one thing it must not be confused with.
+    static let maneBlazeDuration: TimeInterval = 0.55
+
+    /// How far the archer's arrow rises above where it is drawn, in art pixels,
+    /// and how long one rise and fall takes.
+    ///
+    /// Slower than Virgo's gems on purpose. Hers orbit her; this is a nocked
+    /// shot waiting to be taken, and anything quick would read as agitation.
+    static let sagittariusArrowFloat: CGFloat = 4
+    static let sagittariusArrowPeriod: TimeInterval = 4.6
+
     // MARK: - The glow phase's hang
 
     /// Base periods for a sparkle's turn, bob and breath, in seconds.

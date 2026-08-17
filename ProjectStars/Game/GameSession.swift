@@ -541,6 +541,31 @@ final class GameSession {
     /// is not flashing.
     private(set) var chargeFlashStartedAt: Date?
 
+    /// While the lion's mane is lit, or `nil`.
+    ///
+    /// The mane is gemstone now, so it lights through the same swap the gem
+    /// does — which means "blazing" is just `isCharged` being true for a moment
+    /// that has nothing to do with the meter. Nothing new has to be drawn.
+    private(set) var maneBlazeUntil: Date?
+
+    /// True while it is lit.
+    var isManeBlazing: Bool {
+        guard let until = maneBlazeUntil else { return false }
+        return until > .now
+    }
+
+    /// Lights it, briefly.
+    private func blazeMane() {
+        maneBlazeUntil = .now.addingTimeInterval(GameRules.maneBlazeDuration)
+        Task { [weak self] in
+            try? await Task.sleep(
+                nanoseconds: UInt64(GameRules.maneBlazeDuration * 1_000_000_000)
+            )
+            guard let self, !self.isManeBlazing else { return }
+            self.maneBlazeUntil = nil
+        }
+    }
+
     /// True once the mane's ring has been thrown this move.
     ///
     /// Two coins pulled on one turn is one pull, and two rings on the same
@@ -1911,6 +1936,7 @@ final class GameSession {
             if !manePulledThisMove {
                 manePulledThisMove = true
                 playBurst(zodiac.element, at: engine.piece.point, on: plane)
+                blazeMane()
             }
 
             // Dragged, so it travels rather than blinking across.

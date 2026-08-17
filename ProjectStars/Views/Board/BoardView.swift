@@ -1689,7 +1689,9 @@ struct BoardView: View {
             tileSize: metrics.tileSize,
             scale: metrics.scale,
             plane: session.visiblePlane,
-            isCharged: session.isZodiactionCharged,
+            // Or the mane catching, which lights the same gemstone for a
+            // moment — see `GameSession.blazeMane()`.
+            isCharged: session.isZodiactionCharged || session.isManeBlazing,
             twin: session.engine.piece.twin,
             movement: session.movement,
             facing: session.engine.piece.facing,
@@ -2038,6 +2040,12 @@ struct BoardView: View {
 
                     AfterimageView(
                         zodiac: session.zodiac,
+                        // What he **is** right now, not what he was drawn as.
+                        // The storm is derived from the meter, so a ghost built
+                        // from the bare sprite was a trail of statues behind a
+                        // funnel — the one thing on screen still admitting there
+                        // is a figure under there.
+                        stormPhase: aquariusPhase,
                         element: starring == nil ? session.trailElement : elements[index],
                         tileSize: metrics.tileSize,
                         scale: metrics.scale,

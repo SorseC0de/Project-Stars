@@ -276,6 +276,10 @@ enum SpriteAtlas {
         // The scales are carried, not worn: two arms and two pans that sit at
         // their own depths around the body. See `LibraPieceView`.
         // Directly under Libra's own cell, and the one to its right.
+        // Above Capricorn's column, right of Libra's four scales. Authored to
+        // sit over the archer's upper tile with no offset of its own.
+        map[.sagittariusArrowRest] = .cells(column: 14, row: 0 + sheetShiftY)
+
         map[.libraArm(.northSouth)] = .cells(column: 10, row: 3 + sheetShiftY)
         map[.libraArm(.eastWest)] = .cells(column: 11, row: 3 + sheetShiftY)
         // Gemini's halves, either side of the whole.

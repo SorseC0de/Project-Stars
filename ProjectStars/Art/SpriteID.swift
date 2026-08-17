@@ -131,6 +131,13 @@ enum SpriteID: Hashable {
     /// The same pans at rest, drawn plain.
     case libraScalesPlain
 
+    /// The archer's arrow, drawn apart from the bust so it can float.
+    ///
+    /// Its own cell for the same reason Libra's arms are: a part that has to
+    /// move independently cannot be baked into the figure, or the figure has to
+    /// be redrawn for every position it might be in.
+    case sagittariusArrowRest
+
     /// One of Gemini's two halves. See `GeminiHalf`.
     case geminiHalf(GeminiHalf)
 
@@ -256,6 +263,8 @@ enum SpriteID: Hashable {
             "libra_arm_\(set.rawValue)"
         case .libraScales:
             "libra_scales"
+        case .sagittariusArrowRest:
+            "sagittarius_arrow_rest"
         case .libraScalesPlain:
             "libra_scales_plain"
         case let .geminiHalf(half):

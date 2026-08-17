@@ -343,6 +343,7 @@ struct PieceView: View {
             // East is west, mirrored — see `isMirrored`.
             .scaleEffect(x: isMirrored ? -1 : 1, y: 1)
             .overlay(alignment: .top) { virgoGems }
+            .overlay(alignment: .top) { sagittariusArrow }
         }
     }
 
@@ -357,6 +358,31 @@ struct PieceView: View {
     ///
     /// - TODO: Static for now. They are meant to move; this is the resting
     ///   arrangement to check the placement against first.
+    /// The archer's arrow, hanging over him.
+    ///
+    /// **Drawn position is the bottom of its travel**, so it rises and settles
+    /// back rather than sinking below where the art puts it. Same reasoning as
+    /// Virgo's gems: the arrangement that was checked against the sheet stays a
+    /// real position in the motion instead of becoming the average of two wrong
+    /// ones.
+    ///
+    /// Slow, and slower than her gems. It is a nocked shot waiting to be taken,
+    /// not something orbiting him — anything quick would read as agitation.
+    @ViewBuilder
+    private var sagittariusArrow: some View {
+        if zodiac == .sagittarius {
+            TimelineView(.animation) { timeline in
+                let now = clock(timeline.date.timeIntervalSinceReferenceDate)
+                let rise = (1 - cos(now / GameRules.sagittariusArrowPeriod * 2 * .pi)) / 2
+
+                PixelSprite(id: .sagittariusArrowRest) { Color.clear }
+                    .offset(y: -rise * GameRules.sagittariusArrowFloat * scale)
+            }
+            .frame(width: tileSize, height: tileSize)
+            .allowsHitTesting(false)
+        }
+    }
+
     @ViewBuilder
     private var virgoGems: some View {
         if zodiac == .virgo {

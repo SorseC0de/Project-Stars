@@ -34,6 +34,14 @@ struct AfterimageView: View {
 
     let zodiac: Zodiac
 
+    /// How much storm Aquarius was wearing, `0` for everyone else.
+    ///
+    /// A ghost is a picture of *what was standing there*, and for Aquarius the
+    /// bare statue has not been standing anywhere since the meter left zero.
+    /// Trailing statues behind a funnel was the one thing on screen still
+    /// admitting there is a figure inside it.
+    var stormPhase: Int = 0
+
     /// The element this copy wears.
     let element: ZodiacElement
 
@@ -50,8 +58,26 @@ struct AfterimageView: View {
     let age: Double
 
     var body: some View {
-        PixelSprite(id: .piece(zodiac)) { Color.clear }
-            .frame(width: tileSize, height: tileSize * 2)
+        Group {
+            if zodiac == .aquarius, stormPhase > 0 {
+                // Frozen: a ghost is a still of a moment, and one that kept
+                // running would be a second storm turning out of step with the
+                // real one.
+                AquariusStormStill(
+                    phase: stormPhase,
+                    at: 0,
+                    side: GameRules.aquariusStormCanvas
+                )
+                .scaleEffect(
+                    tileSize * GameRules.aquariusStormTiles
+                        / GameRules.aquariusStormCanvas
+                )
+                .frame(width: tileSize, height: tileSize * 2)
+            } else {
+                PixelSprite(id: .piece(zodiac)) { Color.clear }
+                    .frame(width: tileSize, height: tileSize * 2)
+            }
+        }
             .paletteSwap(
                 zip(Palette.pieceGoldTones, Palette.trailTones(for: element))
                     .map(PaletteSwap.init)
