@@ -58,6 +58,30 @@ final class GameSession {
     #endif
     var debugSpawning: PickupID?
 
+    /// When the storm last went from nothing to something, or `nil`.
+    ///
+    /// Watched rather than told: the phase is derived from the meter, and the
+    /// meter changes from a dozen places. A flag every one of them had to
+    /// remember to set is a flag that will be missed.
+    private(set) var stormWokeAt: Date?
+
+    /// The last phase seen, so the crossing can be spotted.
+    private var lastStormPhase = 0
+
+    /// Notices the storm waking. Called wherever the meter settles.
+    func noteStormPhase(_ phase: Int) {
+        defer { lastStormPhase = phase }
+        guard zodiac == .aquarius, lastStormPhase == 0, phase > 0 else { return }
+        stormWokeAt = .now
+
+        Task { [weak self] in
+            try? await Task.sleep(
+                nanoseconds: UInt64(EffectSprite.aquariusZodiaction.duration * 1_000_000_000)
+            )
+            self?.stormWokeAt = nil
+        }
+    }
+
     /// Aquarius' storm, drawn once per phase and played back. See
     /// `AquariusStormFilm`.
     let stormFilm = AquariusStormFilm()

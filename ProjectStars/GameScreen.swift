@@ -70,6 +70,10 @@ struct GameScreen: View {
                     // different — that you may use it — and while the fragment
                     // is dormant only the first of those is.
                     HStack(spacing: 8) {
+                        // Anything running on a clock, growing leftward so
+                        // nothing already on screen moves when one starts.
+                        BuffsView(session: session)
+
                         PolarisBadgeView(
                             polaris: session.polaris,
                             scale: PixelArtMetrics(availableSide: side).scale

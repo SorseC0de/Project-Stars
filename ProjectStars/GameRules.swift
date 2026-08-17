@@ -2479,6 +2479,16 @@ enum GameRules {
     //
     // The pillar of light at each end of a teleport.
 
+    /// How big the storm's own art is drawn when it plays for the **transform**
+    /// rather than for the Zodiaction.
+    ///
+    /// Smaller, because the two are not the same event. Going from bare statue
+    /// to storm is the sign waking up; popping the Zodiaction is the sign
+    /// spending everything it has. If both played at the same size the second
+    /// would land as a repeat of the first, and the loudest moment in the kit
+    /// would be the one the player had already seen.
+    static let aquariusTransformScale: CGFloat = 0.6
+
     /// Committed moves the two Essences run for.
     ///
     /// Three, and the same number for both, because they are one effect with a

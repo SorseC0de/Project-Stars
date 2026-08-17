@@ -407,7 +407,7 @@ enum EffectSprite: String, CaseIterable, Hashable {
              // The Breeze's gust is the moment the Essence fires, and the wind
              // art is drawn pale — without a strong bloom it reads as haze on
              // the board rather than as something happening.
-             .windMisc, .glowPhase, .sparkles:
+             .windMisc, .glowPhase, .sparkles, .aquariusZodiaction:
             return GameRules.effectGlowStrongIntensity
         default:
             break

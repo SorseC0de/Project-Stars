@@ -157,6 +157,7 @@ struct BoardView: View {
                 )
             }
 
+            aquariusTransform(metrics: metrics)
             constellation(metrics: metrics)
             warpBeam(metrics: metrics)
             fallingCloud(metrics: metrics)
@@ -2272,6 +2273,26 @@ struct BoardView: View {
             : SmokeSpriteView.cloudSwaps
     }
 
+    /// The moment the storm first appears, and only that moment.
+    ///
+    /// Fired on the crossing from nothing to something rather than on every
+    /// change of phase: the funnel growing is continuous and needs no
+    /// announcement, but the first breath of it is the sign coming alive and
+    /// would otherwise happen in silence.
+    @ViewBuilder
+    private func aquariusTransform(metrics: PixelArtMetrics) -> some View {
+        if session.zodiac == .aquarius, let start = session.stormWokeAt {
+            EffectSpriteView(
+                effect: .aquariusZodiaction,
+                tileSize: metrics.tileSize,
+                start: start
+            )
+            .scaleEffect(GameRules.aquariusTransformScale)
+            .modifier(placedOnPlaneModifier(session.engine.piece.point, metrics: metrics))
+            .allowsHitTesting(false)
+        }
+    }
+
     /// How much storm Aquarius is wearing, from his meter.
     ///
     /// - TODO: The sign's meter is meant to read backwards — full at the start,
@@ -2280,7 +2301,9 @@ struct BoardView: View {
     private var aquariusPhase: Int {
         guard session.zodiac == .aquarius, session.zodiactionMeterMax > 0 else { return 0 }
         let full = Double(session.zodiactionMeter) / Double(session.zodiactionMeterMax)
-        return Int((full * 10).rounded())
+        let phase = Int((full * 10).rounded())
+        session.noteStormPhase(phase)
+        return phase
     }
 
     /// Sparkles thrown off by an opened Pentacle.
