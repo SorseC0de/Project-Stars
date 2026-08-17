@@ -121,4 +121,12 @@ struct Tile: Hashable, Codable {
     /// Standing water. Healthy because a pool is not damaged ground — it is not
     /// ground at all.
     static let pool = Tile(kind: .pool, health: .healthy)
+
+    /// **No square at all.**
+    ///
+    /// What reading off the board gives back. A chasm because that is already
+    /// the game's word for *there is nothing here to stand on* — so every rule
+    /// written against a tile answers correctly for the rim without being told
+    /// about it: nothing can be worn, mended, sparkled on, or stood upon.
+    static let nowhere = Tile(kind: .chasm, health: .healthy)
 }

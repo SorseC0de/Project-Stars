@@ -41,10 +41,28 @@ struct Board: Codable, Equatable {
         contains(point) ? tiles[index(of: point)] : nil
     }
 
+    /// The tile at `point` — or `Tile.nowhere` if there is no square there.
+    ///
+    /// ## Why reading off the board is no longer a programmer error
+    ///
+    /// It was, for as long as nothing could be outside the board. Aquarius
+    /// above zero can, for the instant between being carried past the rim and
+    /// the run ending, and during that instant *everything* asks what he is
+    /// standing on: the view for a hover bob, the session for a surface bounce,
+    /// the engine for wear. Each of those trapped, and patching them one at a
+    /// time found three before this.
+    ///
+    /// So the question has an answer now, and it is the honest one — there is
+    /// nothing there. `Tile.nowhere` is a chasm, so every rule written against
+    /// a tile already handles it: not solid, not worn, not mended, not
+    /// sparkled on.
+    ///
+    /// **Writing** off the board is still a programmer error and still traps.
+    /// Asking about a square that does not exist is reasonable; changing one is
+    /// not.
     subscript(point: GridPoint) -> Tile {
         get {
-            precondition(contains(point), "GridPoint \(point) is off the board")
-            return tiles[index(of: point)]
+            contains(point) ? tiles[index(of: point)] : .nowhere
         }
         set {
             precondition(contains(point), "GridPoint \(point) is off the board")

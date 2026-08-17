@@ -319,8 +319,12 @@ final class GameSession {
 
     /// Presses the surface at `point` down and lets it spring back.
     func bounceSurface(at point: GridPoint, on plane: Plane) {
+        // Nothing to press when there is no square. A landing outside the board
+        // is the run ending, and the rim has no surface to give.
+        guard let tile = engine[plane].tile(at: point) else { return }
+
         // Cloud and the island give; stone does not.
-        guard plane == .astra || engine[plane][point].kind == .nexys else { return }
+        guard plane == .astra || tile.kind == .nexys else { return }
 
         let bounce = SurfaceBounce(point: point, plane: plane, start: .now)
         surfaceBounce = bounce
