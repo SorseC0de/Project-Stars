@@ -139,7 +139,30 @@ struct PaletteGlow<Content: View>: View {
                 // one shape rather than on each copy in the stack — eight
                 // overlapping layers tinted individually go uneven wherever they
                 // cross.
-                .overlay { if let tint { tint.blendMode(tintBlend) } }
+                // Masked by the halo itself, so no blend mode can paint outside
+                // it. Most of them ignore the backdrop's alpha — `.normal` and
+                // `.multiply` fill their whole rect — which is why changing the
+                // mode left a square sitting over the view.
+                .overlay {
+                    // Masked by a second copy of the same bloom, so no blend
+                    // mode can paint outside it. Most of them ignore the
+                    // backdrop's alpha — `.normal` and `.multiply` fill their
+                    // whole rect — which is why changing the mode left a square
+                    // sitting over the view.
+                    if let tint {
+                        tint
+                            .blendMode(tintBlend)
+                            .mask {
+                                ZStack {
+                                    ForEach(0...max(trail, 0), id: \.self) { step in
+                                        mask
+                                            .blur(radius: radius * (1 + CGFloat(step) * 0.9))
+                                            .opacity(intensity / Double(step + 1))
+                                    }
+                                }
+                            }
+                    }
+                }
                 .compositingGroup()
                 .blendMode(.plusLighter)
                 .allowsHitTesting(false)

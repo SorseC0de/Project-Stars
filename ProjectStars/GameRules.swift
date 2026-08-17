@@ -2087,6 +2087,11 @@ enum GameRules {
     /// Its own light rather than the art's: the funnel's brightest pixels are
     /// near-white, so an untinted bloom comes out white and reads as glare
     /// instead of as wind carrying its own charge.
+    /// Which drawing the funnel's plates are cut from.
+    ///
+    /// - TODO: On trial against `aquariusArmorGrey`.
+    static let aquariusStormPlate: EffectSprite = .aquariusArmor
+
     static let stormGlowTint: Color = Palette.purple
     static let stormGlowTintBlend: BlendMode = .sourceAtop
 

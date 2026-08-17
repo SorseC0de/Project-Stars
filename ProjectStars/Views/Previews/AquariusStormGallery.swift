@@ -21,6 +21,9 @@ struct AquariusStormGallery: View {
     @State private var glowTint: Color = GameRules.stormGlowTint
     @State private var glowBlend: BlendMode = GameRules.stormGlowTintBlend
 
+    /// Gold core or grey.
+    @State private var greyPlates = false
+
 
     var body: some View {
         VStack(spacing: 10) {
@@ -38,7 +41,13 @@ struct AquariusStormGallery: View {
                 boardGrid
                 stack
             }
-            .frame(width: 330, height: 330)
+            // Room for the whole assembly.
+            //
+            // The funnel is drawn on a 300-point canvas and the figure hangs
+            // above its middle, so a frame the same size as the canvas cuts his
+            // head off. Judged against a viewport that clips, every decision
+            // about his size is a decision about the wrong picture.
+            .frame(width: 420, height: 460)
             .clipShape(RoundedRectangle(cornerRadius: 10))
 
             // The knobs scroll; the storm does not.
@@ -90,7 +99,12 @@ struct AquariusStormGallery: View {
                 tint: glowTint,
                 tintBlend: glowBlend
             ) {
-                AquariusStorm(phase: phase, side: 300, scale: 4)
+                AquariusStorm(
+                    phase: phase,
+                    plate: greyPlates ? .aquariusArmorGrey : .aquariusArmor,
+                    side: 300,
+                    scale: 4
+                )
             }
 
             // **The silhouette is on top and it is the thing that blends.**
@@ -156,6 +170,7 @@ struct AquariusStormGallery: View {
             HStack(spacing: 16) {
                 Toggle("EYES", isOn: $showsEyes)
                 Toggle("BODY", isOn: $showsSilhouette)
+                Toggle("GREY", isOn: $greyPlates)
             }
             .font(.system(size: 10, weight: .bold, design: .monospaced))
             .fixedSize()

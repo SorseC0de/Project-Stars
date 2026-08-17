@@ -119,6 +119,13 @@ enum EffectSprite: String, CaseIterable, Hashable {
     /// funnel around the silhouette. See `AquariusStormView`.
     case aquariusArmor
 
+    /// The same blade with a grey core instead of a gold one.
+    ///
+    /// A second drawing rather than a palette swap: the gold is not one entry
+    /// but a ramp through the middle of the plate, and swapping a ramp for a
+    /// ramp by hand is what the art already does better.
+    case aquariusArmorGrey
+
     /// The glow phase, replacing the rendered version.
     case glowPhase
 
@@ -176,7 +183,8 @@ enum EffectSprite: String, CaseIterable, Hashable {
             .water
         // Libra is air, and the diamonds were filed under water only because the
         // first draft of them was drawn in blue.
-        case .libraZodiaction, .windMisc, .aquariusZodiaction, .aquariusArmor:
+        case .libraZodiaction, .windMisc, .aquariusZodiaction, .aquariusArmor,
+             .aquariusArmorGrey:
             .air
         case .cancerScuttle:
             .water
@@ -223,6 +231,7 @@ enum EffectSprite: String, CaseIterable, Hashable {
         case .lightningMisc: "lightning_misc"
         case .aquariusZodiaction: "aquarius_zaction"
         case .aquariusArmor: "aquarius_armor"
+        case .aquariusArmorGrey: "aquarius_armor_v2"
         case .glowPhase: "glow_phase"
         case .sparkles: "sparkles"
         case .absorb: "absorb"
@@ -285,7 +294,7 @@ enum EffectSprite: String, CaseIterable, Hashable {
              .cancerZodiaction, .cancerZodiactionAlternate, .libraZodiaction: 22
         case .windMisc, .lightningMisc, .aquariusZodiaction: 10
         case .glowPhase: 12
-        case .aquariusArmor: 16
+        case .aquariusArmor, .aquariusArmorGrey: 16
         case .sparkles: 24
         case .absorb: 31
         case .cancerScuttle: 40
@@ -397,7 +406,7 @@ enum EffectSprite: String, CaseIterable, Hashable {
         // square lighting up, and the scuttle's bubbles come off the floor.
         case .windMisc, .glowPhase, .sparkles: 0
         // Around the whole figure, not under it.
-        case .aquariusArmor: 8
+        case .aquariusArmor, .aquariusArmorGrey: 8
         }
     }
 

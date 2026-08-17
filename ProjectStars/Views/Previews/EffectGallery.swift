@@ -268,6 +268,7 @@ private extension EffectSprite {
         case .lightningMisc: "Astral Bolt — impact"
         case .aquariusZodiaction: "Aquarius — Waterbearer Wipeout"
         case .aquariusArmor: "Aquarius — storm band"
+        case .aquariusArmorGrey: "Aquarius — storm band, grey core"
         case .glowPhase: "Glow phase"
         case .sparkles: "Sparkles"
         case .absorb: "ZC absorb"

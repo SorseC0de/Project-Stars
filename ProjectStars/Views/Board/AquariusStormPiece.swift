@@ -90,6 +90,9 @@ struct AquariusStorm: View {
     /// How much wider an eye plate is than the widest of the stack.
     var eyeScale: CGFloat = GameRules.aquariusEyeScale
 
+    /// Which blade the plates are cut from.
+    var plate: EffectSprite = GameRules.aquariusStormPlate
+
     /// A fixed moment to draw, instead of the running clock.
     ///
     /// What makes the assembly cacheable: with time as an input rather than
@@ -120,7 +123,7 @@ struct AquariusStorm: View {
             ZStack {
                 ForEach(0..<bands, id: \.self) { band in
                     EffectSpriteView(
-                        effect: .aquariusArmor,
+                        effect: plate,
                         tileSize: bandSize(band),
                         start: .distantPast,
                         loops: true,
@@ -188,7 +191,7 @@ struct AquariusStorm: View {
         at now: TimeInterval
     ) -> some View {
         EffectSpriteView(
-            effect: .aquariusArmor,
+            effect: plate,
             tileSize: bandSize(bands - 1) * eyeScale * size,
             start: .distantPast,
             loops: true,
