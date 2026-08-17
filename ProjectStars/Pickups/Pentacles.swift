@@ -550,20 +550,24 @@ struct TrivialTremorEffect: PickupEffect {
         let candidates = context.currentBoard.points(where: \.canBeWorn)
         guard let target = candidates.randomElement(using: &generator) else { return [] }
 
-        // Applied as **damage**, one step at a time, rather than by setting the
-        // result. A Shakedown that assigned `.hole` would be a different verb
-        // from wear, and anything that ever wants to stand between the two — a
-        // passive that softens a hit, armour on a tile — would have nothing to
-        // reduce.
+        // Counted as **damage**, landed as **one hit**.
+        //
+        // Both halves matter and they pull in different directions. Counting in
+        // points rather than assigning `.hole` keeps wear a single verb, so
+        // anything that ever wants to sit between the source and the tile has a
+        // number to work with. But it has to arrive as one event, because a
+        // shield that nullifies *the next damage* has to know what "next" is —
+        // three events would let a Nexyial Bastion eat a third of a Shakedown
+        // and pass the rest through, which is not what absorbing a hit means.
         var health = context.currentBoard[target].health
-        var events: [GameEvent] = []
         for _ in 0..<max(points, 1) {
             let next = health.damaged
             guard next != health else { break }
             health = next
-            events.append(.tileDamaged(plane: context.plane, point: target, to: health))
         }
-        return events
+
+        guard health != context.currentBoard[target].health else { return [] }
+        return [.tileDamaged(plane: context.plane, point: target, to: health)]
     }
 }
 
