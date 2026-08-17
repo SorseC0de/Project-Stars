@@ -255,7 +255,7 @@ struct PentacleView: View {
             // left read as a white blob rather than as something with a
             // surface.
             Droplet()
-                .fill(appearance == .bubble ? Palette.sky.opacity(0.5) : Palette.blue)
+                .fill(appearance == .bubble ? Palette.sky.opacity(0.66) : Palette.blue)
                 .frame(
                     width: size * 0.44,
                     height: size * 0.44 * (1 + GameRules.dropletPull)
@@ -264,14 +264,16 @@ struct PentacleView: View {
                 // whole thing sits low by half of it and the highlight drifts
                 // off centre.
                 .offset(y: -size * 0.44 * GameRules.dropletPull / 2)
+                .blur(radius: GameRules.pentacleGlowRadius * scale)
 
             Circle()
                 .fill(Palette.sky)
                 .frame(width: size * 0.30, height: size * 0.30)
                 .offset(y: size * 0.02)
+                .blur(radius: 2 * scale)
 
             Circle()
-                .fill(Palette.ice)
+                .fill(Palette.yellowGreen)
                 .frame(width: size * 0.10, height: size * 0.10)
                 .offset(x: -size * 0.07, y: -size * 0.09)
         }
@@ -284,10 +286,19 @@ struct PentacleView: View {
         // rather than one giving off any.
         .background {
             Droplet()
-                .fill(Palette.sky)
+                .fill(Palette.magenta)
+                .overlay {
+                    Droplet()
+                        .fill(Palette.yellow)
+                        .frame(
+                            width: size * 0.5,
+                            height: size * 0.5 * (1 + GameRules.dropletPull)
+                        )
+                        .opacity(GameRules.dropletGlowOpacity * 0.33)
+                }
                 .frame(
-                    width: size * 0.5,
-                    height: size * 0.5 * (1 + GameRules.dropletPull)
+                    width: size * 0.4,
+                    height: size * 0.4 * (1 + GameRules.dropletPull)
                 )
                 .offset(y: -size * 0.5 * GameRules.dropletPull / 2)
                 .blur(radius: GameRules.pentacleGlowRadius * scale)
@@ -298,7 +309,7 @@ struct PentacleView: View {
                 // it clips to white and becomes a hard ring. The blend is the
                 // correct one for a light source; what was wrong was how much
                 // of it there is.
-                .opacity(GameRules.dropletGlowOpacity)
+                .opacity(GameRules.dropletGlowOpacity * 0.75)
                 // `softLight`, after trying both of the ones that add.
                 //
                 // `plusLighter` clipped to a flat white ring on pale tiles;
@@ -307,7 +318,7 @@ struct PentacleView: View {
                 // left to lighten. Soft light brightens *relative to* what is
                 // under it rather than toward white, so it holds its shape on
                 // both the chasm and the tiles either side of it.
-                .blendMode(.softLight)
+                .blendMode(.plusLighter)
         }
         // Three quarters of what it was. It is a bead of water beside a coin,
         // and at full size it was competing with the thing it sits next to.

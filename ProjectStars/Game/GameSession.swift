@@ -2135,6 +2135,37 @@ final class GameSession {
     /// way onto its square. The cloud is pushed aside where it surfaces, which
     /// is the tell that something came *through* rather than appearing.
     private func animateRise(_ event: GameEvent, to plane: Plane) async {
+        await climb(event, arrivalDuration: GameRules.fallArrivalDuration) { [weak self] in
+            guard let self else { return }
+            // The sky comes apart where the fish broke through, at the square it
+            // is arriving on rather than the one it left — that hole is below it
+            // now.
+            self.disturbClouds(at: self.engine.piece.point)
+        }
+
+        bounceSurface(at: engine.piece.point, on: engine.piece.plane)
+        kickUpLandingDust(at: engine.piece.point, on: engine.piece.plane)
+    }
+
+    /// Going **up** a plane, however it was earned.
+    ///
+    /// One sequence rather than two near-identical ones. The rise and the
+    /// ascent were separate copies of the same five steps — light the screen,
+    /// wait, swap the board, disturb what is arriving, unlight it — and the only
+    /// real difference between them was how long the far side takes and what
+    /// gets shoved aside on arrival. Copies of a sequence drift the moment
+    /// either is retuned, and this is the sequence most likely to be retuned:
+    /// it is the one the player sees on every trip between planes.
+    ///
+    /// - Parameter arrivalDuration: How long the far side takes to settle.
+    /// - Parameter onArrival: What to disturb once the new plane is on screen.
+    ///   Called *after* the board has swapped, because the thing being shoved
+    ///   aside is only visible then.
+    private func climb(
+        _ event: GameEvent,
+        arrivalDuration: TimeInterval,
+        onArrival: @escaping () -> Void
+    ) async {
         ascentRiseStartedAt = .now
         withAnimation(.easeIn(duration: GameRules.ascentRiseDuration)) {
             ascentFlash = GameRules.ascentFlashOpacity
@@ -2149,20 +2180,17 @@ final class GameSession {
 
         engine.apply(event)
         ascentRiseStartedAt = nil
+        onArrival()
 
-        // The sky comes apart where the fish broke through, at the square it is
-        // arriving on rather than the one it left — that hole is below it now.
-        disturbClouds(at: engine.piece.point)
-
-        withAnimation(.easeOut(duration: GameRules.fallArrivalDuration)) {
+        ascentGrowStartedAt = .now
+        fallArrivalStartedAt = .now
+        withAnimation(.easeOut(duration: arrivalDuration)) {
             ascentFlash = 0
         }
-        fallArrivalStartedAt = .now
-        await sleep(GameRules.fallArrivalDuration)
-        fallArrivalStartedAt = nil
+        await sleep(arrivalDuration)
 
-        bounceSurface(at: engine.piece.point, on: engine.piece.plane)
-        kickUpLandingDust(at: engine.piece.point, on: engine.piece.plane)
+        ascentGrowStartedAt = nil
+        fallArrivalStartedAt = nil
     }
 
     /// Sagittarius launching after his own arrow.
@@ -2462,32 +2490,11 @@ final class GameSession {
     /// Input is already locked for the duration — the whole replay runs in
     /// `resolvingMove`, and `acceptsInput` is false throughout.
     private func animateAscent(_ event: GameEvent) async {
-        ascentRiseStartedAt = .now
-        withAnimation(.easeIn(duration: GameRules.ascentRiseDuration)) {
-            ascentFlash = GameRules.ascentFlashOpacity
+        await climb(event, arrivalDuration: GameRules.ascentGrowDuration) { [weak self] in
+            // Astra is on screen now, which is the only moment the sky being
+            // shoved aside can actually be seen — see `animateNexysTravel`.
+            self?.disturbClouds(at: GameRules.nexysPoint)
         }
-        await sleep(GameRules.ascentRiseDuration)
-
-        guard !Task.isCancelled else {
-            ascentRiseStartedAt = nil
-            ascentFlash = 0
-            return
-        }
-
-        engine.apply(event)
-        ascentRiseStartedAt = nil
-
-        // Astra is on screen now, which is the only moment the sky being shoved
-        // aside can actually be seen — see `animateNexysTravel`.
-        disturbClouds(at: GameRules.nexysPoint)
-
-        ascentGrowStartedAt = .now
-        withAnimation(.easeOut(duration: GameRules.ascentGrowDuration)) {
-            ascentFlash = 0
-        }
-        await sleep(GameRules.ascentGrowDuration)
-
-        ascentGrowStartedAt = nil
     }
 
     /// The island travelling between planes **without** a passenger.

@@ -1737,7 +1737,7 @@ enum GameRules {
     static let pentacleOrbitPeriod: TimeInterval = 3.1
 
     /// How far the coin's bright entries bloom, in art pixels.
-    static let pentacleGlowRadius: CGFloat = 1.2
+    static let pentacleGlowRadius: CGFloat = 1.0
 
     /// Seconds Polaris takes to turn once. Negative is counter-clockwise.
     /// The one square Polaris may appear on: north, middle.
@@ -2543,7 +2543,7 @@ enum GameRules {
     /// as a clean edge, while over a pale tile the same bloom clips to white
     /// and rings the bead. Tuned for the bright case, since that is most of the
     /// board.
-    static let dropletGlowOpacity: Double = 0.3
+    static let dropletGlowOpacity: Double = 1.0
 
     /// Pisces' energy fish: how wide its circle is in art pixels, how long one
     /// lap takes, and how long one turn takes.
