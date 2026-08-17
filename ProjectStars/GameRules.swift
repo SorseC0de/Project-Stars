@@ -2808,6 +2808,13 @@ enum GameRules {
     /// to the ground is placing it five pixels too high.
     static let spriteFeetInset: CGFloat = 5
 
+    /// How much of a fall's turn happens before the planes swap.
+    ///
+    /// A third. The rest carries through the arrival, because a falling thing
+    /// turns for as long as it is falling — stopping it at the swap made the
+    /// piece cross the gap already settled and land like a placed object.
+    static let fallSpinDepartShare: Double = 0.35
+
     /// How far the world travels on a plane change, in screen squares.
     ///
     /// Two rather than one. At a single square the departing plane has only

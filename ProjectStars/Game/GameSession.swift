@@ -2316,7 +2316,16 @@ final class GameSession {
                 to: to, context: engine.passiveSnapshot
             )
         }()
-        let tumble = controlled ? 0 : GameRules.fallSpinDegrees / 2 * tumbleDirection
+        // Split unevenly, and most of it lands on the **arrival**.
+        //
+        // Half and half stopped the turn at the moment the planes swapped, so
+        // the piece crossed the gap between them already settled and dropped in
+        // like a placed object. A falling thing turns for as long as it is
+        // falling and only stops when the ground takes it, so the larger share
+        // belongs to the half where the ground is coming up.
+        let spin = controlled ? 0 : GameRules.fallSpinDegrees * tumbleDirection
+        let tumble = spin * GameRules.fallSpinDepartShare
+        let landingTumble = spin * (1 - GameRules.fallSpinDepartShare)
 
         // Going down through the sky pushes it aside. Only leaving Astra: a fall
         // out of Terra is a fall out of the world and there is no cloud there to
@@ -2349,8 +2358,11 @@ final class GameSession {
         // falling in, not fading in — so the flag is cleared without animation.
         isFalling = false
         fallArrivalStartedAt = .now
-        withAnimation(.linear(duration: GameRules.fallArrivalDuration)) {
-            fallSpin += tumble
+        // Eased out, so it slows into the landing instead of stopping dead on
+        // it — which is the difference between coming to rest and being
+        // switched off.
+        withAnimation(.easeOut(duration: GameRules.fallArrivalDuration)) {
+            fallSpin += landingTumble
             planeSlide = 0
         }
         await sleep(GameRules.fallArrivalDuration)
