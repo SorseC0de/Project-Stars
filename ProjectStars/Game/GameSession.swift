@@ -2332,9 +2332,13 @@ final class GameSession {
         // like a placed object. A falling thing turns for as long as it is
         // falling and only stops when the ground takes it, so the larger share
         // belongs to the half where the ground is coming up.
-        let spin = controlled
-            ? 0
-            : GameRules.fallSpinDegrees * GameRules.fallSpinTurns * tumbleDirection
+        // **Whole turns.** The angle is never reset — each fall adds to a
+        // running total — so a spin that is not a multiple of 360 leaves the
+        // piece standing at whatever angle it happened to stop at, and the next
+        // fall starts from there. That is why it was landing crooked.
+        let turns = (GameRules.fallSpinDegrees * GameRules.fallSpinTurns / 360)
+            .rounded()
+        let spin = controlled ? 0 : turns * 360 * tumbleDirection
         let tumble = spin * GameRules.fallSpinDepartShare
         let landingTumble = spin * (1 - GameRules.fallSpinDepartShare)
 

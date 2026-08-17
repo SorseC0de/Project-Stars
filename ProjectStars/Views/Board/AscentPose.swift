@@ -86,11 +86,16 @@ struct AscentPose: Equatable {
     /// dropping into place rather than inflating.
     static func growing(progress: Double, boardSize: CGFloat) -> AscentPose {
         let p = CGFloat(min(max(progress, 0), 1))
-        // Nothing of its own, for the same reason as `rising`. The board
-        // carries its passengers; anything that adds motion here is drawing
-        // them travelling relative to the ground they are standing on.
-        _ = p
-        _ = boardSize
-        return .rest
+        // Up from below, because you arrive on Astra by climbing through its
+        // floor rather than falling out of its sky.
+        //
+        // This is the **island's own** arrival, not a passenger's — the piece
+        // riding it is carried by the world slide instead, and asking for both
+        // is what put it in front of the board. See `BoardView.ascentPose`.
+        let overshoot = 0.12 * sin(.pi * Double(p))
+        return AscentPose(
+            lift: (1 - p + CGFloat(overshoot)) * boardSize * GameRules.ascentRiseHeight,
+            scale: 1
+        )
     }
 }

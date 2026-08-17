@@ -2131,14 +2131,15 @@ struct BoardView: View {
             return nexysTravelPose(at: date, metrics: metrics)
         }
 
-        if let rising = session.ascentRiseStartedAt {
-            let progress = date.timeIntervalSince(rising) / GameRules.ascentRiseDuration
-            return .rising(progress: min(max(progress, 0), 1), boardSize: metrics.boardSize)
-        }
-        if let growing = session.ascentGrowStartedAt {
-            let progress = date.timeIntervalSince(growing) / GameRules.ascentGrowDuration
-            return .growing(progress: progress, boardSize: metrics.boardSize)
-        }
+        // **Rest.** A climb slides the whole world — see
+        // `GameSession.planeSlide` — and the piece is standing on it, so a pose
+        // of its own would move it a second time, out of its row and in front of
+        // the board that should cover it.
+        //
+        // The island's *own* travel is a different sequence and keeps its poses;
+        // this is only about a passenger.
+        _ = session.ascentRiseStartedAt
+        _ = session.ascentGrowStartedAt
         return .rest
     }
 
