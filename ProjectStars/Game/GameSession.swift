@@ -937,41 +937,15 @@ final class GameSession {
         run(events)
     }
 
-    #if DEBUG
-    /// Fills the Zodiaction meter. Debug builds only.
-    ///
-    /// Testing a Zodiaction otherwise means playing a full charge for every
-    /// attempt, which makes tuning its animation impractical.
-    func debugFillZodiaction() {
-        guard acceptsInput else { return }
-        let events = engine.planFillZodiaction()
-        guard !events.isEmpty else { return }
-        run(events)
-    }
+    // MARK: - Shipping state that lives near the debug block
+    //
+    // These are **not** debug-only. They were inside `#if DEBUG` by
+    // position rather than by intent — the block above grew downward past
+    // them — so a Release build had no `isFractured`, no `controlScheme`
+    // and no way to steer. Debug compiled, which is why it went unnoticed.
+    /// True while the world should look torn — see `FractureField`.
+    var isFractured: Bool { isSplit || debugFissure }
 
-/// Fills the meter *and* pops it, in one keypress. Debug builds only.
-    ///
-    /// Popping normally means holding the input surface, which is the right
-    /// gesture in play and a poor one for testing — every tweak to a Zodiaction's
-    /// animation costs a charge and a hold.
-    func debugPopZodiaction() {
-        guard acceptsInput else { return }
-        if engine.zodiactionMeter < engine.zodiactionMeterMax {
-            for event in engine.planFillZodiaction() { engine.apply(event) }
-        }
-        fireZodiaction()
-    }
-
-    /// Becomes another sign where it stands, keeping the board as it is.
-    ///
-    /// Goes through the same `pieceChanged` event a Pentacle uses, so everything
-    /// that follows from a swap — memory cleared, rifts left standing, the meter
-    /// clamped to a new cap — happens exactly as it would in play.
-    func debugSwapSign(to sign: Zodiac) {
-        guard sign != engine.piece.zodiac else { return }
-        engine.apply(.pieceChanged(to: sign))
-        publish()
-    }
 
     /// Forces the Fracturing Fissure's screen effect on, for looking at it.
     ///
@@ -990,38 +964,6 @@ final class GameSession {
     /// A single always-false `Bool` in release is cheaper than the hour this
     /// cost. The key that sets it is still debug-only.
     var debugFissure = false
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-    var debugArrowYTerraNS: Double = 1
-    var debugArrowYAstraNS: Double = 1
-
-
-    #if DEBUG
-    func debugToggleFissure() { debugToggleFissureImpl() }
-    private func debugToggleFissureImpl() { debugFissure.toggle() }
-    #endif
-
-    /// True while the world should look torn — see `FractureField`.
-    var isFractured: Bool { isSplit || debugFissure }
 
     /// How the player is steering, right now.
     ///
@@ -1059,6 +1001,72 @@ final class GameSession {
         controlScheme = nextControlScheme
         GameRules.controlScheme = controlScheme
     }
+
+    #if DEBUG
+    /// Fills the Zodiaction meter. Debug builds only.
+    ///
+    /// Testing a Zodiaction otherwise means playing a full charge for every
+    /// attempt, which makes tuning its animation impractical.
+    func debugFillZodiaction() {
+        guard acceptsInput else { return }
+        let events = engine.planFillZodiaction()
+        guard !events.isEmpty else { return }
+        run(events)
+    }
+
+/// Fills the meter *and* pops it, in one keypress. Debug builds only.
+    ///
+    /// Popping normally means holding the input surface, which is the right
+    /// gesture in play and a poor one for testing — every tweak to a Zodiaction's
+    /// animation costs a charge and a hold.
+    func debugPopZodiaction() {
+        guard acceptsInput else { return }
+        if engine.zodiactionMeter < engine.zodiactionMeterMax {
+            for event in engine.planFillZodiaction() { engine.apply(event) }
+        }
+        fireZodiaction()
+    }
+
+    /// Becomes another sign where it stands, keeping the board as it is.
+    ///
+    /// Goes through the same `pieceChanged` event a Pentacle uses, so everything
+    /// that follows from a swap — memory cleared, rifts left standing, the meter
+    /// clamped to a new cap — happens exactly as it would in play.
+    func debugSwapSign(to sign: Zodiac) {
+        guard sign != engine.piece.zodiac else { return }
+        engine.apply(.pieceChanged(to: sign))
+        publish()
+    }
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+    var debugArrowYTerraNS: Double = 1
+    var debugArrowYAstraNS: Double = 1
+
+
+    #if DEBUG
+    func debugToggleFissure() { debugToggleFissureImpl() }
+    private func debugToggleFissureImpl() { debugFissure.toggle() }
+    #endif
+
 
     /// Stages the Astral Bolt as the next Pentacle. Debug builds only.
     ///
