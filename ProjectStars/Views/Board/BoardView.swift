@@ -1021,7 +1021,10 @@ struct BoardView: View {
     private func hoverBob(at date: Date) -> CGFloat {
         let piece = session.engine.piece
         guard piece.plane == shown, !session.isFalling else { return 0 }
-        guard !session.visibleBoard[piece.point].isSolid else { return 0 }
+        // Nothing to hover over once carried off the edge — and no tile to
+        // ask about either, which is what crashed here.
+        guard let under = session.visibleBoard.tile(at: piece.point) else { return 0 }
+        guard !under.isSolid else { return 0 }
 
         let phase = date.timeIntervalSinceReferenceDate
             / GameRules.hoverBobPeriod * 2 * .pi

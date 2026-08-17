@@ -30,6 +30,17 @@ struct Board: Codable, Equatable {
 
     // MARK: - Access
 
+    /// The tile at `point`, or `nil` when there is no square there.
+    ///
+    /// The board's rim is a real place for one sign — see
+    /// `ZodiacPassive.mayLeaveTheBoard` — so "where is the piece standing" now
+    /// has an answer that is off the board, and every reader of it has to cope.
+    /// A trapping subscript was right while that could not happen and is a crash
+    /// waiting to be found now.
+    func tile(at point: GridPoint) -> Tile? {
+        contains(point) ? tiles[index(of: point)] : nil
+    }
+
     subscript(point: GridPoint) -> Tile {
         get {
             precondition(contains(point), "GridPoint \(point) is off the board")

@@ -2824,7 +2824,7 @@ enum GameRules {
     ///
     /// - TODO: **Debug only.** Point this at whoever is being worked on, and
     ///   move it when the work moves. Never read in a shipped build.
-    static let debugStartingSign: Zodiac = .libra
+    static let debugStartingSign: Zodiac = .aquarius
 
     // MARK: - Aquarius' storm
 

@@ -1691,7 +1691,7 @@ struct GameEngine {
         // piece ends up is the player's to say. `planChoice` resumes it.
         if sim.pendingChoice != nil {
             if !sim.piece.zodiac.zodiaction.ignoresMeter(context: sim.passiveContext) {
-                commit(.zodiactionMeterChanged(to: 0))
+                commit(.zodiactionMeterChanged(to: sim.piece.zodiac.zodiaction.startingMeter))
             }
             events += sim.tickForTurn()
             return events
@@ -1711,8 +1711,12 @@ struct GameEngine {
             events += sim.settle(arrivedByFalling: false, wearsOnArrival: false).events
         }
 
+        // Spent means "back to idle", which is empty for eleven signs and
+        // **full** for the one whose meter runs the other way. Zero would leave
+        // Aquarius able to fire again immediately, since zero is where he fires
+        // from.
         if !sim.piece.zodiac.zodiaction.ignoresMeter(context: sim.passiveContext) {
-            commit(.zodiactionMeterChanged(to: 0))
+            commit(.zodiactionMeterChanged(to: sim.piece.zodiac.zodiaction.startingMeter))
         }
 
         // Passives that react to what just happened get to see a Zodiaction
@@ -4197,10 +4201,26 @@ struct GameEngine {
             // run, not to the piece, so a forced change cannot wipe it. Note the
             // *cap* may move, since each sign sets its own `meterMax`; the meter
             // is clamped here so it can never sit above a lower new cap.
+            let wasBackwards = piece.zodiac.zodiaction.firesAtEmpty
             piece.zodiac = zodiac
             // Only Gemini has twins, so becoming anything else ends being one.
             if zodiac != .gemini { piece.twin = nil }
             zodiactionMeter = min(zodiactionMeter, zodiactionMeterMax)
+
+            // **Crossing into or out of a backwards meter re-reads it.**
+            //
+            // Charge belongs to the run rather than the piece, so it survives a
+            // change — but "eight pips" means nearly ready to one sign and
+            // nearly spent to the other, and carrying the *number* across turns
+            // a full meter into an empty one. Becoming Aquarius with nothing
+            // banked would hand him a Zodiaction ready to fire; leaving him with
+            // ten would hand the next sign a full one.
+            //
+            // So the meter is mirrored when the direction changes, which keeps
+            // what the player *earned* rather than what it was written as.
+            if zodiac.zodiaction.firesAtEmpty != wasBackwards {
+                zodiactionMeter = max(zodiactionMeterMax - zodiactionMeter, 0)
+            }
 
             // Becoming Capricorn turns the charge you were carrying into coins.
             //
