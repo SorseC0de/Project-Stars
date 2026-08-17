@@ -31,11 +31,17 @@ struct AscentPose: Equatable {
     ///
     /// Eased so it accelerates away rather than leaving at a constant crawl.
     static func rising(progress: Double, boardSize: CGFloat) -> AscentPose {
-        let eased = CGFloat(progress * progress)
-        return AscentPose(
-            lift: -eased * boardSize * GameRules.ascentRiseHeight,
-            scale: 1
-        )
+        // **Nothing.** The whole world slides on a plane change now, and the
+        // piece and the island are standing on it — so a lift of their own moves
+        // them a second time, out of the row they belong to and in front of a
+        // board that should be covering them.
+        //
+        // Kept as a named pose rather than deleted because the sequence still
+        // asks for it, and because a rise that means "ride the board" is worth
+        // saying out loud where the next person looks for it.
+        _ = progress
+        _ = boardSize
+        return .rest
     }
 
     /// Dropping in from above the screen onto the plane below.
@@ -80,19 +86,11 @@ struct AscentPose: Equatable {
     /// dropping into place rather than inflating.
     static func growing(progress: Double, boardSize: CGFloat) -> AscentPose {
         let p = CGFloat(min(max(progress, 0), 1))
-        // **Up from below**, not down from above.
-        //
-        // This is the arrival on Astra, and you got there by climbing — so you
-        // come through its floor, not down out of its sky. Entering from the top
-        // was drawing the one thing the whole transition exists to contradict:
-        // that the plane above is somewhere you fall into.
-        //
-        // The overshoot stays, as a distance rather than a size: it is what
-        // makes an arrival land rather than merely stop.
-        let overshoot = 0.12 * sin(.pi * Double(p))
-        return AscentPose(
-            lift: (1 - p + CGFloat(overshoot)) * boardSize * GameRules.ascentRiseHeight,
-            scale: 1
-        )
+        // Nothing of its own, for the same reason as `rising`. The board
+        // carries its passengers; anything that adds motion here is drawing
+        // them travelling relative to the ground they are standing on.
+        _ = p
+        _ = boardSize
+        return .rest
     }
 }

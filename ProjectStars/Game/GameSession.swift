@@ -2198,7 +2198,6 @@ final class GameSession {
 
         engine.apply(event)
         ascentRiseStartedAt = nil
-        onArrival()
 
         // And the new plane is already overhead, coming down into frame. Set
         // without animation so it starts from up there rather than sweeping
@@ -2211,7 +2210,17 @@ final class GameSession {
             ascentFlash = 0
             planeSlide = 0
         }
-        await sleep(arrivalDuration)
+
+        // The sky parts once the board is actually in frame.
+        //
+        // Fired at the swap, it happened while the new plane was still off
+        // screen — so by the time the clouds were visible the wake had already
+        // run. What is being drawn is the island coming *through* them, and
+        // that cannot be shown before either is on screen.
+        await sleep(arrivalDuration * GameRules.planeArrivalWakeShare)
+        guard !Task.isCancelled else { return }
+        onArrival()
+        await sleep(arrivalDuration * (1 - GameRules.planeArrivalWakeShare))
 
         ascentGrowStartedAt = nil
         fallArrivalStartedAt = nil
@@ -2323,7 +2332,9 @@ final class GameSession {
         // like a placed object. A falling thing turns for as long as it is
         // falling and only stops when the ground takes it, so the larger share
         // belongs to the half where the ground is coming up.
-        let spin = controlled ? 0 : GameRules.fallSpinDegrees * tumbleDirection
+        let spin = controlled
+            ? 0
+            : GameRules.fallSpinDegrees * GameRules.fallSpinTurns * tumbleDirection
         let tumble = spin * GameRules.fallSpinDepartShare
         let landingTumble = spin * (1 - GameRules.fallSpinDepartShare)
 
