@@ -890,14 +890,7 @@ final class GameSession {
     /// is not a reversed control, it is a lying one — and at phase zero, where
     /// the move is a single hop, it reads as the piece jumping the wrong way and
     /// touching two squares.
-    func preview(direction rawPreview: SwipeDirection?, reach: Int) {
-        let direction = rawPreview.map {
-            engine.controlsAreReversed ? $0.opposite : $0
-        }
-        previewInner(direction: direction, reach: reach)
-    }
-
-    private func previewInner(direction: SwipeDirection?, reach: Int) {
+    func preview(direction: SwipeDirection?, reach: Int) {
         // A drag that has only just started counts too: the splash should be
         // gone by the time the stick has anything to say.
         if direction != nil { dismissIntroIfShowing() }
@@ -919,7 +912,9 @@ final class GameSession {
         //
         // The board is not reversed, only the *instruction*. Aiming at a square
         // still means that square; asking to go north is what means south.
-        let direction = engine.controlsAreReversed ? rawDirection.opposite : rawDirection
+        // Not turned around here. The engine does it, once, where a direction
+        // becomes a move — see `GameEngine.resolvedMove(for:reach:)`.
+        let direction = rawDirection
 
         // Reaching for the controls is how the splash is put away, and that
         // input is spent doing it.

@@ -1797,7 +1797,31 @@ struct GameEngine {
     ///
     /// Holes and the Nexys chasm are deliberately *not* excluded — moving onto
     /// one is legal, and is how the player descends to Terra.
-    func resolvedMove(for direction: SwipeDirection, reach: Int = 0) -> ResolvedMove? {
+    /// The move a direction resolves to, **after** any reversal.
+    ///
+    /// ## Why the turn-around lives here and nowhere else
+    ///
+    /// Because everything that asks a question about a direction comes through
+    /// this one function: planning a move, projecting the cursor, listing the
+    /// legal directions for the pad. Reversing at the input instead meant every
+    /// one of those had to be found and turned around separately — and the two
+    /// that were, the keyboard and the cursor, then disagreed with the one that
+    /// was not, which is how the piece came to hop one way while the cursor
+    /// pointed the other.
+    ///
+    /// One place also means it cannot be applied twice. A control scheme that
+    /// previews a direction and then submits what it previewed would otherwise
+    /// reverse it on the way in and again on the way out, arriving back where
+    /// it started.
+    func resolvedMove(for asked: SwipeDirection, reach: Int = 0) -> ResolvedMove? {
+        let direction = controlsAreReversed ? asked.opposite : asked
+        return resolvedMoveIgnoringReversal(for: direction, reach: reach)
+    }
+
+    private func resolvedMoveIgnoringReversal(
+        for direction: SwipeDirection,
+        reach: Int = 0
+    ) -> ResolvedMove? {
         let movement = activePassives.adjustedMovement(
             base: activeMovement,
             context: passiveContext
@@ -2124,25 +2148,35 @@ struct GameEngine {
     ///     is what lets the player *see* how far a longer drag will take them
     ///     before letting go.
     func cursor(direction: SwipeDirection? = nil, reach: Int = 0) -> Cursor {
-        let heading = direction ?? piece.facing
+        // **The cursor shows where the move lands. It does not work it out.**
+        //
+        // It used to project its own point from a direction, which meant every
+        // rule that decides where a move actually ends — reversed controls, a
+        // wall-runner's true stopping square, a passive that refuses — had to
+        // be repeated here and kept in step by hand. It never was: the piece
+        // and the cursor disagreed the moment either changed.
+        //
+        // So the engine is asked for the move, and the cursor is given a square
+        // like any other object on the board. `resolvedMove` already answers
+        // reversal, distance and legality in one place.
+        //
+        // The projection below survives for the one case a resolved move cannot
+        // describe: there is no legal move that way, and the cursor still has to
+        // sit somewhere so the player can see *why*.
+        let travel = direction.map { controlsAreReversed ? $0.opposite : $0 }
+            ?? piece.facing
+
         let movement = activePassives.adjustedMovement(
             base: activeMovement,
             context: passiveContext
         )
+        let step = travel.unitOffset
+        let option = movement.option(for: travel, facing: piece.facing, reach: reach)
 
-        // Project even when the pattern has no move that way, so the cursor
-        // still has somewhere to sit.
-        let step = heading.unitOffset
-        let option = movement.option(for: heading, facing: piece.facing, reach: reach)
-
-        // A wall-runner's `distance` is a sort key, not a distance — it is the
-        // width of the whole board — so projecting it landed the cursor several
-        // squares off the edge and reported the move as impossible. Where it
-        // actually stops is where the ground runs out.
         let point: GridPoint = {
-            if option?.reachesWall == true,
-               let wall = pathToWall(from: piece.point, direction: heading).last {
-                return wall
+            if let landing = resolvedMoveIgnoringReversal(for: travel, reach: reach)?
+                .destination {
+                return landing
             }
             let distance = option?.distance ?? 1
             return GridPoint(
@@ -3560,6 +3594,7 @@ struct GameEngine {
             zodiactionMeter: zodiactionMeter,
             zodiactionMeterMax: zodiactionMeterMax,
             firesAtEmpty: piece.zodiac.zodiaction.firesAtEmpty,
+            floatsOverHoles: activePassives.walksOnHoles(context: passiveContext),
             signState: signState
         )
 

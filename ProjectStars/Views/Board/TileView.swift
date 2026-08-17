@@ -149,6 +149,24 @@ struct TileView: View {
         PixelSprite(id: .tileFace(plane, shade, popped: isPopped)) {
             Rectangle().fill(Palette.tileFace(tile.health, on: plane, shade: shade))
         }
+        // A wash of red on stone that is one landing from going.
+        //
+        // Applied **here**, on the 16x16 face, before the tile is framed or
+        // put on a band — so it is a rectangle over a sprite and nothing else.
+        // Anything added later in the chain would be scaled, sheared and
+        // squashed with the row, which is how a flat overlay turns into a
+        // pillar or a smear.
+        //
+        // Terra only: cloud already says it another way, and the red is the
+        // colour of ground about to fail.
+        .overlay {
+            if plane == .terra, tile.health == .badlyCracked {
+                Rectangle()
+                    .fill(Palette.khaki)
+                    .opacity(GameRules.badlyCrackedTint)
+                    .blendMode(.plusDarker)
+            }
+        }
         .frame(width: size, height: size)
     }
 

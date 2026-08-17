@@ -210,6 +210,9 @@ struct PickupContext {
     /// `Zodiaction.firesAtEmpty`.
     var firesAtEmpty: Bool = false
 
+    /// True when holes hold this piece up and the border does not stop it.
+    var floatsOverHoles: Bool = false
+
 
     /// What the sign remembers between moves. An effect that grants a lasting
     /// state — the Astral Bolt's star — amends this and returns it in a

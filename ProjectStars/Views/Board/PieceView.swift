@@ -197,6 +197,30 @@ struct PieceView: View {
         }
     }
 
+    /// A soft coloured shape behind the piece.
+    ///
+    /// Built from the sprite's own silhouette rather than from a shader mask, so
+    /// it is exactly his shape however he is posed — and drawn in the plain,
+    /// with no blend mode, because an aura is not light interacting with the
+    /// board. It is a soft thing behind a hard thing.
+    ///
+    /// Two copies at different spreads: one tight enough to read as an edge and
+    /// one wide enough to reach past him. A single blur is either a halo or a
+    /// wash and cannot be both.
+    private var aura: some View {
+        ZStack {
+            ForEach(0..<2, id: \.self) { step in
+                material
+                    .colorEffect(
+                        ShaderLibrary.flatSilhouette(.color(GameRules.stormGlowTint))
+                    )
+                    .blur(radius: GameRules.auraRadius * scale * CGFloat(step + 1))
+                    .opacity(GameRules.auraOpacity / Double(step + 1))
+            }
+        }
+        .allowsHitTesting(false)
+    }
+
     /// The ordinary charged look: gold, with the gem lit and blooming.
     ///
     /// Named so the doubled version below can reuse it rather than restate it —
@@ -237,6 +261,16 @@ struct PieceView: View {
     @ViewBuilder
     private var lit: some View {
         if isCharged, zodiac.zodiaction.firesAtEmpty {
+            // **Behind him, not over him.**
+            //
+            // `PaletteGlow` hangs its halo in an `.overlay`, so nesting one
+            // inside another makes the outer mask read the *inner glow* rather
+            // than the sprite — which is why three attempts at this changed only
+            // the body and left the outside bare.
+            //
+            // An aura is a shape behind the figure: his own silhouette,
+            // flattened to one colour, blurred, and sat underneath. Nothing to
+            // blend against and nothing to be swallowed by.
             // **Gold and purple at once.**
             //
             // A backwards meter is at full power at both ends of itself: ten is
@@ -249,10 +283,26 @@ struct PieceView: View {
                 intensity: GameRules.stormGlowIntensity,
                 trail: GameRules.gemGlowTrail,
                 tint: GameRules.stormGlowTint,
-                tintBlend: .plusLighter
+                // **Not additive.**
+                //
+                // `plusLighter` climbs past white and clips, so over anything
+                // bright the purple stops being purple and becomes glare — the
+                // same thing that made the water droplets read as white rings.
+                // The storm's own bloom already uses this mode for the phases
+                // where the colour has to survive.
+                // Laid on plainly.
+                //
+                // Every clever mode has now failed this halo in its own way:
+                // additive clipped it to white, `plusDarker` swallowed it, and
+                // `hardLight` cancelled it against a mid-tone board. The halo
+                // already carries its own falloff in alpha, so drawing it as
+                // itself is what makes a coloured aura — the softness is the
+                // blur, not the blend.
+                tintBlend: .normal
             ) {
                 charged(intensity: GameRules.aquariusBodyGlowShare)
             }
+            .background { aura }
         } else if isCharged {
             charged()
         } else if let resting = gem.resting {

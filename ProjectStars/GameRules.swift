@@ -2118,7 +2118,12 @@ enum GameRules {
     /// power he is still holding — and a full gold bloom underneath it drowns
     /// that out. The gold is a statement about being ready, and it only has to
     /// be legible, not loud.
-    static let aquariusBodyGlowShare: Double = 0.3
+    static let aquariusBodyGlowShare: Double = 0.2
+
+    /// How far the aura behind a piece spreads, in art pixels, and how solid
+    /// its tightest copy is.
+    static let auraRadius: CGFloat = 3
+    static let auraOpacity: Double = 0.85
 
     static let stormGlowTint: Color = Palette.pink
     /// The gallery's default. What the board asks is
@@ -2893,6 +2898,12 @@ enum GameRules {
     ///   move it when the work moves. Never read in a shipped build.
     static let debugStartingSign: Zodiac = .aquarius
 
+    /// How much red is washed over a badly cracked Terra tile.
+    ///
+    /// A tenth. It has to be seen at a glance across a board and not read as a
+    /// different kind of tile — the cracks already say *damaged*, and this says
+    /// *the next one takes it*.
+    static let badlyCrackedTint: Double = 0.1
     // MARK: - Aquarius' storm
 
     /// The funnel, settled. Everything here is a proportion of the square the

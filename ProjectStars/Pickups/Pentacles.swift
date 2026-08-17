@@ -338,7 +338,8 @@ struct AstralBrookEffect: PickupEffect {
             on: context.currentBoard,
             plane: context.plane,
             from: context.piecePoint,
-            facing: context.facing
+            facing: context.facing,
+            floats: context.floatsOverHoles
         )
     }
 
@@ -346,17 +347,31 @@ struct AstralBrookEffect: PickupEffect {
     ///
     /// Shared with Pisces' Downstream, which *is* this effect — one body rather
     /// than two that would drift apart the first time either was retuned.
+    /// - Parameter floats: True for a piece that holes cannot drop and walls
+    ///   cannot stop — Aquarius above zero. The current then reads the board
+    ///   exactly the other way round: it **halts at the first hole** and runs
+    ///   **past the border**.
+    ///
+    ///   Which turns the Brook from a free ride into the sign's most dangerous
+    ///   coin, and is balanced by what the two stopping points cost. The border
+    ///   is always there and always fatal; a hole is something you had to break
+    ///   the board to make, and stopping short of one hands control back. So the
+    ///   coin is a gamble whose odds you improve by wrecking the ground, which
+    ///   is the one bargain this sign is built to want.
     static func slide(
         on board: Board,
         plane: Plane,
         from origin: GridPoint,
-        facing: SwipeDirection
+        facing: SwipeDirection,
+        floats: Bool = false
     ) -> [GameEvent] {
         // Facing a wall, the water simply flows the other way. Without this the
         // effect is a dud whenever it is used on a border tile facing out —
         // which is common, since the border is where sliding tends to strand you.
         var heading = facing
-        if !board.contains(origin.offset(by: heading.unitOffset)) {
+        // A floating piece is never facing a wall — the border is somewhere it
+        // can go — so the turn-around is for everyone else.
+        if !floats, !board.contains(origin.offset(by: heading.unitOffset)) {
             heading = facing.opposite
         }
         let step = heading.unitOffset
@@ -381,6 +396,21 @@ struct AstralBrookEffect: PickupEffect {
         // `travel` follows. This function is the one slide the engine does not
         // drive, so it has to keep that rule by hand or the Brook is the one
         // move in the game that still ploughs a furrow.
+        if floats {
+            // Carried until the ground opens. A hole is the only thing that
+            // stops this, and there may not be one.
+            while board.contains(point), board[point].isSolid {
+                events.append(.pieceSlid(from: from, to: point, plane: plane))
+                from = point
+                point = point.offset(by: step)
+            }
+
+            // Either a hole caught them, or the board ran out and they go one
+            // square past it — which the landing turns into the end of the run.
+            events.append(.pieceSlid(from: from, to: point, plane: plane))
+            return events
+        }
+
         while board.contains(point) {
             events.append(.pieceSlid(from: from, to: point, plane: plane))
             from = point
