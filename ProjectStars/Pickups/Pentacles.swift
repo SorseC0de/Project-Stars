@@ -311,15 +311,14 @@ struct AstralBrookEffect: PickupEffect {
     /// down around them.
     let weight = 3
     let displayName = "Astral Essence ✧ Brook"
-    let summary = "An Astral water current carries you forward, passing over holes along the way."
-
-    /// There are no holes on Astra to pass over — up there the sentence is
-    /// promising something the plane cannot offer.
-    func summary(in context: PickupSummaryContext) -> String {
-        context.plane == .terra
-            ? summary
-            : "An Astral water current carries you forward to the edge of the plane."
-    }
+    /// Says where it takes you and not what it ignores on the way.
+    ///
+    /// The hole-crossing is the discovery: a player learns the Brook passes over
+    /// gaps by watching it pass over one, which is worth more than being told.
+    /// One line for both planes, because a coin that describes itself
+    /// differently depending on where you found it is a coin the player has to
+    /// read twice.
+    let summary = "An Astral water current carries you forward to the edge of the plane."
     let glyph = "≈"
     let icon: String? = "Element_Water"
     let element: ZodiacElement? = .water
@@ -896,7 +895,7 @@ struct NexysShiftEffect: PickupEffect {
     func summary(in context: PickupSummaryContext) -> String {
         context.nexysPlane == context.plane
             ? "Return to the Nexys."
-            : "Summon the Nexys to this plane, and ride it."
+            : "Summon the Nexys to this plane."
     }
     let glyph = "◈"
     let icon: String? = "nexys_node"
