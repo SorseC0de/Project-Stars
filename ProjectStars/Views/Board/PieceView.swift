@@ -197,10 +197,11 @@ struct PieceView: View {
         }
     }
 
-    /// The sprite with its gem lit, before any flash is laid over it.
-    @ViewBuilder
-    private var lit: some View {
-        if isCharged {
+    /// The ordinary charged look: gold, with the gem lit and blooming.
+    ///
+    /// Named so the doubled version below can reuse it rather than restate it —
+    /// two copies of this drifted apart the moment Leo's threshold went in.
+    private var charged: some View {
             // The gold blooms, and the eyes with it. Both entries, not just the
             // gem: a charged piece should look lit from inside rather than
             // wearing two bright pixels.
@@ -230,6 +231,30 @@ struct PieceView: View {
                 // planes — while the body stays gold.
                 material.paletteSwap([PaletteSwap(gem.dim, gem.lit)])
             }
+    }
+
+    /// The sprite with its gem lit, before any flash is laid over it.
+    @ViewBuilder
+    private var lit: some View {
+        if isCharged, zodiac.zodiaction.firesAtEmpty {
+            // **Gold and purple at once.**
+            //
+            // A backwards meter is at full power at both ends of itself: ten is
+            // everything he is holding and zero is everything he is about to
+            // spend. The gold says *ready*, like every other sign, and the
+            // purple says the power is still his — which is the one thing an
+            // empty bar would otherwise be denying.
+            PaletteGlow(
+                radius: GameRules.gemGlowRadius * scale,
+                intensity: GameRules.stormGlowIntensity,
+                trail: GameRules.gemGlowTrail,
+                tint: GameRules.stormGlowTint,
+                tintBlend: .plusLighter
+            ) {
+                charged
+            }
+        } else if isCharged {
+            charged
         } else if let resting = gem.resting {
             // Shown as its resting colour, which is not the entry it is drawn
             // with — see `GemTones.resting`.

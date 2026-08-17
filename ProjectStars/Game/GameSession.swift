@@ -1091,6 +1091,19 @@ final class GameSession {
     #endif
 
 
+    /// Moves the meter one pip, in raw terms. Debug builds only.
+    ///
+    /// **Raw, not "toward firing".** Everything else in the engine asks the
+    /// second question, and rightly — but for testing, "put the number up" and
+    /// "put the number down" are what is wanted, so a backwards sign can be
+    /// walked through both halves of its meter without having to think about
+    /// which way its hunt runs.
+    func debugNudgeMeter(by amount: Int) {
+        let target = min(max(engine.zodiactionMeter + amount, 0), engine.zodiactionMeterMax)
+        guard target != engine.zodiactionMeter else { return }
+        run([.zodiactionMeterChanged(to: target)])
+    }
+
     /// Stages the Astral Bolt as the next Pentacle. Debug builds only.
     ///
     /// Only the *next* one, and it does not disturb the coin already on the

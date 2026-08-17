@@ -205,6 +205,7 @@ struct GameScreen: View {
     /// - **X** fills *and* pops it, skipping the hold (debug builds only).
     /// - **L** makes the *next* Pentacle an Astral Bolt (debug builds only).
     /// - **P** makes the *next* Pentacle a Polaris (debug builds only).
+    /// - **+ / -** move the meter a pip either way (debug builds only).
     /// - **2** cycles the control scheme (debug builds only).
     private var keyboardCommands: some View {
         ZStack {
@@ -234,6 +235,19 @@ struct GameScreen: View {
 
             Button("Stage Polaris") { session.debugStagePolaris() }
                 .keyboardShortcut("p", modifiers: [])
+
+            // Both faces of each key: a keyboard sends "=" unshifted where the
+            // legend says "+", and either is what somebody reaching for it will
+            // press.
+            Button("Meter up") { session.debugNudgeMeter(by: 1) }
+                .keyboardShortcut("+", modifiers: [])
+            Button("Meter up") { session.debugNudgeMeter(by: 1) }
+                .keyboardShortcut("=", modifiers: [])
+
+            Button("Meter down") { session.debugNudgeMeter(by: -1) }
+                .keyboardShortcut("-", modifiers: [])
+            Button("Meter down") { session.debugNudgeMeter(by: -1) }
+                .keyboardShortcut("_", modifiers: [])
 
             Button("Stage lightning") { session.debugStageLightning() }
                 .keyboardShortcut("l", modifiers: [])
