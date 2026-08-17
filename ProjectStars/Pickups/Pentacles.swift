@@ -185,10 +185,11 @@ struct BubbleEffect: PickupEffect {
     /// Never rolled. Placed by `PiscesAridAquanaut` and by a fall — see
     /// `GameEngine.scatterMeterAsBubbles(on:)`.
     let weight = 0
-    let displayName = "Bubble"
-    let summary = "Gain \(GameRules.bubbleCharge) ZC."
+    let displayName = "Delta Droplet"
+    /// Says what it is, not what it pays.
+    let summary = "A droplet of pure, distilled Astral energy."
     let glyph = "🫧"
-    let icon: String? = "bubbles"
+    let icon: String? = "pisces_droplet"
     let element: ZodiacElement? = .water
     let appearance: PentacleAppearance = .bubble
 

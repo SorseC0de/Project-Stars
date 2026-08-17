@@ -397,6 +397,15 @@ protocol ZodiacPassive {
     /// — a row of placeholders says less than a shorter row of real marks.
     var icon: String? { get }
 
+    /// The mark for the plane the piece is on.
+    ///
+    /// Defaulted to `icon`, so only a passive that genuinely changes with the
+    /// plane writes one. Taurus is the case it exists for: his hooves are Heavy
+    /// above and Hasty below, and those are two different behaviours wearing
+    /// one name — the panel should show which one is running rather than a
+    /// single mark that is right half the time.
+    func icon(on plane: Plane) -> String?
+
     func banksPickups(_ id: PickupID, context: PassiveContext) -> Bool
 }
 
@@ -470,6 +479,9 @@ extension ZodiacPassive {
 
     /// No mark drawn yet. See `icon`.
     var icon: String? { nil }
+
+    /// The same mark on both planes, unless the passive says otherwise.
+    func icon(on plane: Plane) -> String? { icon }
 
     func splitsOnDescent(context: PassiveContext) -> Bool { false }
 

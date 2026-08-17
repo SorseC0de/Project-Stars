@@ -2518,6 +2518,9 @@ enum GameRules {
     /// reshaping what is already there.
     static let dropletPull: CGFloat = 0.55
 
+    /// How big a droplet is drawn against a coin.
+    static let dropletScale: CGFloat = 0.75
+
     /// Pisces' energy fish: how wide its circle is in art pixels, how long one
     /// lap takes, and how long one turn takes.
     ///

@@ -71,6 +71,7 @@ extension ZodiacCatalog {
 struct PiscesStarstreamSurfer: ZodiacPassive {
 
     let displayName = "Starstream Surfer"
+    let icon: String? = "pisces_surfer"
     let summary = "+1 ZC every step on Astra. The surf is available only on a full meter, and pays nothing itself. Terra: −1 ZC for every square you leave."
 
     /// The current is not a property of the plane. It is a property of *you*.
@@ -166,7 +167,8 @@ struct PiscesStarstreamSurfer: ZodiacPassive {
 /// actually costs — which is the shape the rest of the sign already has.
 struct PiscesGaiaGeyser: ZodiacPassive {
 
-    let displayName = "Gaia Geysers"
+    let displayName = "Delta Distillation"
+    let icon: String? = "pisces_distillation"
     let summary = "Astra → Terra: your ZC comes down with you, scattered across Terra as bubbles. Any that land over a hole are lost."
 
     /// A dive is something the fish *did*. See
@@ -223,6 +225,7 @@ struct PiscesGaiaGeyser: ZodiacPassive {
 struct PiscesAridAquanaut: ZodiacPassive {
 
     let displayName = "Arid Aquanaut"
+    let icon: String? = "pisces_aquanaut"
     let summary = "Terra: no ZC from anything but bubbles, which surface alongside the Pentacle — and no multi-tile movement until the meter is full."
 
     /// Z-Charge does not exist down here.

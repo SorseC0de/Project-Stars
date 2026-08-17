@@ -66,6 +66,11 @@ struct TaurusHooves: ZodiacPassive {
 
     let displayName = "Heavy / Hasty Hooves"
     let icon: String? = "taurus_heavy_hooves"
+
+    /// Heavy above, Hasty below — the two halves of the note on this struct.
+    func icon(on plane: Plane) -> String? {
+        plane == .astra ? "taurus_heavy_hooves" : "taurus_hasty_hooves"
+    }
     let summary = "Astra: landings damage 2 stages. Terra: two landings to damage 1 stage."
 
     func modifyWear(_ proposal: WearProposal, context: PassiveContext) -> WearProposal {

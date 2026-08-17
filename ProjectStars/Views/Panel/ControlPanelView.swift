@@ -479,7 +479,11 @@ struct ControlPanelView: View {
                         // *is* — the same category as the name above them.
                         HStack(spacing: PanelStyle.passiveMarkSpacing) {
                             ForEach(
-                                Array(session.zodiac.passives.compactMap(\.icon).enumerated()),
+                                Array(
+                                    session.zodiac.passives
+                                        .compactMap { $0.icon(on: session.visiblePlane) }
+                                        .enumerated()
+                                ),
                                 id: \.offset
                             ) { _, mark in
                                 Image(mark)

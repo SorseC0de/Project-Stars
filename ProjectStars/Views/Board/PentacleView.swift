@@ -271,13 +271,25 @@ struct PentacleView: View {
         }
         // The same additive bloom the coins carry, so it sits in the same light
         // as everything else hovering over the board.
+        // The bloom takes the droplet's own outline rather than a circle's.
+        //
+        // A round glow behind a pointed shape reads as a drop sitting in front
+        // of a light, not as one giving off any — the tip is the part that says
+        // what it is, and it was the part with nothing behind it.
         .background {
-            Circle()
+            Droplet()
                 .fill(Palette.cyan)
-                .frame(width: size * 0.5, height: size * 0.5)
+                .frame(
+                    width: size * 0.5,
+                    height: size * 0.5 * (1 + GameRules.dropletPull)
+                )
+                .offset(y: -size * 0.5 * GameRules.dropletPull / 2)
                 .blur(radius: GameRules.pentacleGlowRadius * scale)
                 .blendMode(.plusLighter)
         }
+        // Three quarters of what it was. It is a bead of water beside a coin,
+        // and at full size it was competing with the thing it sits next to.
+        .scaleEffect(GameRules.dropletScale)
     }
 
     /// The gavel, mid-swing.
