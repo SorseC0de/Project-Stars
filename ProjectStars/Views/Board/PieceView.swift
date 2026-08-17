@@ -337,13 +337,23 @@ struct PieceView: View {
             // Split, the piece is only one of the two — drawing the pair would
             // put both twins on the square while the other one is standing
             // somewhere else on the board.
-            PixelSprite(id: spriteID) {
-                placeholder
+            // At a full meter Pisces' stone fish is replaced by an energy one,
+            // so the two halves are drawn separately. Every other case — and
+            // Pisces at any other meter — is the one composite.
+            Group {
+                if zodiac == .pisces, isCharged {
+                    PixelSprite(id: .piscesBody) { placeholder }
+                } else {
+                    PixelSprite(id: spriteID) {
+                        placeholder
+                    }
+                }
             }
             // East is west, mirrored — see `isMirrored`.
             .scaleEffect(x: isMirrored ? -1 : 1, y: 1)
             .overlay(alignment: .top) { virgoGems }
             .overlay(alignment: .top) { sagittariusArrow }
+            .overlay(alignment: .top) { piscesFish }
         }
     }
 
@@ -358,6 +368,42 @@ struct PieceView: View {
     ///
     /// - TODO: Static for now. They are meant to move; this is the resting
     ///   arrangement to check the placement against first.
+    /// Pisces' fish, once it is made of energy.
+    ///
+    /// Only at a full meter, and only then: the stone fish is part of the
+    /// composite and needs nothing drawn over it. Guarding on `isCharged` alone
+    /// is what keeps this off every other event that lights a piece.
+    ///
+    /// **A tight circle, anticlockwise, resting at the bottom of it.** The
+    /// drawn position is the bottom of the path for the same reason Virgo's
+    /// gems and the archer's arrow rest at theirs — the arrangement checked
+    /// against the sheet stays a real position in the motion rather than the
+    /// average of two wrong ones. The spin is slower than the orbit, so the two
+    /// never resolve into one motion.
+    ///
+    /// - TODO: `piscesFishDrop` is a first guess. The art rests between two
+    ///   cells, so the seam is not where the cell boundary is.
+    @ViewBuilder
+    private var piscesFish: some View {
+        if zodiac == .pisces, isCharged {
+            TimelineView(.animation) { timeline in
+                let now = clock(timeline.date.timeIntervalSinceReferenceDate)
+                let orbit = now / GameRules.piscesFishOrbitPeriod * 2 * .pi
+                let spin = now / GameRules.piscesFishSpinPeriod * 360
+
+                PixelSprite(id: .piscesFishCharged) { Color.clear }
+                    .rotationEffect(.degrees(-spin))
+                    .offset(
+                        x: sin(orbit) * GameRules.piscesFishOrbit * scale,
+                        y: (cos(orbit) - 1) / 2 * GameRules.piscesFishOrbit * scale
+                            + GameRules.piscesFishDrop * scale
+                    )
+            }
+            .frame(width: tileSize, height: tileSize)
+            .allowsHitTesting(false)
+        }
+    }
+
     /// The archer's arrow, hanging over him.
     ///
     /// **Drawn position is the bottom of its travel**, so it rises and settles

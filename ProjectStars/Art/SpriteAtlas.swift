@@ -255,6 +255,14 @@ enum SpriteAtlas {
             map[.piece(sign)] = .cells(column: column[sign] ?? 0, row: 1 + sheetShiftY, height: 2)
         }
 
+        // ── Pisces, in two halves ────────────────────────────────────────
+        //
+        // The composite above is still what is drawn nearly always — rows 1 and
+        // 2 together are the fish and the body as authored. These two are for
+        // the one case where the halves come apart.
+        map[.piscesBody] = .cells(column: 16, row: 2 + sheetShiftY)
+        map[.piscesFishCharged] = .cells(column: 16, row: 0 + sheetShiftY)
+
         // ── Cancer's four facings ────────────────────────────────────────
         // Three drawings, four directions: east is west mirrored, which is what
         // `SpriteID.cancerFacing` asks for and `PixelSprite` flips. The claw

@@ -131,6 +131,17 @@ enum SpriteID: Hashable {
     /// The same pans at rest, drawn plain.
     case libraScalesPlain
 
+    /// Pisces' body alone, without the fish riding on top of it.
+    ///
+    /// The ordinary `piece(.pisces)` is both cells and is what to draw nearly
+    /// always. This exists for the one case where the top half is replaced
+    /// rather than drawn: at a full meter the stone fish becomes the energy one,
+    /// and swapping it means having the bottom half on its own.
+    case piscesBody
+
+    /// The fish, made of astral energy. Full meter only.
+    case piscesFishCharged
+
     /// The archer's arrow, drawn apart from the bust so it can float.
     ///
     /// Its own cell for the same reason Libra's arms are: a part that has to
@@ -265,6 +276,10 @@ enum SpriteID: Hashable {
             "libra_scales"
         case .sagittariusArrowRest:
             "sagittarius_arrow_rest"
+        case .piscesBody:
+            "pisces_body"
+        case .piscesFishCharged:
+            "pisces_fish_charged"
         case .libraScalesPlain:
             "libra_scales_plain"
         case let .geminiHalf(half):

@@ -2510,6 +2510,22 @@ enum GameRules {
     /// is the one thing it must not be confused with.
     static let maneBlazeDuration: TimeInterval = 0.55
 
+    /// Pisces' energy fish: how wide its circle is in art pixels, how long one
+    /// lap takes, and how long one turn takes.
+    ///
+    /// The spin is slower than the orbit on purpose. Matching them would make
+    /// the fish appear to face outward the whole way round, which reads as one
+    /// rigid motion rather than as something swimming.
+    static let piscesFishOrbit: CGFloat = 3
+    static let piscesFishOrbitPeriod: TimeInterval = 3.2
+    static let piscesFishSpinPeriod: TimeInterval = 9
+
+    /// Where the fish sits against the body, in art pixels.
+    ///
+    /// - TODO: A first guess. The art rests across a cell boundary, so this is
+    ///   not derivable from the sheet — it has to be looked at.
+    static let piscesFishDrop: CGFloat = 0
+
     /// How far the archer's arrow rises above where it is drawn, in art pixels,
     /// and how long one rise and fall takes.
     ///
