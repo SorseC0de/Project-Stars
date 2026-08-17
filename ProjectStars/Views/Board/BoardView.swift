@@ -1072,19 +1072,67 @@ struct BoardView: View {
             // whatever encloses it: they were laid out inside a box the size of
             // whatever they happened to add up to, and landed off the grid.
             ForEach(Array(set.points.enumerated()), id: \.element) { index, point in
-                SparkleView(
-                    size: metrics.tileSize,
-                    plane: session.visiblePlane,
-                    index: index,
-                    // Virgo's ring, which plays by different rules and says so.
-                    tint: set.pattern == .ring ? Palette.pink : nil,
-                    sway: { surfaceSway(of: point, at: $0, metrics: metrics) },
-                    clock: session.ambientClock(at:)
-                )
+                glowSparkle(at: point, index: index, set: set, metrics: metrics)
                     .modifier(placedOnPlaneModifier(point, metrics: metrics))
                     .offset(GameRules.sparkleNudge)
             }
             .transition(.opacity)
+        }
+    }
+
+    /// One square of the glow phase.
+    ///
+    /// The drawn strips when they are there, the generated shimmer when they are
+    /// not — the same rule every placeholder in this game follows.
+    ///
+    /// Two strips rather than one: `glowPhase` is the light coming off the tile
+    /// and `sparkles` is what is dancing in it. They are separate because they
+    /// are wanted separately — the sparkles are reusable anywhere something
+    /// should look magical, and welding them into the phase would mean drawing
+    /// them twice.
+    ///
+    /// Each square is started a little later than the one before it, off its own
+    /// index. Five squares lighting in unison read as one object blinking; a
+    /// stagger reads as a phase sweeping the board, which is what it is.
+    @ViewBuilder
+    private func glowSparkle(
+        at point: GridPoint,
+        index: Int,
+        set: SparkleSet,
+        metrics: PixelArtMetrics
+    ) -> some View {
+        if SpriteSheetLoader.hasArt(for: .effect(.glowPhase)) {
+            let stagger = Double(index) * GameRules.glowPhaseStagger
+
+            ZStack {
+                EffectSpriteView(
+                    effect: .glowPhase,
+                    tileSize: metrics.tileSize,
+                    start: .distantPast,
+                    loops: true,
+                    clock: { self.session.ambientClock(at: $0) + stagger }
+                )
+
+                EffectSpriteView(
+                    effect: .sparkles,
+                    tileSize: metrics.tileSize,
+                    start: .distantPast,
+                    loops: true,
+                    clock: { self.session.ambientClock(at: $0) + stagger * 1.7 },
+                    // Virgo's ring plays by different rules and says so.
+                    tint: set.pattern == .ring ? Palette.pink : nil
+                )
+            }
+            .allowsHitTesting(false)
+        } else {
+            SparkleView(
+                size: metrics.tileSize,
+                plane: session.visiblePlane,
+                index: index,
+                tint: set.pattern == .ring ? Palette.pink : nil,
+                sway: { surfaceSway(of: point, at: $0, metrics: metrics) },
+                clock: session.ambientClock(at:)
+            )
         }
     }
 

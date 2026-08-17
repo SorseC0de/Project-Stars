@@ -2489,6 +2489,12 @@ enum GameRules {
     /// would be the one the player had already seen.
     static let aquariusTransformScale: CGFloat = 0.6
 
+    /// Seconds between one glowing square starting and the next.
+    ///
+    /// Five squares lighting in unison read as one object blinking. A stagger
+    /// reads as a phase sweeping the board, which is what it is.
+    static let glowPhaseStagger: TimeInterval = 0.13
+
     /// Committed moves the two Essences run for.
     ///
     /// Three, and the same number for both, because they are one effect with a
