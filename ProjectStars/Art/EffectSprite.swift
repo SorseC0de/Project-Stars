@@ -304,6 +304,10 @@ enum EffectSprite: String, CaseIterable, Hashable {
         // The Essence plumes are the whole story of what a coin just did to the
         // board, and at 15fps they were over before the eye found them.
         case .astralBlaze, .astralBloom: .fps12
+        // Forty-four frames. At the house rate the whole flourish was over in
+        // well under two seconds, which for the reward that says *you did the
+        // hard thing* is not long enough to notice having happened.
+        case .bonus: .fps12
         // Prideful Plant, one stage down. Eleven frames of fire went past too
         // quickly to read as a landing.
         case .leoPridefulLanding: .fps10
@@ -411,11 +415,16 @@ enum EffectSprite: String, CaseIterable, Hashable {
              // The Breeze's gust is the moment the Essence fires, and the wind
              // art is drawn pale — without a strong bloom it reads as haze on
              // the board rather than as something happening.
-             .windMisc, .glowPhase, .sparkles, .aquariusZodiaction:
+             .windMisc, .glowPhase, .aquariusZodiaction:
             return GameRules.effectGlowStrongIntensity
         default:
             break
         }
+
+        // The absorb is greys tinted at draw time, and a heavy bloom on a full
+        // grey ramp washes the whole strip into one bright smear. It is played
+        // over the piece, where the detail is the point.
+        if self == .absorb { return GameRules.effectGlowIntensity * 0.4 }
 
         switch element {
         case .fire: return GameRules.effectGlowFireIntensity
@@ -507,8 +516,9 @@ enum EffectSprite: String, CaseIterable, Hashable {
         // The storm's own art, at the size the storm is.
         case .aquariusZodiaction: 4
 
-        // Drawn 256 across against 96 tall — see `spanScaleY`.
-        case .bonus: 4
+        // Drawn 256 across against 96 tall — see `spanScaleY`. Wide, because
+        // it is a banner over the board rather than a mark on a square.
+        case .bonus: 11
 
         default: GameRules.effectSpan
         }

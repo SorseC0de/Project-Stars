@@ -1105,16 +1105,17 @@ struct BoardView: View {
             let stagger = Double(index) * GameRules.glowPhaseStagger
 
             ZStack {
-                // - TODO: **Sampling.** `sparkles` in place of `glowPhase`, to
-                //   see which reads better as the phase itself. Put `glowPhase`
-                //   back here if the answer is the first one.
                 EffectSpriteView(
-                    effect: .sparkles,
+                    effect: .glowPhase,
                     tileSize: metrics.tileSize,
                     start: .distantPast,
                     loops: true,
                     clock: { self.session.ambientClock(at: $0) + stagger }
                 )
+                // Quieter than full. It marks a square rather than being the
+                // thing on it, and at full strength it out-shouted the coin it
+                // is pointing at.
+                .opacity(GameRules.glowPhaseOpacity)
 
                 EffectSpriteView(
                     effect: .sparkles,
@@ -1125,7 +1126,14 @@ struct BoardView: View {
                     // Virgo's ring plays by different rules and says so.
                     tint: set.pattern == .ring ? Palette.pink : nil
                 )
+                .opacity(GameRules.glowPhaseOpacity)
             }
+            // Turning, bobbing and breathing, like Polaris — the one thing in
+            // the game already drawn as *a prize hanging in the air*. Each
+            // square runs on its own periods, seeded off its index: five things
+            // sharing a rhythm read as one object with five parts, which is the
+            // opposite of what a scattered set of candidates should say.
+            .modifier(SparklePose(index: index, clock: session.ambientClock(at:)))
             .allowsHitTesting(false)
         } else {
             SparkleView(

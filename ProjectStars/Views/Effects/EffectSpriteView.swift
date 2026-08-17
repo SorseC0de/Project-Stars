@@ -122,7 +122,12 @@ struct EffectSpriteView: View {
         let cycle = effect.recolourCycle
 
         if let tint {
-            art.colorEffect(ShaderLibrary.flatSilhouette(.color(tint)))
+            // **Multiplied**, not flattened. A silhouette paints every pixel
+            // one colour, which for greyscale art throws away the only thing in
+            // it — the art *is* its shading. Multiplying a grey ramp by a colour
+            // gives that colour's ramp, which is exactly what tinting greyscale
+            // means and what keeps the detail readable.
+            art.colorMultiply(tint)
         } else if let source = effect.sourceTones, !cycle.isEmpty {
             let tone = cycle[frame % cycle.count]
             art.paletteSwap([

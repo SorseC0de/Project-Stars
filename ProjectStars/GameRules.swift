@@ -2503,6 +2503,31 @@ enum GameRules {
     static let tremorShake: CGFloat = 0.45
     static let shakedownShake: CGFloat = 1.1
 
+    // MARK: - The glow phase's hang
+
+    /// Base periods for a sparkle's turn, bob and breath, in seconds.
+    ///
+    /// Three different ones, and each is offset again per square — see
+    /// `SparklePose`. A single period shared by all three motions reads as one
+    /// wobble rather than as something hanging in the air.
+    static let sparkleSpinPeriod: TimeInterval = 4.1
+    static let sparkleBobPeriod: TimeInterval = 2.3
+    static let sparkleBreathPeriod: TimeInterval = 3.7
+
+    /// How far each of the three goes.
+    ///
+    /// Small. It is a mark on a square, and a sparkle that swung as far as the
+    /// coin does would start looking like the prize instead of the promise.
+    static let sparkleSpinSwing: Double = 9
+    static let sparkleBobHeight: CGFloat = 3
+    static let sparkleBreathSwing: CGFloat = 0.07
+
+    /// How strongly the glow phase is drawn.
+    ///
+    /// Two thirds. It marks a square rather than being the thing on it, and at
+    /// full strength it out-shouted the coin it is pointing at.
+    static let glowPhaseOpacity: Double = 0.66
+
     /// Seconds between one glowing square starting and the next.
     ///
     /// Five squares lighting in unison read as one object blinking. A stagger

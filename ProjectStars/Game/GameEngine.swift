@@ -3179,7 +3179,16 @@ struct GameEngine {
         //
         // - TODO: Give this its own collection sound — it is a different event
         //   from an ordinary pickup and currently sounds identical.
-        if pickup.revealedOnMove == moveCount, piece.zodiac != .virgo {
+        // Pentacles only.
+        //
+        // A scatter is *several* things appearing at once and taking one leaves
+        // the rest — Pisces' spilled bubbles are revealed by the fall that
+        // dropped them, so collecting one on the way past counted as sniping a
+        // coin you were never hunting. The snipe is a reward for reaching a
+        // reveal you had to go and get; a bubble underfoot is not that.
+        if pickup.revealedOnMove == moveCount,
+           piece.zodiac != .virgo,
+           PickupCatalog.effect(for: pickup.id).pickupClass == .pentacle {
             let target = min(zodiactionMeter + GameRules.revealTileCharge, zodiactionMeterMax)
             if target != zodiactionMeter {
                 commit(.zodiactionMeterChanged(to: target))
