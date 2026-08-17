@@ -284,7 +284,7 @@ struct PentacleView: View {
         // rather than one giving off any.
         .background {
             Droplet()
-                .fill(Palette.cyan)
+                .fill(Palette.sky)
                 .frame(
                     width: size * 0.5,
                     height: size * 0.5 * (1 + GameRules.dropletPull)
@@ -299,7 +299,15 @@ struct PentacleView: View {
                 // correct one for a light source; what was wrong was how much
                 // of it there is.
                 .opacity(GameRules.dropletGlowOpacity)
-                .blendMode(.plusLighter)
+                // `softLight`, after trying both of the ones that add.
+                //
+                // `plusLighter` clipped to a flat white ring on pale tiles;
+                // `screen` stopped clipping and stopped being visible with it,
+                // because a screen over near-white ground has almost nothing
+                // left to lighten. Soft light brightens *relative to* what is
+                // under it rather than toward white, so it holds its shape on
+                // both the chasm and the tiles either side of it.
+                .blendMode(.softLight)
         }
         // Three quarters of what it was. It is a bead of water beside a coin,
         // and at full size it was competing with the thing it sits next to.

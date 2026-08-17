@@ -2791,6 +2791,12 @@ enum GameRules {
     /// — and each pairing needed a different amount of that undone. With the
     /// double gone the four collapse into one, which is the tell that they were
     /// never four different quantities.
+    /// The sign the picker opens on in debug builds.
+    ///
+    /// - TODO: **Debug only.** Point this at whoever is being worked on, and
+    ///   move it when the work moves. Never read in a shipped build.
+    static let debugStartingSign: Zodiac = .pisces
+
     // MARK: - Aquarius' storm
 
     /// The funnel, settled. Everything here is a proportion of the square the

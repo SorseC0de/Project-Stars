@@ -23,7 +23,19 @@ struct PieceSelectionScreen: View {
     /// Called with the chosen sign when the player commits.
     let onBegin: (Zodiac) -> Void
 
-    @State private var selection: Zodiac = .aries
+    /// Which sign the picker opens on.
+    ///
+    /// `GameRules.debugStartingSign` in debug builds, Aries in a shipped one.
+    /// Whoever is being worked on should be one tap away rather than a scroll
+    /// and a memory of where they sit in the grid — a sign that takes three
+    /// actions to reach is a sign that gets tested less than it should be.
+    @State private var selection: Zodiac = {
+        #if DEBUG
+        return GameRules.debugStartingSign
+        #else
+        return .aries
+        #endif
+    }()
 
     private let columns = Array(repeating: GridItem(.flexible(), spacing: 10), count: 4)
 
