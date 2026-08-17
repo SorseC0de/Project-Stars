@@ -435,10 +435,11 @@ enum EffectSprite: String, CaseIterable, Hashable {
             break
         }
 
-        // The absorb is greys tinted at draw time, and a heavy bloom on a full
-        // grey ramp washes the whole strip into one bright smear. It is played
-        // over the piece, where the detail is the point.
-        if self == .absorb { return GameRules.effectGlowIntensity * 0.4 }
+        // The absorb carries no bloom at all. It is drawn additively, which is
+        // already light — a blurred copy underneath was a second glow on top of
+        // the one the blend mode provides, and it smeared the detail the art has
+        // back out again.
+        if self == .absorb { return 0 }
 
         switch element {
         case .fire: return GameRules.effectGlowFireIntensity

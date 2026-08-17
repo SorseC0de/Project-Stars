@@ -2399,13 +2399,19 @@ struct BoardView: View {
     @ViewBuilder
     private func sparkleDispersal(metrics: PixelArtMetrics) -> some View {
         ForEach(session.sparkleDispersals.filter { $0.plane == session.visiblePlane }) { burst in
-            ElementalBurstView(
-                element: burst.element,
-                center: metrics.center(of: burst.center),
-                radius: metrics.tileSize * 1.4,
+            // The **same view** a coin going down with its tile throws.
+            //
+            // `pickupDestroyed` sets `collectBurst`, which draws through
+            // `CollectBurstView` — the sparks. I reached for `ElementalBurstView`
+            // instead, which is the coloured ring an Essence throws, and it is a
+            // completely different picture: a wash of element where what was
+            // wanted was something coming apart.
+            CollectBurstView(
+                tileSize: metrics.tileSize,
+                scale: metrics.scale,
                 start: burst.start
             )
-            .frame(width: metrics.boardSize, height: metrics.boardSize)
+            .modifier(placedOnPlaneModifier(burst.center, metrics: metrics))
             .id(burst.id)
         }
     }
