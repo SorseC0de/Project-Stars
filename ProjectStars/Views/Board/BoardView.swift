@@ -36,7 +36,7 @@ struct BoardView: View {
     var plane: Plane?
 
     /// The plane being drawn.
-    private var shown: Plane { plane ?? shown }
+    private var shown: Plane { plane ?? session.visiblePlane }
 
     /// The side length available for the board, in points.
     let availableSide: CGFloat

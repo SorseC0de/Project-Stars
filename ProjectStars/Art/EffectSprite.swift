@@ -331,7 +331,10 @@ enum EffectSprite: String, CaseIterable, Hashable {
         // The long ones, at sixty. Forty-four frames at 24fps is close to two
         // seconds, which outlasts the move it is decorating; at 60 they land
         // inside it.
-        case .absorb, .cancerScuttle, .bonus, .sparkles: .fps60
+        //
+        // Not the bonus: it was slowed to twelve above, deliberately, so the
+        // flourish lasts long enough to register as a reward.
+        case .absorb, .sparkles: .fps60
         // The storm's band ends on an empty cell, so it is a gust rather than a
         // loop. Slow, and staggered by whoever stacks it — see `AquariusStorm`.
         case .aquariusArmor: .fps10
@@ -392,9 +395,9 @@ enum EffectSprite: String, CaseIterable, Hashable {
         case .bonus: 20
         // Ground-level: wind blows across a square, the glow phase is the
         // square lighting up, and the scuttle's bubbles come off the floor.
-        case .windMisc, .glowPhase, .sparkles, .cancerScuttle: 0
+        case .windMisc, .glowPhase, .sparkles: 0
         // Around the whole figure, not under it.
-        case .aquariusZodiaction, .aquariusArmor: 8
+        case .aquariusArmor: 8
         }
     }
 

@@ -43,8 +43,10 @@ struct SkyView: View {
     /// the world — a background is allowed to be continuous, and banding this
     /// one only drew attention to the bands.
     private static func skyStops(from start: CGFloat, to end: CGFloat) -> [Gradient.Stop] {
-        let top = min(max(start, 0), 1)
-        let bottom = min(max(end, top), 1)
+        // Both ends are fixed now — the gradient was rewritten to two stops and
+        // these stopped being read. Kept as parameters because the caller still
+        // has an opinion worth restoring if the sky is ever tuned again.
+        _ = (start, end)
         return [
             .init(color: Palette.coolBlack, location: 0.6),
             .init(color: Palette.blue, location: 1)

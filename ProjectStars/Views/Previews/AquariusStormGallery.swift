@@ -139,8 +139,11 @@ struct AquariusStormGallery: View {
     }
 }
 
-extension BlendMode: CaseIterable {
-    public static var allCases: [BlendMode] = [
+/// - Note: Not a `CaseIterable` conformance. Declaring one on an imported type
+///   is a promise SwiftUI may break by adding its own, and this is a gallery's
+///   picker rather than anything the game relies on.
+extension BlendMode {
+    static let pickable: [BlendMode] = [
         .normal,
         .multiply,
         .screen,
