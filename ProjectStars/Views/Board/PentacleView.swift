@@ -248,8 +248,15 @@ struct PentacleView: View {
             // behind it are all left alone — the stack is what makes the thing
             // read as water, and the shape is the one part of it that was
             // saying "ball" instead of "drop".
+            // White, and unlit.
+            //
+            // Arrived at by accident: one droplet always spawned without its
+            // tint or its bloom, and the plain version read better than the
+            // coloured one — a bead of pure energy against a board of gold
+            // coins and violet cloud says *this is not treasure* far more
+            // clearly than another blue thing does.
             Droplet()
-                .fill(appearance == .bubble ? Palette.sky.opacity(0.5) : Palette.blue)
+                .fill(appearance == .bubble ? Palette.white.opacity(0.9) : Palette.white)
                 .frame(
                     width: size * 0.44,
                     height: size * 0.44 * (1 + GameRules.dropletPull)
@@ -260,33 +267,17 @@ struct PentacleView: View {
                 .offset(y: -size * 0.44 * GameRules.dropletPull / 2)
 
             Circle()
-                .fill(Palette.sky)
+                .fill(Palette.ice)
                 .frame(width: size * 0.30, height: size * 0.30)
                 .offset(y: size * 0.02)
 
             Circle()
-                .fill(Palette.ice)
+                .fill(Palette.white)
                 .frame(width: size * 0.10, height: size * 0.10)
                 .offset(x: -size * 0.07, y: -size * 0.09)
         }
         // The same additive bloom the coins carry, so it sits in the same light
         // as everything else hovering over the board.
-        // The bloom takes the droplet's own outline rather than a circle's.
-        //
-        // A round glow behind a pointed shape reads as a drop sitting in front
-        // of a light, not as one giving off any — the tip is the part that says
-        // what it is, and it was the part with nothing behind it.
-        .background {
-            Droplet()
-                .fill(Palette.cyan)
-                .frame(
-                    width: size * 0.5,
-                    height: size * 0.5 * (1 + GameRules.dropletPull)
-                )
-                .offset(y: -size * 0.5 * GameRules.dropletPull / 2)
-                .blur(radius: GameRules.pentacleGlowRadius * scale)
-                .blendMode(.plusLighter)
-        }
         // Three quarters of what it was. It is a bead of water beside a coin,
         // and at full size it was competing with the thing it sits next to.
         .scaleEffect(GameRules.dropletScale)

@@ -403,7 +403,10 @@ final class GameSession {
             // eye reads: the droplet arrives, the water it is made of gives up
             // its shape, and the ground answers last. Splashing first put the
             // tile's reaction underneath the thing that caused it.
-            self?.playEffect(.droplet, at: point, on: plane, tint: Palette.cyan)
+            // Untinted. `tint` multiplies, and multiplying cannot lighten —
+            // teal art times cyan is still teal, which is why it never looked
+            // swapped. The strip plays as drawn.
+            self?.playEffect(.droplet, at: point, on: plane)
             self?.playEffect(.waterSplash, at: point, on: plane)
         }
 
