@@ -456,19 +456,7 @@ struct WearProposal: Equatable {
     var signState: SignState
 
     /// The health the tile would end at, given `stages`.
-    var resultingHealth: TileHealth {
-        var health = tile.health
-        if stages >= 0 {
-            for _ in 0..<stages where health != .hole {
-                health = health.damaged
-            }
-        } else {
-            for _ in 0..<(-stages) where health != .healthy {
-                health = health.healed
-            }
-        }
-        return health
-    }
+    var resultingHealth: TileHealth { tile.health.worn(by: stages) }
 
     /// True when applying this proposal would open a hole.
     var wouldBreak: Bool {

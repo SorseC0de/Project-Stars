@@ -559,14 +559,9 @@ struct TrivialTremorEffect: PickupEffect {
         // shield that nullifies *the next damage* has to know what "next" is —
         // three events would let a Nexyial Bastion eat a third of a Shakedown
         // and pass the rest through, which is not what absorbing a hit means.
-        var health = context.currentBoard[target].health
-        for _ in 0..<max(points, 1) {
-            let next = health.damaged
-            guard next != health else { break }
-            health = next
-        }
-
-        guard health != context.currentBoard[target].health else { return [] }
+        let before = context.currentBoard[target].health
+        let health = before.worn(by: max(points, 1))
+        guard health != before else { return [] }
         return [.tileDamaged(plane: context.plane, point: target, to: health)]
     }
 }

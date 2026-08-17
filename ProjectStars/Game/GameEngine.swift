@@ -3043,10 +3043,7 @@ struct GameEngine {
         // The tile underfoot. Several stages resolve to one final state rather
         // than to one event each.
         if final.stages > 0, tile.canBeWorn {
-            var health = tile.health
-            for _ in 0..<final.stages where health != .hole {
-                health = health.damaged
-            }
+            let health = tile.health.worn(by: final.stages)
             if health != tile.health {
                 changes[point] = health
                 result.tilesWorn += 1
