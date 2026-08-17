@@ -2391,17 +2391,31 @@ struct BoardView: View {
             // clip, which is what lets the extra reach be seen at all.
             let pad = metrics.tileSize * 3
 
-            ElementalBurstView(
-                kind: burst.kind,
-                center: CGPoint(
-                    x: spot.position.x + pad,
-                    y: spot.position.y - metrics.tileSize * spot.scale + pad
-                ),
-                radius: metrics.tileSize * 2.6 * spot.scale,
-                start: burst.start
-            )
-            .frame(width: metrics.boardSize + pad * 2, height: metrics.boardSize + pad * 2)
-            .id(burst.id)
+            // Laid out at board size, **drawn** larger.
+            //
+            // Framing the canvas bigger grew the stack it lives in, and every
+            // sibling in that stack is placed with `.position` — which is
+            // measured against the container. So the wider canvas moved the
+            // whole board. An overlay draws outside its host without changing
+            // what the host measures, which is the only way to have both.
+            Color.clear
+                .frame(width: metrics.boardSize, height: metrics.boardSize)
+                .overlay {
+                    ElementalBurstView(
+                        kind: burst.kind,
+                        center: CGPoint(
+                            x: spot.position.x + pad,
+                            y: spot.position.y - metrics.tileSize * spot.scale + pad
+                        ),
+                        radius: metrics.tileSize * 2.6 * spot.scale,
+                        start: burst.start
+                    )
+                    .frame(
+                        width: metrics.boardSize + pad * 2,
+                        height: metrics.boardSize + pad * 2
+                    )
+                }
+                .id(burst.id)
         }
     }
 
