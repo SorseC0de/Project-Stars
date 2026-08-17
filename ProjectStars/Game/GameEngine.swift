@@ -578,8 +578,11 @@ struct GameEngine {
     /// means none of those has to know, which is the whole reason the reversal
     /// is affordable.
     func meter(afterGaining amount: Int) -> Int {
-        let signed = piece.zodiac.zodiaction.firesAtEmpty ? -amount : amount
-        return min(max(zodiactionMeter + signed, 0), zodiactionMeterMax)
+        piece.zodiac.zodiaction.meter(
+            zodiactionMeter,
+            afterGaining: amount,
+            cap: zodiactionMeterMax
+        )
     }
 
     /// True when the player's directions are turned around.
@@ -3583,7 +3586,6 @@ struct GameEngine {
             zodiac: piece.zodiac,
             zodiactionMeter: zodiactionMeter,
             zodiactionMeterMax: zodiactionMeterMax,
-            firesAtEmpty: piece.zodiac.zodiaction.firesAtEmpty,
             floatsOverHoles: activePassives.walksOnHoles(context: passiveContext),
             signState: signState
         )

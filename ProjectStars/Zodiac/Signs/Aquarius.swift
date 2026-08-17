@@ -23,11 +23,10 @@ extension ZodiacCatalog {
         accentColor: Color(hex: 0x5F_C2_A8),
         movement: .cardinalStep,
         passives: [
-            AquariusQuirkyCaper(),
-            AquariusWindWalker(),
-            AquariusCornerCurrent(),
+            AquariusWackyWhirlwind(),
+            AquariusCrazyCurrent(),
         ],
-        zodiaction: AquariusGoneWithTheGale(),
+        zodiaction: AquariusWaterbearerWipeout(),
         constellation: ZodiacCatalog.aquariusConstellation
     )
 
@@ -55,7 +54,7 @@ extension ZodiacCatalog {
 /// The consequence worth understanding: arriving somewhere costs nothing, so a
 /// wrecked board is far safer to cross than it is for anyone else, but the square
 /// you are standing on is always the one about to break. Aquarius cannot loiter.
-struct AquariusQuirkyCaper: ZodiacPassive {
+struct AquariusWackyWhirlwind: ZodiacPassive {
 
     let displayName = "Wacky Whirlwind"
     let summary = "Astra & Terra: everything about the waterbearer runs backwards."
@@ -71,24 +70,6 @@ struct AquariusQuirkyCaper: ZodiacPassive {
     /// meter moved would be a rule the player has to re-learn every few turns
     /// instead of once.
     func reversesControls(context: PassiveContext) -> Bool { true }
-
-    /// A hole is ground, for as long as there is a storm to float on.
-    ///
-    /// At zero the pot has nothing holding it up and falls like anyone else,
-    /// which is what makes running dry dangerous rather than merely quiet.
-    func walksOnHoles(context: PassiveContext) -> Bool {
-        context.zodiactionMeter > 0
-    }
-
-    /// And the edge stops being a wall.
-    ///
-    /// Floating over holes removes every way this sign can die *inside* the
-    /// board, so the board's rim becomes the only one — which is why leaving it
-    /// has to be a legal move rather than a refused one. See
-    /// `GameRules.aquariusOffBoardRing`.
-    func mayLeaveTheBoard(context: PassiveContext) -> Bool {
-        context.zodiactionMeter > 0
-    }
 
     /// Blown rather than walking, for as long as there is a storm.
     ///
@@ -149,10 +130,27 @@ extension MovementPattern {
 ///
 /// Inert while Aquarius' movement is the shared single step, since a one-tile
 /// move has nothing to cross.
-struct AquariusWindWalker: ZodiacPassive {
+struct AquariusCrazyCurrent: ZodiacPassive {
 
-    let displayName = "Wind Walker"
-    let summary = "Astra & Terra: a move of more than one square is made on the wind — holes are crossed rather than fallen into."
+    let displayName = "Crazy Current"
+    let summary = "Astra & Terra: holes cannot hold you, and what is past the edge of the plane is not nothing."
+
+    /// A hole is ground, for as long as there is a storm to float on.
+    ///
+    /// At zero the pot has nothing holding it up and falls like anyone else,
+    /// which is what makes running dry dangerous rather than merely quiet.
+    func walksOnHoles(context: PassiveContext) -> Bool {
+        context.zodiactionMeter > 0
+    }
+
+    /// And the edge stops being a wall.
+    ///
+    /// Floating over holes removes every way this sign can die *inside* the
+    /// board, so the rim becomes the only one left — which is why leaving it has
+    /// to be a legal move rather than a refused one.
+    func mayLeaveTheBoard(context: PassiveContext) -> Bool {
+        context.zodiactionMeter > 0
+    }
 
     func walksOnAir(during option: MovementPattern.MoveOption, context: PassiveContext) -> Bool {
         option.distance > 1
@@ -160,120 +158,6 @@ struct AquariusWindWalker: ZodiacPassive {
 }
 
 // MARK: - Passive 3: Corner Current
-
-/// From a corner, the wind carries Aquarius diagonally across the board.
-///
-/// ## What it is
-///
-/// Standing on any corner opens a **diagonal slide** — the purple option on the
-/// stick, the same extra stop Virgo has — running toward the opposite corner
-/// until the board runs out. On Astra it can be used as often as the player can
-/// reach a corner. On Terra each corner offers it **once**.
-///
-/// ## Why it stopped being a warp
-///
-/// The old version was an offer made *on arrival*, which meant a button on the
-/// upper screen — and the upper screen is a display, not a control surface. That
-/// alone was enough to retire it, but it was also the least interesting version
-/// of the idea: a free teleport with no cost either way, where the empowered
-/// plane got a choice between three destinations that never mattered because
-/// none of them cost anything.
-///
-/// A slide costs. It wears the corner it leaves and the square it lands on, and
-/// Quirky Caper doubles what Aquarius owes on departure — so on Terra the corners
-/// wear out under exactly the sign that keeps using them. That decay *is* the
-/// once-per-corner limit made physical, which is why the limit can be generous.
-///
-/// ## Why the corner and not the edge
-///
-/// A diagonal from anywhere is Virgo's ability. From a corner there is only one
-/// diagonal that goes anywhere at all, so it is a route rather than a choice —
-/// the corner stops being the dead end it is for everybody else, and Aquarius is
-/// the sign that treats the edges of the board as somewhere to be.
-struct AquariusCornerCurrent: ZodiacPassive {
-
-    /// Prefix of the keys this sign owns in `SignState.planeFlags`. One per
-    /// corner, so Terra's limit is per corner rather than per visit.
-    static let usedKeyPrefix = "aquarius.cornerCurrent."
-
-    static func usedKey(for corner: GridPoint) -> String {
-        "\(usedKeyPrefix)\(corner.x),\(corner.y)"
-    }
-
-    let displayName = "Corner Current"
-    let summary = "Astra: from any corner, ride the diagonal across the board. Terra: once per corner."
-
-    func adjustedMovement(base: MovementPattern, context: PassiveContext) -> MovementPattern {
-        guard Self.corners(size: context.currentBoard.size).contains(context.piecePoint) else {
-            return base
-        }
-        guard context.isEmpowered
-            || !context.signState.planeFlags.contains(Self.usedKey(for: context.piecePoint))
-        else { return base }
-
-        // Sorted by `MovementPattern.init`, so the diagonal lands after the
-        // ordinary step and the reach selector offers it second.
-        return MovementPattern(
-            name: base.name,
-            options: base.options + [
-                MovementPattern.MoveOption(
-                    .diagonal,
-                    distance: context.currentBoard.size,
-                    style: .slide,
-                    reachesWall: true
-                )
-            ]
-        )
-    }
-
-    /// Only the diagonal that leads *into* the board.
-    ///
-    /// Three of the four run straight off the edge, and `pathToWall` returns
-    /// nothing for those — so the illegal ones refuse themselves and the reach
-    /// selector never offers a stop that goes nowhere.
-    func allows(
-        _ option: MovementPattern.MoveOption,
-        direction: SwipeDirection,
-        path: [GridPoint],
-        context: PassiveContext
-    ) -> Bool {
-        guard option.reachesWall else { return true }
-        return !path.isEmpty
-    }
-
-    /// Terra spends the corner it just used.
-    func stateAfterMove(
-        option: MovementPattern.MoveOption,
-        direction: SwipeDirection,
-        context: PassiveContext
-    ) -> SignState? {
-        guard option.reachesWall, !direction.isCardinal else { return nil }
-        guard context.plane == .terra else { return nil }
-
-        // `piecePoint` is where the slide *ended* by the time this is asked, so
-        // the corner it started from is recovered from the direction it took.
-        let step = direction.unitOffset
-        var corner = context.piecePoint
-        while context.currentBoard.contains(corner.offset(by: GridOffset(-step.dx, -step.dy))) {
-            corner = corner.offset(by: GridOffset(-step.dx, -step.dy))
-        }
-
-        var state = context.signState
-        state.planeFlags.insert(Self.usedKey(for: corner))
-        return state
-    }
-
-    /// The four corners of a board this size.
-    static func corners(size: Int) -> [GridPoint] {
-        let last = size - 1
-        return [
-            GridPoint(0, 0), GridPoint(last, 0),
-            GridPoint(0, last), GridPoint(last, last),
-        ]
-    }
-}
-
-// MARK: - Zodiaction: Gone With the Gale
 
 /// Scatters Aquarius to a random square it can stand on, anywhere on the plane —
 /// the Nexys included.
@@ -295,13 +179,13 @@ struct AquariusCornerCurrent: ZodiacPassive {
 /// than one abstraction across forty.
 ///
 /// - TODO: Move to stored readiness with a display inversion. See the Aquarius
-///   rework.
-struct AquariusGoneWithTheGale: Zodiaction {
+
+struct AquariusWaterbearerWipeout: Zodiaction {
 
     /// Backwards, both ends of it.
     let firesAtEmpty = true
 
-    let displayName = "Gone With the Gale"
+    let displayName = "Waterbearer Wipeout"
     let summary = "Astra & Terra: go to any square you choose — open ground included — and walk on air for \(GameRules.galeMoves) moves after."
 
     /// - TODO: Aquarius has no charge rule specified. It currently fills only

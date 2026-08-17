@@ -126,6 +126,18 @@ extension Zodiaction {
     func meterMax(on plane: Plane) -> Int { meterMax }
 
     var firesAtEmpty: Bool { false }
+
+    /// The meter after a gain, in whichever direction this ability counts.
+    ///
+    /// **The one place that knows.** Charge is granted from a dozen sites — the
+    /// reveal pip, element affinity, passives, every Pentacle — and each of them
+    /// means *this brings you closer to firing*, which for a backwards meter is
+    /// downward. Written here rather than at those sites so there is nothing to
+    /// keep in step: it lived in two of them for a day, they agreed, and they
+    /// were one edit from not agreeing.
+    func meter(_ current: Int, afterGaining amount: Int, cap: Int) -> Int {
+        min(max(current + (firesAtEmpty ? -amount : amount), 0), cap)
+    }
     var startingMeter: Int { firesAtEmpty ? meterMax : 0 }
 
     func canActivate(context: PassiveContext) -> Bool { true }

@@ -206,9 +206,6 @@ struct PickupContext {
     let zodiactionMeter: Int
     let zodiactionMeterMax: Int
 
-    /// True when this sign's meter runs backwards — see
-    /// `Zodiaction.firesAtEmpty`.
-    var firesAtEmpty: Bool = false
 
     /// True when holes hold this piece up and the border does not stop it.
     var floatsOverHoles: Bool = false
@@ -226,12 +223,16 @@ struct PickupContext {
 
     /// Charge, clamped and expressed as the absolute value the meter should
     /// become — which is the form `GameEvent.zodiactionMeterChanged` takes.
-    /// Charge, in whichever direction this sign counts — see
-    /// `GameEngine.meter(afterGaining:)`, which answers the same question for
-    /// everything that is not a Pentacle.
+    /// Charge, in whichever direction this sign counts.
+    ///
+    /// Asks the Zodiaction, which owns the direction — see
+    /// `Zodiaction.meter(_:afterGaining:cap:)`.
     func meter(afterGaining amount: Int) -> Int {
-        let signed = firesAtEmpty ? -amount : amount
-        return min(max(zodiactionMeter + signed, 0), zodiactionMeterMax)
+        zodiac.zodiaction.meter(
+            zodiactionMeter,
+            afterGaining: amount,
+            cap: zodiactionMeterMax
+        )
     }
 }
 
