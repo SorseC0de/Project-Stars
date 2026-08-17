@@ -956,7 +956,8 @@ struct BoardView: View {
                 effect: burst.effect,
                 tileSize: metrics.tileSize,
                 start: burst.start,
-                tint: burst.tint
+                tint: burst.tint,
+                swaps: burst.swaps
             )
             .scaleEffect(x: burst.mirrored ? -burst.scale : burst.scale, y: burst.scale)
             .rotationEffect(.degrees(burst.angle))

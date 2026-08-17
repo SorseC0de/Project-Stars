@@ -403,10 +403,21 @@ final class GameSession {
             // eye reads: the droplet arrives, the water it is made of gives up
             // its shape, and the ground answers last. Splashing first put the
             // tile's reaction underneath the thing that caused it.
-            // Untinted. `tint` multiplies, and multiplying cannot lighten —
-            // teal art times cyan is still teal, which is why it never looked
-            // swapped. The strip plays as drawn.
-            self?.playEffect(.droplet, at: point, on: plane)
+            // Swapped onto the cold ramp. Sampled from `droplet.png` rather
+            // than guessed: it is drawn in yellowGreen, ice, neonGreen and
+            // cyan, which is a green-blue ramp, and the two lightest both land
+            // on ice so the three-tone result keeps its shading.
+            self?.playEffect(
+                .droplet,
+                at: point,
+                on: plane,
+                swaps: [
+                    PaletteSwap(Palette.yellowGreen, Palette.ice),
+                    PaletteSwap(Palette.ice, Palette.ice),
+                    PaletteSwap(Palette.neonGreen, Palette.cyan),
+                    PaletteSwap(Palette.cyan, Palette.sky)
+                ]
+            )
             self?.playEffect(.waterSplash, at: point, on: plane)
         }
 
@@ -3060,6 +3071,14 @@ struct EffectBurst: Identifiable, Equatable {
     /// True to draw this copy mirrored.
     var mirrored = false
 
+    /// Entries to exchange, for a strip drawn in colours other than the ones
+    /// wanted.
+    ///
+    /// A **swap**, not a tint: `tint` multiplies, so it can only ever darken —
+    /// teal art times cyan is still teal. Naming the entries is the only way to
+    /// move a strip onto a different part of the ramp.
+    var swaps: [PaletteSwap] = []
+
     /// What to recolour the strip to, or `nil` to leave the art alone.
     ///
     /// For strips drawn deliberately colourless — the absorb is greys precisely
@@ -3083,6 +3102,7 @@ extension GameSession {
         on plane: Plane,
         delay: TimeInterval = 0,
         tint: Color? = nil,
+        swaps: [PaletteSwap] = [],
         scale: CGFloat = 1,
         angle: Double = 0,
         mirrored: Bool = false
@@ -3095,6 +3115,7 @@ extension GameSession {
             scale: scale,
             angle: angle,
             mirrored: mirrored,
+            swaps: swaps,
             tint: tint
         )
         effectBursts.append(burst)

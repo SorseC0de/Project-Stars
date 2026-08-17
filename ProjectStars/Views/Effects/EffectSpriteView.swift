@@ -68,6 +68,9 @@ struct EffectSpriteView: View {
     /// grey art exists to avoid.
     var tint: Color?
 
+    /// Entries to exchange before anything else is done to the art.
+    var swaps: [PaletteSwap] = []
+
     /// How many frames are actually played.
     private var playing: Int {
         min(max(frameCount ?? effect.frames, 1), effect.frames)
@@ -122,7 +125,9 @@ struct EffectSpriteView: View {
     private func recoloured(_ art: some View, frame: Int) -> some View {
         let cycle = effect.recolourCycle
 
-        if let tint {
+        if !swaps.isEmpty {
+            art.paletteSwap(swaps)
+        } else if let tint {
             // **Multiplied**, not flattened. A silhouette paints every pixel
             // one colour, which for greyscale art throws away the only thing in
             // it — the art *is* its shading. Multiplying a grey ramp by a colour

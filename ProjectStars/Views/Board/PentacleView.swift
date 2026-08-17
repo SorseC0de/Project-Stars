@@ -279,6 +279,22 @@ struct PentacleView: View {
         // as everything else hovering over the board.
         // Three quarters of what it was. It is a bead of water beside a coin,
         // and at full size it was competing with the thing it sits next to.
+        // The bloom takes the droplet's own outline rather than a circle's: a
+        // round glow behind a pointed shape reads as a drop in front of a light
+        // rather than one giving off any.
+        .background {
+            Droplet()
+                .fill(Palette.cyan)
+                .frame(
+                    width: size * 0.5,
+                    height: size * 0.5 * (1 + GameRules.dropletPull)
+                )
+                .offset(y: -size * 0.5 * GameRules.dropletPull / 2)
+                .blur(radius: GameRules.pentacleGlowRadius * scale)
+                .blendMode(.plusLighter)
+        }
+        // Three quarters of what it was. It is a bead of water beside a coin,
+        // and at full size it was competing with the thing it sits next to.
         .scaleEffect(GameRules.dropletScale)
     }
 
