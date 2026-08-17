@@ -389,6 +389,21 @@ protocol ZodiacPassive {
     /// Capricorn's Celestial Commerce alone. The engine puts the coin in
     /// `SignState.purse` and skips its effect entirely; Z-Charge is exempt at
     /// the engine, since charge cannot be saved as charge. Default: false.
+    /// True when every direction the player gives is turned around.
+    ///
+    /// Asked of the passive rather than checked against the sign, so nothing
+    /// downstream has to know which sign it is — and so a phantom carrying
+    /// Aquarius' passives is reversed too, which is the whole point of a
+    /// phantom.
+    func reversesControls(context: PassiveContext) -> Bool
+
+    /// True when a hole is ground rather than a fall.
+    func walksOnHoles(context: PassiveContext) -> Bool
+
+    /// True when leaving the board is a legal move rather than an impossible
+    /// one — and, for whoever can do it, fatal.
+    func mayLeaveTheBoard(context: PassiveContext) -> Bool
+
     /// The drawn mark for this passive, by asset name, or `nil`.
     ///
     /// Same arrangement as `PickupEffect.icon`: named rather than drawn here, so
@@ -479,6 +494,10 @@ extension ZodiacPassive {
 
     /// No mark drawn yet. See `icon`.
     var icon: String? { nil }
+
+    func reversesControls(context: PassiveContext) -> Bool { false }
+    func walksOnHoles(context: PassiveContext) -> Bool { false }
+    func mayLeaveTheBoard(context: PassiveContext) -> Bool { false }
 
     /// The same mark on both planes, unless the passive says otherwise.
     func icon(on plane: Plane) -> String? { icon }
@@ -831,6 +850,18 @@ extension Array where Element == any ZodiacPassive {
 
     func banksPickups(_ id: PickupID, context: PassiveContext) -> Bool {
         contains { $0.banksPickups(id, context: context) }
+    }
+
+    func reversesControls(context: PassiveContext) -> Bool {
+        contains { $0.reversesControls(context: context) }
+    }
+
+    func walksOnHoles(context: PassiveContext) -> Bool {
+        contains { $0.walksOnHoles(context: context) }
+    }
+
+    func mayLeaveTheBoard(context: PassiveContext) -> Bool {
+        contains { $0.mayLeaveTheBoard(context: context) }
     }
 
     func fallIsControlled(to plane: Plane, context: PassiveContext) -> Bool {

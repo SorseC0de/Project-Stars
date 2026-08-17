@@ -560,8 +560,37 @@ struct GameEngine {
     var isZodiactionCharged: Bool {
         guard !isGameOver else { return false }
         let zodiaction = piece.zodiac.zodiaction
-        return zodiaction.ignoresMeter(context: passiveContext)
-            || zodiactionMeter >= zodiactionMeterMax
+        return zodiaction.ignoresMeter(context: passiveContext) || meterIsAtFiring
+    }
+
+    /// True when the meter is standing where this sign fires from.
+    ///
+    /// Full for everyone except Aquarius, who runs the other way and fires at
+    /// **zero** — see `Zodiaction.firesAtEmpty`. Asked in one place so the two
+    /// readiness questions cannot disagree about it, which is what a second
+    /// comparison spelled out at each site would eventually do.
+    /// The meter after a **gain** of `amount`, in whichever direction this sign
+    /// counts.
+    ///
+    /// Charge is granted from a dozen places — reveal pips, element affinity,
+    /// passives, Pentacles — and every one of them means *this brings you closer
+    /// to firing*. For Aquarius that is downward. Putting the direction here
+    /// means none of those has to know, which is the whole reason the reversal
+    /// is affordable.
+    func meter(afterGaining amount: Int) -> Int {
+        let signed = piece.zodiac.zodiaction.firesAtEmpty ? -amount : amount
+        return min(max(zodiactionMeter + signed, 0), zodiactionMeterMax)
+    }
+
+    /// True when the player's directions are turned around.
+    var controlsAreReversed: Bool {
+        activePassives.reversesControls(context: passiveContext)
+    }
+
+    var meterIsAtFiring: Bool {
+        piece.zodiac.zodiaction.firesAtEmpty
+            ? zodiactionMeter <= 0
+            : zodiactionMeter >= zodiactionMeterMax
     }
 
     /// True when the Zodiaction can be popped right now.
@@ -572,8 +601,7 @@ struct GameEngine {
         let context = passiveContext
 
         // A free pop needs no meter — see `Zodiaction.ignoresMeter`.
-        guard zodiaction.ignoresMeter(context: context)
-            || zodiactionMeter >= zodiactionMeterMax
+        guard zodiaction.ignoresMeter(context: context) || meterIsAtFiring
         else { return false }
 
         // Asked here rather than only at the moment of firing, so the panel can
@@ -632,13 +660,10 @@ struct GameEngine {
         self.pickupsCollected = 0
         // Aquarius starts **full**.
         //
-        // His meter runs backwards — full at the start, spent at zero — so a
-        // run begins with the tornado at its largest and the sign at its least
-        // able. The gains have not been inverted yet, so this is only the
-        // starting point; see the Aquarius rework.
-        self.zodiactionMeter = zodiac == .aquarius
-            ? zodiac.zodiaction.meterMax(on: GameRules.startingPlane)
-            : 0
+        // Asked of the Zodiaction rather than tested against the sign: a meter
+        // that runs backwards starts full, and that is a fact about the ability
+        // rather than about who is holding it. See `Zodiaction.startingMeter`.
+        self.zodiactionMeter = zodiac.zodiaction.startingMeter
         self.signState = SignState()
         self.luck = 0
         self.luckAlt = 0
@@ -3233,7 +3258,7 @@ struct GameEngine {
         if pickup.revealedOnMove == moveCount,
            piece.zodiac != .virgo,
            PickupCatalog.effect(for: pickup.id).pickupClass == .pentacle {
-            let target = min(zodiactionMeter + GameRules.revealTileCharge, zodiactionMeterMax)
+            let target = meter(afterGaining: GameRules.revealTileCharge)
             if target != zodiactionMeter {
                 commit(.zodiactionMeterChanged(to: target))
             }
@@ -3372,6 +3397,7 @@ struct GameEngine {
             zodiac: piece.zodiac,
             zodiactionMeter: zodiactionMeter,
             zodiactionMeterMax: zodiactionMeterMax,
+            firesAtEmpty: piece.zodiac.zodiaction.firesAtEmpty,
             signState: signState
         )
 
@@ -3839,7 +3865,12 @@ struct GameEngine {
     /// passive a question — the panel, deciding which buttons to offer.
     var passiveSnapshot: PassiveContext { passiveContext }
 
-    private var passiveContext: PassiveContext {
+    /// The snapshot every passive is asked against.
+    ///
+    /// Not private: the session asks one question of the passives before the
+    /// engine is involved at all — whether the controls are reversed — because
+    /// that has to happen at the input boundary rather than inside a move.
+    var passiveContext: PassiveContext {
         PassiveContext(
             zodiac: piece.zodiac,
             currentBoard: self[piece.plane],

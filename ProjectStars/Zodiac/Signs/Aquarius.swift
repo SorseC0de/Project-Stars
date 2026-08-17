@@ -57,11 +57,37 @@ extension ZodiacCatalog {
 /// you are standing on is always the one about to break. Aquarius cannot loiter.
 struct AquariusQuirkyCaper: ZodiacPassive {
 
-    let displayName = "Quirky Caper"
-    let summary = "Astra & Terra: damage the tile you leave, never the one you land on."
+    let displayName = "Wacky Whirlwind"
+    let summary = "Astra & Terra: everything about the waterbearer runs backwards."
 
     func wearTiming(context: PassiveContext) -> WearTiming {
         .onExit
+    }
+
+    /// **Everything runs the other way.**
+    ///
+    /// The reversal is the sign, so it is not conditional on the storm: the pot
+    /// on the floor is still Aquarius, and a control scheme that flipped as the
+    /// meter moved would be a rule the player has to re-learn every few turns
+    /// instead of once.
+    func reversesControls(context: PassiveContext) -> Bool { true }
+
+    /// A hole is ground, for as long as there is a storm to float on.
+    ///
+    /// At zero the pot has nothing holding it up and falls like anyone else,
+    /// which is what makes running dry dangerous rather than merely quiet.
+    func walksOnHoles(context: PassiveContext) -> Bool {
+        context.zodiactionMeter > 0
+    }
+
+    /// And the edge stops being a wall.
+    ///
+    /// Floating over holes removes every way this sign can die *inside* the
+    /// board, so the board's rim becomes the only one — which is why leaving it
+    /// has to be a legal move rather than a refused one. See
+    /// `GameRules.aquariusOffBoardRing`.
+    func mayLeaveTheBoard(context: PassiveContext) -> Bool {
+        context.zodiactionMeter > 0
     }
 
     /// Blown rather than walking, for as long as there is a storm.
@@ -255,7 +281,25 @@ struct AquariusCornerCurrent: ZodiacPassive {
 /// Only solid squares are candidates, so this can never be a disguised suicide.
 /// It is an escape, not a gamble: the value is getting *out* of a corner of the
 /// board that has decayed past use.
+/// Aquarius' meter, which runs down rather than up.
+///
+/// ## Why this is a starting value and a fired-at value, and nothing else
+///
+/// The temptation is to store *readiness* and show `max - readiness`, so no
+/// charge source has to know this sign exists. That is the right shape and it is
+/// what the design calls for — but it is a change to every place charge is
+/// granted, and this sign needs to be playable now.
+///
+/// So the meter is the meter: it starts at ten, every gain elsewhere is a loss
+/// here, and the Zodiaction fires at zero. Three facts in three places rather
+/// than one abstraction across forty.
+///
+/// - TODO: Move to stored readiness with a display inversion. See the Aquarius
+///   rework.
 struct AquariusGoneWithTheGale: Zodiaction {
+
+    /// Backwards, both ends of it.
+    let firesAtEmpty = true
 
     let displayName = "Gone With the Gale"
     let summary = "Astra & Terra: go to any square you choose — open ground included — and walk on air for \(GameRules.galeMoves) moves after."

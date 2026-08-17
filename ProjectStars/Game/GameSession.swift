@@ -882,7 +882,19 @@ final class GameSession {
 
     /// - Parameter reach: Which of the distances available that way the drag
     ///   selected. Ignored by patterns offering only one.
-    func submit(_ direction: SwipeDirection, reach: Int = 0) {
+    func submit(_ rawDirection: SwipeDirection, reach: Int = 0) {
+        // **Turned around at the door.**
+        //
+        // One place, and the outermost one: everything past here — the cursor,
+        // the reach selector, the projection, the engine — deals in where the
+        // piece is actually going, so nothing downstream has to know the sign
+        // is reversed. Flipping it any deeper would mean every one of those
+        // asking the same question and one of them eventually forgetting.
+        //
+        // The board is not reversed, only the *instruction*. Aiming at a square
+        // still means that square; asking to go north is what means south.
+        let direction = engine.controlsAreReversed ? rawDirection.opposite : rawDirection
+
         // Reaching for the controls is how the splash is put away, and that
         // input is spent doing it.
         if dismissIntroIfShowing() { return }

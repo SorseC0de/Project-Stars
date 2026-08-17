@@ -206,6 +206,10 @@ struct PickupContext {
     let zodiactionMeter: Int
     let zodiactionMeterMax: Int
 
+    /// True when this sign's meter runs backwards — see
+    /// `Zodiaction.firesAtEmpty`.
+    var firesAtEmpty: Bool = false
+
 
     /// What the sign remembers between moves. An effect that grants a lasting
     /// state — the Astral Bolt's star — amends this and returns it in a
@@ -219,8 +223,12 @@ struct PickupContext {
 
     /// Charge, clamped and expressed as the absolute value the meter should
     /// become — which is the form `GameEvent.zodiactionMeterChanged` takes.
+    /// Charge, in whichever direction this sign counts — see
+    /// `GameEngine.meter(afterGaining:)`, which answers the same question for
+    /// everything that is not a Pentacle.
     func meter(afterGaining amount: Int) -> Int {
-        min(max(zodiactionMeter + amount, 0), zodiactionMeterMax)
+        let signed = firesAtEmpty ? -amount : amount
+        return min(max(zodiactionMeter + signed, 0), zodiactionMeterMax)
     }
 }
 

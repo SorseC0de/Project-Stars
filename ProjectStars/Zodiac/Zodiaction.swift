@@ -41,6 +41,19 @@ protocol Zodiaction {
     /// Defaults to `meterMax`, which is right for eleven signs. Capricorn's
     /// purse is smaller on Terra, and a cap that moves with the plane is the
     /// only way to say that — a flat number cannot.
+    /// True when this fires at an **empty** meter rather than a full one.
+    ///
+    /// Aquarius alone. Everything that grants charge elsewhere takes it away
+    /// here, so the hunt is structurally identical and only its direction is
+    /// turned around.
+    var firesAtEmpty: Bool { get }
+
+    /// What the meter starts a run at.
+    ///
+    /// Zero for everyone whose meter fills. Aquarius starts full, because full
+    /// is his idle state and empty is the thing he is working toward.
+    var startingMeter: Int { get }
+
     func meterMax(on plane: Plane) -> Int
 
     /// How much meter the move that just resolved was worth.
@@ -111,6 +124,9 @@ extension Zodiaction {
     var meterMax: Int { GameRules.defaultZodiactionMeterMax }
 
     func meterMax(on plane: Plane) -> Int { meterMax }
+
+    var firesAtEmpty: Bool { false }
+    var startingMeter: Int { firesAtEmpty ? meterMax : 0 }
 
     func canActivate(context: PassiveContext) -> Bool { true }
 
