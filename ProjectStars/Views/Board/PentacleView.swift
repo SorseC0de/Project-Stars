@@ -291,6 +291,14 @@ struct PentacleView: View {
                 )
                 .offset(y: -size * 0.5 * GameRules.dropletPull / 2)
                 .blur(radius: GameRules.pentacleGlowRadius * scale)
+                // Faint, because the ground it lands on is not always dark.
+                //
+                // `plusLighter` adds, so over the chasm it reads exactly right
+                // — there is nothing under it to add to — and over a pale tile
+                // it clips to white and becomes a hard ring. The blend is the
+                // correct one for a light source; what was wrong was how much
+                // of it there is.
+                .opacity(GameRules.dropletGlowOpacity)
                 .blendMode(.plusLighter)
         }
         // Three quarters of what it was. It is a bead of water beside a coin,

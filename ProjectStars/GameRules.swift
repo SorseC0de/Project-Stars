@@ -2536,6 +2536,15 @@ enum GameRules {
     /// How big a droplet is drawn against a coin.
     static let dropletScale: CGFloat = 0.75
 
+    /// How strongly a droplet's bloom is laid down.
+    ///
+    /// Low. It is additive, so what it looks like depends entirely on what is
+    /// underneath: over the Nexys chasm there is nothing to add to and it reads
+    /// as a clean edge, while over a pale tile the same bloom clips to white
+    /// and rings the bead. Tuned for the bright case, since that is most of the
+    /// board.
+    static let dropletGlowOpacity: Double = 0.3
+
     /// Pisces' energy fish: how wide its circle is in art pixels, how long one
     /// lap takes, and how long one turn takes.
     ///
