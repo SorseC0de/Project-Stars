@@ -2791,6 +2791,14 @@ enum GameRules {
     /// — and each pairing needed a different amount of that undone. With the
     /// double gone the four collapse into one, which is the tell that they were
     /// never four different quantities.
+    /// How far a falling piece is driven down before the plane changes, in art
+    /// pixels.
+    ///
+    /// Replaces the shrink that used to stand in for distance. Far enough to
+    /// leave the square it was standing on, so the fade is finishing a movement
+    /// rather than dissolving something in place.
+    static let fallDrop: CGFloat = 26
+
     /// The sign the picker opens on in debug builds.
     ///
     /// - TODO: **Debug only.** Point this at whoever is being worked on, and
