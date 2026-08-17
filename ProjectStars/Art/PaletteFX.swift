@@ -84,6 +84,23 @@ struct PaletteGlow<Content: View>: View {
     /// moves and sometimes does not.
     var trail: Int = 0
 
+    /// What the bloom is recoloured to, or `nil` to keep the art's own light.
+    ///
+    /// Applied to the halo only — the sprite underneath is untouched. Multiply
+    /// rather than replace, so a white highlight comes out as the tint exactly
+    /// while anything already coloured is deepened rather than flattened: the
+    /// glow stays a property of what is glowing.
+    var tint: Color?
+
+    /// How the tint is laid onto the halo.
+    ///
+    /// A choice rather than a fixed multiply, because the two useful answers
+    /// look nothing alike: `sourceAtop` recolours the light and keeps its shape,
+    /// while `multiply` deepens what is already there and leaves white as the
+    /// tint exactly. Which one is wanted depends on whether the glow is meant to
+    /// read as *the thing shining* or as *something shining through it*.
+    var tintBlend: BlendMode = .sourceAtop
+
     @ViewBuilder var content: () -> Content
 
     var body: some View {
@@ -118,6 +135,12 @@ struct PaletteGlow<Content: View>: View {
                 // The blend has to stay outside the group so the finished bloom
                 // still adds to the board behind it.
                 .drawingGroup()
+                // Recoloured after flattening, so the tint lands on the halo as
+                // one shape rather than on each copy in the stack — eight
+                // overlapping layers tinted individually go uneven wherever they
+                // cross.
+                .overlay { if let tint { tint.blendMode(tintBlend) } }
+                .compositingGroup()
                 .blendMode(.plusLighter)
                 .allowsHitTesting(false)
             }

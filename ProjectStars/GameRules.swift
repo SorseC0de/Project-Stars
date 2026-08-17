@@ -2082,6 +2082,14 @@ enum GameRules {
     /// tile would come out a fraction of what it should be.
     static let stormGlowRadius: CGFloat = 26
 
+    /// What the storm's bloom is coloured, and how that colour is laid on.
+    ///
+    /// Its own light rather than the art's: the funnel's brightest pixels are
+    /// near-white, so an untinted bloom comes out white and reads as glare
+    /// instead of as wind carrying its own charge.
+    static let stormGlowTint: Color = Palette.purple
+    static let stormGlowTintBlend: BlendMode = .sourceAtop
+
     /// Three quarters of a board-width up. Chosen by eye at 1.75, which lays the
     /// plane down convincingly while keeping the squares close to square.
     static let boardCamera: CGFloat = 1.75

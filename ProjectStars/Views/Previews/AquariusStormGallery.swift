@@ -17,6 +17,10 @@ struct AquariusStormGallery: View {
     @State private var showsEyes = true
     @State private var showsSilhouette = true
 
+    /// The bloom's colour and how it is laid on — the two being tried.
+    @State private var glowTint: Color = GameRules.stormGlowTint
+    @State private var glowBlend: BlendMode = GameRules.stormGlowTintBlend
+
 
     var body: some View {
         VStack(spacing: 10) {
@@ -78,7 +82,16 @@ struct AquariusStormGallery: View {
     /// passing across it rather than as a decal stuck to it.
     private var stack: some View {
         ZStack {
-            AquariusStorm(phase: phase, side: 300, scale: 4)
+            // Lit exactly as the board lights it, so what is judged here is
+            // what ships. The two knobs are the only difference.
+            PaletteGlow(
+                radius: GameRules.stormGlowRadius,
+                intensity: GameRules.stormGlowIntensity,
+                tint: glowTint,
+                tintBlend: glowBlend
+            ) {
+                AquariusStorm(phase: phase, side: 300, scale: 4)
+            }
 
             // **The silhouette is on top and it is the thing that blends.**
             //
@@ -110,6 +123,17 @@ struct AquariusStormGallery: View {
     }
 
 
+    /// The colours worth trying on a storm.
+    private static let tints: [Color] = [
+        Palette.purple,
+        Palette.darkMagenta,
+        Palette.magenta,
+        Palette.pink,
+        Palette.lavender,
+        Palette.cyan,
+        Palette.white
+    ]
+
     private var controls: some View {
         VStack(spacing: 10) {
             HStack {
@@ -135,6 +159,33 @@ struct AquariusStormGallery: View {
             }
             .font(.system(size: 10, weight: .bold, design: .monospaced))
             .fixedSize()
+
+            // Every mode, not a shortlist. Which of them reads as wind carrying
+            // its own charge is not something that can be reasoned to — the
+            // answer depends on what is under the halo, and that changes with
+            // the phase.
+            Picker("GLOW BM", selection: $glowBlend) {
+                ForEach(Array(BlendMode.pickable.enumerated()), id: \.offset) { _, mode in
+                    Text(String(describing: mode)).tag(mode)
+                }
+            }
+            .pickerStyle(.menu)
+            .tint(Palette.white)
+
+            HStack(spacing: 8) {
+                ForEach(Array(Self.tints.enumerated()), id: \.offset) { _, swatch in
+                    Circle()
+                        .fill(swatch)
+                        .frame(width: 22, height: 22)
+                        .overlay {
+                            Circle().strokeBorder(
+                                Palette.white,
+                                lineWidth: swatch == glowTint ? 2 : 0
+                            )
+                        }
+                        .onTapGesture { glowTint = swatch }
+                }
+            }
         }
     }
 }

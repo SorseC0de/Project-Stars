@@ -494,6 +494,10 @@ struct AquariusStormPiece: View {
     /// The frames drawn for each phase so far. See `AquariusStormFilm`.
     var film: AquariusStormFilm?
 
+    /// What the bloom is coloured, and how that colour is applied.
+    var glowTint: Color = GameRules.stormGlowTint
+    var glowTintBlend: BlendMode = GameRules.stormGlowTintBlend
+
     /// Size of a board cell, in points.
     var tileSize: CGFloat
 
@@ -518,7 +522,9 @@ struct AquariusStormPiece: View {
     private func filmed(_ frame: Image) -> some View {
         PaletteGlow(
             radius: GameRules.stormGlowRadius,
-            intensity: GameRules.stormGlowIntensity
+            intensity: GameRules.stormGlowIntensity,
+            tint: glowTint,
+            tintBlend: glowTintBlend
         ) {
             ZStack {
                 frame

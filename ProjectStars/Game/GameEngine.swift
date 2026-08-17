@@ -1898,17 +1898,27 @@ struct GameEngine {
         // onto — and dying in mid-air above it would be the one place in the
         // game where having somewhere to land does not help.
         //
-        // Landing square is the edge square nearest where you left, which is
-        // just the off-board point clamped back on. It keeps the direction of
-        // travel: blown off the east edge, you come down on Terra's east edge,
-        // and the picture is falling *through* rather than being moved. The
-        // centre tile was the alternative and is worse for a reason that only
-        // shows up sometimes — it is the Nexys point, so whenever the island is
-        // up, the "safe" square is the chasm.
+        // **Wrapped**, not clamped.
+        //
+        // The landing is the opposite edge, so leaving to the east arrives in
+        // the west — and carrying on the way you were pointed now walks you
+        // back across the board instead of straight off it again.
+        //
+        // That second fall is the reason. A player holding a direction does not
+        // stop holding it because the plane changed, and clamping to the near
+        // edge put them one input away from the rim with nothing to say so. The
+        // wrap turns a committed direction into a crossing rather than a
+        // repeat, and it is the sign's own logic: everything about the
+        // waterbearer comes out the other side.
+        //
+        // The centre tile was the other candidate and is worse in a way that
+        // only shows up sometimes — it is the Nexys point, so whenever the
+        // island is up, the "safe" square is the chasm.
         if let below = plane.planeBelow {
+            let size = self[below].size
             let landing = GridPoint(
-                min(max(point.x, 0), self[below].size - 1),
-                min(max(point.y, 0), self[below].size - 1)
+                (point.x % size + size) % size,
+                (point.y % size + size) % size
             )
             let fell = GameEvent.pieceFell(from: plane, to: below, at: landing)
             events.append(fell)
