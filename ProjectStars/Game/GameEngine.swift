@@ -796,6 +796,19 @@ struct GameEngine {
         // its ends gets this without being named here — and the two places that
         // used to test `== .slide` independently cannot drift apart again.
         let sweeps = move.style.wear == .ends && move.path.count > 1
+        // **Decided once, on the square being left.**
+        //
+        // `wearTiming` is a question about the tile the piece is standing on,
+        // and it was being asked twice — once here with the origin underfoot,
+        // and again on arrival with the destination underfoot. Virgo leaving a
+        // badly cracked tile answered `.onExit` and then, standing on healthy
+        // ground, answered `.onEntry` — so the move charged both ends and every
+        // step cost two.
+        //
+        // A move wears one tile. Which end it lands on is a property of where
+        // the move *started*, so the answer travels with the move.
+        sim.moveWearTiming = sim.activePassives.wearTiming(context: sim.passiveContext)
+
         let departure = sim.departCurrentTile(force: sweeps)
         events += departure.events
 
@@ -2428,7 +2441,8 @@ struct GameEngine {
             // Airborne signs charge their wear to the tile they push off from
             // instead, which `departCurrentTile()` handles at the other end of
             // the move. Nothing is owed on arrival.
-            let timing = activePassives.wearTiming(context: passiveContext)
+            // The answer from the start of the move — see where it is set.
+            let timing = moveWearTiming
 
             // `landed.canBeWorn` is deliberately **not** a condition here.
             //
@@ -3116,11 +3130,18 @@ struct GameEngine {
     /// - Parameter cause: What is charging the tile, for anything that wears
     ///   differently or draws differently — a charge burns twice as deep and
     ///   leaves fire. See `WearCause`.
+    /// Which end of the move pays for the ground, decided as the move begins.
+    ///
+    /// Held for the length of one move rather than asked twice, because the
+    /// question reads the square underfoot and the square underfoot changes
+    /// halfway through. See where it is set in `plan`.
+    private var moveWearTiming: WearTiming = .onEntry
+
     private mutating func departCurrentTile(
         force: Bool = false,
         cause: WearCause = .landing
     ) -> LandingResult {
-        guard force || activePassives.wearTiming(context: passiveContext) == .onExit else {
+        guard force || moveWearTiming == .onExit else {
             return LandingResult()
         }
         let point = piece.point

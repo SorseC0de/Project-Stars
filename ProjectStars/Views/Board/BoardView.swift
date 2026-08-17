@@ -2363,7 +2363,7 @@ struct BoardView: View {
     private func elementalBurst(metrics: PixelArtMetrics) -> some View {
         if let burst = session.elementalBurst, burst.plane == session.visiblePlane {
             ElementalBurstView(
-                element: burst.element,
+                kind: burst.kind,
                 center: metrics.center(of: burst.center),
                 radius: metrics.tileSize * 2.6,
                 start: burst.start

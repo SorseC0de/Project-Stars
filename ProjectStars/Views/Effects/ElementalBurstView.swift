@@ -16,9 +16,28 @@ import SwiftUI
 /// The four Astral Essences drive it today, but nothing here is Pentacle-specific
 /// — a Zodiaction or a passive can play one by asking `GameSession` for it. That
 /// is why the burst is keyed on `ZodiacElement` rather than on `PickupID`.
+/// Which picture the burst draws.
+///
+/// The four elements, plus the ones that are a *shape* rather than an element.
+/// Leo's magnetic pulse is water's ripples in red: it belongs to no element, and
+/// forcing it to borrow one would have meant either a burning ring or a wet
+/// lion, both of which say something the effect does not mean.
+enum BurstKind: Equatable {
+    case element(ZodiacElement)
+    case magneticPulse
+
+    /// The branch this takes inside `elementalBurst`.
+    var shaderIndex: Int {
+        switch self {
+        case let .element(element): element.shaderIndex
+        case .magneticPulse: 4
+        }
+    }
+}
+
 struct ElementalBurstView: View {
 
-    let element: ZodiacElement
+    let kind: BurstKind
 
     /// Origin, in the board's own coordinate space.
     let center: CGPoint
@@ -43,7 +62,7 @@ struct ElementalBurstView: View {
                         .float2(center),
                         .float(radius),
                         .float(progress),
-                        .float(Double(element.shaderIndex))
+                        .float(Double(kind.shaderIndex))
                     )
                 )
                 // Additive, so the burst reads as light thrown over the board

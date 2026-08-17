@@ -1568,7 +1568,7 @@ final class GameSession {
         case let .pickupDestroyed(_, plane, point):
             // Sparks, but no banner and no dust: nothing landed here, and
             // nothing was gained. The coin simply went down with the tile.
-            collectBurst = ElementalBurst(element: .air, center: point, plane: plane, start: .now)
+            collectBurst = ElementalBurst(kind: .element(.air), center: point, plane: plane, start: .now)
             clearCollectBurstLater()
 
             withAnimation(.easeOut(duration: event.displayDuration)) {
@@ -1642,7 +1642,7 @@ final class GameSession {
                 // This *is* the pop-down: the coin's tile slamming back flat.
                 fromRaisedTile: true
             )
-            collectBurst = ElementalBurst(element: .air, center: point, plane: plane, start: .now)
+            collectBurst = ElementalBurst(kind: .element(.air), center: point, plane: plane, start: .now)
 
             clearCollectBurstLater()
 
@@ -1655,7 +1655,7 @@ final class GameSession {
             // the coin announced itself with the placeholder and then did the
             // real thing a beat later.
             if let element = PickupCatalog.effect(for: id).element, id != .astralBreeze {
-                playBurst(element, at: point, on: plane)
+                playBurst(.element(element), at: point, on: plane)
             }
             // The coin's own strip, laid out by what the coin *does* rather
             // than by what its events happened to change — see
@@ -1941,14 +1941,10 @@ final class GameSession {
             // `manePulledThisMove`.
             if !manePulledThisMove {
                 manePulledThisMove = true
-                // **Water**, which is the ripples.
-                //
-                // Not Leo's fire and not air: the four elements are four
-                // different pictures in `Elemental.metal`, and only water is
-                // drawn as concentric rings chasing an edge outward. That is
-                // what a magnetic pulse looks like, and the element here is
-                // choosing a *shape*, not saying the lion is wet.
-                playBurst(.water, at: engine.piece.point, on: plane)
+                // Its own picture: water's ripples drawn red. Borrowing an
+                // element would have meant a burning ring or a wet lion, and
+                // both say something the pull does not.
+                playBurst(.magneticPulse, at: engine.piece.point, on: plane)
                 blazeMane()
             }
 
@@ -3009,7 +3005,7 @@ struct WarpBeam: Identifiable, Equatable {
 /// One elemental burst in flight.
 struct ElementalBurst: Identifiable, Equatable {
     let id = UUID()
-    let element: ZodiacElement
+    let kind: BurstKind
     let center: GridPoint
     let plane: Plane
     let start: Date
@@ -3110,7 +3106,7 @@ extension GameSession {
         guard let set = engine.sparkles, set.plane == plane else { return }
 
         let bursts = set.points.map {
-            ElementalBurst(element: .air, center: $0, plane: plane, start: .now)
+            ElementalBurst(kind: .element(.air), center: $0, plane: plane, start: .now)
         }
         sparkleDispersals = bursts
 
@@ -3127,8 +3123,8 @@ extension GameSession {
     ///
     /// The clean-up delay is cosmetic bookkeeping, not a game rule — the effect
     /// it illustrates resolved the instant its events were applied.
-    func playBurst(_ element: ZodiacElement, at point: GridPoint, on plane: Plane) {
-        let burst = ElementalBurst(element: element, center: point, plane: plane, start: .now)
+    func playBurst(_ kind: BurstKind, at point: GridPoint, on plane: Plane) {
+        let burst = ElementalBurst(kind: kind, center: point, plane: plane, start: .now)
         elementalBurst = burst
 
         Task { [weak self] in

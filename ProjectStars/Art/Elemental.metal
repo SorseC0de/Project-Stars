@@ -61,8 +61,9 @@ static float envelope(float t) {
 ///   - center: Where the burst originates, same space as `position`.
 ///   - radius: How far it reaches, in points.
 ///   - t: Progress, 0 → 1.
-///   - element: 0 fire, 1 water, 2 air, 3 earth. Matches
-///     `ZodiacElement.shaderIndex`.
+///   - element: 0 fire, 1 water, 2 air, 3 earth — matching
+///     `ZodiacElement.shaderIndex` — plus 4, the magnetic pulse, which belongs
+///     to no element and is water's ripples drawn red. See `BurstKind`.
 [[ stitchable ]]
 half4 elementalBurst(
     float2 position,
@@ -108,6 +109,22 @@ half4 elementalBurst(
         }
         intensity = ripples * 0.7;
         tint = mix(float3(0.25, 0.75, 1.0), float3(0.65, 0.98, 0.95), saturate(distance));
+
+    } else if (kind == 4) {
+        // Magnetic pulse — water's ripples, in red.
+        //
+        // A copy of the branch above with one line changed, and deliberately a
+        // copy rather than a shared helper: what makes this the right picture
+        // for Leo's mane is the *shape*, and the shape is four lines long. A
+        // parameterised ripple would be more code than this and would invite
+        // the next caller to tune the rings rather than the colour.
+        float pulse = 0.0;
+        for (int i = 0; i < 3; ++i) {
+            float offset = float(i) * 0.16;
+            pulse += wavefront(distance, front - offset, 0.10);
+        }
+        intensity = pulse * 0.7;
+        tint = mix(float3(1.0, 0.30, 0.22), float3(1.0, 0.72, 0.45), saturate(distance));
 
     } else if (kind == 2) {
         // Air — thin streaks spiralling out, thinning as they widen.
