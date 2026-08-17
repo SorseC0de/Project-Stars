@@ -2127,9 +2127,10 @@ struct BoardView: View {
         // plane — the elevator worked and looked like a teleport. Sharing one
         // timeline is the only way two things travelling together can be
         // guaranteed to arrive together.
-        if session.nexysCarryingPiece {
-            return nexysTravelPose(at: date, metrics: metrics)
-        }
+        // Carrying, the island is a passenger of the world slide like the piece
+        // on it — see `GameSession.planeSlide`. Its own travel pose is for the
+        // journeys it makes alone.
+        if session.nexysCarryingPiece { return .rest }
 
         // **Rest.** A climb slides the whole world — see
         // `GameSession.planeSlide` — and the piece is standing on it, so a pose

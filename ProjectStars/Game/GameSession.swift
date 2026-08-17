@@ -2587,6 +2587,17 @@ final class GameSession {
         defer { nexysCarryingPiece = false }
 
         nexysDepartStartedAt = .now
+
+        // Carrying the player, this **is** a plane change, so the world slides
+        // exactly as it does for any other. Without it the ride sat still for
+        // half a second and then the island animated by itself, which read as a
+        // lag followed by the island sliding across the board it was leaving.
+        if nexysCarryingPiece {
+            withAnimation(.easeIn(duration: GameRules.ascentRiseDuration)) {
+                planeSlide = goingUp ? 1 : -1
+            }
+        }
+
         // Climbing away takes as long as carrying the player would; shrinking
         // out on Astra is quicker, because there is less to watch.
         await sleep(goingUp ? GameRules.ascentRiseDuration : GameRules.nexysTravelDepartDuration)
@@ -2598,6 +2609,14 @@ final class GameSession {
 
         engine.apply(event)
         nexysDepartStartedAt = nil
+
+        // The far side is already waiting off the other edge, and comes in.
+        if nexysCarryingPiece {
+            planeSlide = goingUp ? -1 : 1
+            withAnimation(.easeOut(duration: GameRules.ascentGrowDuration)) {
+                planeSlide = 0
+            }
+        }
 
         if goingUp { disturbClouds(at: GameRules.nexysPoint) }
 

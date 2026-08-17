@@ -162,17 +162,14 @@ struct PieceView: View {
             .offset(y: dropOffset)
         }
         .offset(y: carryOffset)
-        // The drop: **down and out**, not smaller.
+        // **Nothing.** A fall moves the whole world now — see
+        // `GameSession.planeSlide` — and the piece is standing on it.
         //
-        // The shrink was doing depth's job on a board that had none — back when
-        // Terra was drawn flat, getting smaller was the only way to say
-        // "further away". The rows say it now, and a piece that shrinks *and*
-        // travels through a perspective is being sent away twice.
-        //
-        // So it falls: driven down past the bottom of its square and faded, and
-        // the plane below catches it. Distance is the board's job.
-        .offset(y: isFalling ? GameRules.fallDrop * scale : 0)
-        .opacity(isFalling ? 0 : 1)
+        // It used to fade out and drop away on its own, which is why the tumble
+        // could not be seen: the piece was invisible for the entire departure
+        // and only reappeared partway through the arrival, so a spin spread
+        // across both halves showed only its final third. Riding the board down
+        // means it is on screen for all of it.
         .allowsHitTesting(false)
     }
 
