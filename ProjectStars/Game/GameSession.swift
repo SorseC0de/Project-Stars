@@ -71,7 +71,14 @@ final class GameSession {
     /// Notices the storm waking. Called wherever the meter settles.
     func noteStormPhase(_ phase: Int) {
         defer { lastStormPhase = phase }
-        guard zodiac == .aquarius, lastStormPhase == 0, phase > 0 else { return }
+
+        // **Either crossing.** Waking and going out are the same event seen
+        // from opposite sides — the storm arriving around the pot, or leaving
+        // it — and the art reads correctly both ways. Only firing on the way up
+        // meant the moment he is emptied, which is the moment that matters most
+        // for this sign, happened in silence.
+        let crossed = (lastStormPhase == 0) != (phase == 0)
+        guard zodiac == .aquarius, crossed else { return }
         stormWokeAt = .now
 
         Task { [weak self] in
@@ -1910,9 +1917,11 @@ final class GameSession {
                 kickUpLandingDust(at: to, on: plane)
             }
 
-        case let .gameOver(reason) where reason == .fellThroughTerra:
+        case let .gameOver(reason)
+            where reason == .fellThroughTerra || reason == .blownOffTheBoard:
             // The same spin-and-shrink as any other hole. There is simply
-            // nothing below this one.
+            // nothing below this one — and nothing beside the rim either, which
+            // is the same picture from a different edge.
             await animateDescent(duration: GameRules.fallDuration / 2)
             engine.apply(event)
             await sleep(event.displayDuration)
@@ -1920,7 +1929,17 @@ final class GameSession {
         case let .zodiactionMeterChanged(to):
             // Gaining charge flashes the piece its element's colour, and a sign
             // with a drawn strip for it throws that too.
-            if to > engine.zodiactionMeter {
+            // Toward firing, not upward.
+            //
+            // Aquarius earns charge by *losing* it, so testing for a rising
+            // number gave him a silent hunt — no flash, no absorb, nothing to
+            // say a Pentacle had paid out. `firesAtEmpty` is what the rest of
+            // the engine asks; this asks the same thing.
+            let towardFiring = zodiac.zodiaction.firesAtEmpty
+                ? to < engine.zodiactionMeter
+                : to > engine.zodiactionMeter
+
+            if towardFiring {
                 flashCharge()
                 if let drawn = EffectSprite.chargeGain(for: zodiac) {
                     playEffect(drawn, at: engine.piece.point, on: engine.piece.plane)
