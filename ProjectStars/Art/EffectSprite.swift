@@ -476,6 +476,36 @@ enum EffectSprite: String, CaseIterable, Hashable {
         // standard span it reached into its neighbours, which for a marker
         // saying "this tile is the one" is the whole thing it must not do.
         case .sagittariusTeleTile: GameRules.effectSpan * 0.75
+
+        // ── The new set ─────────────────────────────────────────────────
+        //
+        // `effectSpan` was tuned against 64px art. These are drawn at 96 and
+        // 128, so left on the default every one of them comes out undersized —
+        // not by taste, but by the ratio between what they were drawn at and
+        // what the number assumes.
+        //
+        // Stated per strip rather than derived from the frame size, because how
+        // much board a thing should cover is not the same question as how many
+        // pixels it was drawn with: the glow phase is 96px and still has to sit
+        // inside one square, because its whole job is to say *this tile*.
+
+        // One square each, and no more. A phase that spilled into its
+        // neighbours would be pointing at the wrong tiles.
+        case .glowPhase, .sparkles: 1.1
+
+        // Around the piece rather than under it.
+        case .windMisc, .absorb: GameRules.effectSpan * 1.6
+        case .cancerScuttle: GameRules.effectSpan * 1.3
+
+        // A strike, and it should read as one.
+        case .lightningMisc: GameRules.effectSpan * 2
+
+        // The storm's own art, at the size the storm is.
+        case .aquariusZodiaction: 4
+
+        // Drawn 256 across against 96 tall — see `spanScaleY`.
+        case .bonus: 4
+
         default: GameRules.effectSpan
         }
     }
@@ -489,6 +519,9 @@ enum EffectSprite: String, CaseIterable, Hashable {
     var spanScaleY: CGFloat {
         switch self {
         case .sagittariusTeleTile: 1.25
+        // Authored 256 wide by 96 tall. Squaring it up would stretch a banner
+        // into a blob.
+        case .bonus: 96.0 / 256.0
         default: 1
         }
     }
