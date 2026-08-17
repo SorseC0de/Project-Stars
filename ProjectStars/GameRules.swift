@@ -2112,6 +2112,14 @@ enum GameRules {
         phase >= 10 ? .multiply : .plusDarker
     }
 
+    /// How much of the ordinary charged bloom Aquarius keeps at an empty meter.
+    ///
+    /// A fraction. What is worth seeing there is the purple around him — the
+    /// power he is still holding — and a full gold bloom underneath it drowns
+    /// that out. The gold is a statement about being ready, and it only has to
+    /// be legible, not loud.
+    static let aquariusBodyGlowShare: Double = 0.3
+
     static let stormGlowTint: Color = Palette.pink
     /// The gallery's default. What the board asks is
     /// `stormGlowBlend(atPhase:)`, which changes with the meter.
@@ -2576,6 +2584,13 @@ enum GameRules {
     /// surface in the game — was the one thing that never glowed.
     static let maneGlowThreshold: Double = 0.22
 
+    /// How tight the mane's inner, yellow bloom is against its outer red one.
+    ///
+    /// Under a half. Both are lit from the same pixels, so the only thing
+    /// separating them is reach — a yellow that spread as far as the red would
+    /// simply replace it, and the mane would go back to being one flat colour.
+    static let maneCoreGlowShare: CGFloat = 0.45
+
 
     /// How far a droplet's point is pulled above its ball, as a fraction of the
     /// ball's own height.
@@ -2909,6 +2924,13 @@ enum GameRules {
     static let aquariusEyeSway: CGFloat = 0.5
     static let aquariusEyeY: CGFloat = -0.05
     static let aquariusEyeTwinY: CGFloat = -0.15
+
+    /// How solid the two eye plates are.
+    ///
+    /// Two thirds. They are a hole in the weather rather than an object in it,
+    /// and at full strength they read as a third pair of blades sitting in
+    /// front of the others instead of as the wall thinning.
+    static let aquariusEyeOpacity: Double = 0.66
 
     /// The figure inside, and where his eyes sit in the picture.
     static let aquariusFigureScale: CGFloat = 1.5

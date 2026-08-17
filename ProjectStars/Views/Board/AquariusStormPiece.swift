@@ -201,6 +201,7 @@ struct AquariusStorm: View {
             frameCount: played
         )
         .colorEffect(ShaderLibrary.flatSilhouette(.color(Palette.midnight)))
+        .opacity(GameRules.aquariusEyeOpacity)
         .rotationEffect(.degrees(sin(now * speed) * turn))
         // Riding the same sway as the plates around it, and then some: an eye
         // that holds still while the wall of air moves reads as a hole in the

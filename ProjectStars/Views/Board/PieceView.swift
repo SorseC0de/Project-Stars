@@ -201,7 +201,7 @@ struct PieceView: View {
     ///
     /// Named so the doubled version below can reuse it rather than restate it —
     /// two copies of this drifted apart the moment Leo's threshold went in.
-    private var charged: some View {
+    private func charged(intensity: Double = 1) -> some View {
             // The gold blooms, and the eyes with it. Both entries, not just the
             // gem: a charged piece should look lit from inside rather than
             // wearing two bright pixels.
@@ -221,7 +221,7 @@ struct PieceView: View {
                 // And harder, because a gem blooms from two pixels and a mane
                 // from a hundred: the same intensity reads as a glow on one and
                 // nothing on the other.
-                intensity: zodiac == .leo ? GameRules.maneGlowIntensity : 1,
+                intensity: zodiac == .leo ? GameRules.maneGlowIntensity : intensity,
                 trail: GameRules.gemGlowTrail
             ) {
                 // The eyes keep the old rule — the sign's element, on both
@@ -251,10 +251,10 @@ struct PieceView: View {
                 tint: GameRules.stormGlowTint,
                 tintBlend: .plusLighter
             ) {
-                charged
+                charged(intensity: GameRules.aquariusBodyGlowShare)
             }
         } else if isCharged {
-            charged
+            charged()
         } else if let resting = gem.resting {
             // Shown as its resting colour, which is not the entry it is drawn
             // with — see `GemTones.resting`.

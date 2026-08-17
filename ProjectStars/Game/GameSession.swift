@@ -882,7 +882,22 @@ final class GameSession {
     /// Ignored unless the session is idle, so a fast second swipe cannot
     /// interleave with a move that is still animating.
     /// Updates the live preview from a drag in progress.
-    func preview(direction: SwipeDirection?, reach: Int) {
+    /// Where the piece is being aimed, for the cursor.
+    ///
+    /// **Reversed too.** This is the half of the control scheme the player
+    /// actually reads: the cursor is where they are told the move lands, so a
+    /// cursor showing the asked-for direction while the piece goes the other way
+    /// is not a reversed control, it is a lying one — and at phase zero, where
+    /// the move is a single hop, it reads as the piece jumping the wrong way and
+    /// touching two squares.
+    func preview(direction rawPreview: SwipeDirection?, reach: Int) {
+        let direction = rawPreview.map {
+            engine.controlsAreReversed ? $0.opposite : $0
+        }
+        previewInner(direction: direction, reach: reach)
+    }
+
+    private func previewInner(direction: SwipeDirection?, reach: Int) {
         // A drag that has only just started counts too: the splash should be
         // gone by the time the stick has anything to say.
         if direction != nil { dismissIntroIfShowing() }
