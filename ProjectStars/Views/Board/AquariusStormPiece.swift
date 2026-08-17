@@ -91,7 +91,9 @@ struct AquariusStorm: View {
     var eyeScale: CGFloat = GameRules.aquariusEyeScale
 
     /// Which blade the plates are cut from.
-    var plate: EffectSprite = GameRules.aquariusStormPlate
+    /// Which blade the plates are cut from. `nil` takes whatever the phase
+    /// calls for; the gallery overrides it to compare the two.
+    var plate: EffectSprite?
 
     /// A fixed moment to draw, instead of the running clock.
     ///
@@ -123,7 +125,7 @@ struct AquariusStorm: View {
             ZStack {
                 ForEach(0..<bands, id: \.self) { band in
                     EffectSpriteView(
-                        effect: plate,
+                        effect: plate ?? GameRules.aquariusPlate(atPhase: phase),
                         tileSize: bandSize(band),
                         start: .distantPast,
                         loops: true,
@@ -191,7 +193,7 @@ struct AquariusStorm: View {
         at now: TimeInterval
     ) -> some View {
         EffectSpriteView(
-            effect: plate,
+            effect: plate ?? GameRules.aquariusPlate(atPhase: phase),
             tileSize: bandSize(bands - 1) * eyeScale * size,
             start: .distantPast,
             loops: true,

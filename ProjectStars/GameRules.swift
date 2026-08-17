@@ -2087,13 +2087,35 @@ enum GameRules {
     /// Its own light rather than the art's: the funnel's brightest pixels are
     /// near-white, so an untinted bloom comes out white and reads as glare
     /// instead of as wind carrying its own charge.
-    /// Which drawing the funnel's plates are cut from.
+    /// Which drawing the funnel's plates are cut from, and how its bloom meets
+    /// the board — both of which change at a full meter.
     ///
-    /// - TODO: On trial against `aquariusArmorGrey`.
-    static let aquariusStormPlate: EffectSprite = .aquariusArmor
+    /// ## Why the two are split by phase
+    ///
+    /// They are answering different pictures. Below full, the storm is a purple
+    /// energy mass, and the **grey** plate is what makes that possible: a darker
+    /// canvas gives the tint somewhere to sit, where the gold one fights it.
+    /// The palette has no purple deep enough to draw that directly, so it is
+    /// made by lighting rather than by pigment.
+    ///
+    /// At full, the gold plate is wanted *because* it is gold — and it only
+    /// looks like gold once a bloom is on it. Untinted it washes out; under
+    /// `multiply` the metal reads as metal. So the sign's strongest state is the
+    /// one that shows what it is made of, and every state below it shows what
+    /// it is charged with.
+    static func aquariusPlate(atPhase phase: Int) -> EffectSprite {
+        phase >= 10 ? .aquariusArmor : .aquariusArmorGrey
+    }
 
-    static let stormGlowTint: Color = Palette.purple
-    static let stormGlowTintBlend: BlendMode = .sourceAtop
+    /// See `aquariusPlate(atPhase:)`.
+    static func stormGlowBlend(atPhase phase: Int) -> BlendMode {
+        phase >= 10 ? .multiply : .plusDarker
+    }
+
+    static let stormGlowTint: Color = Palette.pink
+    /// The gallery's default. What the board asks is
+    /// `stormGlowBlend(atPhase:)`, which changes with the meter.
+    static let stormGlowTintBlend: BlendMode = .plusDarker
 
     /// Three quarters of a board-width up. Chosen by eye at 1.75, which lays the
     /// plane down convincingly while keeping the squares close to square.
