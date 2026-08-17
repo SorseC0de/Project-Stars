@@ -102,6 +102,7 @@ struct EffectSpriteView: View {
 
                     art
                 }
+                .blendMode(effect.blend)
                 .offset(y: lift)
                 .offset(
                     x: effect.artNudge.width * (tileSize / CGFloat(GameRules.tilePixelSize)),

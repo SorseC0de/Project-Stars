@@ -399,6 +399,20 @@ enum EffectSprite: String, CaseIterable, Hashable {
     /// Presentation only — the gallery labels with it.
     var isGrounded: Bool { groundLift > 0 }
 
+    /// How this strip sits against what is under it.
+    ///
+    /// Normal for everything drawn as an object in the world. Additive for the
+    /// ones that are *light* rather than a thing — the absorb is charge
+    /// arriving, and multiplying a grey ramp by a colour keeps its detail but
+    /// can only ever darken what it lands on. Adding it makes the same pixels
+    /// read as glow.
+    var blend: BlendMode {
+        switch self {
+        case .absorb: .plusLighter
+        default: .normal
+        }
+    }
+
     /// How brightly this strip blooms.
     ///
     /// Per element, because the art is lit differently: the water strips carry

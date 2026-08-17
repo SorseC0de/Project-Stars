@@ -165,6 +165,7 @@ struct BoardView: View {
             dust(metrics: metrics)
             collectBurst(metrics: metrics)
             elementalBurst(metrics: metrics)
+            sparkleDispersal(metrics: metrics)
             effectBurst(metrics: metrics)
             healFlashClouds(plane: plane, metrics: metrics)
             healSparkles(metrics: metrics)
@@ -2387,6 +2388,21 @@ struct BoardView: View {
                 element: burst.element,
                 center: metrics.center(of: burst.center),
                 radius: metrics.tileSize * 2.6,
+                start: burst.start
+            )
+            .frame(width: metrics.boardSize, height: metrics.boardSize)
+            .id(burst.id)
+        }
+    }
+
+    /// The glow phase coming apart, one burst per square it had lit.
+    @ViewBuilder
+    private func sparkleDispersal(metrics: PixelArtMetrics) -> some View {
+        ForEach(session.sparkleDispersals.filter { $0.plane == session.visiblePlane }) { burst in
+            ElementalBurstView(
+                element: burst.element,
+                center: metrics.center(of: burst.center),
+                radius: metrics.tileSize * 1.4,
                 start: burst.start
             )
             .frame(width: metrics.boardSize, height: metrics.boardSize)

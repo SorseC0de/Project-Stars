@@ -541,6 +541,13 @@ final class GameSession {
     /// is not flashing.
     private(set) var chargeFlashStartedAt: Date?
 
+    /// Sparkles coming apart as the phase ends, one per square that was lit.
+    ///
+    /// A list because they all go together — the existing `collectBurst` is a
+    /// single value, which is right for a coin being taken and wrong for five
+    /// squares giving up at once.
+    private(set) var sparkleDispersals: [ElementalBurst] = []
+
     /// The square a seafoam scuttle started from, so its first bubble is only played
     /// once however many squares the walk covers. Cleared when the move commits.
     /// The cloud coming down with an arrow inside it, if one is falling.
@@ -763,6 +770,7 @@ final class GameSession {
         lastCollectedPickup = nil
         pentacleBanner = nil
         elementalBurst = nil
+        sparkleDispersals = []
         effectBursts = []
         healSparkles = []
         nexysCarryingPiece = false
@@ -2003,6 +2011,21 @@ final class GameSession {
         case let .pieceTeleported(from, _, fromPlane, toPlane, _):
             await animateWarp(event, from: from, fromPlane: fromPlane, toPlane: toPlane)
 
+        case let .pickupRevealed(_, plane, point, thrownFrom) where thrownFrom == nil:
+            // The phase coming apart.
+            //
+            // Every lit square bursts, including the one the coin appears on:
+            // the sparkles were candidates and all of them stop being
+            // candidates at the same instant. Cutting straight from five marks
+            // to one coin read as the board being edited rather than as
+            // something resolving.
+            disperseSparkles(on: plane)
+            withAnimation(.spring(response: 0.3, dampingFraction: 0.7)) {
+                engine.apply(event)
+            }
+            await sleep(event.displayDuration)
+            _ = point
+
         case let .pickupRevealed(_, _, point, thrownFrom) where thrownFrom != nil:
             // Only a bubble that was *thrown* flies. One surfacing out of the
             // glow phase has nowhere to have come from, and treating those as
@@ -3032,6 +3055,27 @@ extension GameSession {
             let elapsed = Date.now.timeIntervalSince(self.chargeFlashStartedAt ?? .now)
             // Only clear it if nothing has re-flashed in the meantime.
             if elapsed >= GameRules.chargeFlashDuration { self.chargeFlashStartedAt = nil }
+        }
+    }
+
+    /// Bursts every square the ending phase had lit.
+    ///
+    /// The same burst a destroyed Pentacle throws, for the same reason: what
+    /// was there is not there any more, and it did not go anywhere.
+    private func disperseSparkles(on plane: Plane) {
+        guard let set = engine.sparkles, set.plane == plane else { return }
+
+        let bursts = set.points.map {
+            ElementalBurst(element: .air, center: $0, plane: plane, start: .now)
+        }
+        sparkleDispersals = bursts
+
+        Task { [weak self] in
+            try? await Task.sleep(
+                nanoseconds: UInt64(GameRules.elementalBurstDuration * 1_000_000_000)
+            )
+            guard let self else { return }
+            self.sparkleDispersals.removeAll { burst in bursts.contains { $0.id == burst.id } }
         }
     }
 
