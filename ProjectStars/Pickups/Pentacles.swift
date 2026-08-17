@@ -79,6 +79,12 @@ enum PickupID: String, CaseIterable, Codable, Identifiable, Hashable {
     /// Lets you choose a new sign — including the one you already have.
     case alignment
 
+    /// A small earthquake. Terra only — there is no ground to crack above.
+    case trivialTremor
+
+    /// A large one.
+    case seismicShakedown
+
     // MARK: Legendary
 
     /// Only ever spawns from a sparkle on the north-middle tile.
@@ -493,6 +499,98 @@ struct AstralBreezeEffect: PickupEffect {
                 style: .blown
             )
         ]
+    }
+}
+
+/// One point of wear on a tile chosen at random.
+///
+/// The mirror of the Astral Tear, and deliberately as small: it is the coin
+/// that makes an unopened Pentacle a *question* rather than a formality. A hunt
+/// where every coin is good is a hunt with no tension in it, and one where the
+/// bad ones are catastrophic is a hunt nobody takes. This one is neither — it
+/// costs a tile a third of its life, somewhere you may never stand.
+///
+/// Your own square is a candidate. Excluding it would make standing still safe
+/// in a way nothing else in the game is.
+struct TrivialTremorEffect: PickupEffect {
+
+    let id: PickupID = .trivialTremor
+    let rarity: PickupRarity = .common
+    let weight = 2
+    let displayName = "Trivial Tremor"
+    let summary = "Nothing to worry about."
+    let glyph = "▪︎"
+    let icon: String? = "slab"
+
+    /// Terra only. There is no ground to crack on Astra.
+    let spawnPlane: Plane? = .terra
+
+    func plan(
+        context: PickupContext,
+        choice: PickupChoiceResult?,
+        generator: inout SeededRandom
+    ) -> [GameEvent] {
+        Self.shake(context: context, points: 1, generator: &generator)
+    }
+
+    /// Wears one random tile by `points`.
+    ///
+    /// Shared with the Shakedown because the two differ only in how hard they
+    /// hit — and writing that difference as a number rather than as a second
+    /// copy of the search means the rules about *which* tiles are eligible can
+    /// only ever be stated once.
+    ///
+    /// Holes are excluded because they cannot be worn further, and the Nexys
+    /// because it is structural. `canBeWorn` already says both.
+    static func shake(
+        context: PickupContext,
+        points: Int,
+        generator: inout SeededRandom
+    ) -> [GameEvent] {
+        let candidates = context.currentBoard.points(where: \.canBeWorn)
+        guard let target = candidates.randomElement(using: &generator) else { return [] }
+
+        // Applied as **damage**, one step at a time, rather than by setting the
+        // result. A Shakedown that assigned `.hole` would be a different verb
+        // from wear, and anything that ever wants to stand between the two — a
+        // passive that softens a hit, armour on a tile — would have nothing to
+        // reduce.
+        var health = context.currentBoard[target].health
+        var events: [GameEvent] = []
+        for _ in 0..<max(points, 1) {
+            let next = health.damaged
+            guard next != health else { break }
+            health = next
+            events.append(.tileDamaged(plane: context.plane, point: target, to: health))
+        }
+        return events
+    }
+}
+
+/// Three points of wear on one tile: healthy ground becomes a hole.
+///
+/// Coded as three points of damage rather than as "make a hole" on purpose. The
+/// two are the same today and stop being the same the moment anything can
+/// reduce incoming damage — a shielded tile should survive this at one crack
+/// left, not shrug off a state change.
+struct SeismicShakedownEffect: PickupEffect {
+
+    let id: PickupID = .seismicShakedown
+    let rarity: PickupRarity = .uncommon
+    let weight = 2
+    let displayName = "Seismic Shakedown"
+    let summary = "Worrying warranted."
+    let glyph = "▰"
+    let icon: String? = "groundbreaker"
+
+    let spawnPlane: Plane? = .terra
+
+    func plan(
+        context: PickupContext,
+        choice: PickupChoiceResult?,
+        generator: inout SeededRandom
+    ) -> [GameEvent] {
+        TrivialTremorEffect.shake(context: context, points: 3, generator: &generator)
     }
 }
 
@@ -1149,6 +1247,8 @@ enum PickupCatalog {
 
         .forcedFate: ForcedFateEffect(),
         .alignment: AlignmentEffect(),
+        .trivialTremor: TrivialTremorEffect(),
+        .seismicShakedown: SeismicShakedownEffect(),
 
         .polaris: PolarisEffect(),
         .shadowWork: ShadowWorkEffect(),

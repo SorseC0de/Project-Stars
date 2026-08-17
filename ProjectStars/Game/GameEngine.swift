@@ -3749,7 +3749,14 @@ struct GameEngine {
     private func pickupWeighting() -> (PickupID, Int) -> Int {
         let context = passiveContext
         let passives = activePassives
-        return { id, base in passives.pickupWeight(base, for: id, context: context) }
+        return { id, base in
+            // Off the table entirely on the wrong plane — see
+            // `PickupEffect.spawnPlane`. Ahead of the passives, so nothing can
+            // weight up a coin that cannot exist here.
+            let home = PickupCatalog.effect(for: id).spawnPlane
+            guard home == nil || home == context.plane else { return 0 }
+            return passives.pickupWeight(base, for: id, context: context)
+        }
     }
 
     /// The read-only snapshot handed to passive and Zodiaction hooks.

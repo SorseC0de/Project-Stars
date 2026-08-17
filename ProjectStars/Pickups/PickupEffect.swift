@@ -263,6 +263,14 @@ protocol PickupEffect {
     /// Stand-in glyph for the first-encounter strip, until art arrives.
     var glyph: String { get }
 
+    /// The only plane this may spawn on, or `nil` for both.
+    ///
+    /// A property of the effect rather than a passive's opinion, because it is
+    /// not a preference — an earthquake needs ground to crack, and there is none
+    /// above. Zeroing the weight is how it is enforced, so the tier's other
+    /// coins simply take the share back on the plane it cannot appear on.
+    var spawnPlane: Plane? { get }
+
     /// The drawn icon, by asset name, or `nil` while there is only a glyph.
     ///
     /// Named rather than drawn here so replacing a glyph with art is dropping a
@@ -347,6 +355,9 @@ extension PickupEffect {
 
     /// No art yet. See `icon`.
     var icon: String? { nil }
+
+    /// Spawns on both planes. See `spawnPlane`.
+    var spawnPlane: Plane? { nil }
 
     var appearance: PentacleAppearance { .standard }
     var element: ZodiacElement? { nil }
