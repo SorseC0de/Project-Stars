@@ -131,13 +131,12 @@ enum SpriteID: Hashable {
     /// The same pans at rest, drawn plain.
     case libraScalesPlain
 
-    /// Pisces' body alone, without the fish riding on top of it.
+    /// The fish that rides on Pisces' shoulders, in stone.
     ///
-    /// The ordinary `piece(.pisces)` is both cells and is what to draw nearly
-    /// always. This exists for the one case where the top half is replaced
-    /// rather than drawn: at a full meter the stone fish becomes the energy one,
-    /// and swapping it means having the bottom half on its own.
-    case piscesBody
+    /// Its own sprite because it does not sit on a cell boundary — the art
+    /// crosses one — so it cannot be part of a two-cell bust the way every
+    /// other sign's top half is. `piece(.pisces)` is the body alone.
+    case piscesFish
 
     /// The fish, made of astral energy. Full meter only.
     case piscesFishCharged
@@ -276,8 +275,8 @@ enum SpriteID: Hashable {
             "libra_scales"
         case .sagittariusArrowRest:
             "sagittarius_arrow_rest"
-        case .piscesBody:
-            "pisces_body"
+        case .piscesFish:
+            "pisces_fish"
         case .piscesFishCharged:
             "pisces_fish_charged"
         case .libraScalesPlain:

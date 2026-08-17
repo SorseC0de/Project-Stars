@@ -2518,13 +2518,13 @@ enum GameRules {
     /// rigid motion rather than as something swimming.
     static let piscesFishOrbit: CGFloat = 3
     static let piscesFishOrbitPeriod: TimeInterval = 3.2
-    static let piscesFishSpinPeriod: TimeInterval = 9
+    static let piscesFishSpinPeriod: TimeInterval = 2.6
 
     /// Where the fish sits against the body, in art pixels.
     ///
-    /// - TODO: A first guess. The art rests across a cell boundary, so this is
-    ///   not derivable from the sheet — it has to be looked at.
-    static let piscesFishDrop: CGFloat = 0
+    /// Four art pixels down, measured rather than derived: the art rests across
+    /// a cell boundary, so where it sits cannot be read off the sheet.
+    static let piscesFishDrop: CGFloat = 4
 
     /// How far the archer's arrow rises above where it is drawn, in art pixels,
     /// and how long one rise and fall takes.

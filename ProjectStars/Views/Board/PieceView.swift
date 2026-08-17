@@ -341,8 +341,12 @@ struct PieceView: View {
             // so the two halves are drawn separately. Every other case — and
             // Pisces at any other meter — is the one composite.
             Group {
-                if zodiac == .pisces, isCharged {
-                    PixelSprite(id: .piscesBody) { placeholder }
+                if zodiac == .pisces {
+                    // One cell, in the lower half of the two-cell box every
+                    // piece is drawn in — otherwise it stretches to fill it.
+                    PixelSprite(id: spriteID) { placeholder }
+                        .frame(width: tileSize, height: tileSize)
+                        .frame(width: tileSize, height: tileSize * 2, alignment: .bottom)
                 } else {
                     PixelSprite(id: spriteID) {
                         placeholder
@@ -385,19 +389,27 @@ struct PieceView: View {
     ///   cells, so the seam is not where the cell boundary is.
     @ViewBuilder
     private var piscesFish: some View {
-        if zodiac == .pisces, isCharged {
+        if zodiac == .pisces {
             TimelineView(.animation) { timeline in
                 let now = clock(timeline.date.timeIntervalSinceReferenceDate)
-                let orbit = now / GameRules.piscesFishOrbitPeriod * 2 * .pi
-                let spin = now / GameRules.piscesFishSpinPeriod * 360
 
-                PixelSprite(id: .piscesFishCharged) { Color.clear }
-                    .rotationEffect(.degrees(-spin))
-                    .offset(
-                        x: sin(orbit) * GameRules.piscesFishOrbit * scale,
-                        y: (cos(orbit) - 1) / 2 * GameRules.piscesFishOrbit * scale
-                            + GameRules.piscesFishDrop * scale
-                    )
+                if isCharged {
+                    let orbit = now / GameRules.piscesFishOrbitPeriod * 2 * .pi
+                    let spin = now / GameRules.piscesFishSpinPeriod * 360
+
+                    PixelSprite(id: .piscesFishCharged) { Color.clear }
+                        .rotationEffect(.degrees(-spin))
+                        .offset(
+                            x: sin(orbit) * GameRules.piscesFishOrbit * scale,
+                            y: (cos(orbit) - 1) / 2 * GameRules.piscesFishOrbit * scale
+                                + GameRules.piscesFishDrop * scale
+                        )
+                } else {
+                    // Still, and stone. The fish is part of him until the meter
+                    // fills; only then does it come loose.
+                    PixelSprite(id: .piscesFish) { Color.clear }
+                        .offset(y: GameRules.piscesFishDrop * scale)
+                }
             }
             .frame(width: tileSize, height: tileSize)
             .allowsHitTesting(false)

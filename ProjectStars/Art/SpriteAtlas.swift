@@ -255,12 +255,17 @@ enum SpriteAtlas {
             map[.piece(sign)] = .cells(column: column[sign] ?? 0, row: 1 + sheetShiftY, height: 2)
         }
 
+        // Pisces is **one cell**. Everyone else is a two-cell bust; his body was
+        // redrawn short and his top half became a separate sprite, so mapping
+        // him like the rest stretched a one-cell drawing over two.
+        map[.piece(.pisces)] = .cells(column: 16, row: 2 + sheetShiftY)
+
         // ── Pisces, in two halves ────────────────────────────────────────
         //
         // The composite above is still what is drawn nearly always — rows 1 and
         // 2 together are the fish and the body as authored. These two are for
         // the one case where the halves come apart.
-        map[.piscesBody] = .cells(column: 16, row: 2 + sheetShiftY)
+        map[.piscesFish] = .cells(column: 16, row: 1 + sheetShiftY)
         map[.piscesFishCharged] = .cells(column: 16, row: 0 + sheetShiftY)
 
         // ── Cancer's four facings ────────────────────────────────────────
