@@ -403,7 +403,11 @@ enum EffectSprite: String, CaseIterable, Hashable {
         // both *events*, and an event that does not carry its own light gets
         // lost against a board full of ambient motion.
         switch self {
-        case .sagittariusArrowHit, .sagittariusTeleTile, .libraZodiaction:
+        case .sagittariusArrowHit, .sagittariusTeleTile, .libraZodiaction,
+             // The Breeze's gust is the moment the Essence fires, and the wind
+             // art is drawn pale — without a strong bloom it reads as haze on
+             // the board rather than as something happening.
+             .windMisc, .glowPhase, .sparkles:
             return GameRules.effectGlowStrongIntensity
         default:
             break

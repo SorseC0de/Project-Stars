@@ -2197,6 +2197,9 @@ final class GameSession {
         to destination: GridPoint,
         on plane: Plane
     ) async {
+        // The gust is the **activation**, not the arrival: it is the wind that
+        // picks you up. One at the far end as well made the Essence look like
+        // two separate events rather than one journey.
         playEffect(.windMisc, at: origin, on: plane)
 
         leaveAfterimage(at: origin, on: plane)
@@ -2219,8 +2222,6 @@ final class GameSession {
 
         guard !Task.isCancelled else { return }
 
-        // And where it sets you down, so the arrival is the wind's too.
-        playEffect(.windMisc, at: destination, on: plane)
         endMovement()
     }
 

@@ -68,10 +68,14 @@ struct PentacleIntroView: View {
                 Circle()
                     .fill(Palette.pentacle)
                     .shadow(color: Palette.pentacle.opacity(0.8), radius: 10)
+                    .frame(width: 52, height: 52)
 
-                Text(effect.glyph.monochromeGlyph)
-                    .font(.system(size: 26, weight: .heavy))
-                    .foregroundStyle(Palette.background)
+                PickupIconView(
+                    effect: effect,
+                    size: 26,
+                    tint: Palette.background,
+                    background: nil
+                )
             }
             .frame(width: 52, height: 52)
 

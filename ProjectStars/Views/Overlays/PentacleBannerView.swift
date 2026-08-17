@@ -25,11 +25,12 @@ struct PentacleBannerView: View {
         let effect = PickupCatalog.effect(for: id)
 
         HStack(spacing: 8) {
-            Text(effect.glyph.monochromeGlyph)
-                .font(.system(size: 15, weight: .bold))
-                .foregroundStyle(Palette.background)
-                .frame(width: 24, height: 24)
-                .background(Circle().fill(tint(for: effect)))
+            PickupIconView(
+                effect: effect,
+                size: 15,
+                tint: Palette.background,
+                background: tint(for: effect)
+            )
 
             VStack(alignment: .leading, spacing: 1) {
                 HStack(spacing: 5) {
