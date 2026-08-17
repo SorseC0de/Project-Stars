@@ -189,69 +189,13 @@ struct PiscesGaiaGeyser: ZodiacPassive {
         !context.duringZodiaction
     }
 
-    /// Water finds its way up through ground that has just broken.
-    ///
-    /// A hole made *this move* may sprout a geyser, and a geyser throws up a
-    /// droplet worth `GameRules.gaiaDropletCharge`. Only new holes: an old one
-    /// has already drained, and paying for standing ruin would make wrecking the
-    /// board a way to farm charge — which is the one thing this game never does.
-    ///
-    /// It lands beside the hole rather than in it. Nothing can stand on a hole,
-    /// and a droplet that had to be reached across the gap it came out of is a
-    /// reward you can see and never take.
-    func amend(_ events: [GameEvent], context: PassiveContext) -> [GameEvent] {
-        guard context.plane == .terra else { return [] }
-        guard context.luck < GameRules.gaiaGeyserChance else { return [] }
+    // The geyser's droplets are gone.
+    //
+    // Gaia Geyser is the spill now — the meter comes down as bubbles and that
+    // is the whole passive. A second, unrelated payout for holes made this move
+    // was the old design still running underneath the new one, which is how a
+    // sign ends up with two things called the same name doing different jobs.
 
-        let board = context.currentBoard
-        var produced: [GameEvent] = []
-        var taken: Set<GridPoint> = []
-
-        for hole in Self.holesMade(in: events, on: context.plane, board: board) {
-            let beside = GridOffset.cardinals
-                .map { hole.offset(by: $0) }
-                .filter {
-                    board.contains($0) && board[$0].isSolid
-                        && board[$0].kind == .normal && !taken.contains($0)
-                }
-
-            guard let square = beside.first else { continue }
-            taken.insert(square)
-            produced.append(
-                .pickupRevealed(id: .gaiaDroplet, plane: context.plane, point: square)
-            )
-        }
-
-        return produced
-    }
-
-    /// The squares these events turned into holes that were not holes already.
-    private static func holesMade(
-        in events: [GameEvent],
-        on plane: Plane,
-        board: Board
-    ) -> [GridPoint] {
-        var made: [GridPoint] = []
-        for event in events {
-            let changes: [GridPoint: TileHealth]
-            switch event {
-            case let .tilesWorn(eventPlane, tiles, _) where eventPlane == plane:
-                changes = tiles
-            case let .tilesWornOnExit(eventPlane, tiles, _) where eventPlane == plane:
-                changes = tiles
-            default:
-                continue
-            }
-
-            for (point, health) in changes
-            where health == .hole && board[point].health != .hole {
-                made.append(point)
-            }
-        }
-        // Sorted, because a dictionary has no order and this list decides where
-        // things are placed — see the note on the retinue's merged wear.
-        return made.sorted { ($0.y, $0.x) < ($1.y, $1.x) }
-    }
 }
 
 // MARK: - Passive 3: Arid Aquanaut
@@ -437,16 +381,9 @@ struct PiscesSurgingStream: Zodiaction {
     /// visible: the fish hops *up* first and comes down through its own square,
     /// which stays whole. Nothing is broken to get down there.
     ///
-    /// Gaia Geyser fires off the arrival like any other descent, so the ring of
-    /// droplets is waiting when the fish lands.
+    /// Gaia Geyser fires off the arrival like any other descent, so the spill
+    /// is waiting when the fish lands.
     ///
-    /// ## The pool
-    ///
-    /// The water the fish came down in stays where it hit. It is not ground and
-    /// cannot be worn or mended, it pays a pip to anything standing in it, and
-    /// it lasts until Pisces leaves the plane, stops being Pisces, or something
-    /// burns it off. On a plane that drains a pip for every square you leave,
-    /// somewhere that pays one back is a place worth walking to.
     private func downstream(_ context: PassiveContext) -> [GameEvent] {
         let landing = context.piecePoint
 
@@ -454,14 +391,15 @@ struct PiscesSurgingStream: Zodiaction {
         // gap to come down on, and water cannot pool in a hole that is not
         // there.
         guard let below = context.boardBelow, below.contains(landing) else { return [] }
-        guard below[landing].kind == .normal || below[landing].kind == .pool else { return [] }
+        guard below[landing].kind == .normal else { return [] }
 
         return [
             // The descent proper. `pieceFell` rather than a teleport, so
             // everything that watches for an arrival on Terra — Gaia Geyser
             // above all — sees exactly what it expects.
+            // No pool. The rework left Pisces with bubbles and nothing else,
+            // and standing water was the last piece of the version before it.
             .pieceFell(from: .astra, to: .terra, at: landing),
-            .poolFormed(plane: .terra, point: landing),
         ]
     }
 }
