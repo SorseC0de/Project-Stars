@@ -86,6 +86,17 @@ struct BoardBand {
     /// How much the band's far edge is narrowed, as the keystone wants it.
     let lean: CGFloat
 
+    /// The middle of the drawn band, which is what anything standing on this
+    /// row should sit on.
+    ///
+    /// Not the same as `centreY`. That is where the square's centre *projects*
+    /// to, and it sits lower — the near half of a receding square covers more
+    /// screen than the far half, so the projected centre is below the midpoint
+    /// of the two edges. The tile is drawn between those edges, so a piece
+    /// placed on the projected centre stands a pixel or two low in its own
+    /// square, on every row.
+    let drawnCentreY: CGFloat
+
     /// Where the row's *ground* frame must be centred.
     ///
     /// Not the same as `centreY`, and conflating them is what left seams even
@@ -173,6 +184,7 @@ struct BoardBand {
             groundScale: height * (1 + lean) / metrics.tileSize,
             centreY: board + (mid - board) * zoom - board * lift,
             lean: lean,
+            drawnCentreY: (top + bottom) / 2,
             groundCentreY: bottom - metrics.tileSize / 2
         )
     }

@@ -136,7 +136,28 @@ struct PlacedOnPlane: ViewModifier {
     let framing: (emphasis: CGFloat, zoom: CGFloat, lift: CGFloat, pivot: CGFloat, spacing: CGSize)
 
     func body(content: Content) -> some View {
-        content.placed(
+        // Terra's ground is drawn in bands, so anything standing on it is
+        // centred on the band rather than on where the square projects to. See
+        // `BoardBand.drawnCentreY`.
+        if framing.pivot == 1 {
+            let band = BoardBand.at(row: point.y, metrics: metrics)
+            let spot = metrics.projected(
+                point,
+                zoom: framing.zoom,
+                lift: framing.lift,
+                emphasis: framing.emphasis,
+                pivot: framing.pivot,
+                spacing: framing.spacing
+            )
+
+            return AnyView(
+                content
+                    .scaleEffect(spot.scale)
+                    .position(x: spot.position.x, y: band.drawnCentreY)
+            )
+        }
+
+        return AnyView(content.placed(
             at: point,
             metrics: metrics,
             emphasis: framing.emphasis,
@@ -144,6 +165,6 @@ struct PlacedOnPlane: ViewModifier {
             lift: framing.lift,
             pivot: framing.pivot,
             spacing: framing.spacing
-        )
+        ))
     }
 }
