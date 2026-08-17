@@ -24,12 +24,26 @@ struct BoardView: View {
 
     let session: GameSession
 
+    /// Which plane this view is drawing.
+    ///
+    /// Explicit rather than read off the session, so the board can be asked for
+    /// a plane that is not the one being stood on. That is the whole
+    /// prerequisite for stacking them: a transition wants Astra *and* Terra on
+    /// screen at once, and a view that can only ever draw "wherever the piece
+    /// is" can never show the relationship between them.
+    ///
+    /// Defaults to the visible one, so every existing caller is unchanged.
+    var plane: Plane?
+
+    /// The plane being drawn.
+    private var shown: Plane { plane ?? shown }
+
     /// The side length available for the board, in points.
     let availableSide: CGFloat
 
     var body: some View {
         let metrics = PixelArtMetrics(availableSide: availableSide)
-        let plane = session.visiblePlane
+        let plane = shown
         let board = session.visibleBoard
 
         // The whole board seen through the tear, chrome excepted.
@@ -243,7 +257,7 @@ struct BoardView: View {
     /// going.
     @ViewBuilder
     private func loosedArrow(metrics: PixelArtMetrics) -> some View {
-        if let shot = session.loosedArrow, shot.plane == session.visiblePlane {
+        if let shot = session.loosedArrow, shot.plane == shown {
             TimelineView(.animation) { timeline in
                 let progress = min(
                     max(timeline.date.timeIntervalSince(shot.start)
@@ -276,7 +290,7 @@ struct BoardView: View {
     /// than deleted from the square it was sitting on.
     @ViewBuilder
     private func reeledCoin(metrics: PixelArtMetrics) -> some View {
-        if let flight = session.coinFlight, flight.plane == session.visiblePlane {
+        if let flight = session.coinFlight, flight.plane == shown {
             TimelineView(.animation) { timeline in
                 let progress = min(
                     max(timeline.date.timeIntervalSince(flight.start)
@@ -292,7 +306,7 @@ struct BoardView: View {
 
                 PentacleView(
                     appearance: PickupCatalog.effect(for: flight.id)
-                        .appearance(on: session.visiblePlane),
+                        .appearance(on: shown),
                     size: metrics.tileSize,
                     scale: metrics.scale
                 )
@@ -310,7 +324,7 @@ struct BoardView: View {
     /// Scorpio's tail, reaching down its facing. See `StingLanceView`.
     @ViewBuilder
     private func stingLance(metrics: PixelArtMetrics) -> some View {
-        if let strike = session.stingStrike, strike.plane == session.visiblePlane {
+        if let strike = session.stingStrike, strike.plane == shown {
             StingLanceView(
                 direction: strike.direction,
                 reach: strike.reach,
@@ -329,7 +343,7 @@ struct BoardView: View {
         var found: [GridPoint: (ramp: [Color], strength: Double)] = [:]
         let now = Date()
 
-        for sparkle in session.healSparkles where sparkle.plane == session.visiblePlane {
+        for sparkle in session.healSparkles where sparkle.plane == shown {
             guard let tone = Palette.healFlash(
                 elapsed: now.timeIntervalSince(sparkle.start)
             ) else { continue }
@@ -367,7 +381,7 @@ struct BoardView: View {
 
     /// Every square that was just mended, shimmering. See `HealSparkleView`.
     private func healSparkles(metrics: PixelArtMetrics) -> some View {
-        ForEach(session.healSparkles.filter { $0.plane == session.visiblePlane }) { sparkle in
+        ForEach(session.healSparkles.filter { $0.plane == shown }) { sparkle in
             HealSparkleView(
                 start: sparkle.start,
                 tileSize: metrics.tileSize,
@@ -387,7 +401,7 @@ struct BoardView: View {
     /// that the money went *down there*. See `BankArcView`.
     @ViewBuilder
     private func bankArc(metrics: PixelArtMetrics) -> some View {
-        if let arc = session.bankArc, arc.plane == session.visiblePlane {
+        if let arc = session.bankArc, arc.plane == shown {
             BankArcView(
                 from: metrics.center(of: arc.from),
                 to: CGPoint(x: metrics.boardSize / 2, y: metrics.boardSize),
@@ -505,7 +519,7 @@ struct BoardView: View {
     /// The landing the surface is currently giving under, if any.
     private var surfaceBounce: CloudMotion.Bounce? {
         guard let bounce = session.surfaceBounce,
-              bounce.plane == session.visiblePlane
+              bounce.plane == shown
         else { return nil }
 
         return CloudMotion.Bounce(
@@ -539,7 +553,7 @@ struct BoardView: View {
         metrics: PixelArtMetrics,
         driftScale: CGFloat = 1
     ) -> CGSize {
-        guard session.visiblePlane == .astra,
+        guard shown == .astra,
               session.visibleBoard.contains(point),
               session.visibleBoard[point].kind == .normal
         else { return .zero }
@@ -571,7 +585,7 @@ struct BoardView: View {
     /// question to be seen arriving. See `GameSession.SlabDrop`.
     @ViewBuilder
     private func slabDrop(metrics: PixelArtMetrics) -> some View {
-        if let drop = session.slabDrop, drop.plane == session.visiblePlane {
+        if let drop = session.slabDrop, drop.plane == shown {
             TimelineView(.animation) { timeline in
                 let elapsed = timeline.date.timeIntervalSince(drop.start)
                 let arrival = min(max(elapsed / GameRules.slabDropDuration, 0), 1)
@@ -595,7 +609,7 @@ struct BoardView: View {
     /// about — this says *these squares, just now, because of you*.
     @ViewBuilder
     private func slabLanding(metrics: PixelArtMetrics) -> some View {
-        if let landing = session.slabLanding, landing.plane == session.visiblePlane {
+        if let landing = session.slabLanding, landing.plane == shown {
             ZStack {
                 ForEach(Array(landing.points), id: \.self) { point in
                     Rectangle()
@@ -707,7 +721,7 @@ struct BoardView: View {
 
     /// Placed on the plane the piece is standing on.
     private func placedOnPlaneModifier(_ point: GridPoint, metrics: PixelArtMetrics) -> some ViewModifier {
-        PlacedOnPlane(point: point, metrics: metrics, framing: planeFraming(session.visiblePlane))
+        PlacedOnPlane(point: point, metrics: metrics, framing: planeFraming(shown))
     }
 
     /// A mark painted on a square — the cursor, the facing arrow.
@@ -729,7 +743,7 @@ struct BoardView: View {
         metrics: PixelArtMetrics,
         squashed: Bool = true
     ) -> some View {
-        if session.visiblePlane == .terra {
+        if shown == .terra {
             view.asBoardSquare(point, metrics: metrics, squashed: squashed)
         } else {
             // Still in the tile layer — same squash, same lean, so it reads as
@@ -755,7 +769,7 @@ struct BoardView: View {
     /// foreshortened twice.
     private var arrowLift: CGFloat {
         GameRules.facingArrowLift
-            + (session.visiblePlane == .astra ? GameRules.facingArrowAstraLift : 0)
+            + (shown == .astra ? GameRules.facingArrowAstraLift : 0)
     }
 
     /// The per-row half, in art pixels: full at the far row, none at the near.
@@ -789,7 +803,7 @@ struct BoardView: View {
     /// pixels is four pixels on the near row and four on the far one, which is
     /// why the marks came apart from their squares at the back of the board.
     private func rowScale(at point: GridPoint, metrics: PixelArtMetrics) -> CGFloat {
-        let framing = planeFraming(session.visiblePlane)
+        let framing = planeFraming(shown)
         return metrics.projected(
             point,
             zoom: framing.zoom,
@@ -951,7 +965,7 @@ struct BoardView: View {
     /// The drawn effect strips currently playing, each over the square that set
     /// it off.
     private func effectBurst(metrics: PixelArtMetrics) -> some View {
-        ForEach(session.effectBursts.filter { $0.plane == session.visiblePlane }) { burst in
+        ForEach(session.effectBursts.filter { $0.plane == shown }) { burst in
             EffectSpriteView(
                 effect: burst.effect,
                 tileSize: metrics.tileSize,
@@ -1006,7 +1020,7 @@ struct BoardView: View {
     /// only way to be here is the Astral Bolt's star or Scorpio's hover.
     private func hoverBob(at date: Date) -> CGFloat {
         let piece = session.engine.piece
-        guard piece.plane == session.visiblePlane, !session.isFalling else { return 0 }
+        guard piece.plane == shown, !session.isFalling else { return 0 }
         guard !session.visibleBoard[piece.point].isSolid else { return 0 }
 
         let phase = date.timeIntervalSinceReferenceDate
@@ -1030,7 +1044,7 @@ struct BoardView: View {
     /// The cloud an arrow is riding down out of Astra.
     @ViewBuilder
     private func fallingCloud(metrics: PixelArtMetrics) -> some View {
-        if let falling = session.fallingCloud, falling.plane == session.visiblePlane {
+        if let falling = session.fallingCloud, falling.plane == shown {
             FallingCloudView(point: falling.point, metrics: metrics, start: falling.start)
                 .id(falling.id)
         }
@@ -1113,7 +1127,7 @@ struct BoardView: View {
         // drawn, because that moment *is* a resolution.
         SparkleView(
             size: metrics.tileSize,
-            plane: session.visiblePlane,
+            plane: shown,
             index: index,
             tint: set.pattern == .ring ? Palette.pink : nil,
             sway: { surfaceSway(of: point, at: $0, metrics: metrics) },
@@ -1192,7 +1206,7 @@ struct BoardView: View {
         bob: CGFloat,
         metrics: PixelArtMetrics
     ) -> CGFloat {
-        if session.engine.nexysPlane == session.visiblePlane, point == GameRules.nexysPoint {
+        if session.engine.nexysPlane == shown, point == GameRules.nexysPoint {
             return bob - GameRules.nexysRaise * metrics.scale
         }
         if session.visibleRaisedTiles.contains(where: { $0.point == point }) {
@@ -1665,7 +1679,7 @@ struct BoardView: View {
             zodiac: session.zodiac,
             tileSize: metrics.tileSize,
             scale: metrics.scale,
-            plane: session.visiblePlane,
+            plane: shown,
             // Or the mane catching, which lights the same gemstone for a
             // moment — see `GameSession.blazeMane()`.
             isCharged: session.isZodiactionCharged || session.isManeBlazing,
@@ -1764,7 +1778,7 @@ struct BoardView: View {
     /// from — a second copy of that maths drifts apart the first time either is
     /// retuned, and a piece sliding off its own footing is worse than no sway.
     private func cloudSway(at date: Date, metrics: PixelArtMetrics) -> CGSize {
-        let plane = session.visiblePlane
+        let plane = shown
         let point = session.engine.piece.point
 
         // Cloud only: the island is carved rock and the chasm is nothing at all.
@@ -2008,7 +2022,7 @@ struct BoardView: View {
             ForEach(Array(session.afterimages.enumerated()), id: \.element.id) { step, ghost in
                 let age = date.timeIntervalSince(ghost.born) / GameRules.afterimageLife
 
-                if ghost.plane == session.visiblePlane, age < 1 {
+                if ghost.plane == shown, age < 1 {
                     // Starred, each ghost wears the colour from `step` places
                     // back in the cycle — what the piece was wearing when it was
                     // standing there. Merely charged, they all wear the sign's.
@@ -2020,7 +2034,7 @@ struct BoardView: View {
                         // What the piece **is** right now, so the trail is made
                         // of the same figure that is casting it.
                         stormPhase: aquariusPhase,
-                        plane: session.visiblePlane,
+                        plane: shown,
                         isCharged: session.isZodiactionCharged,
                         element: starring == nil ? session.trailElement : elements[index],
                         tileSize: metrics.tileSize,
@@ -2197,7 +2211,7 @@ struct BoardView: View {
     private var pieceIsJustNorthOfNexys: Bool {
         let nexys = GameRules.nexysPoint
         let piece = session.engine.piece.point
-        guard session.engine.nexysPlane == session.visiblePlane else { return false }
+        guard session.engine.nexysPlane == shown else { return false }
         return piece.y == nexys.y - 1 && abs(piece.x - nexys.x) <= 1
     }
 
@@ -2210,7 +2224,7 @@ struct BoardView: View {
     /// would let a row of ground occlude it.
     @ViewBuilder
     private func constellation(metrics: PixelArtMetrics) -> some View {
-        if let summon = session.constellation, summon.plane == session.visiblePlane {
+        if let summon = session.constellation, summon.plane == shown {
             ConstellationView(
                 zodiac: summon.zodiac,
                 tileSize: metrics.tileSize,
@@ -2225,7 +2239,7 @@ struct BoardView: View {
     /// The pillar of light at one end of a warp.
     @ViewBuilder
     private func warpBeam(metrics: PixelArtMetrics) -> some View {
-        if let beam = session.warpBeam, beam.plane == session.visiblePlane {
+        if let beam = session.warpBeam, beam.plane == shown {
             WarpBeamView(
                 tileSize: metrics.tileSize,
                 scale: metrics.scale,
@@ -2244,7 +2258,7 @@ struct BoardView: View {
     /// generated dispersal — see `CloudPoofView` — when it is not.
     @ViewBuilder
     private func cloudPoofs(metrics: PixelArtMetrics) -> some View {
-        if session.visiblePlane == .astra {
+        if shown == .astra {
             ForEach(session.cloudPoofs) { poof in
                 if SmokeSpriteView.hasArt(on: .astra) {
                     SmokeSpriteView(
@@ -2272,7 +2286,7 @@ struct BoardView: View {
     /// Dust kicked up by a landing.
     @ViewBuilder
     private func dust(metrics: PixelArtMetrics) -> some View {
-        ForEach(session.smoke.filter { $0.plane == session.visiblePlane }) { smoke in
+        ForEach(session.smoke.filter { $0.plane == shown }) { smoke in
             // Drawn smoke wherever there is a strip for the plane. Astra's is
             // recoloured into its violets, so cloudstuff disperses as cloudstuff
             // rather than as grey.
@@ -2353,7 +2367,7 @@ struct BoardView: View {
     /// Sparkles thrown off by an opened Pentacle.
     @ViewBuilder
     private func collectBurst(metrics: PixelArtMetrics) -> some View {
-        if let burst = session.collectBurst, burst.plane == session.visiblePlane {
+        if let burst = session.collectBurst, burst.plane == shown {
             CollectBurstView(
                 tileSize: metrics.tileSize,
                 scale: metrics.scale,
@@ -2367,7 +2381,7 @@ struct BoardView: View {
 
     @ViewBuilder
     private func elementalBurst(metrics: PixelArtMetrics) -> some View {
-        if let burst = session.elementalBurst, burst.plane == session.visiblePlane {
+        if let burst = session.elementalBurst, burst.plane == shown {
             // **Projected**, not flat.
             //
             // This one hides from a search for `.position`: the burst is a
@@ -2380,10 +2394,10 @@ struct BoardView: View {
             // feet — for Pisces that is exactly where the fish rides.
             let spot = metrics.projected(
                 burst.center,
-                zoom: planeFraming(session.visiblePlane).zoom,
-                lift: planeFraming(session.visiblePlane).lift,
-                emphasis: planeFraming(session.visiblePlane).emphasis,
-                pivot: planeFraming(session.visiblePlane).pivot
+                zoom: planeFraming(shown).zoom,
+                lift: planeFraming(shown).lift,
+                emphasis: planeFraming(shown).emphasis,
+                pivot: planeFraming(shown).pivot
             )
 
             // Drawn on a canvas wider than the board, so a ripple at the edge
@@ -2425,7 +2439,7 @@ struct BoardView: View {
     /// The glow phase coming apart, one burst per square it had lit.
     @ViewBuilder
     private func sparkleDispersal(metrics: PixelArtMetrics) -> some View {
-        ForEach(session.sparkleDispersals.filter { $0.plane == session.visiblePlane }) { burst in
+        ForEach(session.sparkleDispersals.filter { $0.plane == shown }) { burst in
             // The **same view** a coin going down with its tile throws.
             //
             // `pickupDestroyed` sets `collectBurst`, which draws through
