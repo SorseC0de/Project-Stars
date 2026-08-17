@@ -2572,6 +2572,16 @@ enum GameRules {
     /// pair read as two unrelated coins that happen to share a word.
     static let essenceMoves = 3
 
+    /// How many gusts the Breeze throws, how far apart they start, and how far
+    /// each may be turned.
+    ///
+    /// Several rather than one: the strip is the same drawing every time, so
+    /// what makes it read as wind rather than as a sprite playing is the
+    /// variation between copies.
+    static let breezeGusts = 4
+    static let breezeGustStagger: TimeInterval = 0.06
+    static let breezeGustAngle: Double = 18
+
     /// Seconds the Breeze takes to carry the piece across.
     ///
     /// Longer than a step and shorter than a fall: the distance is the point, so

@@ -2328,10 +2328,27 @@ final class GameSession {
         to destination: GridPoint,
         on plane: Plane
     ) async {
-        // The gust is the **activation**, not the arrival: it is the wind that
-        // picks you up. One at the far end as well made the Essence look like
-        // two separate events rather than one journey.
-        playEffect(.windMisc, at: origin, on: plane)
+        // A gust is several gusts.
+        //
+        // One swoosh read as a placeholder next to the other Essences, which
+        // each throw a whole shader's worth of weather. The strip is the same
+        // one every time, so what makes it look like wind rather than like a
+        // sprite playing is the *variation*: each copy starts a beat later, at
+        // its own size and its own slight angle.
+        //
+        // Seeded off the move rather than random, so the same move looks the
+        // same twice and nothing reshuffles under a redraw.
+        for gust in 0..<GameRules.breezeGusts {
+            let seed = Double((engine.moveCount &* 7 &+ gust &* 13) % 17) / 17
+            playEffect(
+                .windMisc,
+                at: origin,
+                on: plane,
+                delay: Double(gust) * GameRules.breezeGustStagger,
+                scale: 0.7 + CGFloat(seed) * 0.6,
+                angle: (seed - 0.5) * 2 * GameRules.breezeGustAngle
+            )
+        }
 
         leaveAfterimage(at: origin, on: plane)
 
@@ -3019,6 +3036,12 @@ struct EffectBurst: Identifiable, Equatable {
     let plane: Plane
     let start: Date
 
+    /// How big this copy is drawn, against the strip's own size.
+    var scale: CGFloat = 1
+
+    /// And how far it is turned, in degrees.
+    var angle: Double = 0
+
     /// What to recolour the strip to, or `nil` to leave the art alone.
     ///
     /// For strips drawn deliberately colourless — the absorb is greys precisely
@@ -3041,13 +3064,17 @@ extension GameSession {
         at point: GridPoint,
         on plane: Plane,
         delay: TimeInterval = 0,
-        tint: Color? = nil
+        tint: Color? = nil,
+        scale: CGFloat = 1,
+        angle: Double = 0
     ) {
         let burst = EffectBurst(
             effect: effect,
             center: point,
             plane: plane,
             start: .now.addingTimeInterval(delay),
+            scale: scale,
+            angle: angle,
             tint: tint
         )
         effectBursts.append(burst)
