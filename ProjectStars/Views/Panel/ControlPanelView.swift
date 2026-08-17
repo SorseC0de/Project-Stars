@@ -291,6 +291,15 @@ enum PanelStyle {
     /// Capricorn's meter, drawn as coins. Ten of them on Astra, so they are
     /// small — but round and rimmed, which is enough to read as money at a
     /// glance and to be counted without reading anything.
+    /// How long the gold band takes to cross the Zodiaction button, and how
+    /// wide it is as a fraction of that crossing.
+    ///
+    /// Slow, and narrow. It is a statement that something is held rather than
+    /// an animation asking to be watched — at any speed that catches the eye it
+    /// competes with the board for attention every turn it is on screen.
+    static let goldSweepPeriod: TimeInterval = 3.2
+    static let goldSweepWidth: CGFloat = 0.12
+
     static let meterCoinSize: CGFloat = 16.5
     static let meterCoinSpacing: CGFloat = 3
     static let meterCoinRim: CGFloat = 1.5
@@ -1698,7 +1707,17 @@ struct ZodiactionButton: View {
 
         TimelineView(.animation) { timeline in
             CelButton(
-                tint: ready ? Palette.yellow : Palette.stone,
+                // **Purple, not grey, while it waits.**
+                //
+                // Grey means *nothing here yet*, which is true for eleven signs
+                // and a lie for Aquarius: he is never without power, only
+                // without a way to spend it. The stone face is what a charging
+                // meter looks like, and his is already full.
+                tint: ready
+                    ? Palette.yellow
+                    : (session.zodiac.zodiaction.firesAtEmpty
+                        ? Palette.purple
+                        : Palette.stone),
                 // Availability decides the colour; the move in progress decides
                 // only whether a touch lands. Tying both to `acceptsInput` made
                 // this flash grey on every step of every move.
@@ -1711,6 +1730,19 @@ struct ZodiactionButton: View {
                 label(charged: element.mid)
             }
             .frame(height: PanelStyle.zodiactionButtonHeight)
+            // At a full backwards meter, a band of gold crosses the face.
+            //
+            // The state it is describing has no other way to be shown: he is at
+            // his most powerful and his least able, which a static colour can
+            // only say one half of. Something *moving* across a still face says
+            // held rather than spent — the power is there, going past, not
+            // available.
+            .overlay {
+                if session.zodiac.zodiaction.firesAtEmpty,
+                   session.zodiactionMeter >= session.zodiactionMeterMax {
+                    goldSweep(at: timeline.date)
+                }
+            }
             .background {
                 if ready { readyGlow(element.bright, at: timeline.date) }
             }
@@ -1805,13 +1837,19 @@ struct ZodiactionButton: View {
             }
             .animation(.easeOut(duration: 0.18), value: filled)
         } else {
+            // A meter that empties toward firing lights the pips it has
+            // **left**, in the colour of the power still sitting in them —
+            // and the one that is gone is the progress, which is why the
+            // filled colour is his purple rather than the element's.
+            let backwards = session.zodiac.zodiaction.firesAtEmpty
+
             HStack(spacing: isCompact
                 ? PanelStyle.meterPipSpacingCompact
                 : PanelStyle.meterPipSpacing) {
                 ForEach(0..<session.zodiactionMeterMax, id: \.self) { index in
                     RoundedRectangle(cornerRadius: PanelStyle.meterPipCorner)
                         .fill(index < filled
-                            ? charged
+                            ? (backwards ? Palette.purple : charged)
                             : Palette.warmBlack.opacity(PanelStyle.meterEmptyOpacity))
                         .frame(height: PanelStyle.meterPipHeight)
                 }
@@ -1851,6 +1889,42 @@ struct ZodiactionButton: View {
                 content
             }
         }
+    }
+
+    /// A thin band of gold travelling across the button, on a diagonal.
+    ///
+    /// Its position is a moving pair of gradient stops rather than an offset
+    /// view, so the band is genuinely *part of* the face rather than something
+    /// sliding over it — the edges blend into the purple either side instead of
+    /// having a boundary of their own.
+    ///
+    /// Leading to trailing, looping, and 45 degrees so it crosses the long axis
+    /// rather than running down it.
+    private func goldSweep(at date: Date) -> some View {
+        let cycle = date.timeIntervalSinceReferenceDate
+            .truncatingRemainder(dividingBy: PanelStyle.goldSweepPeriod)
+            / PanelStyle.goldSweepPeriod
+
+        // Travels from fully before the leading edge to fully past the
+        // trailing one, so it enters and leaves rather than appearing.
+        let centre = -PanelStyle.goldSweepWidth
+            + CGFloat(cycle) * (1 + PanelStyle.goldSweepWidth * 2)
+        let half = PanelStyle.goldSweepWidth
+
+        return RoundedRectangle(cornerRadius: PanelStyle.buttonCorner)
+            .fill(
+                LinearGradient(
+                    stops: [
+                        .init(color: .clear, location: max(centre - half, 0)),
+                        .init(color: Palette.gold, location: min(max(centre, 0), 1)),
+                        .init(color: .clear, location: min(centre + half, 1))
+                    ],
+                    startPoint: .topLeading,
+                    endPoint: .bottomTrailing
+                )
+            )
+            .blendMode(.plusLighter)
+            .allowsHitTesting(false)
     }
 
     /// The breath: a blurred copy of the button's own shape, behind it.
