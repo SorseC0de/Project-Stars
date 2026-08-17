@@ -149,22 +149,35 @@ struct PaletteGlow<Content: View>: View {
                     // backdrop's alpha — `.normal` and `.multiply` fill their
                     // whole rect — which is why changing the mode left a square
                     // sitting over the view.
+                    // The colour, cut to the halo's shape. **No blend here.**
+                    //
+                    // Anything blended inside this group is composited against
+                    // the group's own contents and then the whole thing is laid
+                    // onto the board — so the mode was being applied and then
+                    // painted over, which is why every one of them looked the
+                    // same. What the eye is judging is how the *glow* meets the
+                    // board, and that is the outer blend below.
                     if let tint {
-                        tint
-                            .blendMode(tintBlend)
-                            .mask {
-                                ZStack {
-                                    ForEach(0...max(trail, 0), id: \.self) { step in
-                                        mask
-                                            .blur(radius: radius * (1 + CGFloat(step) * 0.9))
-                                            .opacity(intensity / Double(step + 1))
-                                    }
+                        tint.mask {
+                            ZStack {
+                                ForEach(0...max(trail, 0), id: \.self) { step in
+                                    mask
+                                        .blur(radius: radius * (1 + CGFloat(step) * 0.9))
+                                        .opacity(intensity / Double(step + 1))
                                 }
                             }
+                        }
                     }
                 }
                 .compositingGroup()
-                .blendMode(.plusLighter)
+                // **This** is the mode being chosen.
+                //
+                // A bloom is light, so adding it is the honest default and the
+                // one every other glow in the game uses. Naming a tint means
+                // asking a different question — how should this light *meet*
+                // what is behind it — and that is answered here, where the
+                // halo actually touches the board.
+                .blendMode(tint == nil ? .plusLighter : tintBlend)
                 .allowsHitTesting(false)
             }
     }
