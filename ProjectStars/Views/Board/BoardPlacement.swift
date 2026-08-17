@@ -170,7 +170,16 @@ struct PlacedOnPlane: ViewModifier {
             // pixels at the front, and a growing share of the tile toward the
             // back. Handing that difference back is the correction, and it
             // falls out of the geometry rather than being tuned.
-            let mismatch = (band.heightY - metrics.tileSize * spot.scale) / 2
+            // **Half** the difference, which is the measured answer.
+            //
+            // Centring on the band alone sinks the figure toward the back;
+            // handing back the whole difference lifts it toward the back. Both
+            // errors grow with depth, so the truth sits between them — and that
+            // it lands on a half is the tell: the sprite and the ground each
+            // give up one of the two heights, so each owes half the gap between
+            // them rather than either owing all of it.
+            let mismatch = (band.heightY - metrics.tileSize * spot.scale)
+                / 2 * GameRules.standOnBandShare
 
             return AnyView(
                 content

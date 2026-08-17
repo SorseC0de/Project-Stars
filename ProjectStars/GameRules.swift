@@ -2792,6 +2792,15 @@ enum GameRules {
     /// double gone the four collapse into one, which is the tell that they were
     /// never four different quantities.
 
+    /// How much of the tile-versus-band difference a standing object hands back.
+    ///
+    /// Half. A sprite places itself against a full tile and the ground under it
+    /// is a shallower band, and neither of those is wholly right — so the gap is
+    /// split rather than charged to one of them. Arrived at by watching the two
+    /// ends fail in opposite directions, both worsening with depth, which is
+    /// what a shared error looks like.
+    static let standOnBandShare: CGFloat = 0.5
+
     /// How far above the floor of its cell a sprite is drawn, in art pixels.
     ///
     /// A property of the art, not of the board: every piece is authored with
