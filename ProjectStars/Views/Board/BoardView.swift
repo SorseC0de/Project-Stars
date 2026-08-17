@@ -1102,50 +1102,20 @@ struct BoardView: View {
         set: SparkleSet,
         metrics: PixelArtMetrics
     ) -> some View {
-        if SpriteSheetLoader.hasArt(for: .effect(.glowPhase)) {
-            let stagger = Double(index) * GameRules.glowPhaseStagger
-
-            ZStack {
-                EffectSpriteView(
-                    effect: .glowPhase,
-                    tileSize: metrics.tileSize,
-                    start: .distantPast,
-                    loops: true,
-                    clock: { self.session.ambientClock(at: $0) + stagger }
-                )
-                // Quieter than full. It marks a square rather than being the
-                // thing on it, and at full strength it out-shouted the coin it
-                // is pointing at.
-                .opacity(GameRules.glowPhaseOpacity)
-
-                EffectSpriteView(
-                    effect: .sparkles,
-                    tileSize: metrics.tileSize,
-                    start: .distantPast,
-                    loops: true,
-                    clock: { self.session.ambientClock(at: $0) + stagger * 1.7 },
-                    // Virgo's ring plays by different rules and says so.
-                    tint: set.pattern == .ring ? Palette.pink : nil
-                )
-                .opacity(GameRules.glowPhaseOpacity)
-            }
-            // Turning, bobbing and breathing, like Polaris — the one thing in
-            // the game already drawn as *a prize hanging in the air*. Each
-            // square runs on its own periods, seeded off its index: five things
-            // sharing a rhythm read as one object with five parts, which is the
-            // opposite of what a scattered set of candidates should say.
-            .modifier(SparklePose(index: index, clock: session.ambientClock(at:)))
-            .allowsHitTesting(false)
-        } else {
-            SparkleView(
-                size: metrics.tileSize,
-                plane: session.visiblePlane,
-                index: index,
-                tint: set.pattern == .ring ? Palette.pink : nil,
-                sway: { surfaceSway(of: point, at: $0, metrics: metrics) },
-                clock: session.ambientClock(at:)
-            )
-        }
+        // The generated shimmer, deliberately.
+        //
+        // The drawn strips were tried and they are too much: a glow phase is a
+        // question — *one of these five* — and art loud enough to be the answer
+        // makes the board look like it has already resolved. The break is still
+        // drawn, because that moment *is* a resolution.
+        SparkleView(
+            size: metrics.tileSize,
+            plane: session.visiblePlane,
+            index: index,
+            tint: set.pattern == .ring ? Palette.pink : nil,
+            sway: { surfaceSway(of: point, at: $0, metrics: metrics) },
+            clock: session.ambientClock(at:)
+        )
     }
 
     /// The destination cursor.

@@ -1941,12 +1941,14 @@ final class GameSession {
             // `manePulledThisMove`.
             if !manePulledThisMove {
                 manePulledThisMove = true
-                // **Air**, not Leo's fire. The ring is standing in for a
-                // magnetic pulse, and tinting it by the sign turned it into a
-                // burning ring — which is a different claim about what just
-                // happened. Air is the neutral one the game already uses for a
-                // coin arriving and a coin going down with its tile.
-                playBurst(.air, at: engine.piece.point, on: plane)
+                // **Water**, which is the ripples.
+                //
+                // Not Leo's fire and not air: the four elements are four
+                // different pictures in `Elemental.metal`, and only water is
+                // drawn as concentric rings chasing an edge outward. That is
+                // what a magnetic pulse looks like, and the element here is
+                // choosing a *shape*, not saying the lion is wet.
+                playBurst(.water, at: engine.piece.point, on: plane)
                 blazeMane()
             }
 

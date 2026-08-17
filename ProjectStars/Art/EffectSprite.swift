@@ -385,6 +385,9 @@ enum EffectSprite: String, CaseIterable, Hashable {
         // Over the piece rather than at its feet: the absorb is the charge
         // arriving in the statue, and the lightning strikes the figure itself.
         case .absorb, .lightningMisc: 8
+        // The storm wakes around him, not under him. At the art's own height it
+        // burst at the statue's feet, which is where the funnel *ends*.
+        case .aquariusZodiaction: CGFloat(GameRules.tilePixelSize)
         // The flourish hangs overhead, clear of the coin that earned it.
         case .bonus: 20
         // Ground-level: wind blows across a square, the glow phase is the
