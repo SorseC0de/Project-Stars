@@ -1881,12 +1881,6 @@ struct BoardView: View {
     /// so they land together; the *position* is what lags, and that reads as
     /// following without the two of them ever falling out of step.
     @ViewBuilder
-    /// A phantom of another sign, following the player.
-    ///
-    /// Drawn as the **assembled figure**, for the same reason afterimages are:
-    /// what a sign looks like is rarely just `piece(zodiac)`. Libra summoned by
-    /// an Aten arrived with no arms and no scales, because a bare sprite is all
-    /// the atlas has for her — the rest of her is assembled by `PieceView`.
     private func follower(
         step: Int,
         at point: GridPoint,
@@ -2127,20 +2121,18 @@ struct BoardView: View {
         // plane — the elevator worked and looked like a teleport. Sharing one
         // timeline is the only way two things travelling together can be
         // guaranteed to arrive together.
-        // Carrying, the island is a passenger of the world slide like the piece
-        // on it — see `GameSession.planeSlide`. Its own travel pose is for the
-        // journeys it makes alone.
-        if session.nexysCarryingPiece { return .rest }
+        if session.nexysCarryingPiece {
+            return nexysTravelPose(at: date, metrics: metrics)
+        }
 
-        // **Rest.** A climb slides the whole world — see
-        // `GameSession.planeSlide` — and the piece is standing on it, so a pose
-        // of its own would move it a second time, out of its row and in front of
-        // the board that should cover it.
-        //
-        // The island's *own* travel is a different sequence and keeps its poses;
-        // this is only about a passenger.
-        _ = session.ascentRiseStartedAt
-        _ = session.ascentGrowStartedAt
+        if let rising = session.ascentRiseStartedAt {
+            let progress = date.timeIntervalSince(rising) / GameRules.ascentRiseDuration
+            return .rising(progress: min(max(progress, 0), 1), boardSize: metrics.boardSize)
+        }
+        if let growing = session.ascentGrowStartedAt {
+            let progress = date.timeIntervalSince(growing) / GameRules.ascentGrowDuration
+            return .growing(progress: progress)
+        }
         return .rest
     }
 
@@ -2169,7 +2161,7 @@ struct BoardView: View {
                 / (goingUp ? GameRules.ascentGrowDuration : GameRules.fallArrivalDuration)
 
             return goingUp
-                ? .growing(progress: progress, boardSize: metrics.boardSize)
+                ? .growing(progress: progress)
                 : .fallingIn(progress: progress, boardSize: metrics.boardSize)
         }
         return .rest

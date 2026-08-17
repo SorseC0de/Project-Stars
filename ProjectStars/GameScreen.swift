@@ -40,35 +40,23 @@ struct GameScreen: View {
                     // letterboxing either side of a 7x7 board at whole-pixel
                     // scale is part of the view, and should be sky rather than
                     // chrome.
-                    //
-                    // **Outside the slide**, so it does not travel with the
-                    // board. What a plane change vacates has to be filled with
-                    // something, and the honest thing to fill it with is the
-                    // space between the planes — sky above, dark below. Sliding
-                    // the sky too left a black gap, which is the one answer that
-                    // says the world ends at the edge of the board.
                     SkyView(
                         plane: session.visiblePlane,
                         side: side,
                         clock: session.ambientClock(at:)
                     )
-                    Group {
-                        // Underneath the sky, and underneath the board with it —
-                        // so it shows through Astra's holes. See
-                        // `GroundBelowView`.
-                        if session.visiblePlane == .astra {
-                            GroundBelowView(
-                                side: side,
-                                metrics: PixelArtMetrics(availableSide: side)
-                            )
-                            .frame(width: side, height: side)
-                            .transition(.opacity)
-                        }
-
-                        BoardView(session: session, availableSide: side)
+                    // Underneath the sky, and underneath the board with it —
+                    // so it shows through Astra's holes. See `GroundBelowView`.
+                    if session.visiblePlane == .astra {
+                        GroundBelowView(
+                            side: side,
+                            metrics: PixelArtMetrics(availableSide: side)
+                        )
+                        .frame(width: side, height: side)
+                        .transition(.opacity)
                     }
-                    // Only the world travels — see `GameSession.planeSlide`.
-                    .offset(y: session.planeSlide * side * GameRules.planeSlideDistance)
+
+                    BoardView(session: session, availableSide: side)
 
                     // Names what is being looked at, so it belongs with the
                     // thing being looked at rather than among the controls.
@@ -127,7 +115,6 @@ struct GameScreen: View {
                     }
                 }
                 .frame(width: side, height: side)
-                .clipped()
 
                 // Lower square: information and the input zone.
                 ControlPanelView(session: session, side: side)
@@ -259,7 +246,6 @@ struct GameScreen: View {
     //
     // This preview is a real entry point into the game, not a thumbnail: it
     // skips `RootView` and the picker entirely, so a sign hardcoded here is the
-    // sign anybody testing through it actually gets, whatever the launch path
-    // is set to do.
+    // sign anybody testing through it actually gets.
     GameScreen(zodiac: GameRules.debugStartingSign, onQuit: {})
 }

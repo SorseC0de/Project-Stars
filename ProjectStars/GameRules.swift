@@ -2808,33 +2808,9 @@ enum GameRules {
     /// to the ground is placing it five pixels too high.
     static let spriteFeetInset: CGFloat = 5
 
-    /// How much further a fall turns now that it crosses two squares of sky.
-    ///
-    /// The distance doubled and the turn did not, so what used to read as
-    /// tumbling became a slow roll with a long coast at the end of it.
-    static let fallSpinTurns: Double = 2.2
 
-    /// How far into the arrival the new plane's sky is parted, as a fraction.
-    ///
-    /// Not at the swap: the board is still off screen then, so the wake ran out
-    /// before there was anything to see it against.
-    static let planeArrivalWakeShare: Double = 0.45
 
-    /// How much of a fall's turn happens before the planes swap.
-    ///
-    /// A third. The rest carries through the arrival, because a falling thing
-    /// turns for as long as it is falling — stopping it at the swap made the
-    /// piece cross the gap already settled and land like a placed object.
-    static let fallSpinDepartShare: Double = 0.35
 
-    /// How far the world travels on a plane change, in screen squares.
-    ///
-    /// Two rather than one. At a single square the departing plane has only
-    /// just cleared the frame when the arriving one is already in it, so what
-    /// the player sees is a swap with a wipe over it. Twice the distance puts
-    /// real sky between them, which is the thing the slide is for: the planes
-    /// are somewhere apart, not two images of one place.
-    static let planeSlideDistance: CGFloat = 2
 
     /// How far a falling piece is driven down before the plane changes, in art
     /// pixels.

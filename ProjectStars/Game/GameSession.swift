@@ -216,20 +216,6 @@ final class GameSession {
     /// Whiteout at the moment the planes swap, `0`…`1`.
     private(set) var ascentFlash: Double = 0
 
-    /// How far the world is slid out of frame, as a fraction of the square.
-    ///
-    /// Negative is up. The two planes are stacked in the fiction — Astra above,
-    /// Terra below — and a white flash was hiding the one moment that could say
-    /// so. Sliding the square out the way you are *leaving* and the new one in
-    /// from the way you are *arriving* puts the relationship on screen: rise and
-    /// the world drops away beneath you, fall and it rushes up past you.
-    ///
-    /// One board rather than two stacked for real. `BoardView` reads the
-    /// visible plane in a dozen places, so drawing both at once is a rewrite —
-    /// and the swap only has to survive the instant it is off-screen, which
-    /// motion hides as well as a curtain does and says something while doing it.
-    private(set) var planeSlide: CGFloat = 0
-
     /// When the island began leaving a plane on its own, or `nil`.
     private(set) var nexysDepartStartedAt: Date?
 
@@ -2181,46 +2167,27 @@ final class GameSession {
         onArrival: @escaping () -> Void
     ) async {
         ascentRiseStartedAt = .now
-
-        // Out the bottom: climbing means the world you were on drops away.
         withAnimation(.easeIn(duration: GameRules.ascentRiseDuration)) {
             ascentFlash = GameRules.ascentFlashOpacity
-            planeSlide = 1
         }
         await sleep(GameRules.ascentRiseDuration)
 
         guard !Task.isCancelled else {
             ascentRiseStartedAt = nil
             ascentFlash = 0
-            planeSlide = 0
             return
         }
 
         engine.apply(event)
         ascentRiseStartedAt = nil
-
-        // And the new plane is already overhead, coming down into frame. Set
-        // without animation so it starts from up there rather than sweeping
-        // across from where the last one left.
-        planeSlide = -1
+        onArrival()
 
         ascentGrowStartedAt = .now
         fallArrivalStartedAt = .now
         withAnimation(.easeOut(duration: arrivalDuration)) {
             ascentFlash = 0
-            planeSlide = 0
         }
-
-        // The sky parts once the board is actually in frame.
-        //
-        // Fired at the swap, it happened while the new plane was still off
-        // screen — so by the time the clouds were visible the wake had already
-        // run. What is being drawn is the island coming *through* them, and
-        // that cannot be shown before either is on screen.
-        await sleep(arrivalDuration * GameRules.planeArrivalWakeShare)
-        guard !Task.isCancelled else { return }
-        onArrival()
-        await sleep(arrivalDuration * (1 - GameRules.planeArrivalWakeShare))
+        await sleep(arrivalDuration)
 
         ascentGrowStartedAt = nil
         fallArrivalStartedAt = nil
@@ -2325,22 +2292,7 @@ final class GameSession {
                 to: to, context: engine.passiveSnapshot
             )
         }()
-        // Split unevenly, and most of it lands on the **arrival**.
-        //
-        // Half and half stopped the turn at the moment the planes swapped, so
-        // the piece crossed the gap between them already settled and dropped in
-        // like a placed object. A falling thing turns for as long as it is
-        // falling and only stops when the ground takes it, so the larger share
-        // belongs to the half where the ground is coming up.
-        // **Whole turns.** The angle is never reset — each fall adds to a
-        // running total — so a spin that is not a multiple of 360 leaves the
-        // piece standing at whatever angle it happened to stop at, and the next
-        // fall starts from there. That is why it was landing crooked.
-        let turns = (GameRules.fallSpinDegrees * GameRules.fallSpinTurns / 360)
-            .rounded()
-        let spin = controlled ? 0 : turns * 360 * tumbleDirection
-        let tumble = spin * GameRules.fallSpinDepartShare
-        let landingTumble = spin * (1 - GameRules.fallSpinDepartShare)
+        let tumble = controlled ? 0 : GameRules.fallSpinDegrees / 2 * tumbleDirection
 
         // Going down through the sky pushes it aside. Only leaving Astra: a fall
         // out of Terra is a fall out of the world and there is no cloud there to
@@ -2354,31 +2306,21 @@ final class GameSession {
         withAnimation(.easeIn(duration: departure)) {
             isFalling = true
             fallSpin += tumble
-            // Out the top, because you are going down past it.
-            planeSlide = -1
         }
         await sleep(departure)
 
         guard !Task.isCancelled else {
             isFalling = false
-            planeSlide = 0
             return
         }
         engine.apply(event)
-
-        // The plane below is waiting under the frame, and comes up to meet you.
-        planeSlide = 1
 
         // Arrival. The piece is whole again the instant it re-enters — it is
         // falling in, not fading in — so the flag is cleared without animation.
         isFalling = false
         fallArrivalStartedAt = .now
-        // Eased out, so it slows into the landing instead of stopping dead on
-        // it — which is the difference between coming to rest and being
-        // switched off.
-        withAnimation(.easeOut(duration: GameRules.fallArrivalDuration)) {
-            fallSpin += landingTumble
-            planeSlide = 0
+        withAnimation(.linear(duration: GameRules.fallArrivalDuration)) {
+            fallSpin += tumble
         }
         await sleep(GameRules.fallArrivalDuration)
 
@@ -2587,17 +2529,6 @@ final class GameSession {
         defer { nexysCarryingPiece = false }
 
         nexysDepartStartedAt = .now
-
-        // Carrying the player, this **is** a plane change, so the world slides
-        // exactly as it does for any other. Without it the ride sat still for
-        // half a second and then the island animated by itself, which read as a
-        // lag followed by the island sliding across the board it was leaving.
-        if nexysCarryingPiece {
-            withAnimation(.easeIn(duration: GameRules.ascentRiseDuration)) {
-                planeSlide = goingUp ? 1 : -1
-            }
-        }
-
         // Climbing away takes as long as carrying the player would; shrinking
         // out on Astra is quicker, because there is less to watch.
         await sleep(goingUp ? GameRules.ascentRiseDuration : GameRules.nexysTravelDepartDuration)
@@ -2609,14 +2540,6 @@ final class GameSession {
 
         engine.apply(event)
         nexysDepartStartedAt = nil
-
-        // The far side is already waiting off the other edge, and comes in.
-        if nexysCarryingPiece {
-            planeSlide = goingUp ? -1 : 1
-            withAnimation(.easeOut(duration: GameRules.ascentGrowDuration)) {
-                planeSlide = 0
-            }
-        }
 
         if goingUp { disturbClouds(at: GameRules.nexysPoint) }
 
