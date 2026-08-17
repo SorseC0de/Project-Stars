@@ -25,6 +25,21 @@ enum MovementStyle: String, CaseIterable, Codable {
     /// The default. Most signs slide.
     case slide
 
+    /// The piece is **carried** rather than moving under its own power.
+    ///
+    /// Aquarius in his storm. Visually a slide — it stays on the ground and it
+    /// does not arc — and mechanically nothing: the wind is doing the work, so
+    /// it neither presses the squares it crosses nor charges the one it leaves.
+    ///
+    /// Its own case rather than `slide`, for a reason that is not cosmetic. One
+    /// square of travel is coerced to `.hop` when a move has no middle, because
+    /// most patterns declare `.slide` as a harmless default and a one-square
+    /// "slide" would charge its exit tile. Aquarius moves exactly one square, so
+    /// that coercion overwrote his style on *every* move and he hopped at every
+    /// phase. A style that is deliberately about being carried has to survive
+    /// the rule meant for styles that were never deliberate.
+    case blown
+
     /// The piece leaves the ground and lands, wearing **only the destination**.
     /// Whatever it passes over is untouched, including holes.
     ///
@@ -71,6 +86,7 @@ enum MovementStyle: String, CaseIterable, Codable {
     var displayName: String {
         switch self {
         case .slide: "Slide"
+        case .blown: "Blown"
         case .hop: "Hop"
         case .leap: "Leap"
         case .charge: "Charge"
@@ -91,7 +107,10 @@ enum MovementStyle: String, CaseIterable, Codable {
     ///
     /// False for a warp, which is the distinction the retinue, the wake and the
     /// cursor were each making for themselves.
-    var travelsTheGround: Bool { self == .slide || self == .charge }
+    /// `.blown` counts: it is on the ground the whole way, which is what makes
+    /// it read as being carried rather than as a short hop. What it does *to*
+    /// the ground is a separate question, answered by `wear`.
+    var travelsTheGround: Bool { self == .slide || self == .charge || self == .blown }
 
     // MARK: - What a style already implies
     //
@@ -109,6 +128,10 @@ enum MovementStyle: String, CaseIterable, Codable {
     var wear: MovementWear {
         switch self {
         case .slide: .ends
+        // Nothing. The wind is carrying him, so no square pays — not the one he
+        // leaves, not the ones he crosses. Quirky Caper says the same thing in
+        // its own terms; this is the movement agreeing with it.
+        case .blown: .destination
         case .charge: .everySquare
         case .hop, .leap: .destination
         case .warp: .destination
@@ -137,7 +160,7 @@ enum MovementStyle: String, CaseIterable, Codable {
     /// a run. Both were literals at their call sites before.
     var paceMultiplier: Double {
         switch self {
-        case .slide: GameRules.slideStepPace
+        case .slide, .blown: GameRules.slideStepPace
         case .charge: GameRules.chargeStepPace
         case .hop: 1
         case .leap: GameRules.leapPace

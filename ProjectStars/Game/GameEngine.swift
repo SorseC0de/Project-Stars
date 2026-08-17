@@ -2283,7 +2283,10 @@ struct GameEngine {
         // that is true of a move with no middle. Left alone, every ordinary step
         // in the game charged its exit tile, pressed the ground, and swept
         // coins over the piece's head.
-        let effective: MovementStyle = path.count > 1 ? style : .hop
+        // `.blown` is exempt: it is the one style that *means* something at one
+        // square, because it is a statement about who is doing the moving. See
+        // `MovementStyle.blown`.
+        let effective: MovementStyle = (path.count > 1 || style == .blown) ? style : .hop
 
         switch effective {
         case .charge:
@@ -2346,6 +2349,26 @@ struct GameEngine {
             result.events.append(jump)
             result.covered.append(destination)
             apply(jump)
+            result.absorb(settle(arrivedByFalling: false))
+
+        case .blown:
+            // Carried. One square, on the ground, and the ground pays nothing —
+            // the wind is doing the moving. It goes out as an ordinary step so
+            // everything downstream treats it as one; the style rides along and
+            // decides how it is drawn and what it costs.
+            guard let destination = path.last else { return result }
+
+            let carried = GameEvent.pieceStepped(
+                from: piece.point,
+                to: destination,
+                plane: piece.plane,
+                style: .blown
+            )
+            result.events.append(carried)
+            result.covered.append(destination)
+            apply(carried)
+
+            result.events += openCarriedPickups()
             result.absorb(settle(arrivedByFalling: false))
 
         case .slide:

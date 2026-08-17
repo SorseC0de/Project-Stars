@@ -105,7 +105,7 @@ extension MovementPattern {
             name: name,
             options: options.map {
                 var blown = $0
-                blown.style = .slide
+                blown.style = .blown
                 return blown
             }
         )
