@@ -3510,9 +3510,15 @@ struct GameEngine {
 
         // The star charges for nothing but moving, whoever is carrying it.
         let starCharge = signState.isStarred ? GameRules.starChargePerMove : 0
+
+        // And the Essences, which are the same idea at a smaller size: one pip
+        // a step, in whichever direction. Summed here with everything else so a
+        // step that earns nothing can still *cost* — the clamp below is what
+        // stops a drain going past empty.
         let gain = piece.zodiac.zodiaction.meterGain(from: move, context: passiveContext)
             + activePassives.meterBonus(from: move, context: passiveContext)
             + starCharge
+            + signState.essenceCharge
         guard gain != 0 else { return [] }
 
         let capped = min(max(zodiactionMeter + gain, 0), zodiactionMeterMax)

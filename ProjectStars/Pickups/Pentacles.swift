@@ -79,6 +79,12 @@ enum PickupID: String, CaseIterable, Codable, Identifiable, Hashable {
     /// Lets you choose a new sign — including the one you already have.
     case alignment
 
+    /// A mist that drains a pip a step. Scorpio drinks it the other way up.
+    case umbralEssence
+
+    /// The same thing, right way up, and Astra's alone.
+    case astralEssence
+
     /// A small earthquake. Terra only — there is no ground to crack above.
     case trivialTremor
 
@@ -499,6 +505,84 @@ struct AstralBreezeEffect: PickupEffect {
                 style: .blown
             )
         ]
+    }
+}
+
+/// A murky mist that costs a pip of charge on every step for three moves.
+///
+/// Foreshadowing, and named for what it will become: the coin that Umbra's
+/// Pentacles are made of. Meeting it up here as a small unpleasant thing is
+/// what makes finding a plane full of them mean something later.
+///
+/// **Scorpio is the exception, and gains instead.** He is the sign the
+/// underworld is being built around — his Zodiaction is the way in — so the
+/// substance the place is made of reading as *familiar* rather than as poison
+/// is the whole characterisation. It costs nothing to state now and pays off
+/// when Umbra lands.
+struct UmbralEssenceEffect: PickupEffect {
+
+    let id: PickupID = .umbralEssence
+    let rarity: PickupRarity = .uncommon
+
+    /// On the uncommon-rare cusp: the weight sits at the bottom of its tier.
+    let weight = 2
+    let displayName = "Umbral Essence"
+
+    var summary: String {
+        "A mysterious, murky mist surrounds, sapping ZC for the next "
+            + "\(GameRules.essenceMoves) turns."
+    }
+
+    let glyph = "◍"
+    let icon: String? = "essence"
+
+    func plan(
+        context: PickupContext,
+        choice: PickupChoiceResult?,
+        generator: inout SeededRandom
+    ) -> [GameEvent] {
+        var state = context.signState
+        if context.zodiac == .scorpio {
+            state.astralEssenceMoves = GameRules.essenceMoves
+        } else {
+            state.umbralEssenceMoves = GameRules.essenceMoves
+        }
+        return [.signStateChanged(state)]
+    }
+}
+
+/// The same mist, right way up: a pip of charge on every step for three moves.
+///
+/// Astra's alone. Down below the air is thin and what you find in it is the
+/// murk; the bright version is a property of being up among the stars, which is
+/// also why it is the more common of the two.
+struct AstralEssenceEffect: PickupEffect {
+
+    let id: PickupID = .astralEssence
+    let rarity: PickupRarity = .common
+
+    /// A little more likely than Z-Charge, whose weight is 1.
+    let weight = 2
+    let displayName = "Astral Essence"
+
+    var summary: String {
+        "The power of the stars energizes your next \(GameRules.essenceMoves) steps."
+    }
+
+    let glyph = "◎"
+    let icon: String? = "soul"
+
+    /// Astra only.
+    let spawnPlane: Plane? = .astra
+
+    func plan(
+        context: PickupContext,
+        choice: PickupChoiceResult?,
+        generator: inout SeededRandom
+    ) -> [GameEvent] {
+        var state = context.signState
+        state.astralEssenceMoves = GameRules.essenceMoves
+        return [.signStateChanged(state)]
     }
 }
 
@@ -1246,6 +1330,8 @@ enum PickupCatalog {
 
         .forcedFate: ForcedFateEffect(),
         .alignment: AlignmentEffect(),
+        .umbralEssence: UmbralEssenceEffect(),
+        .astralEssence: AstralEssenceEffect(),
         .trivialTremor: TrivialTremorEffect(),
         .seismicShakedown: SeismicShakedownEffect(),
 

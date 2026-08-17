@@ -2479,6 +2479,13 @@ enum GameRules {
     //
     // The pillar of light at each end of a teleport.
 
+    /// Committed moves the two Essences run for.
+    ///
+    /// Three, and the same number for both, because they are one effect with a
+    /// sign in front of it — a drain that outlasted its mirror would make the
+    /// pair read as two unrelated coins that happen to share a word.
+    static let essenceMoves = 3
+
     /// Seconds the Breeze takes to carry the piece across.
     ///
     /// Longer than a step and shorter than a fall: the distance is the point, so

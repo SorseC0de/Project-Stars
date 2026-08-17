@@ -183,6 +183,24 @@ struct SignState: Equatable {
     /// True while the Astral Bolt's charge is running.
     var isStarred: Bool { starMoves > 0 }
 
+    /// Committed moves left on the two Essences.
+    ///
+    /// Named fields rather than `buffs` entries, by the rule the star follows:
+    /// a buff belongs to whichever Zodea is carrying it and is cleared when that
+    /// changes, and an essence you have absorbed is not undone by the stars
+    /// swapping your statue.
+    ///
+    /// Two counters rather than one signed one, so both can run at once and
+    /// cancel for as long as they overlap — which is the honest outcome of
+    /// drinking both, and free.
+    var astralEssenceMoves = 0
+    var umbralEssenceMoves = 0
+
+    /// Charge per step from the Essences, `+1`, `-1`, or `0` for none.
+    var essenceCharge: Int {
+        (astralEssenceMoves > 0 ? 1 : 0) - (umbralEssenceMoves > 0 ? 1 : 0)
+    }
+
     /// Committed moves left of Aquarius' Gone With the Gale. `0` when it is not
     /// running.
     var galeMoves = 0
@@ -467,6 +485,8 @@ struct SignState: Equatable {
 
         starMoves = max(starMoves - 1, 0)
         galeMoves = max(galeMoves - 1, 0)
+        astralEssenceMoves = max(astralEssenceMoves - 1, 0)
+        umbralEssenceMoves = max(umbralEssenceMoves - 1, 0)
 
         if var planted = arrow {
             planted.movesRemaining -= 1
@@ -552,6 +572,8 @@ struct SignState: Equatable {
         copy.riftsLinger = riftsLinger
         copy.terraRifts = terraRifts
         copy.starMoves = starMoves
+        copy.astralEssenceMoves = astralEssenceMoves
+        copy.umbralEssenceMoves = umbralEssenceMoves
         copy.galeMoves = galeMoves
         copy.arrow = arrow
         copy.shedSkin = shedSkin
