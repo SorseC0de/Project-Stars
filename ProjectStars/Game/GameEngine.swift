@@ -1813,15 +1813,7 @@ struct GameEngine {
     /// previews a direction and then submits what it previewed would otherwise
     /// reverse it on the way in and again on the way out, arriving back where
     /// it started.
-    func resolvedMove(for asked: SwipeDirection, reach: Int = 0) -> ResolvedMove? {
-        let direction = controlsAreReversed ? asked.opposite : asked
-        return resolvedMoveIgnoringReversal(for: direction, reach: reach)
-    }
-
-    private func resolvedMoveIgnoringReversal(
-        for direction: SwipeDirection,
-        reach: Int = 0
-    ) -> ResolvedMove? {
+    func resolvedMove(for direction: SwipeDirection, reach: Int = 0) -> ResolvedMove? {
         let movement = activePassives.adjustedMovement(
             base: activeMovement,
             context: passiveContext
@@ -2163,8 +2155,7 @@ struct GameEngine {
         // The projection below survives for the one case a resolved move cannot
         // describe: there is no legal move that way, and the cursor still has to
         // sit somewhere so the player can see *why*.
-        let travel = direction.map { controlsAreReversed ? $0.opposite : $0 }
-            ?? piece.facing
+        let travel = direction ?? piece.facing
 
         let movement = activePassives.adjustedMovement(
             base: activeMovement,
@@ -2174,8 +2165,7 @@ struct GameEngine {
         let option = movement.option(for: travel, facing: piece.facing, reach: reach)
 
         let point: GridPoint = {
-            if let landing = resolvedMoveIgnoringReversal(for: travel, reach: reach)?
-                .destination {
+            if let landing = resolvedMove(for: travel, reach: reach)?.destination {
                 return landing
             }
             let distance = option?.distance ?? 1

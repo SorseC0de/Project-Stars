@@ -912,9 +912,18 @@ final class GameSession {
         //
         // The board is not reversed, only the *instruction*. Aiming at a square
         // still means that square; asking to go north is what means south.
-        // Not turned around here. The engine does it, once, where a direction
-        // becomes a move — see `GameEngine.resolvedMove(for:reach:)`.
-        let direction = rawDirection
+        // **Turned around here and nowhere else.**
+        //
+        // This is the outermost point a player's instruction reaches, and past
+        // it everything — the cursor, the reach selector, the engine — is
+        // already dealing in where the piece is going rather than what was
+        // asked for.
+        //
+        // Moving it deeper was an attempt to catch the paths that skip
+        // `submit`, and it cost more than it fixed: the engine reverses on
+        // behalf of callers that had already reversed, and the cursor ends up
+        // dragged along behind the piece instead of sitting on its target.
+        let direction = engine.controlsAreReversed ? rawDirection.opposite : rawDirection
 
         // Reaching for the controls is how the splash is put away, and that
         // input is spent doing it.
@@ -943,7 +952,15 @@ final class GameSession {
         // an input about a board that no longer exists, and playing it when the
         // dust settles would be a lurch nobody asked for.
         if phase == .resolvingMove, pentacleIntro == nil, pendingPickupChoice == nil, !isPaused {
-            bufferedMove = (direction, reach, Date.now)
+            // **The direction as asked, not as turned around.**
+            //
+            // This goes back through `submit`, which reverses — so storing the
+            // reversed one had it flipped twice and the piece stepped back the
+            // way it came. Only reachable by inputting faster than a turn
+            // plays, which is why it looked like a phase-zero bug: above zero
+            // she slides, and a slide is long enough that the second input
+            // lands after the first has finished rather than during it.
+            bufferedMove = (rawDirection, reach, Date.now)
             return
         }
 
@@ -1409,6 +1426,9 @@ final class GameSession {
     }
 
     /// Answers the input that arrived mid-turn, if it is still worth answering.
+    /// - Note: `waiting.direction` is what the player asked for, untouched, so
+    ///   handing it back to `submit` turns it around exactly once. See where it
+    ///   is stored.
     private func playBufferedMove() {
         guard let waiting = bufferedMove else { return }
         bufferedMove = nil
