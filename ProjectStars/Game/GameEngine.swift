@@ -2113,7 +2113,13 @@ struct GameEngine {
         }()
 
         guard currentBoard.contains(point) else {
-            return Cursor(point: point, status: .impossible)
+            // **Off the board is a real square for whoever may leave it** — and
+            // a lethal one, so it reads as open ground rather than as a refused
+            // move. `impossible` says "this will not happen"; here it will, and
+            // it is the last thing that does.
+            let lethal = activePassives.mayLeaveTheBoard(context: passiveContext)
+                && currentBoard.isJustOutside(point)
+            return Cursor(point: point, status: lethal ? .open : .impossible)
         }
 
         let tile = currentBoard[point]
@@ -2144,6 +2150,11 @@ struct GameEngine {
     /// Whether the piece could stand on this square despite it being open.
     private func wouldSurvive(_ point: GridPoint) -> Bool {
         if signState.walksOnAir { return true }
+        // A hole is ground for anything that floats over it — which is what
+        // keeps the cursor white inside the board while the ring outside it
+        // stays red. Those are the two things the cursor has to tell apart for
+        // this sign, and they are the same colour without this.
+        if activePassives.walksOnHoles(context: passiveContext) { return true }
         return activePassives.preventsFall(
             from: piece.plane,
             at: point,
@@ -2352,6 +2363,14 @@ struct GameEngine {
     }
 
     private mutating func travel(_ path: [GridPoint], style: MovementStyle) -> LandingResult {
+        // Worked out **before** the piece moves.
+        //
+        // `heading(of:from:)` measures the last step against where the piece is
+        // standing, so asking after travel has run compares the destination with
+        // itself and yields nothing. That is why the current never started: the
+        // hole had no direction to carry the piece in.
+        let travelled = heading(of: path, from: piece.point)
+
         var result = LandingResult()
         guard !isGameOver else { return result }
 
@@ -2401,7 +2420,7 @@ struct GameEngine {
             // same call in the slide.
             result.events += openCarriedPickups()
 
-            result.absorb(settle(arrivedByFalling: false, heading: heading(of: path, from: piece.point)))
+            result.absorb(settle(arrivedByFalling: false, heading: travelled))
 
         case .hop, .leap:
             // Airborne: touches only where it lands.
@@ -2417,7 +2436,7 @@ struct GameEngine {
             result.covered.append(destination)
             apply(hop)
 
-            result.absorb(settle(arrivedByFalling: false, heading: heading(of: path, from: piece.point)))
+            result.absorb(settle(arrivedByFalling: false, heading: travelled))
 
         case .warp:
             // Arrives, and that is all. No push-off, nothing crossed.
@@ -2430,7 +2449,7 @@ struct GameEngine {
             result.events.append(jump)
             result.covered.append(destination)
             apply(jump)
-            result.absorb(settle(arrivedByFalling: false, heading: heading(of: path, from: piece.point)))
+            result.absorb(settle(arrivedByFalling: false, heading: travelled))
 
         case .blown:
             // Carried. One square, on the ground, and the ground pays nothing —
@@ -2450,7 +2469,7 @@ struct GameEngine {
             apply(carried)
 
             result.events += openCarriedPickups()
-            result.absorb(settle(arrivedByFalling: false, heading: heading(of: path, from: piece.point)))
+            result.absorb(settle(arrivedByFalling: false, heading: travelled))
 
         case .slide:
             // One turn, however far it goes.
@@ -2492,7 +2511,7 @@ struct GameEngine {
             // the fall meant it never got the chance.
             result.events += openCarriedPickups()
 
-            result.absorb(settle(arrivedByFalling: false, heading: heading(of: path, from: piece.point)))
+            result.absorb(settle(arrivedByFalling: false, heading: travelled))
         }
 
         return result
@@ -2526,6 +2545,17 @@ struct GameEngine {
         while !isGameOver {
             let plane = piece.plane
             let point = piece.point
+
+            // 0. **Is there even a square here?**
+            //
+            // First, before anything reads a tile. The ring outside the board
+            // has no tile at all, so every line below this one traps on it —
+            // which is what crashed rather than ended the run. Only a sign that
+            // may leave can be standing here; reaching it means the run is over.
+            if !self[plane].contains(point) {
+                result.events += blowAway(at: point, on: plane)
+                return result
+            }
 
             // 1. Wear the tile the piece is on. Skipped for tiles that are
             //    already open, for the Nexys, and when a passive or the
@@ -2664,17 +2694,6 @@ struct GameEngine {
                 ) {
                     commit(event)
                 }
-            }
-
-            // **Off the board is the end.**
-            //
-            // Checked before anything else about the square, because there is no
-            // square: the ring outside the board has no tile to be solid or
-            // otherwise. Only a sign that may leave can be standing here at all
-            // — see `resolvedMove` — so reaching this means the run is over.
-            if !self[plane].contains(point) {
-                result.events += blowAway(at: point, on: plane)
-                return result
             }
 
             // Walking on air: holes hold the piece up, and so does the chasm.
