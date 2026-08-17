@@ -2517,6 +2517,14 @@ enum GameRules {
     /// smudge on the other.
     static let maneGlowIntensity: Double = 1.6
 
+    /// The lion's embers: how thickly they land, and the seed they land by.
+    ///
+    /// Sparse. They are meant to read as heat moving through the mane, and at
+    /// any real density they stop being sparks and become a second colour of
+    /// hair.
+    static let maneEmberCoverage: Float = 0.28
+    static let maneEmberSeed: Float = 91
+
     /// How far a droplet's point is pulled above its ball, as a fraction of the
     /// ball's own height.
     ///

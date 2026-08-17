@@ -190,6 +190,34 @@ struct PieceView: View {
         }
     }
 
+    /// Sparks through the lion's lit mane.
+    ///
+    /// A second pass over the same pixels, turning a scattering of the gem's
+    /// entry to yellow — the same deterministic art-pixel scatter the moss uses,
+    /// which is why it lands on whole pixels and looks drawn rather than
+    /// filtered.
+    ///
+    /// Only Leo, and only lit. Everyone else's gem is two pixels, where a
+    /// scatter would either miss them entirely or replace them.
+    @ViewBuilder
+    private func maneEmbers(_ art: some View) -> some View {
+        if zodiac == .leo {
+            art.paletteMoss(
+                colors: [Palette.yellow, Palette.orange],
+                keeping: [Palette.white, Palette.cream],
+                viewSize: CGSize(width: tileSize, height: tileSize * 2),
+                artSize: CGSize(
+                    width: CGFloat(GameRules.tilePixelSize),
+                    height: CGFloat(GameRules.tilePixelSize) * 2
+                ),
+                seed: GameRules.maneEmberSeed,
+                coverage: GameRules.maneEmberCoverage
+            )
+        } else {
+            art
+        }
+    }
+
     /// The sprite with its gem lit, before any flash is laid over it.
     @ViewBuilder
     private var lit: some View {
@@ -209,16 +237,13 @@ struct PieceView: View {
                 // The eyes keep the old rule — the sign's element, on both
                 // planes — while the body stays gold.
                 //
-                // Leo's mane is gemstone, so it lights through this same swap —
-                // and a mane the colour of a gem is a mane that glows rather
-                // than one that burns. Lit yellow instead, with the element's
-                // red left to the bloom around it: hot in the middle and
-                // cooling outward is what fire looks like, and it is the one
-                // sign whose lit entry is a whole head of hair rather than two
-                // bright pixels.
-                material.paletteSwap([
-                    PaletteSwap(gem.dim, zodiac == .leo ? Palette.yellow : gem.lit)
-                ])
+                // Lit red like every other fire sign. Leo's mane is gemstone,
+                // so the swap lights the whole head of hair — and a flat sheet
+                // of one colour is a glowing mane rather than a burning one.
+                // What makes it fire is `maneEmbers`: the red stays the body of
+                // it and the yellow arrives as sparks scattered through, which
+                // is where the heat is in a real flame.
+                maneEmbers(material.paletteSwap([PaletteSwap(gem.dim, gem.lit)]))
             }
         } else if let resting = gem.resting {
             // Shown as its resting colour, which is not the entry it is drawn

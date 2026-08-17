@@ -248,15 +248,14 @@ struct PentacleView: View {
             // behind it are all left alone — the stack is what makes the thing
             // read as water, and the shape is the one part of it that was
             // saying "ball" instead of "drop".
-            // White, and unlit.
+            // Unlit, but still water.
             //
-            // Arrived at by accident: one droplet always spawned without its
-            // tint or its bloom, and the plain version read better than the
-            // coloured one — a bead of pure energy against a board of gold
-            // coins and violet cloud says *this is not treasure* far more
-            // clearly than another blue thing does.
+            // The bloom is what was wrong, not the colour: an additive glow
+            // behind a small bead washed its own highlight out, so what was
+            // left read as a white blob rather than as something with a
+            // surface.
             Droplet()
-                .fill(appearance == .bubble ? Palette.white.opacity(0.9) : Palette.white)
+                .fill(appearance == .bubble ? Palette.sky.opacity(0.5) : Palette.blue)
                 .frame(
                     width: size * 0.44,
                     height: size * 0.44 * (1 + GameRules.dropletPull)
@@ -267,12 +266,12 @@ struct PentacleView: View {
                 .offset(y: -size * 0.44 * GameRules.dropletPull / 2)
 
             Circle()
-                .fill(Palette.ice)
+                .fill(Palette.sky)
                 .frame(width: size * 0.30, height: size * 0.30)
                 .offset(y: size * 0.02)
 
             Circle()
-                .fill(Palette.white)
+                .fill(Palette.ice)
                 .frame(width: size * 0.10, height: size * 0.10)
                 .offset(x: -size * 0.07, y: -size * 0.09)
         }
