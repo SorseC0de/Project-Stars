@@ -99,8 +99,13 @@ struct EffectSpriteView: View {
                     frame: frame
                 )
 
+                // Standing puts the frame's bottom edge where its centre would
+                // have been, which is half its own height — a number only the
+                // view knows, because it depends on how big the strip is being
+                // drawn. See `EffectAnchor`.
+                let stand = effect.anchor == .standing ? height / 2 : 0
                 let lift = -effect.groundLift
-                    * (tileSize / CGFloat(GameRules.tilePixelSize))
+                    * (tileSize / CGFloat(GameRules.tilePixelSize)) - stand
 
                 ZStack {
                     // The light it casts, under the art rather than over it, so

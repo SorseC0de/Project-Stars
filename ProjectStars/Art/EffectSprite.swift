@@ -295,6 +295,31 @@ enum EffectSprite: String, CaseIterable, Hashable {
         }
     }
 
+    /// Where the strip's own frame sits against the square it is played on.
+    ///
+    /// Every effect is one of two things, and the difference is not a nudge:
+    ///
+    /// - **Centred** on the square. Something happening *at* a place — a burst,
+    ///   a splash, a glow phase lighting a tile.
+    /// - **Standing** on it, with the frame's bottom edge on the square and the
+    ///   art rising from there. Something that belongs *over* a place — the
+    ///   snipe banner overhead, and anything else drawn to be read above the
+    ///   piece rather than around it.
+    ///
+    /// Stated rather than dialled, because "come up by half of however tall you
+    /// happen to be" is not something a call site can know and is exactly what
+    /// `groundLift` was being asked to approximate one effect at a time.
+    ///
+    /// The default is centred — what every strip did before this existed — so
+    /// moving one over is a deliberate line here rather than a silent shift of
+    /// everything at once.
+    var anchor: EffectAnchor {
+        switch self {
+        case .bonus: .standing
+        default: .centred
+        }
+    }
+
     /// The frame size this strip's **bloom** was tuned against.
     ///
     /// `EffectSpriteView` measures its glow in the art's own pixels — radius
@@ -368,10 +393,10 @@ enum EffectSprite: String, CaseIterable, Hashable {
         // The Essence plumes are the whole story of what a coin just did to the
         // board, and at 15fps they were over before the eye found them.
         case .astralBlaze, .astralBloom: .fps12
-        // Forty-four frames. At the house rate the whole flourish was over in
-        // well under two seconds, which for the reward that says *you did the
-        // hard thing* is not long enough to notice having happened.
-        case .bonus: .fps12
+        // Forty-four frames. At twelve it lasts nearly four seconds, which is
+        // longer than the move that earned it and reads as the game stopping to
+        // congratulate you; at twenty it is over in two.
+        case .bonus: .fps20
         // Prideful Plant, one stage down. Eleven frames of fire went past too
         // quickly to read as a landing.
         case .leoPridefulLanding: .fps10
@@ -463,8 +488,10 @@ enum EffectSprite: String, CaseIterable, Hashable {
         // The storm wakes around him, not under him. At the art's own height it
         // burst at the statue's feet, which is where the funnel *ends*.
         case .aquariusZodiaction: CGFloat(GameRules.tilePixelSize)
-        // The flourish hangs overhead, clear of the coin that earned it.
-        case .bonus: 20
+        // Clear of the head, on top of standing on the square — see `anchor`.
+        // A piece is two tiles tall, so the banner starts a tile above the one
+        // it is standing on.
+        case .bonus: CGFloat(GameRules.tilePixelSize)
         // Ground-level: wind blows across a square, the glow phase is the
         // square lighting up, and the scuttle's bubbles come off the floor.
         case .windMisc, .glowPhase, .sparkles: 0
@@ -621,9 +648,10 @@ enum EffectSprite: String, CaseIterable, Hashable {
         // The storm's own art, at the size the storm is.
         case .aquariusZodiaction: 4
 
-        // Drawn 256 across against 96 tall — see `spanScaleY`. Wide, because
-        // it is a banner over the board rather than a mark on a square.
-        case .bonus: 11
+        // A banner over the board rather than a mark on a square — but eleven
+        // tiles is wider than the board itself, which read as a title card
+        // rather than as something that happened on a square.
+        case .bonus: 6
 
         // A tear in the board is bigger than the square it opens on, but it is
         // still a *place* — at four it stopped being somewhere you could stand
@@ -644,9 +672,10 @@ enum EffectSprite: String, CaseIterable, Hashable {
     var spanScaleY: CGFloat {
         switch self {
         case .sagittariusTeleTile: 1.25
-        // Authored 256 wide by 96 tall. Squaring it up would stretch a banner
-        // into a blob.
-        case .bonus: 96.0 / 256.0
+        // **Nothing.** `height` already takes the frame's own proportions, so
+        // stating them again here squashed the banner to a third of its drawn
+        // shape — the aspect was applied twice and the word came out flattened.
+        case .bonus: 1
         default: 1
         }
     }
