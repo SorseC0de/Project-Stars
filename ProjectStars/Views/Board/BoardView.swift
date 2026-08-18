@@ -1667,6 +1667,7 @@ struct BoardView: View {
 
         return ZStack {
             afterimages(metrics: metrics, starring: starElement, at: Date())
+            piscesTrail(metrics: metrics)
             gemTrail(metrics: metrics)
 
             // Split, the active half is drawn cropped and its twin is drawn
@@ -2063,6 +2064,51 @@ struct BoardView: View {
             // animate a ghost from wherever the last one was, which is exactly
             // the sliding this replaced.
             .transaction { $0.animation = nil }
+        }
+    }
+
+    /// The ghosts behind Pisces' energy fish.
+    ///
+    /// **Drawn here, with every other afterimage, rather than inside the piece.**
+    ///
+    /// Four attempts put it in `PieceView`, and each one came back as a column
+    /// of light: anything drawn there is content for the charged bloom, whose
+    /// mask rasterises into the piece's layout bounds — one tile wide — so a
+    /// trail reaching past them is blurred outward and upward instead of
+    /// sideways. The board's own afterimages never had that problem because
+    /// they were never inside the piece to begin with.
+    ///
+    /// The fish never leaves its square, so `session.afterimages` cannot see it
+    /// — it is motion in place. Each ghost is instead the same sprite wound back
+    /// along its own two clocks, which is where it genuinely was.
+    @ViewBuilder
+    private func piscesTrail(metrics: PixelArtMetrics) -> some View {
+        if session.zodiac == .pisces, session.isZodiactionCharged {
+            TimelineView(.animation) { timeline in
+                let now = session.ambientClock(at: timeline.date.timeIntervalSinceReferenceDate)
+
+                ForEach(1...GameRules.piscesFishTrail, id: \.self) { step in
+                    let past = now - Double(step) * GameRules.piscesFishTrailGap
+                    let orbit = past / GameRules.piscesFishOrbitPeriod * 2 * .pi
+                    let spin = past / GameRules.piscesFishSpinPeriod * 360
+
+                    PixelSprite(id: .piscesFishCharged) { Color.clear }
+                        .frame(width: metrics.tileSize, height: metrics.tileSize)
+                        .colorEffect(ShaderLibrary.flatSilhouette(.color(Palette.sky)))
+                        .opacity(GameRules.piscesFishTrailFade / Double(step))
+                        .rotationEffect(.degrees(-spin))
+                        .offset(
+                            x: sin(orbit) * GameRules.piscesFishOrbit * metrics.scale,
+                            y: (cos(orbit) - 1) / 2 * GameRules.piscesFishOrbit * metrics.scale
+                                + GameRules.piscesFishDrop * metrics.scale
+                                // The fish rides the upper of the piece's two
+                                // cells; the piece is placed by its middle.
+                                - metrics.tileSize / 2
+                        )
+                }
+                .modifier(placedOnPlaneModifier(session.engine.piece.point, metrics: metrics))
+            }
+            .allowsHitTesting(false)
         }
     }
 

@@ -465,6 +465,7 @@ struct PieceView: View {
             .scaleEffect(x: isMirrored ? -1 : 1, y: 1)
             .overlay(alignment: .top) { virgoGems }
             .overlay(alignment: .top) { sagittariusArrow }
+            .overlay(alignment: .top) { leoEmbers }
             .overlay(alignment: .top) { piscesFish }
         }
     }
@@ -511,7 +512,6 @@ struct PieceView: View {
                     // few moments along its own two clocks: not a copy placed
                     // behind it, but where it genuinely was.
                     fish(at: now, step: 0)
-                        .background { fishTrail(at: now) }
                 } else {
                     // Still, and stone. The fish is part of him until the meter
                     // fills; only then does it come loose.
@@ -555,55 +555,19 @@ struct PieceView: View {
                     // charge flash, and the bloom above all. A core added after
                     // the glow would sit on top of the light instead of being
                     // the thing casting it.
+                    // A smaller copy of itself, lit and flickering inside
+                    // the drawn shaft.
+                    //
+                    // Drawn **here** rather than over the finished piece, so it
+                    // sits under the gold swap, the charge flash and the bloom.
+                    // A core added after the glow would be on top of the light
+                    // rather than the thing casting it.
                     .overlay {
                         if isCharged {
-                            // Two clocks, neither a multiple of the other, so
-                            // the jitter and the pulse never fall into step and
-                            // the loop cannot be counted. A flame that repeats
-                            // on a beat stops reading as fire.
-                            // **Stepped, not swept.**
-                            //
-                            // A sine moves through every position between two
-                            // points, which is a drift however fast it runs.
-                            // Jitter is the absence of in-between: the time is
-                            // chopped into ticks and each one lands somewhere
-                            // unrelated to the last, which is what makes it read
-                            // as a flame rather than a float.
-                            let tick = (now / GameRules.sagittariusArrowCoreTick)
-                                .rounded(.down)
-                            let shake = GameRules.jitter(tick, salt: 1)
-                            let sway = GameRules.jitter(tick, salt: 2)
-                            let pulse = (sin(now / GameRules.sagittariusArrowCorePulse * 2 * .pi) + 1) / 2
-
                             PixelSprite(id: .sagittariusArrowRest) { Color.clear }
-                                .colorEffect(
-                                    ShaderLibrary.flatSilhouette(.color(Palette.yellow))
-                                )
                                 .scaleEffect(GameRules.sagittariusArrowCoreScale)
-                                // Softened, and only here — a hard-edged shape
-                                // inside a sprite reads as a second sprite,
-                                // where a blurred one reads as the shaft
-                                // glowing from within.
-                                .blur(radius: GameRules.sagittariusArrowCoreBlur * scale)
-                                // The tuned value is the **top** of the swing,
-                                // not the middle: it was settled by eye as the
-                                // brightest this should ever be, so pulsing
-                                // about it would spend half the loop brighter
-                                // than what was chosen.
-                                .opacity(
-                                    GameRules.sagittariusArrowCoreOpacity
-                                        * (1 - GameRules.sagittariusArrowCoreDip * pulse)
-                                )
-                                // Added rather than laid over, so it brightens
-                                // the shaft it sits in instead of hiding it —
-                                // the arrow's own colours stay readable through
-                                // the heat.
-                                .blendMode(.plusLighter)
-                                .offset(
-                                    x: shake * GameRules.sagittariusArrowCoreJitter * scale,
-                                    y: GameRules.sagittariusArrowCoreDrop * scale
-                                        + sway * GameRules.sagittariusArrowCoreJitter * scale
-                                )
+                                .modifier(Flickering(now: now, scale: scale))
+                                .offset(y: GameRules.sagittariusArrowCoreDrop * scale)
                         }
                     }
                     .offset(y: -rise * GameRules.sagittariusArrowFloat * scale)
@@ -613,22 +577,138 @@ struct PieceView: View {
         }
     }
 
-    /// The ghosts behind the energy fish.
+    /// The lion's mane, alight.
     ///
-    /// **Behind it, and outside the charged bloom.** Inside, they fed the
-    /// glow's own mask — and that mask is rasterised into the piece's layout
-    /// bounds, which are one tile wide, so a trail spilling past them came back
-    /// as a column of light. Behind the sprite there is nothing to clip and
-    /// nothing to inflate.
+    /// Only while charged, and only Leo. Same object as the archer's core —
+    /// see `Flickering` — which is what makes the two read as the same fire
+    /// rather than two effects that happen to be yellow.
+    @ViewBuilder
+    private var leoEmbers: some View {
+        if zodiac == .leo, isCharged {
+            TimelineView(.animation) { timeline in
+                maneEmbers(at: clock(timeline.date.timeIntervalSinceReferenceDate))
+            }
+            .frame(width: tileSize, height: tileSize * 2)
+            .allowsHitTesting(false)
+        }
+    }
+
+    /// The flicker itself, as a modifier.
     ///
-    /// Flattened to one blue rather than dimmed copies of the art: a ghost is
-    /// where the fish *was*, and detail in it competes with the fish that is
-    /// actually there.
-    private func fishTrail(at now: TimeInterval) -> some View {
-        ForEach(1...GameRules.piscesFishTrail, id: \.self) { step in
-            fish(at: now, step: step)
-                .colorEffect(ShaderLibrary.flatSilhouette(.color(Palette.sky)))
-                .opacity(GameRules.piscesFishTrailFade / Double(step))
+    /// Everything that makes the archer's core read as fire — the stepped
+    /// wander, the breath, the softening, the additive light — with nothing in
+    /// it about arrows. So the same object can be scattered through Leo's mane,
+    /// which is the other place in the game that wants heat inside a solid
+    /// shape rather than light around one.
+    ///
+    /// - Parameter seed: Which flame this is. Two embers on one seed move
+    ///   together and read as one thing in two places.
+    private struct Flickering: ViewModifier {
+
+        let now: TimeInterval
+        let scale: CGFloat
+        var seed: Int = 0
+
+        /// The brightest this flame ever gets.
+        ///
+        /// The archer has one core inside a dark shaft and can afford to be
+        /// subtle; the lion's are small and scattered over gold, where the same
+        /// value disappears into what is under them.
+        var ceiling: Double = GameRules.sagittariusArrowCoreOpacity
+
+        func body(content: Content) -> some View {
+            let tick = (now / GameRules.sagittariusArrowCoreTick).rounded(.down)
+            let shake = GameRules.jitter(tick, salt: seed * 3 + 1)
+            let sway = GameRules.jitter(tick, salt: seed * 3 + 2)
+            let pulse = (sin(
+                (now + Double(seed) * GameRules.emberStagger)
+                    / GameRules.sagittariusArrowCorePulse * 2 * .pi
+            ) + 1) / 2
+
+            return content
+                .colorEffect(ShaderLibrary.flatSilhouette(.color(Palette.yellow)))
+                .blur(radius: GameRules.sagittariusArrowCoreBlur * scale)
+                // The tuned opacity is the **top** of the swing rather than its
+                // middle: it was settled by eye as the brightest this should
+                // ever be, so pulsing about it would spend half the loop
+                // brighter than what was chosen.
+                .opacity(
+                    ceiling * (1 - GameRules.sagittariusArrowCoreDip * pulse)
+                )
+                .blendMode(.plusLighter)
+                .offset(
+                    x: shake * GameRules.sagittariusArrowCoreJitter * scale,
+                    y: sway * GameRules.sagittariusArrowCoreJitter * scale
+                )
+        }
+    }
+
+    /// Embers through the lion's mane.
+    ///
+    /// The archer's core, scattered — same flicker, smaller, and several of
+    /// them on their own seeds so they wander and breathe independently. Each
+    /// is a copy of his **own silhouette**, which is what keeps them inside the
+    /// figure: a circle would sit over the mane, and this is lit *by* it.
+    ///
+    /// Sizes and places are hashed rather than chosen, so adding one is
+    /// changing a count.
+    @ViewBuilder
+    private func maneEmbers(at now: TimeInterval) -> some View {
+        ForEach(0..<GameRules.maneEmberCount, id: \.self) { ember in
+            // **The arrowhead**, which is already the right shape.
+            //
+            // Flattened it is a diamond, and a diamond is what an ember looks
+            // like. Reaching for Leo's own silhouette gave four yellow lions,
+            // and a circle would have been a fifth thing to keep in step with
+            // the other two — this is the same drawing the archer's core is cut
+            // from, which is what makes them one effect.
+            let size = GameRules.maneEmberScale
+                * (GameRules.emberSmallest
+                    + (1 - GameRules.emberSmallest)
+                        * (GameRules.jitter(Double(ember), salt: 7) + 1) / 2)
+
+            PixelSprite(id: .sagittariusArrowRest) { Color.clear }
+                .scaleEffect(size)
+                .modifier(
+                    Flickering(
+                        now: now,
+                        scale: scale,
+                        seed: ember + 1,
+                        ceiling: GameRules.maneEmberOpacity
+                    )
+                )
+                // **A V, opening upward.**
+                //
+                // How deep this ember sits decides how far out it may sit: at
+                // the top of the mane the hair is at its widest, and it narrows
+                // toward the face. One spread for both axes gave a column —
+                // tightening the band vertically pulled it in horizontally too,
+                // which is the mohawk.
+                .offset(
+                    x: GameRules.jitter(Double(ember), salt: 11)
+                        * (GameRules.maneEmberWide
+                            + (GameRules.maneEmberNarrow - GameRules.maneEmberWide)
+                                * abs(GameRules.jitter(Double(ember), salt: 13)))
+                        * scale,
+                    // Up into the mane, and never below it.
+                    //
+                    // The scatter is clamped rather than centred: an ember is
+                    // allowed to drift further into the hair but not down out
+                    // of it, because the first thing under the mane is his
+                    // face. A symmetric spread put one there about a quarter of
+                    // the time.
+                    // Measured from the **top** of the mane downward, so the
+                    // clamp is a ceiling rather than a floor.
+                    //
+                    // Written as a rise with a one-sided scatter, the highest
+                    // ember was the anchor and every other one hung below it —
+                    // which meant raising them off his face lifted the whole
+                    // band off his head. Anchoring at the top instead lets them
+                    // fill the hair downward from a fixed line.
+                    y: GameRules.maneEmberTop * scale
+                        + abs(GameRules.jitter(Double(ember), salt: 13))
+                            * GameRules.maneEmberDepth * scale
+                )
         }
     }
 

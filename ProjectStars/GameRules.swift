@@ -2678,7 +2678,8 @@ enum GameRules {
     /// land together — a flame that repeats on a countable beat stops reading
     /// as fire.
     static let sagittariusArrowCoreDip: Double = 0.4
-    static let sagittariusArrowCoreTick: TimeInterval = 0.07
+    static let sagittariusArrowCoreTick: TimeInterval = 0.13
+
 
     /// A repeatable number in `-1...1` for a given tick.
     ///
@@ -2686,10 +2687,68 @@ enum GameRules {
     /// answer — a view rebuilt mid-frame must not jump somewhere new, and
     /// SwiftUI rebuilds whenever it likes.
     static func jitter(_ tick: Double, salt: Int) -> Double {
-        let hashed = sin(tick * 12.9898 + Double(salt) * 78.233) * 43758.5453
+        // The salt changes the **frequency**, not just the phase.
+        //
+        // With `sin(tick * k + salt)` every salt is the same wave shifted along,
+        // so two values drawn for one input — an x and a y — are two points on
+        // one curve and always fall on a line. That is what made eight scattered
+        // embers a mohawk: no choice of spread could have separated them,
+        // because the offsets were never independent to begin with.
+        let frequency = 12.9898 + Double(salt) * 4.1357
+        let hashed = sin(tick * frequency + Double(salt) * 78.233) * 43758.5453
         return (hashed - hashed.rounded(.down)) * 2 - 1
     }
     static let sagittariusArrowCorePulse: TimeInterval = 2.1
+
+    /// How many embers burn in the lion's mane, how small the smallest may be
+    /// against the archer's core, how far they scatter, and how far apart their
+    /// breaths are pushed.
+    ///
+    /// The archer's is the largest by design — his is one flame in a shaft, and
+    /// the lion's are several in a head of hair.
+    static let maneEmberCount = 8
+
+    /// How big the largest ember is drawn against the arrowhead it is cut from,
+    /// and how small the smallest may be against that.
+    ///
+    /// The archer's core stays the biggest of them: his is one flame in a
+    /// shaft, and the lion's are several in a head of hair.
+    static let maneEmberScale: CGFloat = 0.22
+    static let emberSmallest: CGFloat = 0.35
+
+    /// How far they scatter from the mane's middle, and how far up that middle
+    /// sits from the centre of the piece's box.
+    /// How far down from the top of the mane the embers may reach, and where
+    /// that top sits against the centre of the piece's box.
+    ///
+    /// Negative is up: the box is two tiles tall with his feet at the bottom,
+    /// so its middle is his chest.
+    /// The band runs from `maneEmberTop` down to `maneEmberTop + maneEmberDepth`,
+    /// so lowering the top alone shortens it from above and leaves its bottom
+    /// where it is — which keeps them clear of his face while the band itself
+    /// comes down onto the mane.
+    static let maneEmberDepth: CGFloat = 4
+    static let maneEmberTop: CGFloat = -8
+
+    /// How far out an ember may sit at the top of the mane and at the bottom of
+    /// it, in art pixels.
+    ///
+    /// Wide over narrow, so the scatter is a V: hair is at its broadest above
+    /// the head and closes in toward the face. A single spread for both axes
+    /// made them a column, because narrowing the band vertically narrowed it
+    /// sideways at the same time.
+    static let maneEmberWide: CGFloat = 7
+    static let maneEmberNarrow: CGFloat = 2
+
+    /// How bright the lion's embers burn at the top of their swing.
+    ///
+    /// Higher than the archer's: his sits inside a dark shaft where a little
+    /// light goes a long way, and these are scattered over gold.
+    static let maneEmberOpacity: Double = 0.95
+
+    /// How far apart their breaths are pushed. Four embers pulsing together
+    /// read as the whole mane brightening rather than as separate flames.
+    static let emberStagger: TimeInterval = 0.7
 
     // MARK: - The glow phase's hang
 
@@ -3271,7 +3330,9 @@ enum GameRules {
     static let taurusStepShake: TimeInterval = 0.12
 
     /// How hard, against a landing's knock.
-    static let taurusStepShakeStrength: CGFloat = 0.3
+    /// Under a fifth of a landing's. Every step of a whole run does this, and a
+    /// jolt that is merely noticeable once is exhausting at that rate.
+    static let taurusStepShakeStrength: CGFloat = 0.18
 
     // ──────────────────────────────────────────────────────────────────────
     // MARK: - Leo's retinue
