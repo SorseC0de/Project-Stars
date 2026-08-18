@@ -142,6 +142,14 @@ enum EffectSprite: String, CaseIterable, Hashable {
     /// Cancer's scuttle bubbles.
     case cancerScuttle
 
+    /// Gemini's rift, in two drawings. 60 frames each, 256px.
+    ///
+    /// Both are in the game at once on purpose: the shape it should be is not
+    /// decided, and a rift is a thing you can only judge standing on the board
+    /// next to a piece. See `riftPreview(metrics:)`.
+    case geminiRiftOne
+    case geminiRiftTwo
+
     // MARK: - Where the art is
 
     /// Which element this belongs to, or `nil` for the ones outside the wheel.
@@ -184,7 +192,7 @@ enum EffectSprite: String, CaseIterable, Hashable {
         // Libra is air, and the diamonds were filed under water only because the
         // first draft of them was drawn in blue.
         case .libraZodiaction, .windMisc, .aquariusZodiaction, .aquariusArmor,
-             .aquariusArmorGrey:
+             .aquariusArmorGrey, .geminiRiftOne, .geminiRiftTwo:
             .air
         case .cancerScuttle:
             .water
@@ -237,6 +245,8 @@ enum EffectSprite: String, CaseIterable, Hashable {
         case .absorb: "absorb"
         case .bonus: "bonus"
         case .cancerScuttle: "cancer_scuttle"
+        case .geminiRiftOne: "wind_gemini_rift_v1"
+        case .geminiRiftTwo: "wind_gemini_rift_v2"
         }
     }
 
@@ -265,6 +275,8 @@ enum EffectSprite: String, CaseIterable, Hashable {
             CGSize(width: 128, height: 128)
         case .lightningMisc, .aquariusZodiaction, .glowPhase, .sparkles:
             CGSize(width: 96, height: 96)
+        case .geminiRiftOne, .geminiRiftTwo:
+            CGSize(width: 256, height: 256)
         // Tall and narrow: a bolt reaches from the sky to the ground, and its
         // frame is the only one here that is not square.
         case .lightning1, .lightning2, .lightning3, .lightning4:
@@ -273,6 +285,17 @@ enum EffectSprite: String, CaseIterable, Hashable {
             width: GameRules.effectPixelSize,
             height: GameRules.effectPixelSize
         )
+        }
+    }
+
+    /// How many frames sit on one row of the sheet, or `nil` for all of them.
+    ///
+    /// A packing detail rather than an art one — see `SpriteSlice.columns` for
+    /// why the rift is the one strip that wraps.
+    var stripColumns: Int? {
+        switch self {
+        case .geminiRiftOne, .geminiRiftTwo: 8
+        default: nil
         }
     }
 
@@ -298,6 +321,7 @@ enum EffectSprite: String, CaseIterable, Hashable {
         case .sparkles: 24
         case .absorb: 31
         case .cancerScuttle: 40
+        case .geminiRiftOne, .geminiRiftTwo: 60
         case .bonus: 44
         }
     }
@@ -398,6 +422,8 @@ enum EffectSprite: String, CaseIterable, Hashable {
         case .sagittariusArrowHit: CGFloat(GameRules.tilePixelSize)
         case .sagittariusTeleTile: 0
         case .sagittariusArrow: 0
+        // A hole in the ground, so it belongs to the ground.
+        case .geminiRiftOne, .geminiRiftTwo: 0
         // Water landing on a square, so it belongs to the square.
         case .droplet: 0
         // Over the piece rather than at its feet: the absorb is the charge
@@ -454,7 +480,9 @@ enum EffectSprite: String, CaseIterable, Hashable {
              // The splash is the fish coming loose, which is the same kind of
              // moment as the arrow landing: a state change rather than
              // scenery. See `chargedFlourish(for:)`.
-             .waterSplash:
+             .waterSplash,
+             // Whether it glows at all is one of the things being looked at.
+             .geminiRiftOne, .geminiRiftTwo:
             return GameRules.effectGlowStrongIntensity
         default:
             break
@@ -561,6 +589,12 @@ enum EffectSprite: String, CaseIterable, Hashable {
         // Drawn 256 across against 96 tall — see `spanScaleY`. Wide, because
         // it is a banner over the board rather than a mark on a square.
         case .bonus: 11
+
+        // A tear in the board is bigger than the square it opens on, but it is
+        // still a *place* — at four it stopped being somewhere you could stand
+        // beside. Squeezed to three quarters across by `riftPreview`, which is
+        // the drawn shape rather than the coverage this answers.
+        case .geminiRiftOne, .geminiRiftTwo: 2
 
         default: GameRules.effectSpan
         }

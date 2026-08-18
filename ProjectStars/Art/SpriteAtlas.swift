@@ -29,6 +29,18 @@ struct SpriteSlice: Equatable {
     /// `1` is a still image.
     let frames: Int
 
+    /// How many frames sit on one row before the strip wraps.
+    ///
+    /// Everything imported so far is a single row, and that is still the
+    /// default. Wrapping exists because `actool` does not cope with a very wide
+    /// image: Gemini's rift is sixty 256px frames, and at 15360x256 the asset
+    /// compiler ground for over twenty minutes without finishing. The same
+    /// frames as an 8x8 grid are 2048 square and compile instantly.
+    ///
+    /// Reflowed by blitting whole frames, so the art is untouched — this is a
+    /// packing question, not an art one.
+    let columns: Int
+
     /// Seconds per frame. Ignored when `frames == 1`.
     ///
     /// Set this from a `SpriteRate` rather than as a literal — see that type for
@@ -40,6 +52,7 @@ struct SpriteSlice: Equatable {
         x: Int, y: Int,
         width: Int, height: Int,
         frames: Int = 1,
+        columns: Int? = nil,
         frameDuration: TimeInterval = GameRules.defaultSpriteRate.frameDuration
     ) {
         self.sheet = sheet
@@ -48,6 +61,7 @@ struct SpriteSlice: Equatable {
         self.width = width
         self.height = height
         self.frames = max(frames, 1)
+        self.columns = max(columns ?? max(frames, 1), 1)
         self.frameDuration = frameDuration
     }
 
@@ -76,7 +90,13 @@ struct SpriteSlice: Equatable {
 
     /// The pixel rect of one frame.
     func pixelRect(frame: Int) -> (x: Int, y: Int, width: Int, height: Int) {
-        (x + (frame % frames) * width, y, width, height)
+        let index = frame % frames
+        return (
+            x + (index % columns) * width,
+            y + (index / columns) * height,
+            width,
+            height
+        )
     }
 }
 
@@ -216,6 +236,7 @@ enum SpriteAtlas {
                 width: Int(effect.frameSize.width),
                 height: Int(effect.frameSize.height),
                 frames: effect.frames,
+                columns: effect.stripColumns,
                 frameDuration: effect.rate.frameDuration
             )
         }

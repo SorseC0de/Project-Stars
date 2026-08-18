@@ -592,6 +592,17 @@ struct GameEngine {
         activePassives.walksOnHoles(context: passiveContext)
     }
 
+    /// True when a single step in some direction would leave the board.
+    ///
+    /// Only meaningful for a piece that may leave — everyone else is refused
+    /// the move, so being beside the rim says nothing about them.
+    var isAgainstTheEdge: Bool {
+        guard floatsOverBoardEdge else { return false }
+        return GridOffset.cardinals.contains {
+            !currentBoard.contains(piece.point.offset(by: $0))
+        }
+    }
+
     /// True when this piece can step off the board — and die doing it.
     var floatsOverBoardEdge: Bool {
         activePassives.mayLeaveTheBoard(context: passiveContext)

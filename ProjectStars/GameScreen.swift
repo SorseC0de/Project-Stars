@@ -47,6 +47,7 @@ struct GameScreen: View {
                     VStack(spacing: 0) {
                         planeSquare(.astra, side: side)
                         planeSquare(.terra, side: side)
+                        //planeSquare(.umbra, side: side)
                     }
                     .offset(y: session.visiblePlane == .astra ? 0 : -side)
                     .frame(width: side, height: side, alignment: .top)
@@ -109,6 +110,13 @@ struct GameScreen: View {
                     }
                 }
                 .frame(width: side, height: side)
+                // The corners close in red while the rim is one step away.
+                //
+                // An overlay, so a warning can never change what the playfield
+                // is laid out as — the board below is positioned square by
+                // square, and every past attempt to add something at this level
+                // with a frame threw those positions across the screen.
+                .overlay { edgeVignette(side: side) }
 
                 // Lower square: information and the input zone.
                 ControlPanelView(session: session, side: side)
@@ -138,6 +146,15 @@ struct GameScreen: View {
                 GameOverOverlay(session: session, onChangeSign: onQuit)
             }
         }
+        .overlay(alignment: .bottomLeading) {
+            #if DEBUG
+            // Over the panel rather than the board: it is a bench control, and
+            // the thing it is adjusting is what must stay unobstructed.
+            RiftPreviewControls()
+                .padding(.leading, 8)
+                .padding(.bottom, 8)
+            #endif
+        }
         .overlay(alignment: .topLeading) {
             #if DEBUG
             // Over everything, including the pause and game-over sheets: the
@@ -164,6 +181,38 @@ struct GameScreen: View {
         // a button inside the panel cannot draw outside the panel's bounds.
         // See `iMAPicker`.
         .iMAPickerHost()
+    }
+
+    /// The playfield darkening red at its corners while a step would take you
+    /// off the board.
+    ///
+    /// Only Aquarius and his phantom can leave at all, so for everyone else this
+    /// is never built — standing beside the rim says nothing about a piece whose
+    /// move off it is simply refused.
+    @ViewBuilder
+    private func edgeVignette(side: CGFloat) -> some View {
+        if session.engine.isAgainstTheEdge {
+            TimelineView(.animation(paused: session.isPaused)) { timeline in
+                let clock = session.ambientClock(at: timeline.date.timeIntervalSinceReferenceDate)
+                let breath = (1 - cos(clock / GameRules.edgeWarningPeriod * 2 * .pi)) / 2
+
+                RadialGradient(
+                    colors: [.clear, Palette.red],
+                    center: .center,
+                    startRadius: side / 2 * GameRules.edgeVignetteClear,
+                    endRadius: side / 2 * GameRules.edgeVignetteReach
+                )
+                .opacity(GameRules.edgeWarningStrongest * breath)
+                // Added to a night sky, taken out of a daylit one.
+                //
+                // A red glow over Astra's midnight is the whole effect; the
+                // same glow over Terra's pale blue is invisible, because there
+                // is nothing left to add. Multiplying darkens instead, which is
+                // what a warning has to do on a bright ground.
+                .blendMode(session.visiblePlane == .astra ? .plusLighter : .plusDarker)
+            }
+            .allowsHitTesting(false)
+        }
     }
 
     /// One plane's square: its sky, and its board.

@@ -243,6 +243,8 @@ private extension EffectSprite {
     var previewName: String {
         switch self {
         case .droplet: "Astral Tear — droplet"
+        case .geminiRiftOne: "Gemini — rift (v1)"
+        case .geminiRiftTwo: "Gemini — rift (v2)"
         case .sagittariusArrow: "Sagittarius — the arrow"
         case .sagittariusArrowHit: "Sagittarius — arrow strike"
         case .sagittariusTeleTile: "Sagittarius — warp square"

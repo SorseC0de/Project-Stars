@@ -71,6 +71,13 @@ struct EffectSpriteView: View {
     /// Entries to exchange before anything else is done to the art.
     var swaps: [PaletteSwap] = []
 
+    /// How this composites, when the answer is not the catalogue's.
+    ///
+    /// The strip's own `blend` is the settled answer and stays the default. This
+    /// exists for art still being judged — `EffectSprite.blend` is where the
+    /// answer goes once it is known, not a second place to keep one.
+    var blend: BlendMode?
+
     /// How many frames are actually played.
     private var playing: Int {
         min(max(frameCount ?? effect.frames, 1), effect.frames)
@@ -105,7 +112,7 @@ struct EffectSpriteView: View {
 
                     art
                 }
-                .blendMode(effect.blend)
+                .blendMode(blend ?? effect.blend)
                 .offset(y: lift)
                 .offset(
                     x: effect.artNudge.width * (tileSize / CGFloat(GameRules.tilePixelSize)),

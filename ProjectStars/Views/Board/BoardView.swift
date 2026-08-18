@@ -171,6 +171,10 @@ struct BoardView: View {
                 )
             }
 
+            #if DEBUG
+            riftPreview(metrics: metrics)
+            #endif
+
             aquariusTransform(metrics: metrics)
             constellation(metrics: metrics)
             warpBeam(metrics: metrics)
@@ -205,6 +209,44 @@ struct BoardView: View {
                 .allowsHitTesting(false)
         }
     }
+
+    /// Gemini's two rifts, side by side, for as long as it takes to choose one.
+    ///
+    /// Not tied to Gemini and not tied to anything that happens — it is on the
+    /// board for every sign, because the question is what the drawing looks like
+    /// standing next to a piece and that question has no prerequisites. It comes
+    /// out when the rift is a real thing the game does.
+    ///
+    /// The transform is the user's: turned ten degrees clockwise and squeezed to
+    /// three quarters of its width, on top of the span the catalogue gives it.
+    #if DEBUG
+    @ViewBuilder
+    private func riftPreview(metrics: PixelArtMetrics) -> some View {
+        let bench = RiftPreviewDebug.shared
+
+        if bench.isShown {
+            ForEach(
+                [
+                    (GridPoint(3, 3), EffectSprite.geminiRiftOne),
+                    (GridPoint(4, 3), EffectSprite.geminiRiftTwo),
+                ],
+                id: \.1
+            ) { square, art in
+                EffectSpriteView(
+                    effect: art,
+                    tileSize: metrics.tileSize,
+                    start: .distantPast,
+                    loops: true,
+                    clock: session.ambientClock(at:),
+                    blend: bench.blend
+                )
+                .scaleEffect(x: 0.75, y: 1)
+                .rotationEffect(.degrees(10))
+                .modifier(placedOnPlaneModifier(square, metrics: metrics))
+            }
+        }
+    }
+    #endif
 
     // MARK: - Board layers
 
@@ -607,54 +649,6 @@ struct BoardView: View {
     /// The same white the rest of Libra's work is marked in. A slab that simply
     /// became ground on the next frame threw away the one moment the ability is
     /// about — this says *these squares, just now, because of you*.
-    /// The squares outside the board, marked while standing where you could
-    /// step onto one.
-    ///
-    /// Only for a piece that may leave — see `ZodiacPassive.mayLeaveTheBoard`.
-    /// For everyone else the rim is a wall and a move into it is refused, so
-    /// there is nothing to warn about; for Aquarius it is the only thing that
-    /// kills him, and it is invisible.
-    ///
-    /// Drawn as the ring's own squares rather than as a line along the board's
-    /// edge, because that is what they are: real destinations, one step out,
-    /// which the cursor will happily project onto. The outline is the same one
-    /// a slab's footprint uses.
-    ///
-    /// Red, faint, and slow. It has to be legible without competing with the
-    /// cursor, which is the thing actually being aimed — a warning that shouts
-    /// louder than the control is a warning people turn off.
-    @ViewBuilder
-    private func edgeWarning(metrics: PixelArtMetrics) -> some View {
-        if session.engine.floatsOverBoardEdge {
-            let here = session.engine.piece.point
-            let outside = SwipeDirection.allCases
-                .map { here.offset(by: $0.unitOffset) }
-                .filter { !session.visibleBoard.contains($0) }
-
-            if !outside.isEmpty {
-                TimelineView(.animation(paused: session.isPaused)) { timeline in
-                    let breath = (sin(
-                        session.ambientClock(at: timeline.date.timeIntervalSinceReferenceDate)
-                            / GameRules.edgeWarningPeriod * 2 * .pi
-                    ) + 1) / 2
-
-                    ForEach(outside, id: \.self) { point in
-                        Rectangle()
-                            .strokeBorder(Palette.red, lineWidth: GameRules.slabOutline)
-                            .frame(width: metrics.tileSize, height: metrics.tileSize)
-                            .opacity(
-                                GameRules.edgeWarningFaintest
-                                    + (GameRules.edgeWarningStrongest
-                                        - GameRules.edgeWarningFaintest) * breath
-                            )
-                            .modifier(placedOnPlaneModifier(point, metrics: metrics))
-                    }
-                }
-                .allowsHitTesting(false)
-            }
-        }
-    }
-
     @ViewBuilder
     private func slabLanding(metrics: PixelArtMetrics) -> some View {
         if let landing = session.slabLanding, landing.plane == shown {

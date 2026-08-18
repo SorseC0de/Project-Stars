@@ -3004,16 +3004,29 @@ enum GameRules {
     /// different kind of tile — the cracks already say *damaged*, and this says
     /// *the next one takes it*.
     static let badlyCrackedTint: Double = 0.1
-    /// How the ring outside the board pulses while it can be stepped onto, and
-    /// how long one breath takes.
+    /// How hard the screen's corners close in while a step would leave the
+    /// board, and how long one breath takes.
     ///
-    /// Faint at both ends. It marks a hazard that is always there rather than
-    /// one arriving, so it should read as a property of the edge and not as an
-    /// alarm — and it must not out-shout the cursor, which is the thing
-    /// actually being aimed.
-    static let edgeWarningFaintest: Double = 0.15
-    static let edgeWarningStrongest: Double = 0.45
+    /// **All the way to nothing** at the bottom of the breath. A mark that never
+    /// fully goes reads as part of the view — something drawn there — where one
+    /// that leaves and returns reads as a warning.
+    ///
+    /// This began as a ring drawn on the squares outside the board, and that was
+    /// the wrong surface twice over: `BoardBand.at(row:)` does not describe rows
+    /// −1 and 7, so the marks had nowhere correct to land, and anything sitting
+    /// on the grid reads as part of the grid. The edge of the world is a fact
+    /// about the frame, so the frame is what reacts.
+    static let edgeWarningStrongest: Double = 0.3
     static let edgeWarningPeriod: TimeInterval = 2.4
+
+    /// Where the corner vignette begins and how far it reaches, as fractions of
+    /// the square's half-width.
+    ///
+    /// Clear well past the middle. The board is the thing being read, and a
+    /// warning that tints the playfield is a warning that obstructs the answer
+    /// it is asking for.
+    static let edgeVignetteClear: CGFloat = 0.65
+    static let edgeVignetteReach: CGFloat = 1.05
 
     // MARK: - Aquarius' storm
 
