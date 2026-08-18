@@ -241,10 +241,28 @@ struct BoardView: View {
                     at: timeline.date.timeIntervalSinceReferenceDate
                 )
 
+                // **The two leans trade sizes, and neither moves.**
+                //
+                // One arm swells to full while the other shrinks to half, then
+                // back — so the X keeps turning itself inside out and the eye
+                // reads depth being exchanged rather than two fixed bars. Each
+                // plate scales about its own centre and the crossing stays
+                // exactly where it was, which is what keeps it from looking
+                // like something growing out of the square.
+                //
+                // Smooth, unlike everything else here: the jitter is the thing
+                // that jumps, and a scale that jumped with it would just be
+                // more noise at a different size.
+                let trade = (1 - cos(now / GameRules.riftTradePeriod * 2 * .pi)) / 2
+                let outer = GameRules.riftInnerScale
+                    + (1 - GameRules.riftInnerScale) * (1 - trade)
+                let inner = GameRules.riftInnerScale
+                    + (1 - GameRules.riftInnerScale) * trade
+
                 ZStack {
                     // The pair, leaning one way.
-                    riftPlate(.geminiRiftOne, phase: 0, at: now, metrics: metrics)
-                    riftPlate(.geminiRiftTwo, phase: .pi, at: now, metrics: metrics)
+                    riftPlate(.geminiRiftOne, phase: 0, at: now, metrics: metrics, scale: outer)
+                    riftPlate(.geminiRiftTwo, phase: .pi, at: now, metrics: metrics, scale: outer)
 
                     // And the same pair again at half size, leaning the other —
                     // so the tear crosses itself rather than being one slash.
@@ -257,12 +275,12 @@ struct BoardView: View {
                     // two sprites rather than as one X with depth in it.
                     riftPlate(
                         .geminiRiftOne, phase: 0, at: now, metrics: metrics,
-                        tilt: -GameRules.riftTilt, scale: GameRules.riftInnerScale,
+                        tilt: -GameRules.riftTilt, scale: inner,
                         flipped: true, salt: 21
                     )
                     riftPlate(
                         .geminiRiftTwo, phase: .pi, at: now, metrics: metrics,
-                        tilt: -GameRules.riftTilt, scale: GameRules.riftInnerScale,
+                        tilt: -GameRules.riftTilt, scale: inner,
                         flipped: true, salt: 31
                     )
                 }

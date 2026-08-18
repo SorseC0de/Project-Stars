@@ -3059,8 +3059,12 @@ enum GameRules {
     /// question.
     static let riftTilt: Double = 30
 
-    /// How big the crossing pair is against the outer one.
+    /// How small the shrunken arm of the X gets. The other is full size, and
+    /// the two trade places — see `riftTradePeriod`.
     static let riftInnerScale: CGFloat = 0.5
+
+    /// How long one full exchange of sizes takes, there and back.
+    static let riftTradePeriod: TimeInterval = 1.5
 
     /// How much of its own height the tear stands up out of the tile.
     ///
