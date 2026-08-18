@@ -324,7 +324,7 @@ enum EffectSprite: String, CaseIterable, Hashable {
         // square is a thing that hums for as long as the arrow is out there;
         // both were going past too quickly to be read as either.
         case .sagittariusArrowHit: .fps10
-        case .sagittariusTeleTile: .fps12
+        case .sagittariusTeleTile, .aquariusZodiaction: .fps12
         // The Tear's droplet is fourteen frames of a single splash. At the house
         // default it was over in about a second and never seen at all.
         case .droplet: .fps15
@@ -346,7 +346,7 @@ enum EffectSprite: String, CaseIterable, Hashable {
         case .absorb, .sparkles: .fps60
         // The storm's band ends on an empty cell, so it is a gust rather than a
         // loop. Slow, and staggered by whoever stacks it — see `AquariusStorm`.
-        case .aquariusArmor: .fps10
+        case .aquariusArmor: .fps20
         default: frames >= 20 ? .fps24 : .fps15
         }
     }
@@ -444,7 +444,11 @@ enum EffectSprite: String, CaseIterable, Hashable {
              // The Breeze's gust is the moment the Essence fires, and the wind
              // art is drawn pale — without a strong bloom it reads as haze on
              // the board rather than as something happening.
-             .windMisc, .glowPhase, .aquariusZodiaction:
+             .windMisc, .glowPhase, .aquariusZodiaction,
+             // The splash is the fish coming loose, which is the same kind of
+             // moment as the arrow landing: a state change rather than
+             // scenery. See `chargedFlourish(for:)`.
+             .waterSplash:
             return GameRules.effectGlowStrongIntensity
         default:
             break
@@ -600,6 +604,20 @@ enum EffectSprite: String, CaseIterable, Hashable {
     static func chargeGain(for zodiac: Zodiac) -> EffectSprite? {
         switch zodiac {
         case .aries: .fireMisc
+        default: nil
+        }
+    }
+
+    /// The flourish a sign throws the moment it becomes charged.
+    ///
+    /// Distinct from `chargeGain`, which plays on *every* pip. This is the one
+    /// crossing that changes what the piece is — Pisces' fish comes loose and
+    /// the archer's shot is nocked — and a sign whose look changes there should
+    /// say so once rather than letting the sprite quietly swap.
+    static func chargedFlourish(for zodiac: Zodiac) -> EffectSprite? {
+        switch zodiac {
+        case .pisces: .waterSplash
+        case .sagittarius: .sagittariusArrowHit
         default: nil
         }
     }

@@ -1888,6 +1888,7 @@ struct ZodiactionButton: View {
                             ? charged
                             : Palette.warmBlack.opacity(PanelStyle.meterEmptyOpacity))
                         .frame(height: PanelStyle.meterPipHeight)
+                    
                 }
             }
             .animation(.easeOut(duration: 0.18), value: filled)

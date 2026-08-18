@@ -2924,7 +2924,7 @@ enum GameRules {
     static let aquariusStormTaperMost: Int = 5
     static let aquariusStormTaperLeast: Int = 2
 
-    static let aquariusStormTaper: Int = 5
+    static let aquariusStormTaper: Int = 0
 
     /// The eye: two plates, the smaller two thirds of the larger, taking half
     /// the stack's sway because the eye sits deeper in the column than the wall
