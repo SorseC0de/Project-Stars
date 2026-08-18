@@ -503,15 +503,16 @@ struct PieceView: View {
                 let now = clock(timeline.date.timeIntervalSinceReferenceDate)
 
                 if isCharged {
-                    // A trail, drawn from where it **was**.
-                    //
-                    // The board's own afterimages are left by moving between
-                    // squares, and this fish never leaves its square — it turns
-                    // and circles in place, which is motion the trail system
-                    // cannot see. So each ghost is the same sprite wound back a
-                    // few moments along its own two clocks: not a copy placed
-                    // behind it, but where it genuinely was.
-                    fish(at: now, step: 0)
+                    let orbit = now / GameRules.piscesFishOrbitPeriod * 2 * .pi
+                    let spin = now / GameRules.piscesFishSpinPeriod * 360
+
+                    PixelSprite(id: .piscesFishCharged) { Color.clear }
+                        .rotationEffect(.degrees(-spin))
+                        .offset(
+                            x: sin(orbit) * GameRules.piscesFishOrbit * scale,
+                            y: (cos(orbit) - 1) / 2 * GameRules.piscesFishOrbit * scale
+                                + GameRules.piscesFishDrop * scale
+                        )
                 } else {
                     // Still, and stone. The fish is part of him until the meter
                     // fills; only then does it come loose.
@@ -712,24 +713,6 @@ struct PieceView: View {
         }
     }
 
-    /// The energy fish, wound back `step` moments along its own two clocks.
-    ///
-    /// Its position is a function of time, so a ghost is simply the same view
-    /// asked about the past — the trail curves with the orbit and turns with the
-    /// spin rather than trailing in a straight line behind it.
-    private func fish(at now: TimeInterval, step: Int) -> some View {
-        let past = now - Double(step) * GameRules.piscesFishTrailGap
-        let orbit = past / GameRules.piscesFishOrbitPeriod * 2 * .pi
-        let spin = past / GameRules.piscesFishSpinPeriod * 360
-
-        return PixelSprite(id: .piscesFishCharged) { Color.clear }
-            .rotationEffect(.degrees(-spin))
-            .offset(
-                x: sin(orbit) * GameRules.piscesFishOrbit * scale,
-                y: (cos(orbit) - 1) / 2 * GameRules.piscesFishOrbit * scale
-                    + GameRules.piscesFishDrop * scale
-            )
-    }
 
     @ViewBuilder
     private var virgoGems: some View {
