@@ -71,6 +71,9 @@ struct AquariusWackyWhirlwind: ZodiacPassive {
     /// instead of once.
     func reversesControls(context: PassiveContext) -> Bool { true }
 
+    /// And the charge with them. See `ZodiacPassive.reversesCharge`.
+    func reversesCharge(context: PassiveContext) -> Bool { true }
+
     /// Blown rather than walking, for as long as there is a storm.
     ///
     /// A hop is a thing with feet deciding to leave the ground. Aquarius above

@@ -578,17 +578,23 @@ struct GameEngine {
     /// means none of those has to know, which is the whole reason the reversal
     /// is affordable.
     func meter(afterGaining amount: Int) -> Int {
-        piece.zodiac.zodiaction.meter(
-            zodiactionMeter,
-            afterGaining: amount,
-            cap: zodiactionMeterMax
-        )
+        // Asked of the passives, so a phantom carrying Aquarius' kit charges
+        // backwards too — which is what makes borrowing him a real trade rather
+        // than a way around his drawback.
+        let backwards = activePassives.reversesCharge(context: passiveContext)
+        let signed = backwards ? -amount : amount
+        return min(max(zodiactionMeter + signed, 0), zodiactionMeterMax)
     }
 
     /// True when the player's directions are turned around.
     /// True when holes hold this piece up.
     var floatsOverHoles: Bool {
         activePassives.walksOnHoles(context: passiveContext)
+    }
+
+    /// True when this piece can step off the board — and die doing it.
+    var floatsOverBoardEdge: Bool {
+        activePassives.mayLeaveTheBoard(context: passiveContext)
     }
 
     var controlsAreReversed: Bool {

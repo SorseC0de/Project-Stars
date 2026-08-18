@@ -3004,6 +3004,17 @@ enum GameRules {
     /// different kind of tile — the cracks already say *damaged*, and this says
     /// *the next one takes it*.
     static let badlyCrackedTint: Double = 0.1
+    /// How the ring outside the board pulses while it can be stepped onto, and
+    /// how long one breath takes.
+    ///
+    /// Faint at both ends. It marks a hazard that is always there rather than
+    /// one arriving, so it should read as a property of the edge and not as an
+    /// alarm — and it must not out-shout the cursor, which is the thing
+    /// actually being aimed.
+    static let edgeWarningFaintest: Double = 0.15
+    static let edgeWarningStrongest: Double = 0.45
+    static let edgeWarningPeriod: TimeInterval = 2.4
+
     // MARK: - Aquarius' storm
 
     /// The funnel, settled. Everything here is a proportion of the square the

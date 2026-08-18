@@ -395,6 +395,15 @@ protocol ZodiacPassive {
     /// downstream has to know which sign it is — and so a phantom carrying
     /// Aquarius' passives is reversed too, which is the whole point of a
     /// phantom.
+    /// True when charge runs the other way for whoever holds this.
+    ///
+    /// Asked of the passives rather than read off the Zodiaction, so a phantom
+    /// carrying Aquarius' kit inherits the inversion with everything else. Leo
+    /// borrowing the sign should be as awkward to charge as the sign is — that
+    /// is the trade for borrowing it — and reading `zodiaction.firesAtEmpty`
+    /// asks about *Leo's own* ability instead, which is not what is on loan.
+    func reversesCharge(context: PassiveContext) -> Bool
+
     func reversesControls(context: PassiveContext) -> Bool
 
     /// True when a hole is ground rather than a fall.
@@ -495,6 +504,7 @@ extension ZodiacPassive {
     /// No mark drawn yet. See `icon`.
     var icon: String? { nil }
 
+    func reversesCharge(context: PassiveContext) -> Bool { false }
     func reversesControls(context: PassiveContext) -> Bool { false }
     func walksOnHoles(context: PassiveContext) -> Bool { false }
     func mayLeaveTheBoard(context: PassiveContext) -> Bool { false }
@@ -850,6 +860,10 @@ extension Array where Element == any ZodiacPassive {
 
     func banksPickups(_ id: PickupID, context: PassiveContext) -> Bool {
         contains { $0.banksPickups(id, context: context) }
+    }
+
+    func reversesCharge(context: PassiveContext) -> Bool {
+        contains { $0.reversesCharge(context: context) }
     }
 
     func reversesControls(context: PassiveContext) -> Bool {
