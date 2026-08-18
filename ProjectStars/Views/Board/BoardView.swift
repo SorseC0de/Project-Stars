@@ -210,42 +210,83 @@ struct BoardView: View {
         }
     }
 
-    /// Gemini's two rifts, side by side, for as long as it takes to choose one.
+    /// Gemini's rift: both drawings stacked on one square, circling.
     ///
     /// Not tied to Gemini and not tied to anything that happens — it is on the
     /// board for every sign, because the question is what the drawing looks like
     /// standing next to a piece and that question has no prerequisites. It comes
     /// out when the rift is a real thing the game does.
     ///
-    /// The transform is the user's: turned twenty degrees clockwise, squeezed to
-    /// three eighths of its width and stretched a quarter taller, on top of the
-    /// span the catalogue gives it.
+    /// The two plates each travel a small **oval, counter-clockwise**, and the
+    /// ovals are placed so both pass through the square's centre — the position
+    /// the stack would sit at if nothing were moving. So the pair cross there
+    /// rather than orbiting a common middle, which is what makes it read as one
+    /// tear working rather than as two sprites doing laps.
+    ///
+    /// Their opacities breathe half a turn apart, so one is brightest exactly
+    /// when the other is faintest and the tear is never entirely gone.
     #if DEBUG
     @ViewBuilder
     private func riftPreview(metrics: PixelArtMetrics) -> some View {
-        let bench = RiftPreviewDebug.shared
-
-        if bench.isShown {
-            ForEach(
-                [
-                    (GridPoint(3, 3), EffectSprite.geminiRiftOne),
-                    (GridPoint(4, 3), EffectSprite.geminiRiftTwo),
-                ],
-                id: \.1
-            ) { square, art in
-                EffectSpriteView(
-                    effect: art,
-                    tileSize: metrics.tileSize,
-                    start: .distantPast,
-                    loops: true,
-                    clock: session.ambientClock(at:),
-                    blend: bench.blend
+        if RiftPreviewDebug.shared.isShown {
+            TimelineView(.animation(paused: session.isPaused)) { timeline in
+                let now = session.ambientClock(
+                    at: timeline.date.timeIntervalSinceReferenceDate
                 )
-                .scaleEffect(x: 0.375, y: 1.25)
-                .rotationEffect(.degrees(20))
-                .modifier(placedOnPlaneModifier(square, metrics: metrics))
+
+                ZStack {
+                    riftPlate(.geminiRiftOne, phase: 0, at: now, metrics: metrics)
+                    riftPlate(.geminiRiftTwo, phase: .pi, at: now, metrics: metrics)
+                }
+                .modifier(placedOnPlaneModifier(GridPoint(3, 3), metrics: metrics))
             }
         }
+    }
+
+    /// One of the pair, on its own lap of the oval.
+    ///
+    /// - Parameter phase: Where this plate starts, in radians. The two are half
+    ///   a turn apart, which puts one at each end of the crossing and keeps the
+    ///   two breaths out of step.
+    private func riftPlate(
+        _ art: EffectSprite,
+        phase: Double,
+        at now: TimeInterval,
+        metrics: PixelArtMetrics
+    ) -> some View {
+        let angle = now / GameRules.riftOrbitPeriod * 2 * .pi + phase
+
+        // Counter-clockwise on a screen whose y grows downward, and centred so
+        // the square's own middle lies **on** the path rather than inside it —
+        // which is why each term is measured against where the plate started
+        // rather than from the oval's centre.
+        let x = GameRules.riftOrbitWidth * metrics.scale * (cos(angle) - cos(phase))
+        let y = -GameRules.riftOrbitHeight * metrics.scale * (sin(angle) - sin(phase))
+
+        // A pixel of unrest on top of the lap, so neither plate is ever quite
+        // still — least of all at the ends of the travel, where the orbit is
+        // slowest and a sprite looks parked.
+        let salt = art == .geminiRiftOne ? 3 : 11
+        let shiverX = GameRules.riftJitter * metrics.scale * GameRules.jitter(now, salt: salt)
+        let shiverY = GameRules.riftJitter * metrics.scale * GameRules.jitter(now, salt: salt + 1)
+
+        // All the way down to nearly nothing and back, half a turn apart. Not
+        // to true zero: the pair is never gone between them, but a plate that
+        // reaches zero pops back rather than returning.
+        let breath = (1 - cos(now / GameRules.riftPulsePeriod * 2 * .pi + phase)) / 2
+
+        return EffectSpriteView(
+            effect: art,
+            tileSize: metrics.tileSize,
+            start: .distantPast,
+            loops: true,
+            clock: session.ambientClock(at:),
+            blend: RiftPreviewDebug.shared.blend
+        )
+        .scaleEffect(x: 0.375, y: 1.25)
+        .rotationEffect(.degrees(30))
+        .opacity(GameRules.riftFaintest + (1 - GameRules.riftFaintest) * breath)
+        .offset(x: x + shiverX, y: y + shiverY)
     }
     #endif
 

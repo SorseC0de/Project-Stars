@@ -3024,6 +3024,29 @@ enum GameRules {
     static let edgeWarningStrongest: Double = 0.3
     static let edgeWarningPeriod: TimeInterval = 2.4
 
+    // MARK: - Gemini's rift
+
+    /// How far each plate travels on its lap, in art pixels, and how long one
+    /// lap takes.
+    ///
+    /// An oval rather than a circle because the tear is drawn tall and narrow —
+    /// a plate that swings as far sideways as it does vertically reads as
+    /// wobbling rather than as opening.
+    static let riftOrbitWidth: CGFloat = 3
+    static let riftOrbitHeight: CGFloat = 5
+    static let riftOrbitPeriod: TimeInterval = 4
+
+    /// The unrest on top of the lap, in art pixels.
+    static let riftJitter: CGFloat = 0.5
+
+    /// How long one breath takes, and how faint a plate gets at the bottom of
+    /// it.
+    ///
+    /// Not zero: the two are half a turn apart so the pair is never gone, but a
+    /// plate that reaches true zero pops back rather than returning.
+    static let riftPulsePeriod: TimeInterval = 3
+    static let riftFaintest: Double = 0.01
+
     /// Where the corner vignette begins and how far it reaches, as fractions of
     /// the square's half-width.
     ///
