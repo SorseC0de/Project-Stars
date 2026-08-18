@@ -26,7 +26,7 @@ final class RiftPreviewDebug {
     var isShown = true
 
     /// How they composite. The thing actually being chosen.
-    var blend: BlendMode = .normal
+    var blend: BlendMode = .hardLight
 
     private init() {}
 

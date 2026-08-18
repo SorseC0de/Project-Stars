@@ -456,6 +456,10 @@ enum EffectSprite: String, CaseIterable, Hashable {
     var blend: BlendMode {
         switch self {
         case .absorb: .plusLighter
+        // The rift is a tear in the world rather than a light in it: hard light
+        // keeps the dark of it dark against both skies, where the additive
+        // modes bleached it on Astra and lost it entirely on Terra.
+        case .geminiRiftOne, .geminiRiftTwo: .hardLight
         default: .normal
         }
     }

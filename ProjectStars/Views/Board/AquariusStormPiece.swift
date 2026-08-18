@@ -549,6 +549,14 @@ struct AquariusStormPiece: View {
         }
     }
 
+    /// How much the 300-point assembly is shrunk to reach the board.
+    ///
+    /// Named once because two things need it and they must agree: what the
+    /// storm is scaled by on screen, and what its reel is filmed at.
+    private var drawnScale: CGFloat {
+        scale * tileSize * GameRules.aquariusStormTiles / 300
+    }
+
     /// The plate the storm just gained or lost, in the moment it moves.
     ///
     /// The filmed funnel can only cut between phases — ten reels are ten
@@ -657,7 +665,7 @@ struct AquariusStormPiece: View {
                 }
                 .overlay { partingPlate(at: elapsed) }
                 .compositingGroup()
-                .scaleEffect(scale * tileSize * GameRules.aquariusStormTiles / 300)
+                .scaleEffect(drawnScale)
                 .frame(width: tileSize, height: tileSize * 2)
             }
             .onChange(of: phase) { was, now in
@@ -699,7 +707,7 @@ struct AquariusStormPiece: View {
             // clip it, which is the mistake the charge bloom made.
             .drawingGroup()
             .compositingGroup()
-            .scaleEffect(scale * tileSize * GameRules.aquariusStormTiles / 300)
+            .scaleEffect(drawnScale)
             // Laid out as a piece, not as the 300-point square it is built in.
             //
             // `scaleEffect` does not change layout, so without this the view
@@ -708,11 +716,23 @@ struct AquariusStormPiece: View {
             // working from a box four times too big.
             .frame(width: tileSize, height: tileSize * 2)
                 .onAppear {
+                    // **At the size it lands on screen, not the size it is
+                    // built in.**
+                    //
+                    // The canvas is 620 points of headroom that then gets
+                    // scaled down to about three tiles. Filming it at the
+                    // screen's own scale meant every frame was a 1860px square
+                    // — 13MB each, 317MB for one phase's twenty-four — for
+                    // something drawn a third of that across. The reel is
+                    // pixel-exact at the scale it is displayed at, and every
+                    // pixel past that is memory bandwidth spent on detail no
+                    // screen can show.
                     film?.prepare(
                         phase,
                         side: GameRules.aquariusStormCanvas,
-                        scale: UIScreen.main.scale
+                        scale: UIScreen.main.scale * drawnScale
                     )
+                    film?.forget(farFrom: phase)
                 }
         }
     }

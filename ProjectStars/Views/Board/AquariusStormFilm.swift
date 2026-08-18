@@ -46,6 +46,22 @@ final class AquariusStormFilm {
     /// optimised away and so is affordable once.
     func reel(for phase: Int) -> [Image]? { reels[phase] }
 
+    /// Drops reels more than one phase away from `phase`.
+    ///
+    /// A reel is twenty-four rendered frames, and a run that climbs to ten
+    /// leaves ten of them alive at once — all of them mounted, because the
+    /// phases are stacked so the visible one can cut rather than dissolve. That
+    /// is what turned a storm into a slideshow the further a run got.
+    ///
+    /// One either side, because those are the two the meter can reach next and
+    /// re-filming on arrival is the stutter this whole class exists to avoid.
+    /// The current phase is never dropped.
+    func forget(farFrom phase: Int) {
+        for stage in reels.keys where abs(stage - phase) > 1 {
+            reels[stage] = nil
+        }
+    }
+
     /// Draws `phase` if it has not been drawn yet.
     func prepare(_ phase: Int, side: CGFloat, scale: CGFloat) {
         guard phase > 0, reels[phase] == nil, !underway.contains(phase) else { return }

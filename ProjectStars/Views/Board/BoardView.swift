@@ -217,8 +217,9 @@ struct BoardView: View {
     /// standing next to a piece and that question has no prerequisites. It comes
     /// out when the rift is a real thing the game does.
     ///
-    /// The transform is the user's: turned ten degrees clockwise and squeezed to
-    /// three quarters of its width, on top of the span the catalogue gives it.
+    /// The transform is the user's: turned twenty degrees clockwise, squeezed to
+    /// three eighths of its width and stretched a quarter taller, on top of the
+    /// span the catalogue gives it.
     #if DEBUG
     @ViewBuilder
     private func riftPreview(metrics: PixelArtMetrics) -> some View {
@@ -240,8 +241,8 @@ struct BoardView: View {
                     clock: session.ambientClock(at:),
                     blend: bench.blend
                 )
-                .scaleEffect(x: 0.75, y: 1)
-                .rotationEffect(.degrees(10))
+                .scaleEffect(x: 0.375, y: 1.25)
+                .rotationEffect(.degrees(20))
                 .modifier(placedOnPlaneModifier(square, metrics: metrics))
             }
         }
