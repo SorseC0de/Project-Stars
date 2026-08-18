@@ -319,6 +319,9 @@ enum PanelStyle {
     /// over it, and a bright one would compete with the pips it is naming.
     static let meterLabelGap: CGFloat = 5
 
+    /// How faint a Zodiaction's name is while it cannot be fired.
+    static let zodiactionIdleOpacity: Double = 0.45
+
     static let meterLabelSize: CGFloat = 14
     static let meterLabelOpacity: Double = 0.9
     static let retinueGlyphSize: CGFloat = 58
@@ -1719,7 +1722,11 @@ struct ZodiactionButton: View {
                 Haptics.zodiaction()
                 session.fireZodiaction()
             } label: {
-                label(charged: element.mid)
+                // **Bright**, which is what the element badge beside the sign's
+                // name is drawn in. The pips were the ramp's mid — purple where
+                // the badge is magenta — so air read as two different elements
+                // depending on which end of the panel you looked at.
+                label(charged: element.bright, ready: ready)
             }
             .frame(height: PanelStyle.zodiactionButtonHeight)
             .background {
@@ -1760,20 +1767,36 @@ struct ZodiactionButton: View {
 
 
     /// The word, the name, and the meter.
-    private func label(charged: Color) -> some View {
+    private func label(charged: Color, ready: Bool) -> some View {
         VStack(spacing: PanelStyle.zodiactionStackSpacing) {
             if !isCompact {
+                // Always the same weight of black.
+                //
+                // It is a heading rather than a state — it says what the button
+                // is, which does not change with whether it can be pressed. The
+                // same goes for ZC against the meter.
                 Text("ZODIACTION")
                     .font(.system(size: PanelStyle.zodiactionLabelSize,
                                   weight: .heavy, design: .rounded))
+                    .foregroundStyle(Palette.warmBlack)
                     .tracking(PanelStyle.zodiactionLabelTracking)
                     .lineLimit(1)
                     .minimumScaleFactor(PanelStyle.zodiactionNameMinScale)
             }
 
+            // The **name** is what fades.
+            //
+            // Of the three lines this is the only one describing something you
+            // might do: the heading names the control and ZC labels the meter,
+            // and neither of those becomes less true while you wait. Fading the
+            // name says the move is out of reach without greying the words that
+            // explain the button.
             Text(session.zodiac.definition.zodiaction.displayName.uppercased())
                 .font(.system(size: PanelStyle.zodiactionNameSize,
                               weight: .heavy, design: .rounded))
+                .foregroundStyle(
+                    Palette.warmBlack.opacity(ready ? 1 : PanelStyle.zodiactionIdleOpacity)
+                )
                 .tracking(PanelStyle.zodiactionNameTracking)
                 .lineLimit(1)
                 .minimumScaleFactor(PanelStyle.zodiactionNameMinScale)
@@ -1809,6 +1832,7 @@ struct ZodiactionButton: View {
             Text(session.zodiac == .capricorn ? "P" : "ZC")
                 .font(.system(size: PanelStyle.meterLabelSize,
                               weight: .black, design: .rounded))
+                .foregroundStyle(Palette.warmBlack)
                 .fixedSize()
 
             pips(charged: charged)
@@ -1820,17 +1844,14 @@ struct ZodiactionButton: View {
     private func pips(charged rawCharged: Color) -> some View {
         let filled = session.zodiactionMeter
 
-        // **What a lit pip is coloured, decided here and nowhere else.**
+        // The element's own colour, for everyone.
         //
-        // A meter that empties toward firing lights the pips it has *left*, in
-        // the colour of the power still sitting in them — purple, his own,
-        // rather than the element's. The same at every phase, including the
-        // full one: the face behind them is grey until the Zodiaction can
-        // actually be fired, so there is nothing for purple to disappear into
-        // and nothing that needs a second colour to stand apart from.
-        let charged = session.zodiac.zodiaction.firesAtEmpty
-            ? Palette.purple
-            : rawCharged
+        // A meter that empties toward firing lights the pips it has *left*
+        // rather than the ones it has gained — which is a difference in what
+        // the count means, not in what colour says it. Aquarius briefly had
+        // purple here for that reason and it only made air look like two
+        // elements, since purple is the same ramp's middle.
+        let charged = rawCharged
 
         if session.zodiac == .capricorn {
             // **Always ten slots, on both planes.**
