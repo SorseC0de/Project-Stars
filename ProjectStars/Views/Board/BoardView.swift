@@ -225,6 +225,13 @@ struct BoardView: View {
     ///
     /// Their opacities breathe half a turn apart, so one is brightest exactly
     /// when the other is faintest and the tear is never entirely gone.
+    ///
+    /// - TODO: **Try a Z.** The crossed pair reads as a three-dimensional X,
+    ///   which is worth keeping either way — but the same parts arranged as a
+    ///   zigzag would be the sign's own letter standing in the board, and that
+    ///   is a better answer if it works. Needs a third plate, or the inner pair
+    ///   laid flat with the outer ones as the bars. Gallery it against this one
+    ///   rather than replacing it: both are live candidates.
     #if DEBUG
     @ViewBuilder
     private func riftPreview(metrics: PixelArtMetrics) -> some View {
@@ -235,9 +242,39 @@ struct BoardView: View {
                 )
 
                 ZStack {
+                    // The pair, leaning one way.
                     riftPlate(.geminiRiftOne, phase: 0, at: now, metrics: metrics)
                     riftPlate(.geminiRiftTwo, phase: .pi, at: now, metrics: metrics)
+
+                    // And the same pair again at half size, leaning the other —
+                    // so the tear crosses itself rather than being one slash.
+                    // Salted differently, so the small pair distorts on its own
+                    // rolls instead of shadowing the big one.
+                    // Turned end over end **before** it leans, so the drawing's
+                    // own light and dark edges meet the outer pair's the right
+                    // way round. Without it the two crossed with their bright
+                    // sides on the same diagonal, which is what made it read as
+                    // two sprites rather than as one X with depth in it.
+                    riftPlate(
+                        .geminiRiftOne, phase: 0, at: now, metrics: metrics,
+                        tilt: -GameRules.riftTilt, scale: GameRules.riftInnerScale,
+                        flipped: true, salt: 21
+                    )
+                    riftPlate(
+                        .geminiRiftTwo, phase: .pi, at: now, metrics: metrics,
+                        tilt: -GameRules.riftTilt, scale: GameRules.riftInnerScale,
+                        flipped: true, salt: 31
+                    )
                 }
+                // **Stood on the square, not centred over it.**
+                //
+                // A tear opens *out of the ground*, so its foot belongs on the
+                // tile and the rest of it reaches up — where every other effect
+                // here is centred on the square it marks. Lifted by half its own
+                // drawn height, which is what bottom-anchoring is; stated as the
+                // art's height rather than as a number of tiles, so changing the
+                // span or the stretch cannot leave it half-buried.
+                .offset(y: -riftDrawnHeight(metrics: metrics) / 2 * GameRules.riftLift)
                 .modifier(placedOnPlaneModifier(GridPoint(3, 3), metrics: metrics))
             }
         }
@@ -248,13 +285,25 @@ struct BoardView: View {
     /// - Parameter phase: Where this plate starts, in radians. The two are half
     ///   a turn apart, which puts one at each end of the crossing and keeps the
     ///   two breaths out of step.
+    /// How tall a rift plate is drawn, in points.
+    ///
+    /// The catalogue's span, through the stretch `riftPreview` applies. Read
+    /// rather than assumed, because the lift is half of it.
+    private func riftDrawnHeight(metrics: PixelArtMetrics) -> CGFloat {
+        metrics.tileSize * EffectSprite.geminiRiftOne.span * 1.25
+    }
+
     private func riftPlate(
         _ art: EffectSprite,
         phase: Double,
         at now: TimeInterval,
-        metrics: PixelArtMetrics
+        metrics: PixelArtMetrics,
+        tilt: Double = GameRules.riftTilt,
+        scale: CGFloat = 1,
+        flipped: Bool = false,
+        salt: Int? = nil
     ) -> some View {
-        let salt = art == .geminiRiftOne ? 3 : 11
+        let salt = salt ?? (art == .geminiRiftOne ? 3 : 11)
 
         // ── Version 1: two crossing orbits ────────────────────────────
         //
@@ -312,8 +361,9 @@ struct BoardView: View {
             clock: session.ambientClock(at:),
             blend: RiftPreviewDebug.shared.blend
         )
-        .scaleEffect(x: 0.375, y: 1.25)
-        .rotationEffect(.degrees(GameRules.riftTilt))
+        .scaleEffect(x: 0.375 * scale, y: 1.25 * scale)
+        .rotationEffect(.degrees(flipped ? 180 : 0))
+        .rotationEffect(.degrees(tilt))
         .opacity(alpha)
         .offset(x: x, y: y)
         // Nothing about this may be smoothed by whatever is animating

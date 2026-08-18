@@ -3052,8 +3052,21 @@ enum GameRules {
     static let riftJumpReach: CGFloat = 1.5
     static let riftJumpRate: Double = 12
 
-    /// How far the plates lean, in degrees. Upright for now.
+    /// How far the plates lean, in degrees. The inner pair leans the other way
+    /// by the same amount, so the tear crosses itself.
+    ///
+    /// Upright reads as needing a scale-down to go with it — a gallery
+    /// question.
     static let riftTilt: Double = 30
+
+    /// How big the crossing pair is against the outer one.
+    static let riftInnerScale: CGFloat = 0.5
+
+    /// How much of its own height the tear stands up out of the tile.
+    ///
+    /// `1` is true bottom-anchoring: the foot on the square, the rest reaching
+    /// up. Lower sinks it back toward being centred on the tile.
+    static let riftLift: CGFloat = 1
 
     /// How long one breath takes, and how faint a plate gets at the bottom of
     /// it.
