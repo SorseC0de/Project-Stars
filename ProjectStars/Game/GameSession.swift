@@ -1161,6 +1161,11 @@ final class GameSession {
     /// board by hand skips the spawn rules, and the spawn rules are half of what
     /// makes this one Polaris. It still lands where the sparkles say, and it
     /// still arrives cold on Terra.
+    /// Arms the next reveal to land where the next move lands. Debug only.
+    func debugArmSnipe() {
+        engine.debugSnipesNext = true
+    }
+
     func debugStagePolaris() {
         engine.debugNextPickup = .polaris
     }

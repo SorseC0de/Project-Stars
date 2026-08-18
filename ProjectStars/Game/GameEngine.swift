@@ -464,6 +464,15 @@ struct GameEngine {
     /// builds only — the Astral Bolt is one draw in four hundred, which is the
     /// whole design and completely impractical to test against.
     var debugNextPickup: PickupID?
+
+    /// Puts the next reveal on the square the move is heading for, so the
+    /// Shine-snipe can be produced on demand.
+    ///
+    /// The snipe is the rarest thing to reproduce by playing — the phase has to
+    /// end on the move you happen to be landing on its coin — which is exactly
+    /// why it went unnoticed that its window could never open. A lever for it is
+    /// worth keeping.
+    var debugSnipesNext = false
     #endif
 
     /// The square currently popped up, if any.
@@ -802,12 +811,6 @@ struct GameEngine {
         // Mirrored onto the engine for the length of the plan, so an effect
         // opened later in this same move can see it — a bubble pays triple for
         // being guessed and is handed a `PickupContext`, not a `MoveSummary`.
-        var revealedThisMove = false
-        for reveal in sim.rollPickupReveal(destination: move.destination) {
-            commit(reveal)
-            revealedThisMove = true
-        }
-
         // Arriving through a rift closes the doorway behind you — that pair
         // only. The other axis was never entered and stays open for a second
         // crossing.
@@ -828,6 +831,29 @@ struct GameEngine {
             context: sim.passiveContext
         )
         commit(.moveCommitted(direction: keepsFacing ? facingBefore : direction))
+
+        // 2a. The sparkle phase resolves — **after the move is counted**.
+        //
+        //     `moveCount` is the number of moves *committed*, and a reveal
+        //     records the move it happened on. Rolled before the commit, it
+        //     recorded the number of the **previous** move, so every question
+        //     asked later in the same plan compared M against M+1:
+        //
+        //     - The Shine-snipe pays for taking a coin on the move it appeared,
+        //       and its window was therefore never open. That is why the
+        //       flourish never played — the art, the strip and the event were
+        //       all fine.
+        //     - Magnetic Mane refuses to drag a coin "on the turn it appears",
+        //       and by the same off-by-one it was allowed to.
+        //
+        //     Nothing about the presentation moves: `moveCommitted` turns the
+        //     piece and counts the move without drawing anything, so the coin
+        //     still appears as the hop begins.
+        var revealedThisMove = false
+        for reveal in sim.rollPickupReveal(destination: move.destination) {
+            commit(reveal)
+            revealedThisMove = true
+        }
 
         // 2b. Airborne signs pay their wear to the tile they are pushing off
         //     from, not the one they are about to reach. Charged here, while the
@@ -2323,11 +2349,21 @@ struct GameEngine {
         // A passive may steer the reveal — Virgo's Controlled Compensation puts the
         // coin on the square the move is already heading for. Otherwise it is a
         // straight roll among the surviving sparkles.
-        let steered = activePassives.preferredRevealPoint(
+        var steered = activePassives.preferredRevealPoint(
             among: usable,
             destination: destination,
             context: passiveContext
         )
+
+        #if DEBUG
+        // Straight onto the destination, past the sparkle set — the point is to
+        // land on the coin as it appears, and whether that square happened to
+        // be lit is the part being skipped.
+        if debugSnipesNext, board[destination].canHostSparkle {
+            steered = destination
+            debugSnipesNext = false
+        }
+        #endif
         guard let point = steered ?? usable.randomElement(using: &rng) else { return [] }
         guard let pickup = drawPickup(at: point, on: sparkles.plane) else { return [] }
 
@@ -4182,20 +4218,31 @@ struct GameEngine {
     /// fall that dropped them, so collecting one on the way past counted as
     /// sniping a coin nobody was hunting.
     ///
-    /// Virgo is out. Regulated Reboot already pays for landing on a ring's
-    /// coin, and paying twice for the same step would make her sparkle phase
-    /// worth more than her Zodiaction.
+    /// **Virgo included.** Steering the reveal onto the square she is heading
+    /// for is her way of charging by hand, so the pip is the reward for doing
+    /// it rather than a second helping of one she already had.
     private mutating func snipeReward(for pickup: RevealedPickup) -> [GameEvent] {
         guard pickup.revealedOnMove == moveCount,
-              piece.zodiac != .virgo,
               PickupCatalog.effect(for: pickup.id).pickupClass == .pentacle
         else { return [] }
 
         var events: [GameEvent] = []
+
+        // **Everybody, Virgo included.**
+        //
+        // She was excluded on the theory that Regulated Reboot already pays her
+        // for landing on a ring's coin and that two rewards for one step would
+        // make her phase worth more than her Zodiaction. That reads the sign
+        // backwards: steering the reveal onto the square she is already heading
+        // for *is* her way of charging by hand, and taking the pip away removed
+        // the point of doing it. It also meant the one sign that can snipe on
+        // demand was the one sign that could never see the flourish — which is
+        // why this looked broken from the outside for so long.
         let target = meter(afterGaining: GameRules.revealTileCharge)
         if target != zodiactionMeter {
             events.append(.zodiactionMeterChanged(to: target))
         }
+
         events.append(.caughtOnReveal(plane: pickup.plane, point: pickup.point))
         return events
     }

@@ -307,6 +307,19 @@ struct GameScreen: View {
             Button("Toggle fissure") { session.debugToggleFissure() }
                 .keyboardShortcut("3", modifiers: [])
 
+            // Fires the snipe flourish where the piece is standing, so the
+            // question "does the sprite draw" can be answered without hunting
+            // a coin on the move it appears.
+            Button("Arm a snipe") { session.debugArmSnipe() }
+                .keyboardShortcut("6", modifiers: [])
+
+            Button("Play the flourish") {
+                session.playEffect(
+                    .bonus, at: session.engine.piece.point, on: session.engine.piece.plane
+                )
+            }
+            .keyboardShortcut("4", modifiers: [])
+
             #endif
         }
         .frame(width: 0, height: 0)
