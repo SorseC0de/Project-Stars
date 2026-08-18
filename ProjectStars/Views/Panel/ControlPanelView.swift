@@ -297,8 +297,6 @@ enum PanelStyle {
     /// Slow, and narrow. It is a statement that something is held rather than
     /// an animation asking to be watched — at any speed that catches the eye it
     /// competes with the board for attention every turn it is on screen.
-    static let goldSweepPeriod: TimeInterval = 3.2
-    static let goldSweepWidth: CGFloat = 0.12
 
     static let meterCoinSize: CGFloat = 16.5
     static let meterCoinSpacing: CGFloat = 3
@@ -320,6 +318,7 @@ enum PanelStyle {
     /// stays back. Quiet on purpose — it is a label on the bar, not a heading
     /// over it, and a bright one would compete with the pips it is naming.
     static let meterLabelGap: CGFloat = 5
+
     static let meterLabelSize: CGFloat = 14
     static let meterLabelOpacity: Double = 0.9
     static let retinueGlyphSize: CGFloat = 58
@@ -1707,21 +1706,14 @@ struct ZodiactionButton: View {
 
         TimelineView(.animation) { timeline in
             CelButton(
-                // **Purple, not grey, while it waits.**
-                //
-                // Grey means *nothing here yet*, which is true for eleven signs
-                // and a lie for Aquarius: he is never without power, only
-                // without a way to spend it. The stone face is what a charging
-                // meter looks like, and his is already full.
-                tint: ready
-                    ? Palette.yellow
-                    : (session.zodiac.zodiaction.firesAtEmpty
-                        ? Palette.purple
-                        : Palette.stone),
+                palette: zodiactionPalette(ready: ready),
                 // Availability decides the colour; the move in progress decides
                 // only whether a touch lands. Tying both to `acceptsInput` made
                 // this flash grey on every step of every move.
                 isEnabled: ready,
+                // The palette above already answers this, in full. Letting the
+                // button substitute as well is two things deciding one colour.
+                dimsWhenDisabled: false,
                 acceptsTouch: session.acceptsInput
             ) {
                 Haptics.zodiaction()
@@ -1730,24 +1722,42 @@ struct ZodiactionButton: View {
                 label(charged: element.mid)
             }
             .frame(height: PanelStyle.zodiactionButtonHeight)
-            // At a full backwards meter, a band of gold crosses the face.
-            //
-            // The state it is describing has no other way to be shown: he is at
-            // his most powerful and his least able, which a static colour can
-            // only say one half of. Something *moving* across a still face says
-            // held rather than spent — the power is there, going past, not
-            // available.
-            .overlay {
-                if session.zodiac.zodiaction.firesAtEmpty,
-                   session.zodiactionMeter >= session.zodiactionMeterMax {
-                    goldSweep(at: timeline.date)
-                }
-            }
             .background {
                 if ready { readyGlow(element.bright, at: timeline.date) }
             }
         }
     }
+
+    /// What the Zodiaction button is made of.
+    ///
+    /// Gold when it can be fired, stone when it cannot — **for every sign,
+    /// including the one whose meter runs backwards.**
+    ///
+    /// Aquarius was briefly given his own colours here, on the reasoning that
+    /// grey says *nothing here yet* and he is never without power. That is true
+    /// about the sign and wrong about the button: this control answers one
+    /// question, *can you press it*, and a face that looks alive while the
+    /// answer is no is the button lying. What he is holding is said by the
+    /// storm, the aura and the meter — three places that are about him, where
+    /// this one is about the input.
+    private func zodiactionPalette(ready: Bool) -> CelPalette {
+        // Grey for every sign at every unready phase, ramp and all.
+        //
+        // Which is what it always was: the old code derived the face from
+        // `isEnabled ? tint : Palette.gray`, so the purple it named for
+        // Aquarius was never once drawn. Saying it outright is the difference
+        // between a colour that is chosen and one that happens.
+        //
+        // Aquarius briefly had a face of his own here, on the reasoning that
+        // grey says *nothing here yet* and he is never without power. True
+        // about the sign, wrong about the button: this control answers one
+        // question — can you press it — and anything that looks alive while
+        // the answer is no is the button contradicting itself. What he is
+        // holding is said by the storm, the aura and the meter, three places
+        // that are about him. This one is about the input.
+        ready ? CelPalette(face: Palette.yellow) : .disabled
+    }
+
 
     /// The word, the name, and the meter.
     private func label(charged: Color) -> some View {
@@ -1799,7 +1809,6 @@ struct ZodiactionButton: View {
             Text(session.zodiac == .capricorn ? "P" : "ZC")
                 .font(.system(size: PanelStyle.meterLabelSize,
                               weight: .black, design: .rounded))
-                .foregroundStyle(Palette.warmBlack.opacity(PanelStyle.meterLabelOpacity))
                 .fixedSize()
 
             pips(charged: charged)
@@ -1808,8 +1817,20 @@ struct ZodiactionButton: View {
 
     /// The meter itself.
     @ViewBuilder
-    private func pips(charged: Color) -> some View {
+    private func pips(charged rawCharged: Color) -> some View {
         let filled = session.zodiactionMeter
+
+        // **What a lit pip is coloured, decided here and nowhere else.**
+        //
+        // A meter that empties toward firing lights the pips it has *left*, in
+        // the colour of the power still sitting in them — purple, his own,
+        // rather than the element's. The same at every phase, including the
+        // full one: the face behind them is grey until the Zodiaction can
+        // actually be fired, so there is nothing for purple to disappear into
+        // and nothing that needs a second colour to stand apart from.
+        let charged = session.zodiac.zodiaction.firesAtEmpty
+            ? Palette.purple
+            : rawCharged
 
         if session.zodiac == .capricorn {
             // **Always ten slots, on both planes.**
@@ -1837,19 +1858,13 @@ struct ZodiactionButton: View {
             }
             .animation(.easeOut(duration: 0.18), value: filled)
         } else {
-            // A meter that empties toward firing lights the pips it has
-            // **left**, in the colour of the power still sitting in them —
-            // and the one that is gone is the progress, which is why the
-            // filled colour is his purple rather than the element's.
-            let backwards = session.zodiac.zodiaction.firesAtEmpty
-
             HStack(spacing: isCompact
                 ? PanelStyle.meterPipSpacingCompact
                 : PanelStyle.meterPipSpacing) {
                 ForEach(0..<session.zodiactionMeterMax, id: \.self) { index in
                     RoundedRectangle(cornerRadius: PanelStyle.meterPipCorner)
                         .fill(index < filled
-                            ? (backwards ? Palette.purple : charged)
+                            ? charged
                             : Palette.warmBlack.opacity(PanelStyle.meterEmptyOpacity))
                         .frame(height: PanelStyle.meterPipHeight)
                 }
@@ -1900,33 +1915,6 @@ struct ZodiactionButton: View {
     ///
     /// Leading to trailing, looping, and 45 degrees so it crosses the long axis
     /// rather than running down it.
-    private func goldSweep(at date: Date) -> some View {
-        let cycle = date.timeIntervalSinceReferenceDate
-            .truncatingRemainder(dividingBy: PanelStyle.goldSweepPeriod)
-            / PanelStyle.goldSweepPeriod
-
-        // Travels from fully before the leading edge to fully past the
-        // trailing one, so it enters and leaves rather than appearing.
-        let centre = -PanelStyle.goldSweepWidth
-            + CGFloat(cycle) * (1 + PanelStyle.goldSweepWidth * 2)
-        let half = PanelStyle.goldSweepWidth
-
-        return RoundedRectangle(cornerRadius: PanelStyle.buttonCorner)
-            .fill(
-                LinearGradient(
-                    stops: [
-                        .init(color: .clear, location: max(centre - half, 0)),
-                        .init(color: Palette.gold, location: min(max(centre, 0), 1)),
-                        .init(color: .clear, location: min(centre + half, 1))
-                    ],
-                    startPoint: .topLeading,
-                    endPoint: .bottomTrailing
-                )
-            )
-            .blendMode(.plusLighter)
-            .allowsHitTesting(false)
-    }
-
     /// The breath: a blurred copy of the button's own shape, behind it.
     ///
     /// Driven off the clock rather than a repeating animation, like every other
@@ -1972,9 +1960,56 @@ struct ZodiactionButton: View {
 /// The lift is real: the face sits `depth` above the rim, and pressing drops it
 /// onto it. Nothing fades, nothing dims — the button physically goes down, which
 /// on a phone is the clearest confirmation that a touch landed.
+/// The three colours a cel-shaded button is made of.
+///
+/// ## Why this is a set rather than one tint
+///
+/// Because deriving all three from a face colour is only right while nothing
+/// wants to disagree with it. The moment something does — a debug control that
+/// should not look like the panel, a sign whose face is purple while its element
+/// is air — the choice is to add another override or to accept the wrong
+/// colour, and this has collected several of the former.
+///
+/// A caller that wants the ordinary look passes a face and gets a ramp. A caller
+/// that wants something else says so, in one place, without the button growing
+/// a parameter for it.
+struct CelPalette {
+
+    /// The button's own colour.
+    var face: Color
+
+    /// The side standing proud beneath it.
+    var rim: Color
+
+    /// The hard-edged lit plane across the top.
+    var highlight: Color
+
+    /// A face, with its rim and highlight taken from the palette's ramp.
+    ///
+    /// The default, and what nearly every button wants — the ramp is what makes
+    /// them look like one set of controls rather than a collection.
+    init(face: Color, rim: Color? = nil, highlight: Color? = nil) {
+        self.face = face
+        self.rim = rim ?? face.celShadow
+        self.highlight = highlight ?? face.celHighlight
+    }
+
+    /// Greyed out. Not a colour choice so much as the absence of one.
+    static let disabled = CelPalette(face: Palette.gray)
+
+    /// A sign's own, from its element.
+    ///
+    /// The switch lives here rather than inside the button, because which
+    /// colours an element wears is a fact about the game and not about how a
+    /// button is drawn.
+    static func forElement(_ element: ZodiacElement) -> CelPalette {
+        CelPalette(face: ElementFX.ramp(for: element).mid)
+    }
+}
+
 struct CelButton<Label: View>: View {
 
-    var tint: Color = Palette.gold
+    var palette: CelPalette = CelPalette(face: Palette.gold)
     var depth: CGFloat = PanelStyle.buttonDepth
     var isEnabled: Bool = true
 
@@ -1990,24 +2025,99 @@ struct CelButton<Label: View>: View {
     let action: () -> Void
     @ViewBuilder let label: () -> Label
 
+    /// Whether an unavailable button greys itself out.
+    ///
+    /// True for the ordinary case: most buttons are one colour and grey is how
+    /// they say *not now*. False for anything whose palette already describes
+    /// the state — the Zodiaction hands over a different set of colours for
+    /// waiting than for ready, and greying it discards the answer it was given.
+    var dimsWhenDisabled = true
+
+    /// Drawn over the face and its lit plane, **under** the label.
+    ///
+    /// For anything that is part of the button's surface rather than sitting on
+    /// it — Aquarius' travelling band of gold. As an outer `.overlay` it covered
+    /// the words and the meter, which reads as something passing in front of the
+    /// button instead of moving across it.
+    var surface: (() -> AnyView)?
+
     @State private var isPressed = false
 
+    /// The full form: every colour said outright.
+    init(
+        palette: CelPalette,
+        depth: CGFloat = PanelStyle.buttonDepth,
+        isEnabled: Bool = true,
+        dimsWhenDisabled: Bool = true,
+        acceptsTouch: Bool = true,
+        action: @escaping () -> Void,
+        @ViewBuilder label: @escaping () -> Label,
+        surface: (() -> AnyView)? = nil
+    ) {
+        self.palette = palette
+        self.depth = depth
+        self.isEnabled = isEnabled
+        self.dimsWhenDisabled = dimsWhenDisabled
+        self.acceptsTouch = acceptsTouch
+        self.action = action
+        self.label = label
+        self.surface = surface
+    }
+
+    /// A button in one flat colour, with its ramp derived. See `CelPalette`.
+    init(
+        tint: Color,
+        depth: CGFloat = PanelStyle.buttonDepth,
+        isEnabled: Bool = true,
+        dimsWhenDisabled: Bool = true,
+        acceptsTouch: Bool = true,
+        action: @escaping () -> Void,
+        @ViewBuilder label: @escaping () -> Label,
+        surface: (() -> AnyView)? = nil
+    ) {
+        self.init(
+            palette: CelPalette(face: tint),
+            depth: depth,
+            isEnabled: isEnabled,
+            dimsWhenDisabled: dimsWhenDisabled,
+            acceptsTouch: acceptsTouch,
+            action: action,
+            label: label,
+            surface: surface
+        )
+    }
+
     var body: some View {
-        let face = isEnabled ? tint : Palette.gray
+        let colours = (isEnabled || !dimsWhenDisabled) ? palette : .disabled
 
         ZStack {
             // The rim, standing proud below the face. Its own shape rather than
             // a border, so the button has a genuine side.
             RoundedRectangle(cornerRadius: PanelStyle.buttonCorner)
-                .fill(face.celShadow)
+                .fill(colours.rim)
                 .offset(y: depth)
 
             RoundedRectangle(cornerRadius: PanelStyle.buttonCorner)
-                .fill(face)
+                .fill(colours.face)
+                // The face's own colouring, **beneath** the lit plane.
+                //
+                // Above it, a travelling band covers the highlight and the
+                // button loses the one edge that makes it look raised. The
+                // surface is part of the face; the highlight is light falling
+                // on it, and light falls on whatever is there.
+                .overlay {
+                    if let surface {
+                        surface()
+                            .clipShape(
+                                RoundedRectangle(cornerRadius: PanelStyle.buttonCorner)
+                            )
+                            .allowsHitTesting(false)
+                    }
+                }
                 .overlay {
                     // One hard-edged lighter plane across the top, not a sheen.
                     RoundedRectangle(cornerRadius: PanelStyle.buttonCorner)
-                        .fill(face.celHighlight)
+                        .fill(colours.highlight)
                         .padding(PanelStyle.buttonHighlightInset)
                         .mask(alignment: .top) {
                             Rectangle().frame(maxHeight: PanelStyle.buttonHighlightHeight)

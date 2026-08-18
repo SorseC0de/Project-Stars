@@ -165,6 +165,21 @@ final class GameSession {
     /// twin, which turns the other way — the two halves are a mirrored pair, and
     /// a mirror reverses the direction of a turn. It is also the fastest way to
     /// tell at a glance which of them you are holding.
+    /// How far a fall turns the piece, and which way.
+    ///
+    /// **Zero while the storm is up.** Spinning is what a solid thing does when
+    /// the ground goes: it has a top and a bottom and loses track of which is
+    /// which. A funnel has neither — it is already turning about its own axis —
+    /// so end-over-end reads as the sprite being thrown rather than as the sign
+    /// falling.
+    ///
+    /// At an empty meter it tumbles like anything else, which is the point of
+    /// draining the meter before a death: what falls is the little pot.
+    private var tumble: Double {
+        guard !engine.floatsOverHoles else { return 0 }
+        return GameRules.fallSpinDegrees / 2 * tumbleDirection
+    }
+
     private var tumbleDirection: Double {
         engine.piece.twin == .silver ? -1 : 1
     }
@@ -2319,7 +2334,7 @@ final class GameSession {
     private func animateDescent(duration: TimeInterval) async {
         withAnimation(.easeIn(duration: duration)) {
             isFalling = true
-            fallSpin += GameRules.fallSpinDegrees / 2 * tumbleDirection
+            fallSpin += tumble
         }
         await sleep(duration)
     }
@@ -2378,7 +2393,7 @@ final class GameSession {
                 to: to, context: engine.passiveSnapshot
             )
         }()
-        let tumble = controlled ? 0 : GameRules.fallSpinDegrees / 2 * tumbleDirection
+        let tumble = controlled ? 0 : self.tumble
 
         // Going down through the sky pushes it aside. Only leaving Astra: a fall
         // out of Terra is a fall out of the world and there is no cloud there to

@@ -586,6 +586,11 @@ struct GameEngine {
     }
 
     /// True when the player's directions are turned around.
+    /// True when holes hold this piece up.
+    var floatsOverHoles: Bool {
+        activePassives.walksOnHoles(context: passiveContext)
+    }
+
     var controlsAreReversed: Bool {
         activePassives.reversesControls(context: passiveContext)
     }
