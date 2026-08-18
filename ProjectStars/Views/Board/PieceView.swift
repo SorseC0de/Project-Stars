@@ -510,22 +510,8 @@ struct PieceView: View {
                     // cannot see. So each ghost is the same sprite wound back a
                     // few moments along its own two clocks: not a copy placed
                     // behind it, but where it genuinely was.
-                    ForEach((0...GameRules.piscesFishTrail).reversed(), id: \.self) { step in
-                        let past = now - Double(step) * GameRules.piscesFishTrailGap
-                        let orbit = past / GameRules.piscesFishOrbitPeriod * 2 * .pi
-                        let spin = past / GameRules.piscesFishSpinPeriod * 360
-
-                        PixelSprite(id: .piscesFishCharged) { Color.clear }
-                            .rotationEffect(.degrees(-spin))
-                            .offset(
-                                x: sin(orbit) * GameRules.piscesFishOrbit * scale,
-                                y: (cos(orbit) - 1) / 2 * GameRules.piscesFishOrbit * scale
-                                    + GameRules.piscesFishDrop * scale
-                            )
-                            // The live fish is solid; every ghost behind it is
-                            // fainter than the one in front.
-                            .opacity(step == 0 ? 1 : GameRules.piscesFishTrailFade / Double(step))
-                    }
+                    fish(at: now, step: 0)
+                        .background { fishTrail(at: now) }
                 } else {
                     // Still, and stone. The fish is part of him until the meter
                     // fills; only then does it come loose.
@@ -571,11 +557,53 @@ struct PieceView: View {
                     // the thing casting it.
                     .overlay {
                         if isCharged {
+                            // Two clocks, neither a multiple of the other, so
+                            // the jitter and the pulse never fall into step and
+                            // the loop cannot be counted. A flame that repeats
+                            // on a beat stops reading as fire.
+                            // **Stepped, not swept.**
+                            //
+                            // A sine moves through every position between two
+                            // points, which is a drift however fast it runs.
+                            // Jitter is the absence of in-between: the time is
+                            // chopped into ticks and each one lands somewhere
+                            // unrelated to the last, which is what makes it read
+                            // as a flame rather than a float.
+                            let tick = (now / GameRules.sagittariusArrowCoreTick)
+                                .rounded(.down)
+                            let shake = GameRules.jitter(tick, salt: 1)
+                            let sway = GameRules.jitter(tick, salt: 2)
+                            let pulse = (sin(now / GameRules.sagittariusArrowCorePulse * 2 * .pi) + 1) / 2
+
                             PixelSprite(id: .sagittariusArrowRest) { Color.clear }
                                 .colorEffect(
                                     ShaderLibrary.flatSilhouette(.color(Palette.yellow))
                                 )
                                 .scaleEffect(GameRules.sagittariusArrowCoreScale)
+                                // Softened, and only here — a hard-edged shape
+                                // inside a sprite reads as a second sprite,
+                                // where a blurred one reads as the shaft
+                                // glowing from within.
+                                .blur(radius: GameRules.sagittariusArrowCoreBlur * scale)
+                                // The tuned value is the **top** of the swing,
+                                // not the middle: it was settled by eye as the
+                                // brightest this should ever be, so pulsing
+                                // about it would spend half the loop brighter
+                                // than what was chosen.
+                                .opacity(
+                                    GameRules.sagittariusArrowCoreOpacity
+                                        * (1 - GameRules.sagittariusArrowCoreDip * pulse)
+                                )
+                                // Added rather than laid over, so it brightens
+                                // the shaft it sits in instead of hiding it —
+                                // the arrow's own colours stay readable through
+                                // the heat.
+                                .blendMode(.plusLighter)
+                                .offset(
+                                    x: shake * GameRules.sagittariusArrowCoreJitter * scale,
+                                    y: GameRules.sagittariusArrowCoreDrop * scale
+                                        + sway * GameRules.sagittariusArrowCoreJitter * scale
+                                )
                         }
                     }
                     .offset(y: -rise * GameRules.sagittariusArrowFloat * scale)
@@ -583,6 +611,44 @@ struct PieceView: View {
             .frame(width: tileSize, height: tileSize)
             .allowsHitTesting(false)
         }
+    }
+
+    /// The ghosts behind the energy fish.
+    ///
+    /// **Behind it, and outside the charged bloom.** Inside, they fed the
+    /// glow's own mask — and that mask is rasterised into the piece's layout
+    /// bounds, which are one tile wide, so a trail spilling past them came back
+    /// as a column of light. Behind the sprite there is nothing to clip and
+    /// nothing to inflate.
+    ///
+    /// Flattened to one blue rather than dimmed copies of the art: a ghost is
+    /// where the fish *was*, and detail in it competes with the fish that is
+    /// actually there.
+    private func fishTrail(at now: TimeInterval) -> some View {
+        ForEach(1...GameRules.piscesFishTrail, id: \.self) { step in
+            fish(at: now, step: step)
+                .colorEffect(ShaderLibrary.flatSilhouette(.color(Palette.sky)))
+                .opacity(GameRules.piscesFishTrailFade / Double(step))
+        }
+    }
+
+    /// The energy fish, wound back `step` moments along its own two clocks.
+    ///
+    /// Its position is a function of time, so a ghost is simply the same view
+    /// asked about the past — the trail curves with the orbit and turns with the
+    /// spin rather than trailing in a straight line behind it.
+    private func fish(at now: TimeInterval, step: Int) -> some View {
+        let past = now - Double(step) * GameRules.piscesFishTrailGap
+        let orbit = past / GameRules.piscesFishOrbitPeriod * 2 * .pi
+        let spin = past / GameRules.piscesFishSpinPeriod * 360
+
+        return PixelSprite(id: .piscesFishCharged) { Color.clear }
+            .rotationEffect(.degrees(-spin))
+            .offset(
+                x: sin(orbit) * GameRules.piscesFishOrbit * scale,
+                y: (cos(orbit) - 1) / 2 * GameRules.piscesFishOrbit * scale
+                    + GameRules.piscesFishDrop * scale
+            )
     }
 
     @ViewBuilder

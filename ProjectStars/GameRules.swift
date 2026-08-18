@@ -2655,7 +2655,41 @@ enum GameRules {
     ///
     /// Half. It is the arrow's own shape, so anything larger stops reading as
     /// heat inside the shaft and starts reading as a second arrow behind it.
-    static let sagittariusArrowCoreScale: CGFloat = 0.5
+    static let sagittariusArrowCoreScale: CGFloat = 0.4
+
+    /// How far the core sits below the arrow's own centre, and how soft it is —
+    /// both in art pixels, so they hold at every board size.
+    static let sagittariusArrowCoreDrop: CGFloat = 1
+    static let sagittariusArrowCoreBlur: CGFloat = 0.5
+
+    /// And how strongly it is added. See the `plusLighter` at the call site:
+    /// this is light on the shaft rather than paint over it.
+    static let sagittariusArrowCoreOpacity: Double = 0.66
+
+    /// How far the core wanders, in art pixels — **half of one**, so it never
+    /// leaves the shaft it is inside. At a whole pixel it reads as the core
+    /// being loose rather than as the light moving in it.
+    static let sagittariusArrowCoreJitter: CGFloat = 0.5
+
+    /// How far the pulse dims it from its brightest, and the three periods the
+    /// motion runs on.
+    ///
+    /// Three, none a multiple of another, so the wander and the breath never
+    /// land together — a flame that repeats on a countable beat stops reading
+    /// as fire.
+    static let sagittariusArrowCoreDip: Double = 0.4
+    static let sagittariusArrowCoreTick: TimeInterval = 0.07
+
+    /// A repeatable number in `-1...1` for a given tick.
+    ///
+    /// Hashed rather than random, so the same tick always gives the same
+    /// answer — a view rebuilt mid-frame must not jump somewhere new, and
+    /// SwiftUI rebuilds whenever it likes.
+    static func jitter(_ tick: Double, salt: Int) -> Double {
+        let hashed = sin(tick * 12.9898 + Double(salt) * 78.233) * 43758.5453
+        return (hashed - hashed.rounded(.down)) * 2 - 1
+    }
+    static let sagittariusArrowCorePulse: TimeInterval = 2.1
 
     // MARK: - The glow phase's hang
 
