@@ -277,6 +277,13 @@ enum EffectSprite: String, CaseIterable, Hashable {
             CGSize(width: 96, height: 96)
         case .geminiRiftOne, .geminiRiftTwo:
             CGSize(width: 256, height: 256)
+        // Redrawn at twice their first size. The widest plate is blown up to
+        // about 200 points on screen, which at 64px put its art pixels at more
+        // than twice the size of a board tile's — the plates read as coarser
+        // than everything around them, and worse the bigger they got. At 128
+        // they land within a tenth of the board's own pixel.
+        case .aquariusArmor, .aquariusArmorGrey:
+            CGSize(width: 128, height: 128)
         // Tall and narrow: a bolt reaches from the sky to the ground, and its
         // frame is the only one here that is not square.
         case .lightning1, .lightning2, .lightning3, .lightning4:
