@@ -1003,15 +1003,13 @@ struct GameEngine {
         //    streak. Done before charging so a streak pays out on the move that
         //    extended it. The timers were aged back at 2b, before anything this
         //    move could grant one.
-        var updatedState = sim.signState
-        updatedState.recordMove(direction: direction)
-        updatedState.recordHoleJumps(landing.holesJumped)
-        if updatedState != sim.signState {
-            commit(.signStateChanged(updatedState))
-        }
-
-        // 7. Charge the Zodiaction off what the move amounted to. Built before
-        //    the call so the summary is not read while `sim` is being mutated.
+        // **Counted before it is recorded.**
+        //
+        // The streak was advanced here and the holes were counted twenty lines
+        // below it, so what went into `holeJumpStreak` was whatever the landing
+        // happened to be carrying rather than what this move cleared. Scorpio
+        // is the sign paid per hole crossed, so an ordinary walk could arrive
+        // holding a streak it had not earned.
         let nexysPoint = GameRules.nexysPoint
         let walkedToNexys = move.path.last == nexysPoint && !landing.fell
 
@@ -1026,7 +1024,25 @@ struct GameEngine {
                 // board. Scorpio's Void Culling is paid for *ruin*.
                 .filter { !sim[startingPlane][$0].isSolid && sim[startingPlane][$0].kind == .normal }
                 .count
+        } else {
+            // Anything that is not a jump cleared nothing, whatever the landing
+            // was carrying when it got here.
+            landing.holesJumped = 0
         }
+
+        // 6. Fold the move into the sign's memory: advance the direction streak
+        //    and the hole-jump streak. Done before charging so a streak pays out
+        //    on the move that extended it. The timers were aged back at 2b,
+        //    before anything this move could grant one.
+        var updatedState = sim.signState
+        updatedState.recordMove(direction: direction)
+        updatedState.recordHoleJumps(landing.holesJumped)
+        if updatedState != sim.signState {
+            commit(.signStateChanged(updatedState))
+        }
+
+        // 7. Charge the Zodiaction off what the move amounted to. Built before
+        //    the call so the summary is not read while `sim` is being mutated.
         let summary = MoveSummary(
             direction: direction,
             origin: origin,
@@ -1718,6 +1734,15 @@ struct GameEngine {
             if !sim.piece.zodiac.zodiaction.ignoresMeter(context: sim.passiveContext) {
                 commit(.zodiactionMeterChanged(to: sim.piece.zodiac.zodiaction.startingMeter))
             }
+            // **The fragment wakes on the firing, not on the finishing.**
+            //
+            // A Zodiaction that asks a question leaves here and comes back
+            // through `planChoice`, which never sees the `zodiactionFired` that
+            // started it — so a Zodiaction with a choice in it woke no Polaris
+            // at all. Capricorn's is the whole of his: on Terra, where the
+            // fragment has no other way to be lit, the shop was a dead end for
+            // it. Exposure is a moment, and this is the moment.
+            events += sim.chargePolaris(after: events)
             events += sim.tickForTurn()
             return events
         }
@@ -2187,13 +2212,29 @@ struct GameEngine {
             context: passiveContext
         )
         let step = travel.unitOffset
-        let option = movement.option(for: travel, facing: piece.facing, reach: reach)
 
         let point: GridPoint = {
             if let landing = resolvedMove(for: travel, reach: reach)?.destination {
                 return landing
             }
-            let distance = option?.distance ?? 1
+
+            // **The reach the piece actually has, not the one the pattern
+            // lists.**
+            //
+            // The fallback took the option the swipe selected and projected it
+            // whole — so Scorpio's cursor sat two squares out whenever the
+            // vault was picked, including every time Void Culling refuses it
+            // for want of a hole. Two squares of cursor followed by a refusal
+            // nudge is the game saying *there* and then *no*.
+            //
+            // `moveOptions` is the list a passive has already filtered, which
+            // is the same list `resolvedMove` will consult. Off the end of it
+            // — no option available in this direction at all — one square is
+            // the right place to point, because that is where the wall is.
+            let available = moveOptions(for: travel)
+            let distance = available.last(where: { $0.distance <= max(reach, 1) })?.distance
+                ?? available.first?.distance
+                ?? 1
             return GridPoint(
                 piece.point.x + step.dx * distance,
                 piece.point.y + step.dy * distance
@@ -3588,22 +3629,7 @@ struct GameEngine {
         //
         // - TODO: Give this its own collection sound — it is a different event
         //   from an ordinary pickup and currently sounds identical.
-        // Pentacles only.
-        //
-        // A scatter is *several* things appearing at once and taking one leaves
-        // the rest — Pisces' spilled bubbles are revealed by the fall that
-        // dropped them, so collecting one on the way past counted as sniping a
-        // coin you were never hunting. The snipe is a reward for reaching a
-        // reveal you had to go and get; a bubble underfoot is not that.
-        if pickup.revealedOnMove == moveCount,
-           piece.zodiac != .virgo,
-           PickupCatalog.effect(for: pickup.id).pickupClass == .pentacle {
-            let target = meter(afterGaining: GameRules.revealTileCharge)
-            if target != zodiactionMeter {
-                commit(.zodiactionMeterChanged(to: target))
-            }
-            commit(.caughtOnReveal(plane: pickup.plane, point: pickup.point))
-        }
+        for event in snipeReward(for: pickup) { commit(event) }
 
         // A ring's coin pays whoever takes it, whatever sign that is by then.
         if pickup.fromRing {
@@ -4135,6 +4161,45 @@ struct GameEngine {
     /// Each one runs its full effect, so a coin caught mid-slide behaves exactly
     /// as it would have if walked onto — including moving the piece again, which
     /// it could not safely have done while the piece was still travelling.
+    /// What taking a coin **on the move it appeared** is worth.
+    ///
+    /// The Shine-snipe — alternatively the Sparkle-snipe: the sparkle phase
+    /// lights five squares, one of them turns out to be the coin, and reaching
+    /// it first is a guess worth paying for. A pip to anyone, and the overhead
+    /// flourish that says it happened.
+    ///
+    /// ## Why this is a function rather than a block inside one collector
+    ///
+    /// Because there are two collectors. A coin you land on is opened where it
+    /// stands; a coin you *cross* is carried and opened when the move stops —
+    /// and only the first of the two knew this rule. So a snipe made by sliding
+    /// over the coin paid nothing and played nothing, which read exactly like
+    /// the flourish being broken. A slide is one move, so sniping on one is a
+    /// snipe.
+    ///
+    /// Pentacles only. A scatter is *several* things appearing at once and
+    /// taking one leaves the rest — Pisces' spilled bubbles are revealed by the
+    /// fall that dropped them, so collecting one on the way past counted as
+    /// sniping a coin nobody was hunting.
+    ///
+    /// Virgo is out. Regulated Reboot already pays for landing on a ring's
+    /// coin, and paying twice for the same step would make her sparkle phase
+    /// worth more than her Zodiaction.
+    private mutating func snipeReward(for pickup: RevealedPickup) -> [GameEvent] {
+        guard pickup.revealedOnMove == moveCount,
+              piece.zodiac != .virgo,
+              PickupCatalog.effect(for: pickup.id).pickupClass == .pentacle
+        else { return [] }
+
+        var events: [GameEvent] = []
+        let target = meter(afterGaining: GameRules.revealTileCharge)
+        if target != zodiactionMeter {
+            events.append(.zodiactionMeterChanged(to: target))
+        }
+        events.append(.caughtOnReveal(plane: pickup.plane, point: pickup.point))
+        return events
+    }
+
     private mutating func openCarriedPickups() -> [GameEvent] {
         guard !carriedPickups.isEmpty else { return [] }
 
@@ -4150,6 +4215,14 @@ struct GameEngine {
             )
             apply(opened)
             events.append(opened)
+
+            // Crossed on the move it appeared is still a snipe — see
+            // `snipeReward(for:)`. This path never asked, which is why sniping
+            // by sliding over a coin paid nothing.
+            for reward in snipeReward(for: coin) {
+                apply(reward)
+                events.append(reward)
+            }
 
             let effect = PickupCatalog.effect(for: coin.id)
 

@@ -608,7 +608,14 @@ struct SignState: Equatable {
         copy.umbralEssenceMoves = umbralEssenceMoves
         copy.galeMoves = galeMoves
         copy.arrow = arrow
-        copy.shedSkin = shedSkin
+        // **The skin does not survive the swap.**
+        //
+        // Becoming someone else is the one thing that refreshes Samsaric Shed,
+        // so the skin left lying on the board belongs to an ability that has
+        // already been given back — a body from a life the run is no longer
+        // living. Kept, it was a second shed's worth of insurance sitting in
+        // plain sight, and a marker for a rescue that would now come from
+        // somewhere else.
         // The retinue is Leo's and nobody else's: a phantom follows the lion,
         // not whoever happens to be holding the board.
         return copy

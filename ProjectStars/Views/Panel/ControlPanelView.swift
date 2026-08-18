@@ -870,15 +870,15 @@ private struct PanelFrontView: View {
             // nothing that was not already there.
             // The column holds the borrowed supers *and* the arrow recall, so
             // the main button gives up its third for either.
-            // `canFirePolaris`, not `polaris != nil`.
             //
-            // The column *draws* the fragment only when it can be spent, so
-            // asking a different question here meant carrying a dormant Polaris
-            // shrank the Zodiaction button to make room for a button that was
-            // not there. The two must ask the same thing.
+            // **Polaris is not in it.** The fragment moved out to the lift's
+            // stack — it is chrome for the run rather than a super — and this
+            // was left still counting it, so a lit Polaris shrank the biggest
+            // control on the panel to make room for a button that is drawn
+            // somewhere else entirely. The rule is what the column *contains*,
+            // which is the only thing that can take its third.
             let hasColumn = !session.retinue.isEmpty
                 || session.canRecallArrow
-                || session.canFirePolaris
 
             ZodiactionButton(session: session, isCompact: hasColumn)
                 .frame(maxWidth: .infinity)
@@ -1564,6 +1564,32 @@ struct DirectionPad: View {
                 PadArrow(session: session, direction: .left)
                 Color.clear.frame(width: PanelStyle.padArrowSize, height: 1)
                 PadArrow(session: session, direction: .right)
+            }
+
+            // **The corners, for whoever has them.**
+            //
+            // The pad was four arrows because four was every direction the game
+            // had when it was written. The diagonals arrived with Virgo and only
+            // the stick and the grid learned about them, so playing her on the
+            // arrows meant losing half her movement — the one scheme where what
+            // you can press *is* what you can do.
+            //
+            // Shown per direction rather than per sign: a borrowed diagonal from
+            // Leo's company is the same question, and asking the movement means
+            // nothing here has to know whose it is.
+            if session.movesDiagonally {
+                VStack(spacing: PanelStyle.padGapVertical) {
+                    HStack(spacing: PanelStyle.padGapHorizontal) {
+                        PadArrow(session: session, direction: .upLeft)
+                        Color.clear.frame(width: PanelStyle.padArrowSize, height: 1)
+                        PadArrow(session: session, direction: .upRight)
+                    }
+                    HStack(spacing: PanelStyle.padGapHorizontal) {
+                        PadArrow(session: session, direction: .downLeft)
+                        Color.clear.frame(width: PanelStyle.padArrowSize, height: 1)
+                        PadArrow(session: session, direction: .downRight)
+                    }
+                }
             }
         }
     }
