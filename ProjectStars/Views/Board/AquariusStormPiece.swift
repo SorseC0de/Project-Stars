@@ -500,6 +500,10 @@ struct AquariusStormPiece: View {
     /// The frames drawn for each phase so far. See `AquariusStormFilm`.
     var film: AquariusStormFilm?
 
+    /// The phase that just ended, and when — so the plate it lost can be seen
+    /// leaving. See `partingPlate(at:)`.
+    @State private var parting: (from: Int, to: Int, at: Date)?
+
     /// What the bloom is coloured, and how that colour is applied.
     var glowTint: Color = GameRules.stormGlowTint
     var glowTintBlend: BlendMode = GameRules.stormGlowTintBlend
@@ -545,6 +549,53 @@ struct AquariusStormPiece: View {
         }
     }
 
+    /// The plate the storm just gained or lost, in the moment it moves.
+    ///
+    /// The filmed funnel can only cut between phases — ten reels are ten
+    /// finished pictures with nothing between them — so the change is carried
+    /// by a single live plate drawn over the top: **spreading outward and
+    /// fading as it leaves, arriving tight and solid from spread and clear.**
+    ///
+    /// One sprite, so it costs nothing next to the thirteen underneath it. The
+    /// same split the figure already uses: cache what is expensive and let what
+    /// has to move smoothly be drawn live.
+    @ViewBuilder
+    private func partingPlate(at elapsed: TimeInterval) -> some View {
+        if let parting {
+            let age = Date.now.timeIntervalSince(parting.at) / GameRules.stormPlateParting
+
+            if age < 1 {
+                // Leaving spreads and fades; arriving does the same in reverse,
+                // which is the same curve read backwards.
+                let leaving = parting.to < parting.from
+                let progress = leaving ? age : 1 - age
+
+                // Where the plate it lost stood: the top of the stack, which is
+                // its widest. Measured against the gallery's 300, like every
+                // other number inside this assembly.
+                let top = max(parting.from, parting.to)
+                let bands = GameRules.aquariusStormBandsLeast
+                    + Int((Double(GameRules.aquariusStormBandsMost
+                        - GameRules.aquariusStormBandsLeast)
+                        * Double(top) / 10).rounded())
+                let strength = Double(top) / 10
+                let width = 300 * (0.86 + 0.30 * strength) * GameRules.aquariusStormBlade
+                let step = 300 * GameRules.aquariusStormHeight / CGFloat(max(bands - 1, 1))
+
+                EffectSpriteView(
+                    effect: GameRules.aquariusPlate(atPhase: top),
+                    tileSize: width,
+                    start: .distantPast,
+                    loops: true
+                )
+                .scaleEffect(1 + progress * GameRules.stormPlateSpread)
+                .opacity(1 - progress)
+                .offset(y: 300 * 0.22 - CGFloat(bands - 1) * step)
+                .allowsHitTesting(false)
+            }
+        }
+    }
+
     var body: some View {
         if phase <= 0 {
             PixelSprite(id: .piece(.aquarius)) { Color.clear }
@@ -585,13 +636,33 @@ struct AquariusStormPiece: View {
                                         height: GameRules.aquariusStormCanvas
                                     )
                                     .opacity(stage == phase ? 1 : 0)
+                                    // **Cut, never dissolve.**
+                                    //
+                                    // The ten reels are ten different pictures,
+                                    // so animating between two of them can only
+                                    // cross-fade — there is no in-between funnel
+                                    // to show, and a dissolve of the whole storm
+                                    // reads as the sprite glitching. The figure
+                                    // inside looks smooth because it is driven by
+                                    // a continuous number and genuinely has
+                                    // in-between states.
+                                    //
+                                    // Adjacent phases differ by about one plate,
+                                    // so a cut is a plate appearing — which is
+                                    // what is actually happening.
+                                    .transaction { $0.animation = nil }
                             }
                         }
                     }
                 }
+                .overlay { partingPlate(at: elapsed) }
                 .compositingGroup()
                 .scaleEffect(scale * tileSize * GameRules.aquariusStormTiles / 300)
                 .frame(width: tileSize, height: tileSize * 2)
+            }
+            .onChange(of: phase) { was, now in
+                guard was != now else { return }
+                parting = (from: was, to: now, at: .now)
             }
         } else {
             // Built at the size it was tuned at, then scaled to the square.

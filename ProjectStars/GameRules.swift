@@ -3138,6 +3138,15 @@ enum GameRules {
     /// them — which reads as a costume rather than as something he is inside.
     /// The stack thins toward the reveal by getting smaller, not by getting
     /// gappy.
+    /// How long a plate takes to join or leave the funnel, and how far it
+    /// spreads while doing it.
+    ///
+    /// The film cuts between phases, so this is the whole of the transition —
+    /// one plate moving is what says the storm changed rather than the picture
+    /// changing.
+    static let stormPlateParting: TimeInterval = 0.32
+    static let stormPlateSpread: CGFloat = 0.45
+
     static let aquariusStormBandsLeast = 6
     static let aquariusStormBandsMost = 13
 
