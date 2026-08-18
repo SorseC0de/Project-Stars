@@ -2257,10 +2257,11 @@ struct GameEngine {
         // sit somewhere so the player can see *why*.
         let travel = direction ?? piece.facing
 
-        let movement = activePassives.adjustedMovement(
-            base: activeMovement,
-            context: passiveContext
-        )
+        // The pattern used to be consulted here to work out how far the cursor
+        // should reach. `resolvedMove` answers that now — and answers it the
+        // same way the move itself will, which is the whole point of there
+        // being one owner. What is left below is the fallback for when there is
+        // no legal move at all.
         let step = travel.unitOffset
 
         let point: GridPoint = {
@@ -4331,6 +4332,28 @@ struct GameEngine {
     /// Built as a closure over a *snapshot* of the context rather than reading
     /// the engine as it runs: the roll happens with `&rng` already borrowed, and
     /// touching `self` inside it would be overlapping access to the same value.
+    #if DEBUG
+    /// Rolls `count` coins through the **real** draw and tallies what came up.
+    ///
+    /// The engine's own weighting, so the sample includes everything that
+    /// actually shapes a run's luck: the plane filter, the sign's passives, the
+    /// lot. A table read off the source is the authored answer; this is the
+    /// played one, and the gap between them is the interesting number.
+    func debugPickupSample(_ count: Int, seed: UInt64 = 20_260_818) -> [(PickupID, Int)] {
+        var generator = SeededRandom(seed: seed)
+        var tally: [PickupID: Int] = [:]
+        let weighting = pickupWeighting()
+
+        for _ in 0..<count {
+            guard let drawn = PickupCatalog.rollPickup(
+                weighting: weighting, using: &generator
+            ) else { continue }
+            tally[drawn, default: 0] += 1
+        }
+        return tally.sorted { $0.value > $1.value }.map { ($0.key, $0.value) }
+    }
+    #endif
+
     private func pickupWeighting() -> (PickupID, Int) -> Int {
         let context = passiveContext
         let passives = activePassives

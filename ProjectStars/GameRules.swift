@@ -283,7 +283,12 @@ enum GameRules {
     /// in four hundred — many complete games between sightings. That is the
     /// design: it is supposed to be a thing players tell each other about, and
     /// something seen every few games is not that.
-    static let astralBoltChance = 0.015
+    /// How often an elemental Essence turns out to be the Astral Bolt.
+    ///
+    /// A share of *their* share, so the Bolt's real rate is this times whatever
+    /// the four elementals are authored at — twenty percent between them today,
+    /// which puts the Bolt at one in a hundred coins. See `PickupCatalog`.
+    static let astralBoltChance = 0.05
 
     /// How many committed moves the Bolt's charge lasts.
     ///
@@ -3001,7 +3006,7 @@ enum GameRules {
     ///
     /// - TODO: **Debug only.** Point this at whoever is being worked on, and
     ///   move it when the work moves. Never read in a shipped build.
-    static let debugStartingSign: Zodiac = .aquarius
+    static let debugStartingSign: Zodiac = .virgo
 
     /// How much red is washed over a badly cracked Terra tile.
     ///

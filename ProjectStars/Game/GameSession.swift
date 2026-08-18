@@ -1167,6 +1167,25 @@ final class GameSession {
         engine.debugSnipesNext = true
     }
 
+    /// Prints what ten thousand coins actually come up as, on this plane.
+    func debugRollDistribution() {
+        let rolls = 10_000
+        let sample = engine.debugPickupSample(rolls)
+        print("── \(rolls) draws as \(engine.piece.zodiac) on \(engine.piece.plane.rawValue) ──")
+        for (id, count) in sample {
+            let observed = Double(count) / Double(rolls) * 100
+            let authored = PickupCatalog.effect(for: id).chance
+            // A coin authored at zero that still turns up is drawn some other
+            // way — the Bolt out of the elementals. Saying "authored 0" beside
+            // an observed one percent reads as a bug rather than as a design.
+            let source = authored > 0 ? "authored \(authored)%" : "derived"
+            print(String(
+                format: "  %-22@ %5.2f%%   %@",
+                id.rawValue as NSString, observed, source as NSString
+            ))
+        }
+    }
+
     func debugStagePolaris() {
         engine.debugNextPickup = .polaris
     }

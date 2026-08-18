@@ -310,6 +310,9 @@ struct GameScreen: View {
             // Fires the snipe flourish where the piece is standing, so the
             // question "does the sprite draw" can be answered without hunting
             // a coin on the move it appears.
+            Button("Roll ten thousand coins") { session.debugRollDistribution() }
+                .keyboardShortcut("7", modifiers: [])
+
             Button("Arm a snipe") { session.debugArmSnipe() }
                 .keyboardShortcut("6", modifiers: [])
 
