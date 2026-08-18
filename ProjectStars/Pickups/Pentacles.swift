@@ -536,17 +536,18 @@ struct AstralBreezeEffect: PickupEffect {
         else { return [] }
 
         return [
-            // Carried, with the gust playing where it sets down. The type is
-            // the Pentacle's to choose — nothing about the sign being blown
-            // changes what a wind looks like.
+            // Carried. The type is the Pentacle's to choose — nothing about
+            // the sign being blown changes what a wind looks like.
+            //
+            // No `effect`: the gusts are the *presentation* of a long carry and
+            // live in `GameSession.animateBlown`, which throws several staggered
+            // copies rather than the one this would add on top.
             .pieceMoved(
                 from: context.piecePoint,
                 to: destination,
                 fromPlane: context.plane,
                 toPlane: context.plane,
-                type: .blown,
-                effect: .windMisc,
-                effectPlaysOn: .both
+                type: .blown
             )
         ]
     }

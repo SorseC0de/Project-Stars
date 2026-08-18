@@ -241,14 +241,19 @@ struct BoardView: View {
                     at: timeline.date.timeIntervalSinceReferenceDate
                 )
 
-                // **The two leans trade sizes, and neither moves.**
+                // **The two leans trade length, and neither moves.**
                 //
-                // One arm swells to full while the other shrinks to half, then
-                // back — so the X keeps turning itself inside out and the eye
-                // reads depth being exchanged rather than two fixed bars. Each
-                // plate scales about its own centre and the crossing stays
-                // exactly where it was, which is what keeps it from looking
-                // like something growing out of the square.
+                // One arm grows to full height while the other shortens to
+                // half, then back — so the X keeps turning itself inside out
+                // and the eye reads depth being exchanged rather than two fixed
+                // bars. Each plate scales about its own centre and the crossing
+                // stays exactly where it was.
+                //
+                // **Height only.** Trading both axes was a zoom, and a zooming
+                // sprite reads as coming toward you; a tear has no business
+                // approaching anybody. Holding the width and moving only the
+                // length makes it a *stretch*, which is what a rip in something
+                // does.
                 //
                 // Smooth, unlike everything else here: the jitter is the thing
                 // that jumps, and a scale that jumped with it would just be
@@ -261,8 +266,8 @@ struct BoardView: View {
 
                 ZStack {
                     // The pair, leaning one way.
-                    riftPlate(.geminiRiftOne, phase: 0, at: now, metrics: metrics, scale: outer)
-                    riftPlate(.geminiRiftTwo, phase: .pi, at: now, metrics: metrics, scale: outer)
+                    riftPlate(.geminiRiftOne, phase: 0, at: now, metrics: metrics, length: outer)
+                    riftPlate(.geminiRiftTwo, phase: .pi, at: now, metrics: metrics, length: outer)
 
                     // And the same pair again at half size, leaning the other —
                     // so the tear crosses itself rather than being one slash.
@@ -275,12 +280,14 @@ struct BoardView: View {
                     // two sprites rather than as one X with depth in it.
                     riftPlate(
                         .geminiRiftOne, phase: 0, at: now, metrics: metrics,
-                        tilt: -GameRules.riftTilt, scale: inner,
+                        tilt: -GameRules.riftTilt,
+                        width: GameRules.riftInnerScale, length: inner,
                         flipped: true, salt: 21
                     )
                     riftPlate(
                         .geminiRiftTwo, phase: .pi, at: now, metrics: metrics,
-                        tilt: -GameRules.riftTilt, scale: inner,
+                        tilt: -GameRules.riftTilt,
+                        width: GameRules.riftInnerScale, length: inner,
                         flipped: true, salt: 31
                     )
                 }
@@ -317,7 +324,8 @@ struct BoardView: View {
         at now: TimeInterval,
         metrics: PixelArtMetrics,
         tilt: Double = GameRules.riftTilt,
-        scale: CGFloat = 1,
+        width: CGFloat = 1,
+        length: CGFloat = 1,
         flipped: Bool = false,
         salt: Int? = nil
     ) -> some View {
@@ -379,7 +387,7 @@ struct BoardView: View {
             clock: session.ambientClock(at:),
             blend: RiftPreviewDebug.shared.blend
         )
-        .scaleEffect(x: 0.375 * scale, y: 1.25 * scale)
+        .scaleEffect(x: 0.375 * width, y: 1.25 * length)
         .rotationEffect(.degrees(flipped ? 180 : 0))
         .rotationEffect(.degrees(tilt))
         .opacity(alpha)

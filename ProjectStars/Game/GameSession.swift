@@ -1911,7 +1911,20 @@ final class GameSession {
                 await playArrivalEffect(effect, on: effectPlaysOn)
                 return
 
-            case .blown:
+            // **A carry across the board, not a carry of one square.**
+            //
+            // `animateBlown` is a flurry of gusts — Astral Breeze's whole
+            // picture. Sending every `.blown` move through it meant Aquarius
+            // threw the Essence's weather on every single step, because being
+            // carried one square by her own storm is the same *type* of move
+            // and nothing else about it is the same event. She is flashy enough
+            // standing still; what she needs on a step is the afterimages she
+            // already has.
+            //
+            // Distance rather than sign, like the long jump: a wind that moves
+            // you across the board is a thing happening to you, and a wind you
+            // live inside is not.
+            case .blown where from.manhattanDistance(to: to) > 1:
                 await animateBlown(event, from: from, to: to, on: fromPlane)
                 await playArrivalEffect(effect, on: effectPlaysOn)
                 return
