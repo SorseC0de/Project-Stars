@@ -254,26 +254,55 @@ struct BoardView: View {
         at now: TimeInterval,
         metrics: PixelArtMetrics
     ) -> some View {
-        let angle = now / GameRules.riftOrbitPeriod * 2 * .pi + phase
-
-        // Counter-clockwise on a screen whose y grows downward, and centred so
-        // the square's own middle lies **on** the path rather than inside it —
-        // which is why each term is measured against where the plate started
-        // rather than from the oval's centre.
-        let x = GameRules.riftOrbitWidth * metrics.scale * (cos(angle) - cos(phase))
-        let y = -GameRules.riftOrbitHeight * metrics.scale * (sin(angle) - sin(phase))
-
-        // A pixel of unrest on top of the lap, so neither plate is ever quite
-        // still — least of all at the ends of the travel, where the orbit is
-        // slowest and a sprite looks parked.
         let salt = art == .geminiRiftOne ? 3 : 11
-        let shiverX = GameRules.riftJitter * metrics.scale * GameRules.jitter(now, salt: salt)
-        let shiverY = GameRules.riftJitter * metrics.scale * GameRules.jitter(now, salt: salt + 1)
 
-        // All the way down to nearly nothing and back, half a turn apart. Not
-        // to true zero: the pair is never gone between them, but a plate that
-        // reaches zero pops back rather than returning.
-        let breath = (1 - cos(now / GameRules.riftPulsePeriod * 2 * .pi + phase)) / 2
+        // ── Version 1: two crossing orbits ────────────────────────────
+        //
+        // Kept, not deleted. It works and it may still be the answer; version
+        // two is a different idea rather than a correction of this one.
+        //
+        // let angle = now / GameRules.riftOrbitPeriod * 2 * .pi + phase
+        //
+        // // Counter-clockwise on a screen whose y grows downward, and centred
+        // // so the square's own middle lies **on** the path rather than inside
+        // // it — which is why each term is measured against where the plate
+        // // started rather than from the oval's centre.
+        // let x = GameRules.riftOrbitWidth * metrics.scale * (cos(angle) - cos(phase))
+        // let y = -GameRules.riftOrbitHeight * metrics.scale * (sin(angle) - sin(phase))
+        //
+        // let shiverX = GameRules.riftJitter * metrics.scale
+        //     * GameRules.jitter(now, salt: salt)
+        // let shiverY = GameRules.riftJitter * metrics.scale
+        //     * GameRules.jitter(now, salt: salt + 1)
+        //
+        // // All the way down to nearly nothing and back, half a turn apart, so
+        // // one is brightest exactly when the other is faintest.
+        // let breath = (1 - cos(now / GameRules.riftPulsePeriod * 2 * .pi + phase)) / 2
+        // let alpha = GameRules.riftFaintest + (1 - GameRules.riftFaintest) * breath
+
+        // ── Version 2: per-frame distortion ───────────────────────────
+        //
+        // No path and no curve: a new offset and a new opacity **held for one
+        // frame and then replaced**, which is what makes it read as a picture
+        // failing rather than as a sprite being animated. Nothing here is
+        // interpolated — the value is a function of which frame it is, so it
+        // jumps.
+        //
+        // Stepped at the strip's own rate rather than the display's. A value
+        // redrawn sixty times a second is noise, and noise averages out to a
+        // blur; changing when the drawing changes ties the distortion to the
+        // art's own beat, which is the thing it is supposed to be interfering
+        // with. `riftJumpRate` is the dial if that beat wants to be faster.
+        let step = (now * GameRules.riftJumpRate).rounded(.down)
+        let x = GameRules.riftJumpReach * metrics.scale
+            * GameRules.jitter(step, salt: salt)
+        let y = GameRules.riftJumpReach * metrics.scale
+            * GameRules.jitter(step, salt: salt + 1)
+
+        // Anywhere in its range, every frame, and the two plates roll
+        // separately — so the pair flickers rather than pulsing together.
+        let roll = (GameRules.jitter(step, salt: salt + 2) + 1) / 2
+        let alpha = GameRules.riftFaintest + (1 - GameRules.riftFaintest) * roll
 
         return EffectSpriteView(
             effect: art,
@@ -284,9 +313,12 @@ struct BoardView: View {
             blend: RiftPreviewDebug.shared.blend
         )
         .scaleEffect(x: 0.375, y: 1.25)
-        .rotationEffect(.degrees(30))
-        .opacity(GameRules.riftFaintest + (1 - GameRules.riftFaintest) * breath)
-        .offset(x: x + shiverX, y: y + shiverY)
+        .rotationEffect(.degrees(GameRules.riftTilt))
+        .opacity(alpha)
+        .offset(x: x, y: y)
+        // Nothing about this may be smoothed by whatever is animating
+        // elsewhere on the board. An eased jitter is a wobble.
+        .transaction { $0.animation = nil }
     }
     #endif
 

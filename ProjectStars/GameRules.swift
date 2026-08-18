@@ -3032,19 +3032,35 @@ enum GameRules {
     /// An oval rather than a circle because the tear is drawn tall and narrow —
     /// a plate that swings as far sideways as it does vertically reads as
     /// wobbling rather than as opening.
-    static let riftOrbitWidth: CGFloat = 3
-    static let riftOrbitHeight: CGFloat = 5
+    static let riftOrbitWidth: CGFloat = 1.5
+    static let riftOrbitHeight: CGFloat = 2.5
     static let riftOrbitPeriod: TimeInterval = 4
 
-    /// The unrest on top of the lap, in art pixels.
+    /// The unrest on top of the lap, in art pixels. Version one only.
     static let riftJitter: CGFloat = 0.5
+
+    /// Version two: how far a plate may jump, in art pixels, and how many times
+    /// a second it picks a new place to be.
+    ///
+    /// A rate rather than "every frame": the display's frame is not a unit the
+    /// art knows about, and a value rerolled sixty times a second reads as
+    /// noise instead of as a picture struggling. Twelve is the strip's own
+    /// beat, so the distortion changes when the drawing does.
+    /// Thirty reads as an electric current running along the edges rather than
+    /// as a tear — worth knowing, and worth trying again on something that
+    /// wants to look electrified.
+    static let riftJumpReach: CGFloat = 1.5
+    static let riftJumpRate: Double = 12
+
+    /// How far the plates lean, in degrees. Upright for now.
+    static let riftTilt: Double = 0
 
     /// How long one breath takes, and how faint a plate gets at the bottom of
     /// it.
     ///
     /// Not zero: the two are half a turn apart so the pair is never gone, but a
     /// plate that reaches true zero pops back rather than returning.
-    static let riftPulsePeriod: TimeInterval = 3
+    static let riftPulsePeriod: TimeInterval = 1.2
     static let riftFaintest: Double = 0.01
 
     /// Where the corner vignette begins and how far it reaches, as fractions of
