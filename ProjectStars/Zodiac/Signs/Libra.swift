@@ -220,10 +220,10 @@ struct LibraJudicatorElevator: ZodiacPassive {
     /// thing in its tier because for everyone else it is a rescue; the Gavel is
     /// the tool this sign is built around, and at the Shift's weight of one it
     /// went whole sessions without appearing.
-    func pickupWeight(_ base: Int, for id: PickupID, context: PassiveContext) -> Int {
+    func pickupChance(_ base: Int, for id: PickupID, context: PassiveContext) -> Int {
         switch id {
         case .nexysShift: 0
-        case .galeforceGavel: GameRules.galeforceGavelWeight
+        case .galeforceGavel: GameRules.galeforceGavelChance
         default: base
         }
     }

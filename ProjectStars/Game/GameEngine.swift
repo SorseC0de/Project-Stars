@@ -4269,7 +4269,7 @@ struct GameEngine {
             // weight up a coin that cannot exist here.
             let home = PickupCatalog.effect(for: id).spawnPlane
             guard home == nil || home == context.plane else { return 0 }
-            return passives.pickupWeight(base, for: id, context: context)
+            return passives.pickupChance(base, for: id, context: context)
         }
     }
 

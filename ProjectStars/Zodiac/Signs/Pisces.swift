@@ -237,12 +237,12 @@ struct PiscesAridAquanaut: ZodiacPassive {
     /// nothing else, and a coin that hands you a meter would be the fish pulling
     /// it out of dry air, which is the exact thing this plane takes away. The
     /// Tear takes the weight it leaves behind, so the pool stays the same size.
-    func pickupWeight(_ base: Int, for id: PickupID, context: PassiveContext) -> Int {
+    func pickupChance(_ base: Int, for id: PickupID, context: PassiveContext) -> Int {
         guard context.plane == .terra else { return base }
 
         switch id {
         case .zCharge: return 0
-        case .restoreTile: return base + PickupCatalog.effect(for: .zCharge).weight
+        case .restoreTile: return base + PickupCatalog.effect(for: .zCharge).chance
         default: return base
         }
     }

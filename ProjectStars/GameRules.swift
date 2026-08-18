@@ -554,7 +554,7 @@ enum GameRules {
     /// also does not need rationing — the slab is rolled, and one in four
     /// arrives as a set of holes, so a player who takes it often has decided
     /// that gamble is worth making. It rations itself.
-    static let galeforceGavelWeight = 9
+    static let galeforceGavelChance = 9
 
     // MARK: - Rules — Leo's sun
     //
@@ -1581,7 +1581,12 @@ enum GameRules {
     ///   effect removed is an effect somebody has to rebuild out of the commit
     ///   log, and the coin still needs to exist for the spawner to place it by
     ///   hand. Put this back to `1` when it is fixed.
-    static let shadowWorkWeight = 0
+    ///
+    /// A percentage of all coins drawn, like every other rate — see
+    /// `PickupEffect.chance`. The catalogue sums to a hundred **without** this
+    /// one, so restoring it to `1` makes it a hundred and one; take the point
+    /// back off whichever coin should give it up.
+    static let shadowWorkChance = 0
 
     /// How solid the double looks. Dark enough to be a shadow, present enough to
     /// be a thing you have to deal with.

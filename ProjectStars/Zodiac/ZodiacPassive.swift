@@ -195,7 +195,7 @@ protocol ZodiacPassive {
     ///
     /// Weights are relative within a tier, so a passive wanting a straight swap
     /// should read the other effect's weight rather than hardcode a number.
-    func pickupWeight(_ base: Int, for id: PickupID, context: PassiveContext) -> Int
+    func pickupChance(_ base: Int, for id: PickupID, context: PassiveContext) -> Int
 
     /// How often a sparkle phase reveals a *second* Pentacle as well as the
     /// first, `0` to `1`.
@@ -583,7 +583,7 @@ extension ZodiacPassive {
         false
     }
 
-    func pickupWeight(_ base: Int, for id: PickupID, context: PassiveContext) -> Int {
+    func pickupChance(_ base: Int, for id: PickupID, context: PassiveContext) -> Int {
         base
     }
 
@@ -1018,8 +1018,8 @@ extension Array where Element == any ZodiacPassive {
 
     /// Each passive sees what the one before it decided, so two reweights
     /// compose rather than one silently winning.
-    func pickupWeight(_ base: Int, for id: PickupID, context: PassiveContext) -> Int {
-        reduce(base) { $1.pickupWeight($0, for: id, context: context) }
+    func pickupChance(_ base: Int, for id: PickupID, context: PassiveContext) -> Int {
+        reduce(base) { $1.pickupChance($0, for: id, context: context) }
     }
 
     /// The best offer among the sign's passives.
