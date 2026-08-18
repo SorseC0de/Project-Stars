@@ -139,24 +139,15 @@ struct PaletteGlow<Content: View>: View {
                 // one shape rather than on each copy in the stack — eight
                 // overlapping layers tinted individually go uneven wherever they
                 // cross.
-                // Masked by the halo itself, so no blend mode can paint outside
-                // it. Most of them ignore the backdrop's alpha — `.normal` and
-                // `.multiply` fill their whole rect — which is why changing the
-                // mode left a square sitting over the view.
+                // The colour, cut to the halo's shape — **only when one was
+                // asked for**.
+                //
+                // Both the overlay and the group below it are skipped
+                // otherwise. An untinted bloom is what every sign but Aquarius
+                // wears, and wrapping it in a compositing group changed how the
+                // halo met the board for all of them — which is what turned
+                // Pisces' orbiting fish into a column of light.
                 .overlay {
-                    // Masked by a second copy of the same bloom, so no blend
-                    // mode can paint outside it. Most of them ignore the
-                    // backdrop's alpha — `.normal` and `.multiply` fill their
-                    // whole rect — which is why changing the mode left a square
-                    // sitting over the view.
-                    // The colour, cut to the halo's shape. **No blend here.**
-                    //
-                    // Anything blended inside this group is composited against
-                    // the group's own contents and then the whole thing is laid
-                    // onto the board — so the mode was being applied and then
-                    // painted over, which is why every one of them looked the
-                    // same. What the eye is judging is how the *glow* meets the
-                    // board, and that is the outer blend below.
                     if let tint {
                         tint.mask {
                             ZStack {
@@ -169,14 +160,14 @@ struct PaletteGlow<Content: View>: View {
                         }
                     }
                 }
-                .compositingGroup()
-                // **This** is the mode being chosen.
+                .compositingGroup(tint != nil)
+                // How the finished bloom meets the board.
                 //
-                // A bloom is light, so adding it is the honest default and the
-                // one every other glow in the game uses. Naming a tint means
-                // asking a different question — how should this light *meet*
-                // what is behind it — and that is answered here, where the
-                // halo actually touches the board.
+                // A bloom is light, so adding it is the honest default and what
+                // every other glow here uses. Naming a tint is asking a
+                // different question — how should this light *interact* with
+                // what is behind it — answered here, where the halo actually
+                // touches the board.
                 .blendMode(tint == nil ? .plusLighter : tintBlend)
                 .allowsHitTesting(false)
             }
@@ -226,5 +217,18 @@ extension View {
                 .floatArray(args)
             )
         )
+    }
+}
+
+private extension View {
+    /// Groups only when asked.
+    ///
+    /// `compositingGroup()` is not free of consequence: it flattens what is
+    /// under it into one layer before anything else applies, which changes how
+    /// blurs and blends behave around it. Applying it unconditionally to make
+    /// one tinted glow work altered every untinted one in the game.
+    @ViewBuilder
+    func compositingGroup(_ when: Bool) -> some View {
+        if when { compositingGroup() } else { self }
     }
 }

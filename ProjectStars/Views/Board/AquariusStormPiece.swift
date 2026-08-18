@@ -525,7 +525,7 @@ struct AquariusStormPiece: View {
     /// power rather than being ready to spend it. At zero the glow goes and the
     /// pot is left plain, which is exactly when he can fire.
     @ViewBuilder
-    private func filmed(_ frame: Image) -> some View {
+    private func filmed<Funnel: View>(@ViewBuilder _ funnel: @escaping () -> Funnel) -> some View {
         PaletteGlow(
             radius: GameRules.stormGlowRadius,
             intensity: GameRules.stormGlowIntensity,
@@ -533,15 +533,7 @@ struct AquariusStormPiece: View {
             tintBlend: glowTintBlend
         ) {
             ZStack {
-                frame
-                    .resizable()
-                    // Nearest neighbour, like every other sprite in the game.
-                    .interpolation(.none)
-                    .antialiased(false)
-                    .frame(
-                        width: GameRules.aquariusStormCanvas,
-                        height: GameRules.aquariusStormCanvas
-                    )
+                funnel()
 
                 // Live, on top of the filmed funnel — see `AquariusStormStill`
                 // for why these two are split.
@@ -557,18 +549,46 @@ struct AquariusStormPiece: View {
         if phase <= 0 {
             PixelSprite(id: .piece(.aquarius)) { Color.clear }
                 .frame(width: tileSize, height: tileSize * 2)
-        } else if let film, let reel = film.reel(for: phase), !reel.isEmpty {
+        } else if let film, film.reel(for: phase)?.isEmpty == false {
             // The cached loop. Costs a texture swap a frame, whatever the piece
             // is doing — which is the whole point, since the live version is
             // rebuilt from scratch the moment anything under it moves.
             TimelineView(.animation) { timeline in
                 let elapsed = timeline.date.timeIntervalSinceReferenceDate
-                let step = Int(
-                    elapsed / GameRules.aquariusStormFilmPeriod
-                        * Double(reel.count)
-                ) % reel.count
 
-                filmed(reel[max(step, 0)])
+                // **Every phase mounted at once, all but one at zero.**
+                //
+                // Swapping which reel is drawn changes the view's identity, and
+                // SwiftUI answers that by cross-fading one image into another —
+                // which is the dissolve between phases. Mounting them all and
+                // moving opacity leaves the identities alone: nothing is built
+                // or torn down when the meter moves, so what is seen is the
+                // storm thickening rather than one picture becoming another.
+                //
+                // A hidden image is not rasterised, and the reels already exist
+                // for whatever phases the run has passed through.
+                filmed {
+                    ZStack {
+                        ForEach(1...10, id: \.self) { stage in
+                            if let reel = film.reel(for: stage), !reel.isEmpty {
+                                let step = Int(
+                                    elapsed / GameRules.aquariusStormFilmPeriod
+                                        * Double(reel.count)
+                                ) % reel.count
+
+                                reel[max(step, 0)]
+                                    .resizable()
+                                    .interpolation(.none)
+                                    .antialiased(false)
+                                    .frame(
+                                        width: GameRules.aquariusStormCanvas,
+                                        height: GameRules.aquariusStormCanvas
+                                    )
+                                    .opacity(stage == phase ? 1 : 0)
+                            }
+                        }
+                    }
+                }
                 .compositingGroup()
                 .scaleEffect(scale * tileSize * GameRules.aquariusStormTiles / 300)
                 .frame(width: tileSize, height: tileSize * 2)
