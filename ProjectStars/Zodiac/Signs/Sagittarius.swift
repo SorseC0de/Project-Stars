@@ -333,11 +333,20 @@ struct SagittariusAstralArrow: Zodiaction {
     ) -> [GameEvent] {
         [
             .arrowCleared,
-            .pieceTeleported(
+            // **A super jump, not a teleport, and that is stated here.**
+            //
+            // This used to be an ordinary teleport that the view redrew as a
+            // launch whenever the piece happened to be Sagittarius — so every
+            // other way of teleporting him played the same animation. The move
+            // that is a launch is the one that says it is.
+            .pieceMoved(
                 from: context.piecePoint,
                 to: arrow.point,
                 fromPlane: context.plane,
-                toPlane: arrow.plane
+                toPlane: arrow.plane,
+                type: .superJump,
+                effect: .sagittariusJump,
+                effectPlaysOn: .both
             ),
         ]
     }

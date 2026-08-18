@@ -283,7 +283,12 @@ enum GameRules {
     /// in four hundred — many complete games between sightings. That is the
     /// design: it is supposed to be a thing players tell each other about, and
     /// something seen every few games is not that.
-    static let astralBoltChance = 0.015
+    /// How often an elemental Essence turns out to be the Astral Bolt.
+    ///
+    /// A share of *their* share, so the Bolt's real rate is this times whatever
+    /// the four elementals are authored at — twenty percent between them today,
+    /// which puts the Bolt at one in a hundred coins. See `PickupCatalog`.
+    static let astralBoltChance = 0.05
 
     /// How many committed moves the Bolt's charge lasts.
     ///
@@ -554,7 +559,7 @@ enum GameRules {
     /// also does not need rationing — the slab is rolled, and one in four
     /// arrives as a set of holes, so a player who takes it often has decided
     /// that gamble is worth making. It rations itself.
-    static let galeforceGavelWeight = 9
+    static let galeforceGavelChance = 9
 
     // MARK: - Rules — Leo's sun
     //
@@ -1581,7 +1586,12 @@ enum GameRules {
     ///   effect removed is an effect somebody has to rebuild out of the commit
     ///   log, and the coin still needs to exist for the spawner to place it by
     ///   hand. Put this back to `1` when it is fixed.
-    static let shadowWorkWeight = 0
+    ///
+    /// A percentage of all coins drawn, like every other rate — see
+    /// `PickupEffect.chance`. The catalogue sums to a hundred **without** this
+    /// one, so restoring it to `1` makes it a hundred and one; take the point
+    /// back off whichever coin should give it up.
+    static let shadowWorkChance = 0
 
     /// How solid the double looks. Dark enough to be a shadow, present enough to
     /// be a thing you have to deal with.
@@ -2919,7 +2929,7 @@ enum GameRules {
     /// How long one square of each travelling style takes, against a step.
     ///
     /// Declared beside each other so the styles can be compared rather than
-    /// discovered one call site at a time. See `MovementStyle.paceMultiplier`.
+    /// discovered one call site at a time. See `MoveType.paceMultiplier`.
     static let slideStepPace: Double = 0.45
     static let chargeStepPace: Double = 0.6
     static let leapPace: Double = 2.2
@@ -2996,7 +3006,7 @@ enum GameRules {
     ///
     /// - TODO: **Debug only.** Point this at whoever is being worked on, and
     ///   move it when the work moves. Never read in a shipped build.
-    static let debugStartingSign: Zodiac = .aquarius
+    static let debugStartingSign: Zodiac = .virgo
 
     /// How much red is washed over a badly cracked Terra tile.
     ///
@@ -3018,6 +3028,96 @@ enum GameRules {
     /// about the frame, so the frame is what reacts.
     static let edgeWarningStrongest: Double = 0.3
     static let edgeWarningPeriod: TimeInterval = 2.4
+
+    // MARK: - Aquarius' storm clouds
+
+    /// What the cloud sprite's three body tones become in a storm cloud.
+    ///
+    /// The light row is authored outline → shadow → highlight as `darkMagenta`,
+    /// `magenta`, `pink` — see `cloudWearSwaps`, which reads the same art. The
+    /// storm turns those into **magenta, gold, purple**: highlight to purple,
+    /// midtone to gold, outline to magenta.
+    ///
+    /// The gold is the whole tell. It is the only warm colour anywhere on Astra,
+    /// so a scrap of cloud carrying it reads as *holding something* without a
+    /// coin being drawn on it.
+    ///
+    /// Safe as a cycle — purple is both a target here and a source elsewhere —
+    /// because `PaletteRecolour` walks the pixels once and matches against the
+    /// original colours. See its `redraw`.
+    static let stormCloudSwaps: [PaletteSwap] = [
+        PaletteSwap(Palette.pink, Palette.purple),
+        PaletteSwap(Palette.magenta, Palette.gold),
+        PaletteSwap(Palette.darkMagenta, Palette.magenta),
+    ]
+
+    /// How hard a storm cloud is lit from within, how far that light spreads
+    /// inside it in art pixels, and what colour it is.
+    ///
+    /// The colour is the point. Purple is the darkest thing in the cloud, so
+    /// lighting it with a copy of the cloud dragged the gold across it and the
+    /// two averaged out to brown. A flat purple light has nothing to muddy.
+    static let stormCloudGlow: Double = 0.45
+    static let stormCloudGlowTint: Color = Palette.purple
+
+    /// How far up the scrap is nudged, in art pixels, to sit on its square.
+    static let stormCloudLift: CGFloat = 4
+
+    // MARK: - Gemini's rift
+
+    /// How far each plate travels on its lap, in art pixels, and how long one
+    /// lap takes.
+    ///
+    /// An oval rather than a circle because the tear is drawn tall and narrow —
+    /// a plate that swings as far sideways as it does vertically reads as
+    /// wobbling rather than as opening.
+    static let riftOrbitWidth: CGFloat = 1.5
+    static let riftOrbitHeight: CGFloat = 2.5
+    static let riftOrbitPeriod: TimeInterval = 4
+
+    /// The unrest on top of the lap, in art pixels. Version one only.
+    static let riftJitter: CGFloat = 0.5
+
+    /// Version two: how far a plate may jump, in art pixels, and how many times
+    /// a second it picks a new place to be.
+    ///
+    /// A rate rather than "every frame": the display's frame is not a unit the
+    /// art knows about, and a value rerolled sixty times a second reads as
+    /// noise instead of as a picture struggling. Twelve is the strip's own
+    /// beat, so the distortion changes when the drawing does.
+    /// Thirty reads as an electric current running along the edges rather than
+    /// as a tear — worth knowing, and worth trying again on something that
+    /// wants to look electrified.
+    static let riftJumpReach: CGFloat = 1.5
+    static let riftJumpRate: Double = 12
+
+    /// How far the plates lean, in degrees. The inner pair leans the other way
+    /// by the same amount, so the tear crosses itself.
+    ///
+    /// Upright reads as needing a scale-down to go with it — a gallery
+    /// question.
+    static let riftTilt: Double = 30
+
+    /// How small the shrunken arm of the X gets. The other is full size, and
+    /// the two trade places — see `riftTradePeriod`.
+    static let riftInnerScale: CGFloat = 0.5
+
+    /// How long one full exchange of sizes takes, there and back.
+    static let riftTradePeriod: TimeInterval = 1.5
+
+    /// How much of its own height the tear stands up out of the tile.
+    ///
+    /// `1` is true bottom-anchoring: the foot on the square, the rest reaching
+    /// up. Lower sinks it back toward being centred on the tile.
+    static let riftLift: CGFloat = 1
+
+    /// How long one breath takes, and how faint a plate gets at the bottom of
+    /// it.
+    ///
+    /// Not zero: the two are half a turn apart so the pair is never gone, but a
+    /// plate that reaches true zero pops back rather than returning.
+    static let riftPulsePeriod: TimeInterval = 1.2
+    static let riftFaintest: Double = 0.01
 
     /// Where the corner vignette begins and how far it reaches, as fractions of
     /// the square's half-width.

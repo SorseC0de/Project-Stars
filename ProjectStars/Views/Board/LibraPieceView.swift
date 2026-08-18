@@ -375,7 +375,7 @@ struct LibraPieceView: View {
         // is changing speed, and being dragged along the ground changes speed
         // exactly as much as hopping does. Only a warp is exempt, having made no
         // journey to swing through.
-        guard let movement, movement.style != .warp else { return (0, nil) }
+        guard let movement, !movement.style.isInstant else { return (0, nil) }
 
         // ## A pendulum, on its own clock
         //

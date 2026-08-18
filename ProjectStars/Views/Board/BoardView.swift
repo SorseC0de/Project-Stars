@@ -172,6 +172,7 @@ struct BoardView: View {
             }
 
             #if DEBUG
+            // Gemini's rift, on the bench. See `BoardView+RiftPreview`.
             riftPreview(metrics: metrics)
             #endif
 
@@ -209,47 +210,6 @@ struct BoardView: View {
                 .allowsHitTesting(false)
         }
     }
-
-    /// Gemini's two rifts, side by side, for as long as it takes to choose one.
-    ///
-    /// Not tied to Gemini and not tied to anything that happens — it is on the
-    /// board for every sign, because the question is what the drawing looks like
-    /// standing next to a piece and that question has no prerequisites. It comes
-    /// out when the rift is a real thing the game does.
-    ///
-    /// The transform is the user's: turned twenty degrees clockwise, squeezed to
-    /// three eighths of its width and stretched a quarter taller, on top of the
-    /// span the catalogue gives it.
-    #if DEBUG
-    @ViewBuilder
-    private func riftPreview(metrics: PixelArtMetrics) -> some View {
-        let bench = RiftPreviewDebug.shared
-
-        if bench.isShown {
-            ForEach(
-                [
-                    (GridPoint(3, 3), EffectSprite.geminiRiftOne),
-                    (GridPoint(4, 3), EffectSprite.geminiRiftTwo),
-                ],
-                id: \.1
-            ) { square, art in
-                EffectSpriteView(
-                    effect: art,
-                    tileSize: metrics.tileSize,
-                    start: .distantPast,
-                    loops: true,
-                    clock: session.ambientClock(at:),
-                    blend: bench.blend
-                )
-                .scaleEffect(x: 0.375, y: 1.25)
-                .rotationEffect(.degrees(20))
-                .modifier(placedOnPlaneModifier(square, metrics: metrics))
-            }
-        }
-    }
-    #endif
-
-    // MARK: - Board layers
 
     /// Pisces' standing water. See `PoolView`.
     private func pools(board: Board, plane: Plane, metrics: PixelArtMetrics) -> some View {
@@ -650,6 +610,7 @@ struct BoardView: View {
     /// The same white the rest of Libra's work is marked in. A slab that simply
     /// became ground on the next frame threw away the one moment the ability is
     /// about — this says *these squares, just now, because of you*.
+
     @ViewBuilder
     private func slabLanding(metrics: PixelArtMetrics) -> some View {
         if let landing = session.slabLanding, landing.plane == shown {
@@ -763,7 +724,7 @@ struct BoardView: View {
 
 
     /// Placed on the plane the piece is standing on.
-    private func placedOnPlaneModifier(_ point: GridPoint, metrics: PixelArtMetrics) -> some ViewModifier {
+    func placedOnPlaneModifier(_ point: GridPoint, metrics: PixelArtMetrics) -> some ViewModifier {
         PlacedOnPlane(point: point, metrics: metrics, framing: planeFraming(shown))
     }
 
@@ -1565,6 +1526,18 @@ struct BoardView: View {
             // the coin sits on ordinary ground like anything else.
             let lifted = session.visibleRaisedTiles.contains { $0.point == point }
 
+            // The storm's leavings are cloudstuff, not coinage. No raised tile
+            // under them either — they hang over whatever is there, holes
+            // included. See `StormCloudView`.
+            if pickup.isCloud {
+                StormCloudView(
+                    size: metrics.tileSize,
+                    clock: session.ambientClock(at:)
+                )
+                    .modifier(placedOnPlaneModifier(point, metrics: metrics))
+                    .offset(surfaceSway(of: point, at: Date(), metrics: metrics))
+                    .transition(.scale(scale: 0.2).combined(with: .opacity))
+            } else {
             PentacleView(
                 appearance: PickupCatalog.effect(for: pickup.id)
                     .appearance(on: pickup.plane),
@@ -1595,6 +1568,7 @@ struct BoardView: View {
             // Hovering over a cloud that is drifting means drifting with it.
             .offset(surfaceSway(of: point, at: Date(), metrics: metrics))
             .transition(.scale(scale: 0.2).combined(with: .opacity))
+            }
         }
     }
 

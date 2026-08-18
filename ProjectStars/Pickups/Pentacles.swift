@@ -128,7 +128,7 @@ struct ZChargeEffect: PickupEffect {
 
     /// One against the Tear's three. Charge is the consolation prize for a
     /// coin that was not a repair, not the other way round.
-    let weight = 1
+    let chance = 20
     let displayName = "Z-Charge"
     let summary = "Gain \(GameRules.zChargePentacleAmount) ZC."
     let glyph = "⚡"
@@ -184,7 +184,7 @@ struct BubbleEffect: PickupEffect {
 
     /// Never rolled. Placed by `PiscesAridAquanaut` and by a fall — see
     /// `GameEngine.scatterMeterAsBubbles(on:)`.
-    let weight = 0
+    let chance = 0
     let displayName = "Delta Droplet"
     /// Says what it is, not what it pays.
     let summary = "A droplet of pure, distilled Astral energy."
@@ -239,7 +239,7 @@ struct AstralTearEffect: PickupEffect {
     /// enough. It is the floor the whole economy sits on: a coin that mends one
     /// tile is small enough to be the ordinary case and still worth crossing the
     /// board for.
-    let weight = 3
+    let chance = 33
     let displayName = "Astral Tears"
     let summary = "Fully restores the tile you are standing on and one other at random."
     let glyph = "✚"
@@ -311,7 +311,7 @@ struct AstralBrookEffect: PickupEffect {
     /// The four Essences are what the uncommon tier is *for*, and their current
     /// rate plays well — three each keeps it where it was while the warps come
     /// down around them.
-    let weight = 3
+    let chance = 5
     let displayName = "Astral Essence ✧ Brook"
     /// Says where it takes you and not what it ignores on the way.
     ///
@@ -477,7 +477,7 @@ struct AstralBoltEffect: PickupEffect {
     let rarity: PickupRarity = .uncommon
 
     /// Never drawn directly — see the note above.
-    let weight = 0
+    let chance = 0
 
     let displayName = "Astral Essence ✧ Bolt"
     let summary = "Struck by Astral lightning, you are super-charged for \(GameRules.starMoves) turns. You do not damage tiles or fall in holes, and gain 1 ZC each turn."
@@ -516,7 +516,7 @@ struct AstralBreezeEffect: PickupEffect {
     /// The four Essences are what the uncommon tier is *for*, and their current
     /// rate plays well — three each keeps it where it was while the warps come
     /// down around them.
-    let weight = 3
+    let chance = 5
     let displayName = "Astral Essence ✧ Breeze"
     let summary = "An Astral wind carries you to a tile of choice within this plane."
     let glyph = "❁"
@@ -536,12 +536,18 @@ struct AstralBreezeEffect: PickupEffect {
         else { return [] }
 
         return [
-            .pieceTeleported(
+            // Carried. The type is the Pentacle's to choose — nothing about
+            // the sign being blown changes what a wind looks like.
+            //
+            // No `effect`: the gusts are the *presentation* of a long carry and
+            // live in `GameSession.animateBlown`, which throws several staggered
+            // copies rather than the one this would add on top.
+            .pieceMoved(
                 from: context.piecePoint,
                 to: destination,
                 fromPlane: context.plane,
                 toPlane: context.plane,
-                style: .blown
+                type: .blown
             )
         ]
     }
@@ -564,7 +570,7 @@ struct UmbralEssenceEffect: PickupEffect {
     let rarity: PickupRarity = .uncommon
 
     /// On the uncommon-rare cusp: the weight sits at the bottom of its tier.
-    let weight = 2
+    let chance = 1
     let displayName = "Umbral Essence"
 
     var summary: String {
@@ -608,7 +614,7 @@ struct AstralEssenceEffect: PickupEffect {
     let rarity: PickupRarity = .common
 
     /// A little more likely than Z-Charge, whose weight is 1.
-    let weight = 2
+    let chance = 20
     let displayName = "Astral Essence"
 
     var summary: String {
@@ -646,7 +652,7 @@ struct TrivialTremorEffect: PickupEffect {
 
     let id: PickupID = .trivialTremor
     let rarity: PickupRarity = .common
-    let weight = 2
+    let chance = 10
     let displayName = "Trivial Tremor"
     let summary = "Nothing to worry about."
     let glyph = "▪︎"
@@ -706,7 +712,7 @@ struct SeismicShakedownEffect: PickupEffect {
 
     let id: PickupID = .seismicShakedown
     let rarity: PickupRarity = .uncommon
-    let weight = 2
+    let chance = 2
     let displayName = "Seismic Shakedown"
     let summary = "Worrying warranted."
     let glyph = "▰"
@@ -744,7 +750,7 @@ struct AstralBlazeEffect: PickupEffect {
     /// The four Essences are what the uncommon tier is *for*, and their current
     /// rate plays well — three each keeps it where it was while the warps come
     /// down around them.
-    let weight = 3
+    let chance = 5
     let displayName = "Astral Essence ✧ Blaze"
     let summary = "The ring of tiles around you loses one stage. Gain 1 ZC per tile damaged, 2 per tile broken."
     let glyph = "✷"
@@ -807,7 +813,7 @@ struct AstralBlossomEffect: PickupEffect {
     /// The four Essences are what the uncommon tier is *for*, and their current
     /// rate plays well — three each keeps it where it was while the warps come
     /// down around them.
-    let weight = 3
+    let chance = 5
     let displayName = "Astral Essence ✧ Blossom"
     let summary = "A ring of Astral energy blooms in a ring around you, fully healing all damaged tiles except holes."
     let glyph = "✽"
@@ -852,7 +858,7 @@ struct CornerWarpEffect: PickupEffect {
 
     /// Below the Essences: a warp rearranges where the whole run is happening,
     /// which is a bigger event than any single tile changing.
-    let weight = 2
+    let chance = 5
     /// Renamed off "Corner Current", which collided with Aquarius' Crazy
     /// Current — one is a coin that moves you once, the other is the rule that
     /// governs how that sign moves at all, and two things called *current* in a
@@ -879,11 +885,12 @@ struct CornerWarpEffect: PickupEffect {
         guard destination != context.piecePoint else { return [] }
 
         return [
-            .pieceTeleported(
+            .pieceMoved(
                 from: context.piecePoint,
                 to: destination,
                 fromPlane: context.plane,
-                toPlane: context.plane
+                toPlane: context.plane,
+                type: .teleport
             )
         ]
     }
@@ -917,7 +924,7 @@ struct NexysShiftEffect: PickupEffect {
     /// The rarest uncommon. Moving the island moves the one fixed landmark on
     /// the board, and at its old rate it was turning up often enough that the
     /// Nexys stopped feeling fixed at all.
-    let weight = 1
+    let chance = 5
     let displayName = "Nexys Node"
     let summary = "Return to the Nexys. Summon it if on a different plane."
 
@@ -947,11 +954,12 @@ struct NexysShiftEffect: PickupEffect {
         guard context.piecePoint != GameRules.nexysPoint else { return [] }
 
         return [
-            .pieceTeleported(
+            .pieceMoved(
                 from: context.piecePoint,
                 to: GameRules.nexysPoint,
                 fromPlane: context.plane,
-                toPlane: context.plane
+                toPlane: context.plane,
+                type: .teleport
             )
         ]
     }
@@ -973,7 +981,7 @@ struct ForcedFateEffect: PickupEffect {
     /// which is a decision — but three made it the commonest rare in the game,
     /// and a coin that rewrites who you are playing should read as an event
     /// rather than as a mechanic you plan around.
-    let weight = 1
+    let chance = 2
     let displayName = "Forced Fate"
     let summary = "The stars have ordained your Zodea has changed."
     let glyph = "✦"
@@ -1029,7 +1037,7 @@ struct AlignmentEffect: PickupEffect {
     /// The rarest thing that is not pinned to a single square. Choosing your
     /// own sign is the strongest effect in the game — it converts a bad run into
     /// whichever run you wanted — so it has to be the one you almost never see.
-    let weight = 1
+    let chance = 1
     let displayName = "Alignment"
     let summary = "When fully aligned, even the stars reaarange to your will."
     let glyph = "✧"
@@ -1118,7 +1126,7 @@ struct PolarisEffect: PickupEffect {
     /// question that decides it — whether this is the north-middle tile, and
     /// whether the third came up. Being in the weighted roll as well would be
     /// two lotteries for one prize.
-    let weight = 0
+    let chance = 0
 
     func plan(
         context: PickupContext,
@@ -1212,7 +1220,7 @@ struct ShadowWorkEffect: PickupEffect {
 
     /// As rare as Polaris. It is the other legendary, and the only coin in the
     /// game that makes the board *worse* on purpose.
-    let weight = GameRules.shadowWorkWeight
+    let chance = GameRules.shadowWorkChance
 
     func plan(
         context: PickupContext,
@@ -1280,7 +1288,7 @@ struct GaleforceGavelEffect: PickupEffect {
     /// Zero, so it is never rolled by anyone. Libra swaps it into the Nexys
     /// Shift's place through `ZodiacPassive.pickupWeight` — the same idiom
     /// Pisces uses to trade Z-Charge against the Tear.
-    let weight = 0
+    let chance = 0
     let displayName = "Galeforce Gavel"
     let summary = "Tip the scales in your favor by placing tiles where you see fit."
     let glyph = "⚖"
@@ -1343,7 +1351,7 @@ struct GaiaDropletEffect: PickupEffect {
     let rarity: PickupRarity = .common
 
     /// Never rolled. Placed by `PiscesGaiaGeyser` and by a pool burning off.
-    let weight = 0
+    let chance = 0
     let displayName = "Gaia Droplet"
     let summary = "Gain \(GameRules.gaiaDropletCharge) ZC."
     let glyph = "💧"
@@ -1436,43 +1444,77 @@ enum PickupCatalog {
     /// - Parameter weighting: Lets the piece reweight the roll — see
     ///   `ZodiacPassive.pickupWeight`. Defaults to leaving every weight alone.
     static func rollPickup(
-        weighting: (PickupID, Int) -> Int = { _, weight in weight },
+        weighting: (PickupID, Int) -> Int = { _, chance in chance },
         using generator: inout SeededRandom
     ) -> PickupID? {
 
-        /// Effects in `rarity` that could legally be drawn.
-        func eligible(in rarity: PickupRarity) -> [(value: PickupID, weight: Int)] {
-            allEffects.values
-                .filter { effect in
-                    // `rollsAsRarity`, not `rarity`: see `PickupEffect`.
-                    //
-                    // Deliberately **not** filtered on the effect's own weight
-                    // here. A passive may weight something *in* as well as out —
-                    // Libra's Gavel is authored at zero and swapped up into the
-                    // Nexys Shift's place — and testing the raw number first
-                    // threw it away before the sign ever got a say. It is why
-                    // the Gavel never appeared in a single session.
-                    effect.rollsAsRarity == rarity
-                }
-                .map { (value: $0.id, weight: weighting($0.id, $0.weight)) }
-                // The one weight that decides: zero here is out, whether it was
-                // authored that way or a passive put it there.
-                .filter { $0.weight > 0 }
+        // **One roll, out of a hundred.**
+        //
+        // This was two rolls: a tier, then something inside the tier. What a
+        // coin was really worth was the product of two numbers written in
+        // different files, so nobody could read a rate off the source — and the
+        // arithmetic put Forced Fate at one coin in fifty while it sat in a tier
+        // labelled four percent, sharing it with one sibling.
+        //
+        // Now each effect states its own percentage and they sum to a hundred.
+        // The number in the file is the number in the game.
+        let table = allEffects.values
+            .map { (value: $0.id, chance: weighting($0.id, $0.chance)) }
+            .filter { $0.chance > 0 }
+            .sorted { $0.value.rawValue < $1.value.rawValue }
+
+        guard !table.isEmpty else { return nil }
+
+        // A passive may have added to the table or taken from it — Libra's
+        // Gavel is authored at zero and weighted in, Pisces trades one coin's
+        // chance for another's — so the total is whatever it is by the time it
+        // gets here, and the draw is taken out of that. Percentages that no
+        // longer sum to a hundred are still exact *relative* to each other,
+        // which is the most that can be true once a sign has had its say.
+        let total = table.reduce(0) { $0 + $1.chance }
+
+        #if DEBUG
+        // **Near a hundred on the table actually being drawn from**, which is
+        // the only total a player ever experiences.
+        //
+        // Not exactly a hundred, and not the authored sum either. Coins are
+        // locked to a plane — an Essence on Astra, the Tremor and the Shakedown
+        // on Terra — so the eligible table is never the whole catalogue; signs
+        // reweight it; and the catalogue is still being written, so part of the
+        // remainder belongs to coins that do not exist yet. A band says the
+        // authored numbers are close to the played ones without pretending the
+        // set is finished.
+        assert(
+            (85...115).contains(total),
+            "Pentacle chances total \(total) on this draw, too far from 100 for the "
+                + "authored numbers to mean anything — see PickupEffect.chance"
+        )
+        #endif
+        var roll = Int(generator.next(upperBound: UInt64(total)))
+
+        var drawn = table[0].value
+        for entry in table {
+            roll -= entry.chance
+            if roll < 0 {
+                drawn = entry.value
+                break
+            }
         }
 
-        // Only offer tiers that actually have something to give, so an empty
-        // legendary tier cannot swallow a roll.
-        let tiers = PickupRarity.allCases
-            .filter { !eligible(in: $0).isEmpty }
-            .map { (value: $0, weight: $0.weight) }
-
-        guard let tier = generator.pick(weighted: tiers) else { return nil }
-        guard let drawn = generator.pick(weighted: eligible(in: tier)) else { return nil }
-
-        // The fifth Essence is rolled *inside* the result, not beside it: the
-        // odds of drawing an Essence at all are untouched, and this only decides
-        // which one it turned out to be. Rolled from the same generator, so a
-        // seeded run still replays exactly.
+        // **The fifth Essence, drawn out of the other four.**
+        //
+        // Authored at zero and rolled *inside* an elemental result rather than
+        // beside it: the odds of drawing an Essence at all are untouched, and
+        // this only decides which one it turned out to be. Rolled from the same
+        // generator, so a seeded run still replays exactly.
+        //
+        // Its rate is therefore **a share of the elementals' share**, not a
+        // number of its own — four coins at five percent make twenty, and one
+        // in twenty of those is the Bolt at one percent overall. Move the
+        // elementals and the Bolt moves with them, which is the point: it is
+        // the rarest thing in the game *because* it is hiding inside the second
+        // most ordinary, and that relationship should not need maintaining in
+        // two places.
         if Self.essences.contains(drawn) {
             let roll = Double(generator.next() % 10_000) / 10_000
             if roll < GameRules.astralBoltChance { return .astralBolt }

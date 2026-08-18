@@ -7,7 +7,7 @@
 
 import Foundation
 
-// MARK: - MovementStyle
+// MARK: - MoveType
 
 /// How a piece travels between its origin and its destination.
 ///
@@ -15,7 +15,24 @@ import Foundation
 /// sharpest balance levers in the game — a sliding piece leaves a trail of
 /// damage behind it, a jumping piece leaves the board between two points
 /// untouched.
-enum MovementStyle: String, CaseIterable, Codable {
+///
+/// ## One list, for every move in the game
+///
+/// There were two of these: this one for steps and `TeleportStyle` for
+/// everything that arrived without walking. Two lists meant two dispatches, and
+/// a move could only be described by whichever list its *emitter* happened to
+/// use — so the question "how is this piece moving" had two different answers
+/// depending on who was asking.
+///
+/// That is what let a sign's identity leak into its movement. The archer had
+/// exactly one way to teleport when the code was written, so his launch was
+/// keyed on **being Sagittarius** rather than on taking that kind of move; the
+/// day anything else teleported him — Astral Breeze, a corner, an island — he
+/// vaulted after an arrow that was not there.
+///
+/// So: one list, and a piece takes a move of a type. Nothing reads the sign to
+/// decide how a move looks, because the type already said.
+enum MoveType: String, CaseIterable, Codable {
 
     /// The piece walks the squares between origin and destination, wearing
     /// **every tile it crosses**, not just the one it stops on. A tile that
@@ -54,7 +71,7 @@ enum MovementStyle: String, CaseIterable, Codable {
     /// after his own arrow. It is a separate case rather than a flag on `hop`
     /// because the distinction is not "how far": a three-square stride is still
     /// a hop, and a leap that lands where it started is still a leap.
-    case leap
+    case superJump
 
     /// The piece runs, standing on **every square on the way** and charging each
     /// one as it leaves it — one turn however far it goes.
@@ -81,16 +98,25 @@ enum MovementStyle: String, CaseIterable, Codable {
     /// answered it its own way: the retinue restarts its queue for one, the
     /// cursor projects differently for another, the wake fires for a third. One
     /// case they can all read is the point.
-    case warp
+    case teleport
+
+    /// Straight up through the ceiling, surfacing on the plane above.
+    ///
+    /// Pisces swimming Upstream — the one piece that climbs under its own power.
+    /// A teleport is *out here, in there*; this is a body breaking a surface,
+    /// which is a different picture and the reason it is not simply a teleport
+    /// that happens to change plane.
+    case rise
 
     var displayName: String {
         switch self {
         case .slide: "Slide"
         case .blown: "Blown"
         case .hop: "Hop"
-        case .leap: "Leap"
+        case .superJump: "Super jump"
         case .charge: "Charge"
-        case .warp: "Warp"
+        case .teleport: "Teleport"
+        case .rise: "Rise"
         }
     }
 
@@ -101,7 +127,7 @@ enum MovementStyle: String, CaseIterable, Codable {
     var touchesEverySquare: Bool { self == .charge }
 
     /// Whether this leaves the ground, and so touches nothing it passes over.
-    var isAirborne: Bool { self == .hop || self == .leap }
+    var isAirborne: Bool { self == .hop || self == .superJump || self == .rise }
 
     /// Whether the squares between the ends were crossed at all.
     ///
@@ -111,6 +137,15 @@ enum MovementStyle: String, CaseIterable, Codable {
     /// it read as being carried rather than as a short hop. What it does *to*
     /// the ground is a separate question, answered by `wear`.
     var travelsTheGround: Bool { self == .slide || self == .charge || self == .blown }
+
+    /// Whether this arrives without having crossed anything at all.
+    var isInstant: Bool { self == .teleport }
+
+    /// Whether this can end on a different plane from the one it began on.
+    ///
+    /// A rise always does; a teleport may. Everything else stays where it is —
+    /// falling through a hole is its own event, not a move.
+    var mayChangePlane: Bool { self == .teleport || self == .rise }
 
     // MARK: - What a style already implies
     //
@@ -125,16 +160,16 @@ enum MovementStyle: String, CaseIterable, Codable {
     // A new style declares its answers here once and the whole game behaves.
 
     /// Which squares this charges on the way through.
-    var wear: MovementWear {
+    var wear: MoveMoment {
         switch self {
-        case .slide: .ends
+        case .slide: .both
         // Nothing. The wind is carrying him, so no square pays — not the one he
         // leaves, not the ones he crosses. Quirky Caper says the same thing in
         // its own terms; this is the movement agreeing with it.
-        case .blown: .destination
+        case .blown: .landing
         case .charge: .everySquare
-        case .hop, .leap: .destination
-        case .warp: .destination
+        case .hop, .superJump: .landing
+        case .teleport, .rise: .landing
         }
     }
 
@@ -163,23 +198,42 @@ enum MovementStyle: String, CaseIterable, Codable {
         case .slide, .blown: GameRules.slideStepPace
         case .charge: GameRules.chargeStepPace
         case .hop: 1
-        case .leap: GameRules.leapPace
-        case .warp: 0
+        case .superJump, .rise: GameRules.leapPace
+        case .teleport: 0
         }
     }
 }
 
-/// Which squares a movement charges.
-enum MovementWear {
-    /// The one it stops on, and nothing else.
-    case destination
+/// A point in a move that something can be attached to.
+///
+/// One vocabulary, used for two questions that were previously asked in
+/// different words: **which squares a move damages**, and **where its effect
+/// plays**. They are the same question — *when in this move does the thing
+/// happen* — and a caller that can say "wear the exit, play the sprite on both
+/// ends" without learning two enums is the whole point of `GameEngine.move`.
+enum MoveMoment: String, CaseIterable, Codable {
 
-    /// The one it pushed off from and the one it reached — see
-    /// `GameRules.slideWearsEndsOnly`.
-    case ends
+    /// Nowhere. A move that costs the ground nothing, or carries no effect.
+    case never
 
-    /// All of them, charged on the way out of each.
+    /// The square pushed off from, charged as the piece leaves it.
+    case exit
+
+    /// The square arrived on.
+    case landing
+
+    /// Both ends, and nothing in between — see `GameRules.slideWearsEndsOnly`.
+    case both
+
+    /// Every square touched, charged on the way out of each. Only something
+    /// that is *walked* can use this; a jump is not on the squares it crosses.
     case everySquare
+
+    /// Whether this includes the square being left.
+    var includesExit: Bool { self == .exit || self == .both || self == .everySquare }
+
+    /// Whether this includes the square being arrived on.
+    var includesLanding: Bool { self == .landing || self == .both || self == .everySquare }
 }
 
 // MARK: - MovementPattern
@@ -210,7 +264,7 @@ struct MovementPattern: Equatable {
     }
 
     /// Convenience for the common case: one distance, one style, all directions.
-    init(name: String, distance: Int, style: MovementStyle = .slide) {
+    init(name: String, distance: Int, style: MoveType = .slide) {
         self.init(name: name, options: [MoveOption(.any, distance: distance, style: style)])
     }
 
@@ -226,7 +280,7 @@ struct MovementPattern: Equatable {
 
         /// How it covers them. A slide wears everything it crosses; a jump wears
         /// only where it lands.
-        var style: MovementStyle
+        var style: MoveType
 
         /// The phantom this option came from, if it is on loan.
         ///
@@ -248,7 +302,7 @@ struct MovementPattern: Equatable {
         init(
             _ applies: Applicability,
             distance: Int,
-            style: MovementStyle = .slide,
+            style: MoveType = .slide,
             reachesWall: Bool = false,
             owner: Zodiac? = nil
         ) {

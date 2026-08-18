@@ -21,24 +21,15 @@ enum PickupRarity: String, CaseIterable, Codable {
 
     var displayName: String { rawValue.capitalized }
 
-    /// Relative likelihood of this tier.
+    /// The tier is a **label**, not a rate.
     ///
-    /// Tuned against how a run actually plays rather than to look like a
-    /// distribution: the coin is on the board constantly, so the *default*
-    /// outcome has to be something small. Roughly three grabs in five are the
-    /// common tier, and most of those are an Astral Tear.
-    ///
-    /// The tiers are deliberately lopsided. A rare that turned up every eleventh
-    /// coin was not rare, and the two rares are both piece changers — the single
-    /// most disruptive thing a Pentacle can do.
-    var weight: Int {
-        switch self {
-        case .common: 75
-        case .uncommon: 21
-        case .rare: 4
-        case .legendary: 1
-        }
-    }
+    /// It was both: a tier weight rolled first, then a weight inside the tier,
+    /// and what a coin was actually worth was the product of two numbers stated
+    /// in different files. Nobody could read a real chance off that, which is
+    /// how Forced Fate came to feel as common as a heal while looking rare on
+    /// paper. Each effect states its own percentage now — see
+    /// `PickupEffect.chance` — and this says how the banner should shout about
+    /// it and nothing else.
 }
 
 // MARK: - PentacleAppearance
@@ -321,7 +312,18 @@ protocol PickupEffect {
     /// Relative weight against the other effects **in the same tier**.
     ///
     /// Set to `0` to keep an effect implemented but out of rotation.
-    var weight: Int { get }
+    /// How often this comes up, as a **percentage of all Pentacles drawn**.
+    ///
+    /// A real number out of a hundred: `2` means two coins in a hundred, and
+    /// the whole catalogue sums to a hundred. Not a weight — a weight is only
+    /// true relative to whatever else happens to be in the table, so adding one
+    /// coin silently rewrote every other coin's odds and the authored number
+    /// meant nothing on its own.
+    ///
+    /// `0` means it is never drawn at random. That is how a coin that is only
+    /// ever placed by something else is written, and how a sign's exclusive
+    /// waits to be weighted in — see `ZodiacPassive.pickupChance`.
+    var chance: Int { get }
 
     /// Whether this belongs to the Pentacle hunt or is something an ability left
     /// on the board. See `PickupClass`.
@@ -412,7 +414,7 @@ extension PickupEffect {
 
     var appearance: PentacleAppearance { .standard }
     var element: ZodiacElement? { nil }
-    var weight: Int { 1 }
+    var chance: Int { 0 }
     var rollsAsRarity: PickupRarity { rarity }
     var choice: PickupChoice { .none }
     var arrivalWearsTile: Bool { true }

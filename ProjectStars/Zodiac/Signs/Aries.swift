@@ -215,7 +215,11 @@ struct AriesBrazenBlaze: Zodiaction {
             }
 
             events.append(
-                .pieceStepped(from: from, to: square, plane: context.plane, style: .charge)
+                .pieceMoved(
+                    from: from, to: square,
+                    fromPlane: context.plane, toPlane: context.plane,
+                    type: .charge
+                )
             )
             from = square
         }

@@ -63,6 +63,15 @@ struct RevealedPickup: Equatable {
     /// `GameEngine.planMagneticPull()`.
     var revealedOnMove = 0
 
+    /// True when this is one of Aquarius' storm clouds rather than a Pentacle.
+    ///
+    /// A cloud carries a rolled effect exactly as a coin does, and differs in
+    /// what the **hunt** thinks of it: it is not what the sparkle phase is
+    /// waiting on, and it does not fall when the ground under it goes. Both of
+    /// those fall out of `revealedPentacles` skipping it, which is the one list
+    /// every rule of the Pentacle economy is written against.
+    var isCloud = false
+
     /// True when this coin was dealt by a **ring** — Virgo's Regulated Reboot.
     ///
     /// The reward for taking it belongs to the ring, not to Virgo. A phantom
@@ -372,8 +381,8 @@ struct GameEngine {
     /// This is what the styles are for: the rule is "did the leader cross the
     /// squares between", and before there was a name for that, every caller
     /// answered it from whichever event it happened to be handling.
-    private mutating func advanceTrail(_ style: MovementStyle, from: GridPoint, to: GridPoint) {
-        if style.travelsTheGround {
+    private mutating func advanceTrail(_ type: MoveType, from: GridPoint, to: GridPoint) {
+        if type.travelsTheGround {
             rememberStep(from)
         } else {
             restartTrail(at: to)
@@ -454,7 +463,13 @@ struct GameEngine {
     private(set) var isFiringZodiaction = false
 
     var revealedPentacles: [RevealedPickup] {
-        revealedPickups.filter { PickupCatalog.effect(for: $0.id).pickupClass == .pentacle }
+        revealedPickups.filter {
+            // A storm cloud holds a Pentacle's effect but is not one of the
+            // hunt's coins: the phase does not wait on it, nothing re-rolls
+            // because of it, and it hangs where it was put whatever happens to
+            // the ground. See `RevealedPickup.isCloud`.
+            !$0.isCloud && PickupCatalog.effect(for: $0.id).pickupClass == .pentacle
+        }
     }
 
     #if DEBUG
@@ -464,6 +479,15 @@ struct GameEngine {
     /// builds only — the Astral Bolt is one draw in four hundred, which is the
     /// whole design and completely impractical to test against.
     var debugNextPickup: PickupID?
+
+    /// Puts the next reveal on the square the move is heading for, so the
+    /// Shine-snipe can be produced on demand.
+    ///
+    /// The snipe is the rarest thing to reproduce by playing — the phase has to
+    /// end on the move you happen to be landing on its coin — which is exactly
+    /// why it went unnoticed that its window could never open. A lever for it is
+    /// worth keeping.
+    var debugSnipesNext = false
     #endif
 
     /// The square currently popped up, if any.
@@ -802,12 +826,6 @@ struct GameEngine {
         // Mirrored onto the engine for the length of the plan, so an effect
         // opened later in this same move can see it — a bubble pays triple for
         // being guessed and is handed a `PickupContext`, not a `MoveSummary`.
-        var revealedThisMove = false
-        for reveal in sim.rollPickupReveal(destination: move.destination) {
-            commit(reveal)
-            revealedThisMove = true
-        }
-
         // Arriving through a rift closes the doorway behind you — that pair
         // only. The other axis was never entered and stays open for a second
         // crossing.
@@ -829,6 +847,29 @@ struct GameEngine {
         )
         commit(.moveCommitted(direction: keepsFacing ? facingBefore : direction))
 
+        // 2a. The sparkle phase resolves — **after the move is counted**.
+        //
+        //     `moveCount` is the number of moves *committed*, and a reveal
+        //     records the move it happened on. Rolled before the commit, it
+        //     recorded the number of the **previous** move, so every question
+        //     asked later in the same plan compared M against M+1:
+        //
+        //     - The Shine-snipe pays for taking a coin on the move it appeared,
+        //       and its window was therefore never open. That is why the
+        //       flourish never played — the art, the strip and the event were
+        //       all fine.
+        //     - Magnetic Mane refuses to drag a coin "on the turn it appears",
+        //       and by the same off-by-one it was allowed to.
+        //
+        //     Nothing about the presentation moves: `moveCommitted` turns the
+        //     piece and counts the move without drawing anything, so the coin
+        //     still appears as the hop begins.
+        var revealedThisMove = false
+        for reveal in sim.rollPickupReveal(destination: move.destination) {
+            commit(reveal)
+            revealedThisMove = true
+        }
+
         // 2b. Airborne signs pay their wear to the tile they are pushing off
         //     from, not the one they are about to reach. Charged here, while the
         //     piece is still standing on it.
@@ -845,7 +886,7 @@ struct GameEngine {
         // `wear` is where the rule lives, so a future style that also charges
         // its ends gets this without being named here — and the two places that
         // used to test `== .slide` independently cannot drift apart again.
-        let sweeps = move.style.wear == .ends && move.path.count > 1
+        let sweeps = move.style.wear == .both && move.path.count > 1
         // **Decided once, on the square being left.**
         //
         // `wearTiming` is a question about the tile the piece is standing on,
@@ -892,7 +933,7 @@ struct GameEngine {
         //    jump touches only the destination. Either way, a tile that breaks
         //    underfoot drops the piece there and the rest of the path is
         //    abandoned.
-        var landing = sim.travel(move.path, style: move.style)
+        var landing = sim.travel(move.path, type: move.style)
         events += landing.events
         // Fold the departure's tallies in (its events already went out above) so
         // the move summary counts wear dealt on exit as wear dealt.
@@ -1003,15 +1044,13 @@ struct GameEngine {
         //    streak. Done before charging so a streak pays out on the move that
         //    extended it. The timers were aged back at 2b, before anything this
         //    move could grant one.
-        var updatedState = sim.signState
-        updatedState.recordMove(direction: direction)
-        updatedState.recordHoleJumps(landing.holesJumped)
-        if updatedState != sim.signState {
-            commit(.signStateChanged(updatedState))
-        }
-
-        // 7. Charge the Zodiaction off what the move amounted to. Built before
-        //    the call so the summary is not read while `sim` is being mutated.
+        // **Counted before it is recorded.**
+        //
+        // The streak was advanced here and the holes were counted twenty lines
+        // below it, so what went into `holeJumpStreak` was whatever the landing
+        // happened to be carrying rather than what this move cleared. Scorpio
+        // is the sign paid per hole crossed, so an ordinary walk could arrive
+        // holding a streak it had not earned.
         let nexysPoint = GameRules.nexysPoint
         let walkedToNexys = move.path.last == nexysPoint && !landing.fell
 
@@ -1026,7 +1065,25 @@ struct GameEngine {
                 // board. Scorpio's Void Culling is paid for *ruin*.
                 .filter { !sim[startingPlane][$0].isSolid && sim[startingPlane][$0].kind == .normal }
                 .count
+        } else {
+            // Anything that is not a jump cleared nothing, whatever the landing
+            // was carrying when it got here.
+            landing.holesJumped = 0
         }
+
+        // 6. Fold the move into the sign's memory: advance the direction streak
+        //    and the hole-jump streak. Done before charging so a streak pays out
+        //    on the move that extended it. The timers were aged back at 2b,
+        //    before anything this move could grant one.
+        var updatedState = sim.signState
+        updatedState.recordMove(direction: direction)
+        updatedState.recordHoleJumps(landing.holesJumped)
+        if updatedState != sim.signState {
+            commit(.signStateChanged(updatedState))
+        }
+
+        // 7. Charge the Zodiaction off what the move amounted to. Built before
+        //    the call so the summary is not read while `sim` is being mutated.
         let summary = MoveSummary(
             direction: direction,
             origin: origin,
@@ -1338,7 +1395,7 @@ struct GameEngine {
                 PickupCatalog.essences.contains(id)
             case let .pieceFell(_, to, _):
                 to == .astra
-            case let .pieceTeleported(_, _, from, to, _):
+            case let .pieceMoved(_, _, from, to, _, _, _):
                 from != .astra && to == .astra
             case let .nexysMoved(to, carrying):
                 to == .astra && carrying
@@ -1606,9 +1663,18 @@ struct GameEngine {
     ///
     /// Exposed for the debug key. Nothing in play grants a full meter directly;
     /// signs charge through `meterBonus` and `meterGain`.
+    /// Brings the meter to **whatever ready means for this sign**.
+    ///
+    /// Not "fill it": Aquarius is ready at nothing and full is her furthest from
+    /// firing, so charging her to the cap is the one state the key must not
+    /// leave her in. That is why the debug pop could never fire her — it filled
+    /// the meter and then asked a sign who reads it backwards to spend it.
+    /// `meterIsAtFiring` already owns the question; this asks it.
     mutating func planFillZodiaction() -> [GameEvent] {
-        guard !isGameOver, zodiactionMeter < zodiactionMeterMax else { return [] }
-        return [.zodiactionMeterChanged(to: zodiactionMeterMax)]
+        guard !isGameOver, !meterIsAtFiring else { return [] }
+        return [.zodiactionMeterChanged(
+            to: piece.zodiac.zodiaction.firesAtEmpty ? 0 : zodiactionMeterMax
+        )]
     }
 
     /// Sends the Nexys island to the other plane, on its own.
@@ -1718,6 +1784,15 @@ struct GameEngine {
             if !sim.piece.zodiac.zodiaction.ignoresMeter(context: sim.passiveContext) {
                 commit(.zodiactionMeterChanged(to: sim.piece.zodiac.zodiaction.startingMeter))
             }
+            // **The fragment wakes on the firing, not on the finishing.**
+            //
+            // A Zodiaction that asks a question leaves here and comes back
+            // through `planChoice`, which never sees the `zodiactionFired` that
+            // started it — so a Zodiaction with a choice in it woke no Polaris
+            // at all. Capricorn's is the whole of his: on Terra, where the
+            // fragment has no other way to be lit, the shop was a dead end for
+            // it. Exposure is a moment, and this is the moment.
+            events += sim.chargePolaris(after: events)
             events += sim.tickForTurn()
             return events
         }
@@ -1798,7 +1873,7 @@ struct GameEngine {
         let path: [GridPoint]
 
         /// How it covers the ground.
-        let style: MovementStyle
+        let style: MoveType
 
         /// The pattern option this came from, so a passive can be asked whether
         /// taking it costs anything.
@@ -1810,7 +1885,7 @@ struct GameEngine {
         /// True when this move goes through one of Gemini's rifts.
         var usedRift = false
 
-        init(path: [GridPoint], style: MovementStyle, option: MovementPattern.MoveOption, origin: GridPoint) {
+        init(path: [GridPoint], style: MoveType, option: MovementPattern.MoveOption, origin: GridPoint) {
             self.path = path
             self.style = style
             self.option = option
@@ -2182,18 +2257,35 @@ struct GameEngine {
         // sit somewhere so the player can see *why*.
         let travel = direction ?? piece.facing
 
-        let movement = activePassives.adjustedMovement(
-            base: activeMovement,
-            context: passiveContext
-        )
+        // The pattern used to be consulted here to work out how far the cursor
+        // should reach. `resolvedMove` answers that now — and answers it the
+        // same way the move itself will, which is the whole point of there
+        // being one owner. What is left below is the fallback for when there is
+        // no legal move at all.
         let step = travel.unitOffset
-        let option = movement.option(for: travel, facing: piece.facing, reach: reach)
 
         let point: GridPoint = {
             if let landing = resolvedMove(for: travel, reach: reach)?.destination {
                 return landing
             }
-            let distance = option?.distance ?? 1
+
+            // **The reach the piece actually has, not the one the pattern
+            // lists.**
+            //
+            // The fallback took the option the swipe selected and projected it
+            // whole — so Scorpio's cursor sat two squares out whenever the
+            // vault was picked, including every time Void Culling refuses it
+            // for want of a hole. Two squares of cursor followed by a refusal
+            // nudge is the game saying *there* and then *no*.
+            //
+            // `moveOptions` is the list a passive has already filtered, which
+            // is the same list `resolvedMove` will consult. Off the end of it
+            // — no option available in this direction at all — one square is
+            // the right place to point, because that is where the wall is.
+            let available = moveOptions(for: travel)
+            let distance = available.last(where: { $0.distance <= max(reach, 1) })?.distance
+                ?? available.first?.distance
+                ?? 1
             return GridPoint(
                 piece.point.x + step.dx * distance,
                 piece.point.y + step.dy * distance
@@ -2282,11 +2374,21 @@ struct GameEngine {
         // A passive may steer the reveal — Virgo's Controlled Compensation puts the
         // coin on the square the move is already heading for. Otherwise it is a
         // straight roll among the surviving sparkles.
-        let steered = activePassives.preferredRevealPoint(
+        var steered = activePassives.preferredRevealPoint(
             among: usable,
             destination: destination,
             context: passiveContext
         )
+
+        #if DEBUG
+        // Straight onto the destination, past the sparkle set — the point is to
+        // land on the coin as it appears, and whether that square happened to
+        // be lit is the part being skipped.
+        if debugSnipesNext, board[destination].canHostSparkle {
+            steered = destination
+            debugSnipesNext = false
+        }
+        #endif
         guard let point = steered ?? usable.randomElement(using: &rng) else { return [] }
         guard let pickup = drawPickup(at: point, on: sparkles.plane) else { return [] }
 
@@ -2450,7 +2552,100 @@ struct GameEngine {
         return SwipeDirection.allCases.first { $0.unitOffset == step }
     }
 
-    private mutating func travel(_ path: [GridPoint], style: MovementStyle) -> LandingResult {
+    /// **Move the piece. The only way anything does.**
+    ///
+    /// Everything a move can differ in is an argument here, so a caller states
+    /// what it wants and nothing downstream has to work out who asked. That is
+    /// the whole design: a Pentacle that wants the piece carried three squares
+    /// with a splash at both ends and no damage says exactly that, and the sign
+    /// standing on the square has no say in how it looks or what it costs.
+    ///
+    /// Before this, movement was assembled at each call site out of paths,
+    /// styles and hand-written events, and the gaps were filled in by asking
+    /// *which sign is this* — which is how an archer teleported by a gust
+    /// launched himself after an arrow he had not fired, and how a Breeze could
+    /// pick up a sign's vault animation by standing too close to it.
+    ///
+    /// - Parameters:
+    ///   - destination: Where the piece ends up.
+    ///   - plane: The plane it ends up on. Defaults to the one it is on;
+    ///     only `MoveType.mayChangePlane` types may name a different one.
+    ///   - type: How it travels — which decides the pace, the arc, the sound of
+    ///     it, and what the ground pays unless `damagesOn` overrules.
+    ///   - effect: A sprite to play, or `nil`. **The caller's**, not the sign's.
+    ///   - effectPlaysOn: Where that sprite plays.
+    ///   - damageMod: A multiplier on the wear this move deals. `0` costs the
+    ///     ground nothing, `2` bites twice as deep, and a negative repairs —
+    ///     `-2` mends two stages, which is how a healing move is written.
+    ///   - damagesOn: Which end of the move pays, overriding what the type
+    ///     implies. `nil` takes the type's own answer.
+    @discardableResult
+    mutating func move(
+        to destination: GridPoint,
+        on plane: Plane? = nil,
+        as type: MoveType,
+        effect: EffectSprite? = nil,
+        effectPlaysOn: MoveMoment = .never,
+        damageMod: Int = 1,
+        damagesOn: MoveMoment? = nil
+    ) -> [GameEvent] {
+        let landing = travel(
+            path(to: destination, as: type),
+            type: type,
+            toPlane: type.mayChangePlane ? (plane ?? piece.plane) : piece.plane,
+            effect: effect,
+            effectPlaysOn: effectPlaysOn,
+            damageMod: damageMod,
+            damagesOn: damagesOn
+        )
+        return landing.events
+    }
+
+    /// The squares a move of this type actually visits.
+    ///
+    /// A type that travels the ground walks the line; one that leaves it, or
+    /// never crosses it at all, has only a destination. Worked out here so no
+    /// caller builds a path by hand and gets the two rules confused.
+    private func path(to destination: GridPoint, as type: MoveType) -> [GridPoint] {
+        guard type.travelsTheGround, destination != piece.point else { return [destination] }
+
+        let dx = destination.x - piece.point.x
+        let dy = destination.y - piece.point.y
+        let steps = max(abs(dx), abs(dy))
+        guard steps > 0 else { return [destination] }
+
+        // Only straight lines and true diagonals can be walked. Anything else
+        // is not a path — it is two moves — so it arrives as one.
+        guard dx == 0 || dy == 0 || abs(dx) == abs(dy) else { return [destination] }
+
+        let stepX = dx == 0 ? 0 : dx / abs(dx)
+        let stepY = dy == 0 ? 0 : dy / abs(dy)
+        return (1...steps).map {
+            GridPoint(piece.point.x + stepX * $0, piece.point.y + stepY * $0)
+        }
+    }
+
+    private mutating func travel(
+        _ path: [GridPoint],
+        type: MoveType,
+        toPlane: Plane? = nil,
+        effect: EffectSprite? = nil,
+        effectPlaysOn: MoveMoment = .never,
+        damageMod: Int = 1,
+        damagesOn: MoveMoment? = nil
+    ) -> LandingResult {
+        // What this move costs the ground, held for its length. Same shape as
+        // `moveWearTiming` and for the same reason: the question is asked at
+        // several moments and the answer must not change between them.
+        moveDamageMod = damageMod
+        moveDamageMoment = damagesOn ?? type.wear
+        defer {
+            moveDamageMod = 1
+            moveDamageMoment = nil
+        }
+        let style = type
+        let arrivalPlane = toPlane ?? piece.plane
+
         // Worked out **before** the piece moves.
         //
         // `heading(of:from:)` measures the last step against where the piece is
@@ -2471,10 +2666,13 @@ struct GameEngine {
         // that is true of a move with no middle. Left alone, every ordinary step
         // in the game charged its exit tile, pressed the ground, and swept
         // coins over the piece's head.
-        // `.blown` is exempt: it is the one style that *means* something at one
+        // `.blown` is exempt: it is the one type that *means* something at one
         // square, because it is a statement about who is doing the moving. See
-        // `MovementStyle.blown`.
-        let effective: MovementStyle = (path.count > 1 || style == .blown) ? style : .hop
+        // `MoveType.blown`. So is anything that does not walk at all — a
+        // teleport of one square is still a teleport.
+        let effective: MoveType = (path.count > 1 || !style.travelsTheGround || style == .blown)
+            ? style
+            : .hop
 
         switch effective {
         case .charge:
@@ -2484,8 +2682,12 @@ struct GameEngine {
                 let departure = departCurrentTile(force: true, cause: .brazenBlaze)
                 result.absorb(departure)
 
-                let step = GameEvent.pieceStepped(
-                    from: piece.point, to: square, plane: piece.plane, style: .charge
+                let step = GameEvent.pieceMoved(
+                    from: piece.point, to: square,
+                    fromPlane: piece.plane, toPlane: piece.plane,
+                    type: .charge,
+                    effect: effect,
+                    effectPlaysOn: effectPlaysOn
                 )
                 result.events.append(step)
                 result.covered.append(square)
@@ -2510,15 +2712,18 @@ struct GameEngine {
 
             result.absorb(settle(arrivedByFalling: false, heading: travelled))
 
-        case .hop, .leap:
+        case .hop, .superJump:
             // Airborne: touches only where it lands.
             guard let destination = path.last else { return result }
 
-            let hop = GameEvent.pieceStepped(
+            let hop = GameEvent.pieceMoved(
                 from: piece.point,
                 to: destination,
-                plane: piece.plane,
-                style: effective
+                fromPlane: piece.plane,
+                toPlane: piece.plane,
+                type: effective,
+                effect: effect,
+                effectPlaysOn: effectPlaysOn
             )
             result.events.append(hop)
             result.covered.append(destination)
@@ -2526,13 +2731,16 @@ struct GameEngine {
 
             result.absorb(settle(arrivedByFalling: false, heading: travelled))
 
-        case .warp:
+        case .teleport, .rise:
             // Arrives, and that is all. No push-off, nothing crossed.
             guard let destination = path.last else { return result }
 
-            let jump = GameEvent.pieceTeleported(
+            let jump = GameEvent.pieceMoved(
                 from: piece.point, to: destination,
-                fromPlane: piece.plane, toPlane: piece.plane
+                fromPlane: piece.plane, toPlane: arrivalPlane,
+                type: effective,
+                effect: effect,
+                effectPlaysOn: effectPlaysOn
             )
             result.events.append(jump)
             result.covered.append(destination)
@@ -2546,11 +2754,14 @@ struct GameEngine {
             // decides how it is drawn and what it costs.
             guard let destination = path.last else { return result }
 
-            let carried = GameEvent.pieceStepped(
+            let carried = GameEvent.pieceMoved(
                 from: piece.point,
                 to: destination,
-                plane: piece.plane,
-                style: .blown
+                fromPlane: piece.plane,
+                toPlane: piece.plane,
+                type: .blown,
+                effect: effect,
+                effectPlaysOn: effectPlaysOn
             )
             result.events.append(carried)
             result.covered.append(destination)
@@ -3308,6 +3519,18 @@ struct GameEngine {
         )
         var seeded = proposal
         seeded.cause = cause
+        // What the move itself asked for, before any passive is consulted: a
+        // caller that said `damageMod: 0` wants a move that costs the ground
+        // nothing, and a passive that would have deepened it has nothing to
+        // deepen. Negative multipliers repair, which `stages` already means.
+        seeded.stages *= moveDamageMod
+
+        // And whether this end of the move pays at all.
+        if let moment = moveDamageMoment {
+            let paid = onExit ? moment.includesExit : moment.includesLanding
+            if !paid { seeded.stages = 0 }
+        }
+
         let final = activePassives.modifyWear(seeded, context: passiveContext)
 
         if final.signState != signState {
@@ -3396,6 +3619,14 @@ struct GameEngine {
     /// halfway through. See where it is set in `plan`.
     private var moveWearTiming: WearTiming = .onEntry
 
+    /// What this move multiplies its wear by, and which end of it pays.
+    ///
+    /// Both are arguments to `move` — see it for what the numbers mean — held
+    /// for the length of one move because the wear is charged at two different
+    /// moments and both have to be answering the same question.
+    private var moveDamageMod: Int = 1
+    private var moveDamageMoment: MoveMoment?
+
     private mutating func departCurrentTile(
         force: Bool = false,
         cause: WearCause = .landing
@@ -3459,22 +3690,7 @@ struct GameEngine {
         //
         // - TODO: Give this its own collection sound — it is a different event
         //   from an ordinary pickup and currently sounds identical.
-        // Pentacles only.
-        //
-        // A scatter is *several* things appearing at once and taking one leaves
-        // the rest — Pisces' spilled bubbles are revealed by the fall that
-        // dropped them, so collecting one on the way past counted as sniping a
-        // coin you were never hunting. The snipe is a reward for reaching a
-        // reveal you had to go and get; a bubble underfoot is not that.
-        if pickup.revealedOnMove == moveCount,
-           piece.zodiac != .virgo,
-           PickupCatalog.effect(for: pickup.id).pickupClass == .pentacle {
-            let target = meter(afterGaining: GameRules.revealTileCharge)
-            if target != zodiactionMeter {
-                commit(.zodiactionMeterChanged(to: target))
-            }
-            commit(.caughtOnReveal(plane: pickup.plane, point: pickup.point))
-        }
+        for event in snipeReward(for: pickup) { commit(event) }
 
         // A ring's coin pays whoever takes it, whatever sign that is by then.
         if pickup.fromRing {
@@ -3981,7 +4197,7 @@ struct GameEngine {
         let crossing: (point: GridPoint, plane: Plane)? = switch event {
         case let .pieceSlid(_, to, plane):
             (to, plane)
-        case let .pieceStepped(_, to, plane, style) where style.travelsTheGround:
+        case let .pieceMoved(_, to, _, plane, type, _, _) where type.travelsTheGround:
             (to, plane)
         default:
             nil
@@ -4006,6 +4222,56 @@ struct GameEngine {
     /// Each one runs its full effect, so a coin caught mid-slide behaves exactly
     /// as it would have if walked onto — including moving the piece again, which
     /// it could not safely have done while the piece was still travelling.
+    /// What taking a coin **on the move it appeared** is worth.
+    ///
+    /// The Shine-snipe — alternatively the Sparkle-snipe: the sparkle phase
+    /// lights five squares, one of them turns out to be the coin, and reaching
+    /// it first is a guess worth paying for. A pip to anyone, and the overhead
+    /// flourish that says it happened.
+    ///
+    /// ## Why this is a function rather than a block inside one collector
+    ///
+    /// Because there are two collectors. A coin you land on is opened where it
+    /// stands; a coin you *cross* is carried and opened when the move stops —
+    /// and only the first of the two knew this rule. So a snipe made by sliding
+    /// over the coin paid nothing and played nothing, which read exactly like
+    /// the flourish being broken. A slide is one move, so sniping on one is a
+    /// snipe.
+    ///
+    /// Pentacles only. A scatter is *several* things appearing at once and
+    /// taking one leaves the rest — Pisces' spilled bubbles are revealed by the
+    /// fall that dropped them, so collecting one on the way past counted as
+    /// sniping a coin nobody was hunting.
+    ///
+    /// **Virgo included.** Steering the reveal onto the square she is heading
+    /// for is her way of charging by hand, so the pip is the reward for doing
+    /// it rather than a second helping of one she already had.
+    private mutating func snipeReward(for pickup: RevealedPickup) -> [GameEvent] {
+        guard pickup.revealedOnMove == moveCount,
+              PickupCatalog.effect(for: pickup.id).pickupClass == .pentacle
+        else { return [] }
+
+        var events: [GameEvent] = []
+
+        // **Everybody, Virgo included.**
+        //
+        // She was excluded on the theory that Regulated Reboot already pays her
+        // for landing on a ring's coin and that two rewards for one step would
+        // make her phase worth more than her Zodiaction. That reads the sign
+        // backwards: steering the reveal onto the square she is already heading
+        // for *is* her way of charging by hand, and taking the pip away removed
+        // the point of doing it. It also meant the one sign that can snipe on
+        // demand was the one sign that could never see the flourish — which is
+        // why this looked broken from the outside for so long.
+        let target = meter(afterGaining: GameRules.revealTileCharge)
+        if target != zodiactionMeter {
+            events.append(.zodiactionMeterChanged(to: target))
+        }
+
+        events.append(.caughtOnReveal(plane: pickup.plane, point: pickup.point))
+        return events
+    }
+
     private mutating func openCarriedPickups() -> [GameEvent] {
         guard !carriedPickups.isEmpty else { return [] }
 
@@ -4021,6 +4287,14 @@ struct GameEngine {
             )
             apply(opened)
             events.append(opened)
+
+            // Crossed on the move it appeared is still a snipe — see
+            // `snipeReward(for:)`. This path never asked, which is why sniping
+            // by sliding over a coin paid nothing.
+            for reward in snipeReward(for: coin) {
+                apply(reward)
+                events.append(reward)
+            }
 
             let effect = PickupCatalog.effect(for: coin.id)
 
@@ -4058,6 +4332,28 @@ struct GameEngine {
     /// Built as a closure over a *snapshot* of the context rather than reading
     /// the engine as it runs: the roll happens with `&rng` already borrowed, and
     /// touching `self` inside it would be overlapping access to the same value.
+    #if DEBUG
+    /// Rolls `count` coins through the **real** draw and tallies what came up.
+    ///
+    /// The engine's own weighting, so the sample includes everything that
+    /// actually shapes a run's luck: the plane filter, the sign's passives, the
+    /// lot. A table read off the source is the authored answer; this is the
+    /// played one, and the gap between them is the interesting number.
+    func debugPickupSample(_ count: Int, seed: UInt64 = 20_260_818) -> [(PickupID, Int)] {
+        var generator = SeededRandom(seed: seed)
+        var tally: [PickupID: Int] = [:]
+        let weighting = pickupWeighting()
+
+        for _ in 0..<count {
+            guard let drawn = PickupCatalog.rollPickup(
+                weighting: weighting, using: &generator
+            ) else { continue }
+            tally[drawn, default: 0] += 1
+        }
+        return tally.sorted { $0.value > $1.value }.map { ($0.key, $0.value) }
+    }
+    #endif
+
     private func pickupWeighting() -> (PickupID, Int) -> Int {
         let context = passiveContext
         let passives = activePassives
@@ -4067,7 +4363,7 @@ struct GameEngine {
             // weight up a coin that cannot exist here.
             let home = PickupCatalog.effect(for: id).spawnPlane
             guard home == nil || home == context.plane else { return 0 }
-            return passives.pickupWeight(base, for: id, context: context)
+            return passives.pickupChance(base, for: id, context: context)
         }
     }
 
@@ -4098,6 +4394,7 @@ struct GameEngine {
             arrivedOnOpenGround: arrivedOnOpenGround,
             pickupPoints: revealedPickups.filter { $0.plane == piece.plane }.map(\.point),
             pickups: revealedPickups.filter { $0.plane == piece.plane },
+            sparkles: sparkles,
             signState: signState,
             luck: luck,
             luckAlt: luckAlt
@@ -4115,7 +4412,7 @@ struct GameEngine {
         case .moveBlocked:
             break // Presentation only.
 
-        case let .pickupRevealed(id, plane, point, _):
+        case let .pickupRevealed(id, plane, point, _, asCloud):
             // The sparkle phase ends here: the shimmer goes out as the pickup
             // appears.
             pickupSerial += 1
@@ -4124,10 +4421,15 @@ struct GameEngine {
                     id: id, plane: plane, point: point,
                     serial: pickupSerial,
                     revealedOnMove: moveCount,
+                    isCloud: asCloud,
                     fromRing: sparkles?.pattern == .ring
                 )
             )
-            guard PickupCatalog.effect(for: id).pickupClass == .pentacle else { break }
+            // A cloud takes no tile with it and ends no phase: the sparkles it
+            // was made from are cleared by the one real coin among them.
+            guard !asCloud,
+                  PickupCatalog.effect(for: id).pickupClass == .pentacle
+            else { break }
             // The tile pops up under it, and from here on the two are separate.
             raisedTiles.append(
                 RevealedPickup(id: id, plane: plane, point: point, serial: pickupSerial)
@@ -4172,8 +4474,6 @@ struct GameEngine {
             advanceTrail(.slide, from: from, to: to)
             piece.point = to
 
-        case let .pieceStepped(_, to, _, _):
-            piece.point = to
 
         case let .tilesChanged(plane, changes):
             for (point, health) in changes {
@@ -4191,13 +4491,21 @@ struct GameEngine {
         case let .tileHealed(plane, point, health):
             self[plane][point].health = health
 
-        case let .pieceTeleported(_, to, fromPlane, toPlane, _):
-            // Arriving anywhere by warp closes every torn doorway, and leaving
-            // the plane closes everything.
+        case let .pieceMoved(_, to, fromPlane, toPlane, type, _, _):
+            // A move that crossed the ground leaves the retinue strung out
+            // behind it; one that did not arrives with them stacked on top.
+            // `advanceTrail` asks the type, so nothing here needs to know which
+            // kind of move this was.
+            advanceTrail(type, from: piece.point, to: to)
+            piece.point = to
+
+            // Arriving anywhere without walking closes every torn doorway, and
+            // leaving the plane closes everything.
             //
-            // All of them rather than a pair, because a warp does not go
+            // All of them rather than a pair, because a teleport does not go
             // *through* a rift — it is a hole torn somewhere else, and the
             // mirrors do not survive the board being folded around them.
+            guard type.mayChangePlane else { break }
             signState.terraRifts = []
             if toPlane != fromPlane {
                 // The third way to change plane, and it costs the retinue like
@@ -4208,8 +4516,6 @@ struct GameEngine {
                 signState = signState.clearedForPlaneChange(atMove: moveCount)
             }
             piece.plane = toPlane
-            piece.point = to
-            advanceTrail(.warp, from: to, to: to)
 
         case .caughtOnReveal:
             // Presentation only; the charge is its own event.
@@ -4344,7 +4650,7 @@ struct GameEngine {
             signState = state
 
         case let .pieceFell(_, to, at):
-            advanceTrail(.warp, from: at, to: at)
+            advanceTrail(.teleport, from: at, to: at)
             refundLostRetinue()
             signState = signState.clearedForPlaneChange(atMove: moveCount)
             signState.closeRifts()

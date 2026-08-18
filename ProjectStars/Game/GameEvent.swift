@@ -113,32 +113,6 @@ enum ChoiceSource: Equatable, Hashable {
 ///
 /// Events carry concrete outcomes, never instructions to roll dice. All
 
-/// How a piece got from one square to another without walking.
-///
-/// The engine knows and the view cannot work it out — the same reason
-/// `MovementStyle` rides on `pieceStepped`. A warp and a rise share every field
-/// an event has and look nothing alike.
-enum TeleportStyle: String, Codable, Hashable, Sendable {
-
-    /// Out here, in there. The default, and what every corner, arrow and Breeze
-    /// does.
-    case warp
-
-    /// Straight up through the ceiling, surfacing on the plane above. Pisces
-    /// swimming Upstream — the only piece in the game that climbs under its own
-    /// power.
-    case rise
-
-    /// **Carried** across the board rather than moved through it.
-    ///
-    /// Astral Breeze. A beam says *out here, in there* — two places and nothing
-    /// between them — which is the wrong sentence for a wind. The piece is blown
-    /// to where it is going and you can see it travel, which also makes the
-    /// distance legible: a warp of one square and a warp of six look identical,
-    /// and being carried does not.
-    case blown
-}
-
 /// randomness is resolved during planning.
 enum GameEvent: Equatable {
 
@@ -160,7 +134,8 @@ enum GameEvent: Equatable {
         id: PickupID,
         plane: Plane,
         point: GridPoint,
-        thrownFrom: GridPoint? = nil
+        thrownFrom: GridPoint? = nil,
+        asCloud: Bool = false
     )
 
     /// The move was committed: it counts toward the move total and turns the
@@ -190,7 +165,21 @@ enum GameEvent: Equatable {
     /// layer is asking. Left off, it had to be guessed from whose super was
     /// running, which is a rule about Aries standing in for a rule about
     /// movement.
-    case pieceStepped(from: GridPoint, to: GridPoint, plane: Plane, style: MovementStyle)
+    /// `effect` and `effectPlaysOn` are the caller's, not the sign's. What
+    /// plays when a piece moves belongs to **whatever ordered the move** — the
+    /// Pentacle, the Zodiaction, the passive — because that is the only thing
+    /// that knows why it is happening. Read off the sign instead, an archer who
+    /// was teleported by a gust launched himself after an arrow he had not
+    /// fired.
+    case pieceMoved(
+        from: GridPoint,
+        to: GridPoint,
+        fromPlane: Plane,
+        toPlane: Plane,
+        type: MoveType,
+        effect: EffectSprite? = nil,
+        effectPlaysOn: MoveMoment = .never
+    )
 
     /// A tile took wear and is now in state `to`.
     case tileDamaged(plane: Plane, point: GridPoint, to: TileHealth)
@@ -237,20 +226,6 @@ enum GameEvent: Equatable {
 
     /// The piece dropped through a hole to the plane below, keeping its square.
     case pieceFell(from: Plane, to: Plane, at: GridPoint)
-
-    /// The piece was moved somewhere without travelling there.
-    ///
-    /// Distinct from `pieceStepped` because nothing between origin and
-    /// destination is touched, and because it may cross planes. Arriving is
-    /// still landing: the engine settles the destination afterwards, so every
-    /// landing check runs exactly as it would after an ordinary move.
-    case pieceTeleported(
-        from: GridPoint,
-        to: GridPoint,
-        fromPlane: Plane,
-        toPlane: Plane,
-        style: TeleportStyle = .warp
-    )
 
     /// The piece became a different sign, keeping its square, plane and facing.
     ///
@@ -389,7 +364,7 @@ enum GameEvent: Equatable {
 
     /// The piece slid one square, without leaving the ground.
     ///
-    /// Distinct from `pieceStepped`, which is a *hop*: it squashes, arcs, kicks
+    /// Distinct from `pieceMoved`, which is a *hop*: it squashes, arcs, kicks
     /// up dust on landing and takes a full beat. Water carrying you along does
     /// none of that, and a chain of hops across seven squares reads as a rabbit
     /// rather than a current. Same effect on the board, different motion.
@@ -451,7 +426,7 @@ enum GameEvent: Equatable {
     /// Used to keep two reveals in the same phase off each other's squares
     /// without the caller having to remember which shapes carry a point.
     var revealedPoint: GridPoint? {
-        if case let .pickupRevealed(_, _, point, _) = self { return point }
+        if case let .pickupRevealed(_, _, point, _, _) = self { return point }
         return nil
     }
 
@@ -472,7 +447,10 @@ enum GameEvent: Equatable {
         // follows, so holding the turn open for it only delayed the step the
         // player actually asked for.
         case .pieceTurned: 0
-        case .pieceStepped: GameRules.hopDuration
+        case let .pieceMoved(_, _, _, _, type, _, _):
+            // The type says how long it takes, the same way it says everything
+            // else about how the move is presented.
+            type.isInstant ? GameRules.teleportDuration : GameRules.hopDuration
         case .tilesChanged: GameRules.areaEffectDuration
         case .tileDamaged: GameRules.tileDamageDuration
         case .tilesWorn: GameRules.tileDamageHold
@@ -480,7 +458,6 @@ enum GameEvent: Equatable {
         case .tileHealed: GameRules.tileHealDuration
         case .pieceFell: GameRules.fallDuration
         case .planeRestored: GameRules.planeRestoreDuration
-        case .pieceTeleported: GameRules.teleportDuration
         case .pieceChanged: GameRules.pieceChangeDuration
         case .caughtOnReveal: 0
         case .retinueChanged: GameRules.soulSplitDuration
