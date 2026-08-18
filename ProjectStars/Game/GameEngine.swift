@@ -63,6 +63,15 @@ struct RevealedPickup: Equatable {
     /// `GameEngine.planMagneticPull()`.
     var revealedOnMove = 0
 
+    /// True when this is one of Aquarius' storm clouds rather than a Pentacle.
+    ///
+    /// A cloud carries a rolled effect exactly as a coin does, and differs in
+    /// what the **hunt** thinks of it: it is not what the sparkle phase is
+    /// waiting on, and it does not fall when the ground under it goes. Both of
+    /// those fall out of `revealedPentacles` skipping it, which is the one list
+    /// every rule of the Pentacle economy is written against.
+    var isCloud = false
+
     /// True when this coin was dealt by a **ring** — Virgo's Regulated Reboot.
     ///
     /// The reward for taking it belongs to the ring, not to Virgo. A phantom
@@ -454,7 +463,13 @@ struct GameEngine {
     private(set) var isFiringZodiaction = false
 
     var revealedPentacles: [RevealedPickup] {
-        revealedPickups.filter { PickupCatalog.effect(for: $0.id).pickupClass == .pentacle }
+        revealedPickups.filter {
+            // A storm cloud holds a Pentacle's effect but is not one of the
+            // hunt's coins: the phase does not wait on it, nothing re-rolls
+            // because of it, and it hangs where it was put whatever happens to
+            // the ground. See `RevealedPickup.isCloud`.
+            !$0.isCloud && PickupCatalog.effect(for: $0.id).pickupClass == .pentacle
+        }
     }
 
     #if DEBUG
@@ -1648,9 +1663,18 @@ struct GameEngine {
     ///
     /// Exposed for the debug key. Nothing in play grants a full meter directly;
     /// signs charge through `meterBonus` and `meterGain`.
+    /// Brings the meter to **whatever ready means for this sign**.
+    ///
+    /// Not "fill it": Aquarius is ready at nothing and full is her furthest from
+    /// firing, so charging her to the cap is the one state the key must not
+    /// leave her in. That is why the debug pop could never fire her — it filled
+    /// the meter and then asked a sign who reads it backwards to spend it.
+    /// `meterIsAtFiring` already owns the question; this asks it.
     mutating func planFillZodiaction() -> [GameEvent] {
-        guard !isGameOver, zodiactionMeter < zodiactionMeterMax else { return [] }
-        return [.zodiactionMeterChanged(to: zodiactionMeterMax)]
+        guard !isGameOver, !meterIsAtFiring else { return [] }
+        return [.zodiactionMeterChanged(
+            to: piece.zodiac.zodiaction.firesAtEmpty ? 0 : zodiactionMeterMax
+        )]
     }
 
     /// Sends the Nexys island to the other plane, on its own.
@@ -4347,6 +4371,7 @@ struct GameEngine {
             arrivedOnOpenGround: arrivedOnOpenGround,
             pickupPoints: revealedPickups.filter { $0.plane == piece.plane }.map(\.point),
             pickups: revealedPickups.filter { $0.plane == piece.plane },
+            sparkles: sparkles,
             signState: signState,
             luck: luck,
             luckAlt: luckAlt
@@ -4364,7 +4389,7 @@ struct GameEngine {
         case .moveBlocked:
             break // Presentation only.
 
-        case let .pickupRevealed(id, plane, point, _):
+        case let .pickupRevealed(id, plane, point, _, asCloud):
             // The sparkle phase ends here: the shimmer goes out as the pickup
             // appears.
             pickupSerial += 1
@@ -4373,10 +4398,15 @@ struct GameEngine {
                     id: id, plane: plane, point: point,
                     serial: pickupSerial,
                     revealedOnMove: moveCount,
+                    isCloud: asCloud,
                     fromRing: sparkles?.pattern == .ring
                 )
             )
-            guard PickupCatalog.effect(for: id).pickupClass == .pentacle else { break }
+            // A cloud takes no tile with it and ends no phase: the sparkles it
+            // was made from are cleared by the one real coin among them.
+            guard !asCloud,
+                  PickupCatalog.effect(for: id).pickupClass == .pentacle
+            else { break }
             // The tile pops up under it, and from here on the two are separate.
             raisedTiles.append(
                 RevealedPickup(id: id, plane: plane, point: point, serial: pickupSerial)

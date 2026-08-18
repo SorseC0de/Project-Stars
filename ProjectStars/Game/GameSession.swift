@@ -1086,7 +1086,8 @@ final class GameSession {
     /// animation costs a charge and a hold.
     func debugPopZodiaction() {
         guard acceptsInput else { return }
-        if engine.zodiactionMeter < engine.zodiactionMeterMax {
+        // Charged to ready rather than to full — see `planFillZodiaction`.
+        if !engine.meterIsAtFiring {
             for event in engine.planFillZodiaction() { engine.apply(event) }
         }
         fireZodiaction()
@@ -2153,7 +2154,7 @@ final class GameSession {
                 engine.apply(event)
             }
 
-        case let .pickupRevealed(_, plane, point, thrownFrom) where thrownFrom == nil:
+        case let .pickupRevealed(_, plane, point, thrownFrom, _) where thrownFrom == nil:
             // The phase coming apart.
             //
             // Every lit square bursts, including the one the coin appears on:
@@ -2168,7 +2169,7 @@ final class GameSession {
             await sleep(event.displayDuration)
             _ = point
 
-        case let .pickupRevealed(_, _, point, thrownFrom) where thrownFrom != nil:
+        case let .pickupRevealed(_, _, point, thrownFrom, _) where thrownFrom != nil:
             // Only a bubble that was *thrown* flies. One surfacing out of the
             // glow phase has nowhere to have come from, and treating those as
             // spills is what made the board re-throw itself on every step.

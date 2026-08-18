@@ -1526,6 +1526,15 @@ struct BoardView: View {
             // the coin sits on ordinary ground like anything else.
             let lifted = session.visibleRaisedTiles.contains { $0.point == point }
 
+            // The storm's leavings are cloudstuff, not coinage. No raised tile
+            // under them either — they hang over whatever is there, holes
+            // included. See `StormCloudView`.
+            if pickup.isCloud {
+                StormCloudView(point: point, size: metrics.tileSize)
+                    .modifier(placedOnPlaneModifier(point, metrics: metrics))
+                    .offset(surfaceSway(of: point, at: Date(), metrics: metrics))
+                    .transition(.scale(scale: 0.2).combined(with: .opacity))
+            } else {
             PentacleView(
                 appearance: PickupCatalog.effect(for: pickup.id)
                     .appearance(on: pickup.plane),
@@ -1556,6 +1565,7 @@ struct BoardView: View {
             // Hovering over a cloud that is drifting means drifting with it.
             .offset(surfaceSway(of: point, at: Date(), metrics: metrics))
             .transition(.scale(scale: 0.2).combined(with: .opacity))
+            }
         }
     }
 

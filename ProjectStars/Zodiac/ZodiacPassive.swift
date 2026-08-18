@@ -746,6 +746,14 @@ struct PassiveContext {
     /// to name the Pentacle it drags back.
     let pickups: [RevealedPickup]
 
+    /// What is currently lit, if a sparkle phase is running.
+    ///
+    /// A Zodiaction that acts on the hunt itself needs to see it — Aquarius'
+    /// Wipeout turns a phase's sparkles into a squall of storm clouds, and
+    /// "which squares are shimmering" is not something it can work out from the
+    /// board or from the coins already on it.
+    let sparkles: SparkleSet?
+
     /// What the sign remembers between moves — streaks, cooldowns, per-visit
     /// charges. See `SignState`.
     let signState: SignState

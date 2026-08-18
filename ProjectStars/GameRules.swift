@@ -3024,6 +3024,21 @@ enum GameRules {
     static let edgeWarningStrongest: Double = 0.3
     static let edgeWarningPeriod: TimeInterval = 2.4
 
+    // MARK: - Aquarius' storm clouds
+
+    /// The three body tones of a Wipeout cloud, crown first.
+    ///
+    /// The same three layers an Astra cloud has, in the sign's colours: where
+    /// the ground is pink over magenta over purple, the storm's leavings are
+    /// **purple over gold over magenta**. The gold in the middle is what says
+    /// there is something inside it — it is the only warm colour on the plane.
+    static let stormCloudTones: [Color] = [Palette.purple, Palette.gold, Palette.magenta]
+
+    /// How hard a storm cloud is lit from within, and how far that light
+    /// spreads inside it, in art pixels.
+    static let stormCloudGlow: Double = 0.6
+    static let stormCloudGlowRadius: CGFloat = 1.5
+
     // MARK: - Gemini's rift
 
     /// How far each plate travels on its lap, in art pixels, and how long one

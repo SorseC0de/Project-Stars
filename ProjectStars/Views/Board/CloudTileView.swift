@@ -41,6 +41,14 @@ struct CloudTileView: View {
     /// only lifted. See `Palette.cloudRaised`.
     var isRaised: Bool = false
 
+    /// Body tones to paint with instead of the square's own.
+    ///
+    /// For cloudstuff that is not ground — Aquarius' storm clouds are the same
+    /// material in the sign's own colours, and generating them here means they
+    /// inherit the cluster, the drift and the glints for nothing. See
+    /// `StormCloudView`.
+    var toneOverride: [Color]?
+
     /// Whole-pixel scale, for art-pixel distances.
     private var scale: CGFloat { size / CGFloat(GameRules.tilePixelSize) }
 
@@ -109,7 +117,7 @@ struct CloudTileView: View {
                 centre: CGPoint(x: canvas.width / 2, y: canvas.height / 2),
                 point: point,
                 wear: wearScale(at: now),
-                tones: Palette.cloudTones(shade, raiseBlend: blend),
+                tones: toneOverride ?? Palette.cloudTones(shade, raiseBlend: blend),
                 // Swapped at the ramp's midpoint rather than crossfaded: two
                 // palette entries have no legal colours between them.
                 speckleTones: Palette.speckleTones(raised: blend >= 0.5),

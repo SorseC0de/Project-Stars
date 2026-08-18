@@ -134,7 +134,8 @@ enum GameEvent: Equatable {
         id: PickupID,
         plane: Plane,
         point: GridPoint,
-        thrownFrom: GridPoint? = nil
+        thrownFrom: GridPoint? = nil,
+        asCloud: Bool = false
     )
 
     /// The move was committed: it counts toward the move total and turns the
@@ -425,7 +426,7 @@ enum GameEvent: Equatable {
     /// Used to keep two reveals in the same phase off each other's squares
     /// without the caller having to remember which shapes carry a point.
     var revealedPoint: GridPoint? {
-        if case let .pickupRevealed(_, _, point, _) = self { return point }
+        if case let .pickupRevealed(_, _, point, _, _) = self { return point }
         return nil
     }
 
