@@ -200,19 +200,19 @@ struct AquariusWaterbearerWipeout: Zodiaction {
     /// **The placeholder.** Three things happen at once, and the storm does all
     /// of them without asking a question.
     ///
-    /// 1. The ground gives way in a ring around her. She is the one sign a board
-    ///    full of holes does not frighten — she walks on them from phase one —
-    ///    so wrecking her own surroundings is a threat to everybody else and a
-    ///    corridor for her.
-    /// 2. Any Pentacle caught in that ring is blown a square further out, rather
-    ///    than dropped. The coins survive the storm; they are just not where
-    ///    they were.
-    /// 3. The sparkle phase is blown apart into a **squall**: one of the lit
+    /// 1. The sparkle phase is blown apart into a **squall**: one of the lit
     ///    squares turns up the real Pentacle, and every other one becomes a
     ///    storm cloud carrying a rolled effect of its own. The hunt resolves
     ///    exactly as it would have — the coin is the coin — and the clouds are
     ///    the weather it arrived in, which can be picked at leisure and hang
     ///    over holes because they are not sitting on anything.
+    /// 2. Then the ground gives way in a ring around her. She is the one sign a
+    ///    board full of holes does not frighten — she walks on them from phase
+    ///    one — so wrecking her own surroundings is a threat to everybody else
+    ///    and a corridor for her.
+    /// 3. Any Pentacle caught in that ring is blown a square further out, rather
+    ///    than dropped. The coins survive the storm; they are just not where
+    ///    they were.
     ///
     /// - TODO: This is a stand-in for a Zodiaction that has not been designed.
     ///   It is deliberately made of parts the sign already owns — holes she can
@@ -221,11 +221,46 @@ struct AquariusWaterbearerWipeout: Zodiaction {
     func activate(context: PassiveContext, generator: inout SeededRandom) -> [GameEvent] {
         var events: [GameEvent] = []
 
-        // 1. The ring gives way. Structural squares are not ground and cannot
-        //    be opened; the Nexys is an island, not a tile.
         let ring = context.piecePoint.surrounding().filter {
             context.currentBoard.contains($0) && context.currentBoard[$0].kind == .normal
         }
+
+        // 1. **The squall first, the ruin second.**
+        //
+        //    Order of operations, and it is not cosmetic. Opening the ring
+        //    before converting the phase meant any sparkle standing in the ring
+        //    was on broken ground by the time the conversion looked at it — the
+        //    set was invalidated, the phase re-rolled, and nothing became a
+        //    cloud at all. Since a cloud is precisely the thing that does not
+        //    care whether there is ground under it, the conversion has to happen
+        //    while the phase is still whole.
+        if let sparkles = context.sparkles, sparkles.plane == context.plane,
+           !sparkles.points.isEmpty {
+
+            // The real coin prefers a square that will still be standing. It is
+            // an ordinary Pentacle and the ordinary rules apply to it — a coin
+            // over a hole is destroyed — so putting it in the ring would be
+            // handing the player a Pentacle and taking it back in the same
+            // instant.
+            let footing = sparkles.points.filter { !ring.contains($0) }
+            let real = (footing.isEmpty ? sparkles.points : footing)
+                .randomElement(using: &generator)
+
+            if let real, let id = PickupCatalog.rollPickup(using: &generator) {
+                events.append(.pickupRevealed(id: id, plane: sparkles.plane, point: real))
+            }
+
+            for point in sparkles.points where point != real {
+                guard let id = PickupCatalog.rollPickup(using: &generator) else { continue }
+                events.append(.pickupRevealed(
+                    id: id, plane: sparkles.plane, point: point, asCloud: true
+                ))
+            }
+        }
+
+        // 2. Now the ground gives way. She is the one sign a hole does not
+        //    frighten — she walks on them from phase one — so wrecking her
+        //    surroundings is a corridor for her and a threat to everybody else.
         if !ring.isEmpty {
             events.append(.tilesChanged(
                 plane: context.plane,
@@ -233,10 +268,10 @@ struct AquariusWaterbearerWipeout: Zodiaction {
             ))
         }
 
-        // 2. Coins in the ring are pushed one square further from her, if there
-        //    is anywhere to push them. One that has nowhere to go stays where it
-        //    is rather than being destroyed — the storm moves things, it does
-        //    not eat them.
+        // 3. Coins caught in the ring are blown a square further out, if there
+        //    is anywhere to push them. One with nowhere to go stays where it is
+        //    rather than being destroyed — the storm moves things, it does not
+        //    eat them.
         for coin in context.pickups where ring.contains(coin.point) {
             let away = GridOffset(
                 (coin.point.x - context.piecePoint.x).signum(),
@@ -251,25 +286,6 @@ struct AquariusWaterbearerWipeout: Zodiaction {
             events.append(.pickupMoved(
                 id: coin.id, plane: coin.plane, from: coin.point, to: blown
             ))
-        }
-
-        // 3. The squall. Nothing to blow apart if no phase is running, which is
-        //    a legitimate way to fire this — the ring is reason enough.
-        if let sparkles = context.sparkles, sparkles.plane == context.plane,
-           let real = sparkles.points.randomElement(using: &generator) {
-
-            // The real coin first: revealing it is what ends the phase, and the
-            // clouds must not be the thing that clears the sparkles.
-            if let id = PickupCatalog.rollPickup(using: &generator) {
-                events.append(.pickupRevealed(id: id, plane: sparkles.plane, point: real))
-            }
-
-            for point in sparkles.points where point != real {
-                guard let id = PickupCatalog.rollPickup(using: &generator) else { continue }
-                events.append(.pickupRevealed(
-                    id: id, plane: sparkles.plane, point: point, asCloud: true
-                ))
-            }
         }
 
         // The meter goes home. Hers runs backwards, so a spent Zodiaction is a

@@ -1530,7 +1530,10 @@ struct BoardView: View {
             // under them either — they hang over whatever is there, holes
             // included. See `StormCloudView`.
             if pickup.isCloud {
-                StormCloudView(point: point, size: metrics.tileSize)
+                StormCloudView(
+                    size: metrics.tileSize,
+                    clock: session.ambientClock(at:)
+                )
                     .modifier(placedOnPlaneModifier(point, metrics: metrics))
                     .offset(surfaceSway(of: point, at: Date(), metrics: metrics))
                     .transition(.scale(scale: 0.2).combined(with: .opacity))

@@ -3001,7 +3001,7 @@ enum GameRules {
     ///
     /// - TODO: **Debug only.** Point this at whoever is being worked on, and
     ///   move it when the work moves. Never read in a shipped build.
-    static let debugStartingSign: Zodiac = .virgo
+    static let debugStartingSign: Zodiac = .aquarius
 
     /// How much red is washed over a badly cracked Terra tile.
     ///
@@ -3026,18 +3026,37 @@ enum GameRules {
 
     // MARK: - Aquarius' storm clouds
 
-    /// The three body tones of a Wipeout cloud, crown first.
+    /// What the cloud sprite's three body tones become in a storm cloud.
     ///
-    /// The same three layers an Astra cloud has, in the sign's colours: where
-    /// the ground is pink over magenta over purple, the storm's leavings are
-    /// **purple over gold over magenta**. The gold in the middle is what says
-    /// there is something inside it — it is the only warm colour on the plane.
-    static let stormCloudTones: [Color] = [Palette.purple, Palette.gold, Palette.magenta]
+    /// The light row is authored outline → shadow → highlight as `darkMagenta`,
+    /// `magenta`, `pink` — see `cloudWearSwaps`, which reads the same art. The
+    /// storm turns those into **magenta, gold, purple**: highlight to purple,
+    /// midtone to gold, outline to magenta.
+    ///
+    /// The gold is the whole tell. It is the only warm colour anywhere on Astra,
+    /// so a scrap of cloud carrying it reads as *holding something* without a
+    /// coin being drawn on it.
+    ///
+    /// Safe as a cycle — purple is both a target here and a source elsewhere —
+    /// because `PaletteRecolour` walks the pixels once and matches against the
+    /// original colours. See its `redraw`.
+    static let stormCloudSwaps: [PaletteSwap] = [
+        PaletteSwap(Palette.pink, Palette.purple),
+        PaletteSwap(Palette.magenta, Palette.gold),
+        PaletteSwap(Palette.darkMagenta, Palette.magenta),
+    ]
 
-    /// How hard a storm cloud is lit from within, and how far that light
-    /// spreads inside it, in art pixels.
-    static let stormCloudGlow: Double = 0.6
-    static let stormCloudGlowRadius: CGFloat = 1.5
+    /// How hard a storm cloud is lit from within, how far that light spreads
+    /// inside it in art pixels, and what colour it is.
+    ///
+    /// The colour is the point. Purple is the darkest thing in the cloud, so
+    /// lighting it with a copy of the cloud dragged the gold across it and the
+    /// two averaged out to brown. A flat purple light has nothing to muddy.
+    static let stormCloudGlow: Double = 0.45
+    static let stormCloudGlowTint: Color = Palette.purple
+
+    /// How far up the scrap is nudged, in art pixels, to sit on its square.
+    static let stormCloudLift: CGFloat = 4
 
     // MARK: - Gemini's rift
 
