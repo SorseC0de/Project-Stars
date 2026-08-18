@@ -218,11 +218,12 @@ struct AquariusWaterbearerWipeout: Zodiaction {
 
         return [
             .signStateChanged(state),
-            .pieceTeleported(
+            .pieceMoved(
                 from: context.piecePoint,
                 to: destination,
                 fromPlane: context.plane,
-                toPlane: context.plane
+                toPlane: context.plane,
+                type: .teleport
             ),
         ]
     }

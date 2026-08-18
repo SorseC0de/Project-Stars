@@ -492,7 +492,7 @@ final class GameSession {
 
     /// One movement, from the moment it starts.
     struct Movement: Equatable {
-        let style: MovementStyle
+        let style: MoveType
         let direction: SwipeDirection
         let start: Date
         let duration: TimeInterval
@@ -505,7 +505,7 @@ final class GameSession {
     }
 
     /// Starts the clock for a movement of `style`.
-    func beginMovement(_ style: MovementStyle, direction: SwipeDirection, duration: TimeInterval) {
+    func beginMovement(_ style: MoveType, direction: SwipeDirection, duration: TimeInterval) {
         movement = Movement(
             style: style,
             direction: direction,
@@ -526,7 +526,7 @@ final class GameSession {
     func playLeap() async {
         leapStartedAt = .now
         beginMovement(
-            .leap,
+            .superJump,
             direction: engine.piece.facing,
             duration: GameRules.leapDuration
         )
@@ -1384,12 +1384,18 @@ final class GameSession {
 
         for event in events {
             switch event {
-            case .zodiactionFired, .pieceSlid, .pieceFell, .pieceTeleported,
+            case .zodiactionFired, .pieceSlid, .pieceFell,
                  .nexysMoved, .planeRestored, .tilesChanged, .pickupCollected,
                  .arrowPlanted, .stingStruck, .poolFormed, .pickupBanked:
                 return true
 
-            case .pieceStepped:
+            // A move that did not walk there is always worth watching; the
+            // ordinary steps are counted below.
+            case let .pieceMoved(_, _, _, _, type, _, _) where !type.travelsTheGround
+                && type != .hop:
+                return true
+
+            case .pieceMoved:
                 // One hop is a step; several in a row are a charge.
                 steps += 1
                 if steps > 1 { return true }
@@ -1880,100 +1886,54 @@ final class GameSession {
             // than snapping back the instant it leaves.
             releasePressLater(to)
 
-        case let .pieceStepped(from, to, plane, style):
-            leaveAfterimage(at: from, on: plane)
-            hopDistance = max(from.manhattanDistance(to: to), 1)
-            hopCount += 1
-            hopStartedAt = .now
-
-            // The style comes with the step — see `GameEvent.pieceStepped`. It
-            // decides the pace, whether the sprite arcs, whether the ground
-            // gives on arrival, and whether the squares crossed press down under
-            // the piece. Every one of those was previously answered as though a
-            // step were always a hop.
-            beginMovement(
-                style,
-                direction: stepDirection(from: from, to: to),
-                duration: style.paceMultiplier * hopDuration
-            )
-
-            if style.travelsTheGround {
-                pressedTiles.insert(to)
-                releasePressLater(to)
+        // **One case for every move in the game.**
+        //
+        // What plays is decided by the move's own type and by the effect its
+        // caller attached — never by which sign is standing there. The four
+        // clauses this replaced each matched a teleport and then asked a
+        // different question about who was moving, which is why an archer blown
+        // by a gust launched himself after an arrow that was not there.
+        case let .pieceMoved(from, to, fromPlane, toPlane, type, effect, effectPlaysOn):
+            if let effect, effectPlaysOn.includesExit {
+                playEffect(effect, at: from, on: fromPlane)
             }
 
-            // The ground gives when the piece reaches it, not when it sets off —
-            // so the dip is scheduled for the end of the hop rather than fired
-            // here. `hopDuration` is the arc; the impact is what follows it.
-            // Only a style that came down lands. `bouncesOnArrival` rather
-            // than "is this a step", so a leap gets the dip and a slide does not
-            // without either having to be named here.
-            if movement?.style.bouncesOnArrival ?? true {
-                landAfterHop(at: to, on: plane)
+            switch type {
+            case .teleport:
+                await animateWarp(event, from: from, fromPlane: fromPlane, toPlane: toPlane)
+                await playArrivalEffect(effect, on: effectPlaysOn)
+                return
+
+            case .rise:
+                // The fish breaks the surface, the sky is shoved aside where it
+                // comes through, and it comes down a square along.
+                await animateRise(event, to: toPlane)
+                await playArrivalEffect(effect, on: effectPlaysOn)
+                return
+
+            case .blown:
+                await animateBlown(event, from: from, to: to, on: fromPlane)
+                await playArrivalEffect(effect, on: effectPlaysOn)
+                return
+
+            case .superJump where from != to && fromPlane == toPlane
+                && to.manhattanDistance(to: from) > 2:
+                // Far enough that the arc leaves the board: crouch, launch off
+                // the top of the screen, and come down hard where it lands.
+                // Distance rather than sign — the archer's jump after his arrow
+                // is the long one, and anything else that travels that far
+                // under its own power deserves the same picture.
+                await launchAcross(event, from: from, plane: fromPlane, effect: effect)
+                await playArrivalEffect(effect, on: effectPlaysOn)
+                return
+
+            default:
+                break
             }
 
-            // And every phantom lands too, a beat later each.
-            //
-            // They are bodies with weight — that is the whole reason they wear
-            // the ground — so the cloud has to give under them as it does under
-            // the lion. Scheduled off the same hop, offset by each one's beat,
-            // so the dips arrive in the order the jumps do.
-            for (step, _) in engine.signState.retinue.enumerated() {
-                landAfterHop(
-                    at: engine.retinueSquare(step: step),
-                    on: plane,
-                    after: GameRules.retinueBeat * Double(step + 1)
-                )
-            }
-
-            // The crab's scuttle bubbles up on every square it crosses.
-            //
-            // Fired per step rather than planned up front: a sidestep is a
-            // *slide*, so the engine emits one `.pieceStepped` per square and
-            // there is no single event carrying the whole two-square walk. That
-            // is also why the previous `hopDistance >= 2` test never fired —
-            // every step of a slide covers exactly one square.
-            //
-            // A seafoam scuttle is recognised by the piece moving perpendicular to the
-            // way it is looking, which only happens when the facing was kept —
-            // i.e. exactly on the sidestep, and never on an ordinary step, which
-            // turns the piece to face its direction.
-            if let drawn = EffectSprite.sidestep(for: zodiac),
-               engine.piece.facing.perpendicular.contains(stepDirection(from: from, to: to)) {
-                if crabWalkOrigin == nil {
-                    crabWalkOrigin = from
-                    playEffect(drawn, at: from, on: plane)
-                }
-                playEffect(drawn, at: to, on: plane, delay: GameRules.crabWalkStagger)
-            }
-
-            // Their full three-tile bound, thrown from the square pushed off.
-            // Not any long move: a two-square sidestep is not the leap this
-            // draws.
-            if hopDistance >= GameRules.longJumpDistance,
-               let drawn = EffectSprite.longJump(for: zodiac) {
-                playEffect(drawn, at: from, on: plane)
-            }
-            // Paced by the style, like everything else about the step. A charge
-            // is quick because it is a run; watching one crossed at hop speed a
-            // square at a time is watching the same hop five times.
-            let pace = style.paceMultiplier * hopDuration
-            withAnimation(.spring(response: pace * 1.6, dampingFraction: 0.72)) {
-                engine.apply(event)
-            }
-            await sleep(pace)
-
-            // Dust on the arrival, not the launch, and only for a style that
-            // arrives. A charge is still running — it throws up its fire as it
-            // goes and puffs when it finally stops, which is the settle at the
-            // end rather than every square on the way.
-            //
-            // Where it lands is the sign's business — see `landingDust`. Libra
-            // breaks the ground either side of her rather than under her, and
-            // the dust follows the damage.
-            if style.bouncesOnArrival {
-                kickUpLandingDust(at: to, on: plane)
-            }
+            await animateStep(event, from: from, to: to, plane: fromPlane, type: type)
+            await playArrivalEffect(effect, on: effectPlaysOn)
+            return
 
         case let .gameOver(reason)
             where reason == .fellThroughTerra || reason == .blownOffTheBoard:
@@ -2175,34 +2135,6 @@ final class GameSession {
                 engine.apply(event)
             }
 
-        // Not gated on the arrow still being there.
-        //
-        // The recall *consumes* it, and the `signStateChanged` that clears it is
-        // applied before this event — so by the time the teleport is presented
-        // the arrow is already gone and the guard never passed. The archer has
-        // exactly one way to teleport, so the sign is the whole condition.
-        case let .pieceTeleported(from, _, fromPlane, _, _) where zodiac == .sagittarius:
-            // The archer does not warp to the arrow, he *jumps* to it.
-            //
-            // A beam is the right picture for Astral Breeze, where the board
-            // moves you. This is the same body that vaults three squares under
-            // its own power, going after its own shot — so it crouches flat,
-            // launches off the top of the screen in its own fire, and comes down
-            // hard where the arrow is standing.
-            await launchToArrow(event, from: from, plane: fromPlane)
-
-        case let .pieceTeleported(from, to, plane, _, style) where style == .blown:
-            await animateBlown(event, from: from, to: to, on: plane)
-
-        case let .pieceTeleported(_, _, _, toPlane, style) where style == .rise:
-            // Pisces swimming up. Not a warp — the fish breaks the surface, the
-            // sky is shoved aside where it comes through, and it comes down a
-            // square along. See `TeleportStyle.rise`.
-            await animateRise(event, to: toPlane)
-
-        case let .pieceTeleported(from, _, fromPlane, toPlane, _):
-            await animateWarp(event, from: from, fromPlane: fromPlane, toPlane: toPlane)
-
         case let .pickupRevealed(_, plane, point, thrownFrom) where thrownFrom == nil:
             // The phase coming apart.
             //
@@ -2309,16 +2241,144 @@ final class GameSession {
         fallArrivalStartedAt = nil
     }
 
-    /// Sagittarius launching after his own arrow.
+    /// A move that is walked, hopped or run: the ordinary case.
     ///
-    /// Crouch, fire, up and off the screen; then the board changes underneath
-    /// and he lands on the arrow's square hard enough to be felt. The pose is
-    /// `HopPose.leap` run past its own end — the piece keeps rising rather than
-    /// coming down, because the descent happens somewhere else.
-    private func launchToArrow(_ event: GameEvent, from: GridPoint, plane: Plane) async {
-        // The crouch, and the fire it pushes off with.
+    /// Everything here reads `type` and nothing reads the sign. Pulled out of
+    /// the event switch so the four ways of arriving without walking can be
+    /// answered beside it rather than in four separate `case` clauses that each
+    /// re-derived what kind of move this was.
+    private func animateStep(
+        _ event: GameEvent,
+        from: GridPoint,
+        to: GridPoint,
+        plane: Plane,
+        type: MoveType
+    ) async {
+        let style = type
+            leaveAfterimage(at: from, on: plane)
+            hopDistance = max(from.manhattanDistance(to: to), 1)
+            hopCount += 1
+            hopStartedAt = .now
+
+            // The style comes with the step — see `GameEvent.pieceStepped`. It
+            // decides the pace, whether the sprite arcs, whether the ground
+            // gives on arrival, and whether the squares crossed press down under
+            // the piece. Every one of those was previously answered as though a
+            // step were always a hop.
+            beginMovement(
+                style,
+                direction: stepDirection(from: from, to: to),
+                duration: style.paceMultiplier * hopDuration
+            )
+
+            if style.travelsTheGround {
+                pressedTiles.insert(to)
+                releasePressLater(to)
+            }
+
+            // The ground gives when the piece reaches it, not when it sets off —
+            // so the dip is scheduled for the end of the hop rather than fired
+            // here. `hopDuration` is the arc; the impact is what follows it.
+            // Only a style that came down lands. `bouncesOnArrival` rather
+            // than "is this a step", so a leap gets the dip and a slide does not
+            // without either having to be named here.
+            if movement?.style.bouncesOnArrival ?? true {
+                landAfterHop(at: to, on: plane)
+            }
+
+            // And every phantom lands too, a beat later each.
+            //
+            // They are bodies with weight — that is the whole reason they wear
+            // the ground — so the cloud has to give under them as it does under
+            // the lion. Scheduled off the same hop, offset by each one's beat,
+            // so the dips arrive in the order the jumps do.
+            for (step, _) in engine.signState.retinue.enumerated() {
+                landAfterHop(
+                    at: engine.retinueSquare(step: step),
+                    on: plane,
+                    after: GameRules.retinueBeat * Double(step + 1)
+                )
+            }
+
+            // The crab's scuttle bubbles up on every square it crosses.
+            //
+            // Fired per step rather than planned up front: a sidestep is a
+            // *slide*, so the engine emits one `.pieceStepped` per square and
+            // there is no single event carrying the whole two-square walk. That
+            // is also why the previous `hopDistance >= 2` test never fired —
+            // every step of a slide covers exactly one square.
+            //
+            // A seafoam scuttle is recognised by the piece moving perpendicular to the
+            // way it is looking, which only happens when the facing was kept —
+            // i.e. exactly on the sidestep, and never on an ordinary step, which
+            // turns the piece to face its direction.
+            if let drawn = EffectSprite.sidestep(for: zodiac),
+               engine.piece.facing.perpendicular.contains(stepDirection(from: from, to: to)) {
+                if crabWalkOrigin == nil {
+                    crabWalkOrigin = from
+                    playEffect(drawn, at: from, on: plane)
+                }
+                playEffect(drawn, at: to, on: plane, delay: GameRules.crabWalkStagger)
+            }
+
+            // Their full three-tile bound, thrown from the square pushed off.
+            // Not any long move: a two-square sidestep is not the leap this
+            // draws.
+            if hopDistance >= GameRules.longJumpDistance,
+               let drawn = EffectSprite.longJump(for: zodiac) {
+                playEffect(drawn, at: from, on: plane)
+            }
+            // Paced by the style, like everything else about the step. A charge
+            // is quick because it is a run; watching one crossed at hop speed a
+            // square at a time is watching the same hop five times.
+            let pace = style.paceMultiplier * hopDuration
+            withAnimation(.spring(response: pace * 1.6, dampingFraction: 0.72)) {
+                engine.apply(event)
+            }
+            await sleep(pace)
+
+            // Dust on the arrival, not the launch, and only for a style that
+            // arrives. A charge is still running — it throws up its fire as it
+            // goes and puffs when it finally stops, which is the settle at the
+            // end rather than every square on the way.
+            //
+            // Where it lands is the sign's business — see `landingDust`. Libra
+            // breaks the ground either side of her rather than under her, and
+            // the dust follows the damage.
+            if style.bouncesOnArrival {
+                kickUpLandingDust(at: to, on: plane)
+            }
+    }
+
+    /// The effect a move carries, played where it lands.
+    ///
+    /// Split from the exit half so both ends read the same and neither has to
+    /// know what kind of move it was attached to.
+    private func playArrivalEffect(_ effect: EffectSprite?, on moment: MoveMoment) async {
+        guard let effect, moment.includesLanding else { return }
+        playEffect(effect, at: engine.piece.point, on: engine.piece.plane)
+    }
+
+    /// A jump long enough that the arc leaves the board.
+    ///
+    /// Crouch, launch, up and off the screen; then the board changes underneath
+    /// and the piece lands hard enough to be felt. The pose is `HopPose.leap`
+    /// run past its own end — the piece keeps rising rather than coming down,
+    /// because the descent happens somewhere else.
+    ///
+    /// Written for Sagittarius going after his own arrow and keyed on **being
+    /// Sagittarius**, which meant every other way of moving him — a gust, a
+    /// corner, the island — played it too. It is keyed on the move now, so
+    /// anything that takes a long `superJump` gets it and nothing else does.
+    private func launchAcross(
+        _ event: GameEvent,
+        from: GridPoint,
+        plane: Plane,
+        effect: EffectSprite?
+    ) async {
+        // The crouch, and whatever the caller sends it off with.
         leapStartedAt = .now
-        playEffect(.sagittariusJump, at: from, on: plane)
+        if let effect { playEffect(effect, at: from, on: plane) }
         Haptics.longer()
         await sleep(GameRules.leapDuration * GameRules.vaultCrouchFraction)
 
@@ -2331,8 +2391,7 @@ final class GameSession {
         isLaunching = false
         leapStartedAt = nil
 
-        // Arrival: the fire again, on the square he has landed on, and a knock.
-        playEffect(.sagittariusJump, at: engine.piece.point, on: engine.piece.plane)
+        // Arrival: a knock, and the impact where it comes down.
         playEffect(.sagittariusArrowHit, at: engine.piece.point, on: engine.piece.plane)
         kickUpDust(at: engine.piece.point, on: engine.piece.plane, magnitude: 1.4)
         shake(for: GameRules.arrowLandShake)

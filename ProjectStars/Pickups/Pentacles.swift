@@ -536,12 +536,17 @@ struct AstralBreezeEffect: PickupEffect {
         else { return [] }
 
         return [
-            .pieceTeleported(
+            // Carried, with the gust playing where it sets down. The type is
+            // the Pentacle's to choose — nothing about the sign being blown
+            // changes what a wind looks like.
+            .pieceMoved(
                 from: context.piecePoint,
                 to: destination,
                 fromPlane: context.plane,
                 toPlane: context.plane,
-                style: .blown
+                type: .blown,
+                effect: .windMisc,
+                effectPlaysOn: .both
             )
         ]
     }
@@ -879,11 +884,12 @@ struct CornerWarpEffect: PickupEffect {
         guard destination != context.piecePoint else { return [] }
 
         return [
-            .pieceTeleported(
+            .pieceMoved(
                 from: context.piecePoint,
                 to: destination,
                 fromPlane: context.plane,
-                toPlane: context.plane
+                toPlane: context.plane,
+                type: .teleport
             )
         ]
     }
@@ -947,11 +953,12 @@ struct NexysShiftEffect: PickupEffect {
         guard context.piecePoint != GameRules.nexysPoint else { return [] }
 
         return [
-            .pieceTeleported(
+            .pieceMoved(
                 from: context.piecePoint,
                 to: GameRules.nexysPoint,
                 fromPlane: context.plane,
-                toPlane: context.plane
+                toPlane: context.plane,
+                type: .teleport
             )
         ]
     }

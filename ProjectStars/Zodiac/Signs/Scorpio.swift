@@ -144,7 +144,11 @@ struct ScorpioDeathDream: ZodiacPassive {
 
         return [
             .tileHealed(plane: .astra, point: point, to: .healthy),
-            .pieceTeleported(from: point, to: point, fromPlane: .terra, toPlane: .astra),
+            .pieceMoved(
+                from: point, to: point,
+                fromPlane: .terra, toPlane: .astra,
+                type: .teleport
+            ),
         ]
     }
 }
@@ -204,11 +208,12 @@ struct ScorpioSamsaricShed: ZodiacPassive {
             .signStateChanged(state),
             // Not `nexysMoved`: the island does not come for you. The piece
             // travels to it, on whichever plane it is already sitting.
-            .pieceTeleported(
+            .pieceMoved(
                 from: point,
                 to: GameRules.nexysPoint,
                 fromPlane: plane,
-                toPlane: context.nexysPlane
+                toPlane: context.nexysPlane,
+                type: .teleport
             ),
         ]
     }

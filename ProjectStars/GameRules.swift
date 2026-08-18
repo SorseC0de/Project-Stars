@@ -2919,7 +2919,7 @@ enum GameRules {
     /// How long one square of each travelling style takes, against a step.
     ///
     /// Declared beside each other so the styles can be compared rather than
-    /// discovered one call site at a time. See `MovementStyle.paceMultiplier`.
+    /// discovered one call site at a time. See `MoveType.paceMultiplier`.
     static let slideStepPace: Double = 0.45
     static let chargeStepPace: Double = 0.6
     static let leapPace: Double = 2.2

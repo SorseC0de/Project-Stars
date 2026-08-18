@@ -361,7 +361,7 @@ struct PiscesSurgingStream: Zodiaction {
         // Then up and one square along, so the piece emerges next to the hole it
         // just made rather than hovering over it.
         events.append(
-            .pieceTeleported(
+            .pieceMoved(
                 from: origin,
                 to: surface,
                 fromPlane: .terra,
@@ -369,7 +369,7 @@ struct PiscesSurgingStream: Zodiaction {
                 // Not a warp. The fish swims up and breaks the surface, which is
                 // a different picture from blinking out and in — and the one
                 // ascent in the game nobody needs the island for.
-                style: .rise
+                type: .rise
             )
         )
 

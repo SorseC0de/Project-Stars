@@ -372,8 +372,8 @@ struct GameEngine {
     /// This is what the styles are for: the rule is "did the leader cross the
     /// squares between", and before there was a name for that, every caller
     /// answered it from whichever event it happened to be handling.
-    private mutating func advanceTrail(_ style: MovementStyle, from: GridPoint, to: GridPoint) {
-        if style.travelsTheGround {
+    private mutating func advanceTrail(_ type: MoveType, from: GridPoint, to: GridPoint) {
+        if type.travelsTheGround {
             rememberStep(from)
         } else {
             restartTrail(at: to)
@@ -845,7 +845,7 @@ struct GameEngine {
         // `wear` is where the rule lives, so a future style that also charges
         // its ends gets this without being named here — and the two places that
         // used to test `== .slide` independently cannot drift apart again.
-        let sweeps = move.style.wear == .ends && move.path.count > 1
+        let sweeps = move.style.wear == .both && move.path.count > 1
         // **Decided once, on the square being left.**
         //
         // `wearTiming` is a question about the tile the piece is standing on,
@@ -892,7 +892,7 @@ struct GameEngine {
         //    jump touches only the destination. Either way, a tile that breaks
         //    underfoot drops the piece there and the rest of the path is
         //    abandoned.
-        var landing = sim.travel(move.path, style: move.style)
+        var landing = sim.travel(move.path, type: move.style)
         events += landing.events
         // Fold the departure's tallies in (its events already went out above) so
         // the move summary counts wear dealt on exit as wear dealt.
@@ -1338,7 +1338,7 @@ struct GameEngine {
                 PickupCatalog.essences.contains(id)
             case let .pieceFell(_, to, _):
                 to == .astra
-            case let .pieceTeleported(_, _, from, to, _):
+            case let .pieceMoved(_, _, from, to, _, _, _):
                 from != .astra && to == .astra
             case let .nexysMoved(to, carrying):
                 to == .astra && carrying
@@ -1798,7 +1798,7 @@ struct GameEngine {
         let path: [GridPoint]
 
         /// How it covers the ground.
-        let style: MovementStyle
+        let style: MoveType
 
         /// The pattern option this came from, so a passive can be asked whether
         /// taking it costs anything.
@@ -1810,7 +1810,7 @@ struct GameEngine {
         /// True when this move goes through one of Gemini's rifts.
         var usedRift = false
 
-        init(path: [GridPoint], style: MovementStyle, option: MovementPattern.MoveOption, origin: GridPoint) {
+        init(path: [GridPoint], style: MoveType, option: MovementPattern.MoveOption, origin: GridPoint) {
             self.path = path
             self.style = style
             self.option = option
@@ -2450,7 +2450,100 @@ struct GameEngine {
         return SwipeDirection.allCases.first { $0.unitOffset == step }
     }
 
-    private mutating func travel(_ path: [GridPoint], style: MovementStyle) -> LandingResult {
+    /// **Move the piece. The only way anything does.**
+    ///
+    /// Everything a move can differ in is an argument here, so a caller states
+    /// what it wants and nothing downstream has to work out who asked. That is
+    /// the whole design: a Pentacle that wants the piece carried three squares
+    /// with a splash at both ends and no damage says exactly that, and the sign
+    /// standing on the square has no say in how it looks or what it costs.
+    ///
+    /// Before this, movement was assembled at each call site out of paths,
+    /// styles and hand-written events, and the gaps were filled in by asking
+    /// *which sign is this* — which is how an archer teleported by a gust
+    /// launched himself after an arrow he had not fired, and how a Breeze could
+    /// pick up a sign's vault animation by standing too close to it.
+    ///
+    /// - Parameters:
+    ///   - destination: Where the piece ends up.
+    ///   - plane: The plane it ends up on. Defaults to the one it is on;
+    ///     only `MoveType.mayChangePlane` types may name a different one.
+    ///   - type: How it travels — which decides the pace, the arc, the sound of
+    ///     it, and what the ground pays unless `damagesOn` overrules.
+    ///   - effect: A sprite to play, or `nil`. **The caller's**, not the sign's.
+    ///   - effectPlaysOn: Where that sprite plays.
+    ///   - damageMod: A multiplier on the wear this move deals. `0` costs the
+    ///     ground nothing, `2` bites twice as deep, and a negative repairs —
+    ///     `-2` mends two stages, which is how a healing move is written.
+    ///   - damagesOn: Which end of the move pays, overriding what the type
+    ///     implies. `nil` takes the type's own answer.
+    @discardableResult
+    mutating func move(
+        to destination: GridPoint,
+        on plane: Plane? = nil,
+        as type: MoveType,
+        effect: EffectSprite? = nil,
+        effectPlaysOn: MoveMoment = .never,
+        damageMod: Int = 1,
+        damagesOn: MoveMoment? = nil
+    ) -> [GameEvent] {
+        let landing = travel(
+            path(to: destination, as: type),
+            type: type,
+            toPlane: type.mayChangePlane ? (plane ?? piece.plane) : piece.plane,
+            effect: effect,
+            effectPlaysOn: effectPlaysOn,
+            damageMod: damageMod,
+            damagesOn: damagesOn
+        )
+        return landing.events
+    }
+
+    /// The squares a move of this type actually visits.
+    ///
+    /// A type that travels the ground walks the line; one that leaves it, or
+    /// never crosses it at all, has only a destination. Worked out here so no
+    /// caller builds a path by hand and gets the two rules confused.
+    private func path(to destination: GridPoint, as type: MoveType) -> [GridPoint] {
+        guard type.travelsTheGround, destination != piece.point else { return [destination] }
+
+        let dx = destination.x - piece.point.x
+        let dy = destination.y - piece.point.y
+        let steps = max(abs(dx), abs(dy))
+        guard steps > 0 else { return [destination] }
+
+        // Only straight lines and true diagonals can be walked. Anything else
+        // is not a path — it is two moves — so it arrives as one.
+        guard dx == 0 || dy == 0 || abs(dx) == abs(dy) else { return [destination] }
+
+        let stepX = dx == 0 ? 0 : dx / abs(dx)
+        let stepY = dy == 0 ? 0 : dy / abs(dy)
+        return (1...steps).map {
+            GridPoint(piece.point.x + stepX * $0, piece.point.y + stepY * $0)
+        }
+    }
+
+    private mutating func travel(
+        _ path: [GridPoint],
+        type: MoveType,
+        toPlane: Plane? = nil,
+        effect: EffectSprite? = nil,
+        effectPlaysOn: MoveMoment = .never,
+        damageMod: Int = 1,
+        damagesOn: MoveMoment? = nil
+    ) -> LandingResult {
+        // What this move costs the ground, held for its length. Same shape as
+        // `moveWearTiming` and for the same reason: the question is asked at
+        // several moments and the answer must not change between them.
+        moveDamageMod = damageMod
+        moveDamageMoment = damagesOn ?? type.wear
+        defer {
+            moveDamageMod = 1
+            moveDamageMoment = nil
+        }
+        let style = type
+        let arrivalPlane = toPlane ?? piece.plane
+
         // Worked out **before** the piece moves.
         //
         // `heading(of:from:)` measures the last step against where the piece is
@@ -2471,10 +2564,13 @@ struct GameEngine {
         // that is true of a move with no middle. Left alone, every ordinary step
         // in the game charged its exit tile, pressed the ground, and swept
         // coins over the piece's head.
-        // `.blown` is exempt: it is the one style that *means* something at one
+        // `.blown` is exempt: it is the one type that *means* something at one
         // square, because it is a statement about who is doing the moving. See
-        // `MovementStyle.blown`.
-        let effective: MovementStyle = (path.count > 1 || style == .blown) ? style : .hop
+        // `MoveType.blown`. So is anything that does not walk at all — a
+        // teleport of one square is still a teleport.
+        let effective: MoveType = (path.count > 1 || !style.travelsTheGround || style == .blown)
+            ? style
+            : .hop
 
         switch effective {
         case .charge:
@@ -2484,8 +2580,12 @@ struct GameEngine {
                 let departure = departCurrentTile(force: true, cause: .brazenBlaze)
                 result.absorb(departure)
 
-                let step = GameEvent.pieceStepped(
-                    from: piece.point, to: square, plane: piece.plane, style: .charge
+                let step = GameEvent.pieceMoved(
+                    from: piece.point, to: square,
+                    fromPlane: piece.plane, toPlane: piece.plane,
+                    type: .charge,
+                    effect: effect,
+                    effectPlaysOn: effectPlaysOn
                 )
                 result.events.append(step)
                 result.covered.append(square)
@@ -2510,15 +2610,18 @@ struct GameEngine {
 
             result.absorb(settle(arrivedByFalling: false, heading: travelled))
 
-        case .hop, .leap:
+        case .hop, .superJump:
             // Airborne: touches only where it lands.
             guard let destination = path.last else { return result }
 
-            let hop = GameEvent.pieceStepped(
+            let hop = GameEvent.pieceMoved(
                 from: piece.point,
                 to: destination,
-                plane: piece.plane,
-                style: effective
+                fromPlane: piece.plane,
+                toPlane: piece.plane,
+                type: effective,
+                effect: effect,
+                effectPlaysOn: effectPlaysOn
             )
             result.events.append(hop)
             result.covered.append(destination)
@@ -2526,13 +2629,16 @@ struct GameEngine {
 
             result.absorb(settle(arrivedByFalling: false, heading: travelled))
 
-        case .warp:
+        case .teleport, .rise:
             // Arrives, and that is all. No push-off, nothing crossed.
             guard let destination = path.last else { return result }
 
-            let jump = GameEvent.pieceTeleported(
+            let jump = GameEvent.pieceMoved(
                 from: piece.point, to: destination,
-                fromPlane: piece.plane, toPlane: piece.plane
+                fromPlane: piece.plane, toPlane: arrivalPlane,
+                type: effective,
+                effect: effect,
+                effectPlaysOn: effectPlaysOn
             )
             result.events.append(jump)
             result.covered.append(destination)
@@ -2546,11 +2652,14 @@ struct GameEngine {
             // decides how it is drawn and what it costs.
             guard let destination = path.last else { return result }
 
-            let carried = GameEvent.pieceStepped(
+            let carried = GameEvent.pieceMoved(
                 from: piece.point,
                 to: destination,
-                plane: piece.plane,
-                style: .blown
+                fromPlane: piece.plane,
+                toPlane: piece.plane,
+                type: .blown,
+                effect: effect,
+                effectPlaysOn: effectPlaysOn
             )
             result.events.append(carried)
             result.covered.append(destination)
@@ -3308,6 +3417,18 @@ struct GameEngine {
         )
         var seeded = proposal
         seeded.cause = cause
+        // What the move itself asked for, before any passive is consulted: a
+        // caller that said `damageMod: 0` wants a move that costs the ground
+        // nothing, and a passive that would have deepened it has nothing to
+        // deepen. Negative multipliers repair, which `stages` already means.
+        seeded.stages *= moveDamageMod
+
+        // And whether this end of the move pays at all.
+        if let moment = moveDamageMoment {
+            let paid = onExit ? moment.includesExit : moment.includesLanding
+            if !paid { seeded.stages = 0 }
+        }
+
         let final = activePassives.modifyWear(seeded, context: passiveContext)
 
         if final.signState != signState {
@@ -3395,6 +3516,14 @@ struct GameEngine {
     /// question reads the square underfoot and the square underfoot changes
     /// halfway through. See where it is set in `plan`.
     private var moveWearTiming: WearTiming = .onEntry
+
+    /// What this move multiplies its wear by, and which end of it pays.
+    ///
+    /// Both are arguments to `move` — see it for what the numbers mean — held
+    /// for the length of one move because the wear is charged at two different
+    /// moments and both have to be answering the same question.
+    private var moveDamageMod: Int = 1
+    private var moveDamageMoment: MoveMoment?
 
     private mutating func departCurrentTile(
         force: Bool = false,
@@ -3981,7 +4110,7 @@ struct GameEngine {
         let crossing: (point: GridPoint, plane: Plane)? = switch event {
         case let .pieceSlid(_, to, plane):
             (to, plane)
-        case let .pieceStepped(_, to, plane, style) where style.travelsTheGround:
+        case let .pieceMoved(_, to, _, plane, type, _, _) where type.travelsTheGround:
             (to, plane)
         default:
             nil
@@ -4172,8 +4301,6 @@ struct GameEngine {
             advanceTrail(.slide, from: from, to: to)
             piece.point = to
 
-        case let .pieceStepped(_, to, _, _):
-            piece.point = to
 
         case let .tilesChanged(plane, changes):
             for (point, health) in changes {
@@ -4191,13 +4318,21 @@ struct GameEngine {
         case let .tileHealed(plane, point, health):
             self[plane][point].health = health
 
-        case let .pieceTeleported(_, to, fromPlane, toPlane, _):
-            // Arriving anywhere by warp closes every torn doorway, and leaving
-            // the plane closes everything.
+        case let .pieceMoved(_, to, fromPlane, toPlane, type, _, _):
+            // A move that crossed the ground leaves the retinue strung out
+            // behind it; one that did not arrives with them stacked on top.
+            // `advanceTrail` asks the type, so nothing here needs to know which
+            // kind of move this was.
+            advanceTrail(type, from: piece.point, to: to)
+            piece.point = to
+
+            // Arriving anywhere without walking closes every torn doorway, and
+            // leaving the plane closes everything.
             //
-            // All of them rather than a pair, because a warp does not go
+            // All of them rather than a pair, because a teleport does not go
             // *through* a rift — it is a hole torn somewhere else, and the
             // mirrors do not survive the board being folded around them.
+            guard type.mayChangePlane else { break }
             signState.terraRifts = []
             if toPlane != fromPlane {
                 // The third way to change plane, and it costs the retinue like
@@ -4208,8 +4343,6 @@ struct GameEngine {
                 signState = signState.clearedForPlaneChange(atMove: moveCount)
             }
             piece.plane = toPlane
-            piece.point = to
-            advanceTrail(.warp, from: to, to: to)
 
         case .caughtOnReveal:
             // Presentation only; the charge is its own event.
@@ -4344,7 +4477,7 @@ struct GameEngine {
             signState = state
 
         case let .pieceFell(_, to, at):
-            advanceTrail(.warp, from: at, to: at)
+            advanceTrail(.teleport, from: at, to: at)
             refundLostRetinue()
             signState = signState.clearedForPlaneChange(atMove: moveCount)
             signState.closeRifts()
