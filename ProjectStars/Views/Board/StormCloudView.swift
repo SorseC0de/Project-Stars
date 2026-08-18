@@ -56,9 +56,16 @@ struct StormCloudView: View {
             // hole glowing.
             .overlay {
                 GameRules.stormCloudGlowTint
-                    .opacity(GameRules.stormCloudGlow)
-                    .blendMode(.plusLighter)
                     .mask { cloud }
+                    .opacity(GameRules.stormCloudGlow)
+                    // **Outermost, and that is the whole of it.**
+                    //
+                    // A blend mode composites a view against what is *beneath*
+                    // it, so it has to be the last thing applied. Written
+                    // inside the mask it was blending against the mask's own
+                    // layer instead of against the cloud, which is a flat
+                    // purple sheet laid on top — exactly what it looked like.
+                    .blendMode(.plusLighter)
             }
             .frame(width: size, height: size)
             // The sheet's cloud does not sit in the middle of its own cell — it
