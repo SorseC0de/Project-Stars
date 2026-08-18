@@ -143,14 +143,16 @@ struct AquariusCrazyCurrent: ZodiacPassive {
         context.zodiactionMeter > 0
     }
 
-    /// And the edge stops being a wall.
+    /// And the edge stops being a wall — **at every phase, storm or not.**
     ///
-    /// Floating over holes removes every way this sign can die *inside* the
-    /// board, so the rim becomes the only one left — which is why leaving it has
-    /// to be a legal move rather than a refused one.
-    func mayLeaveTheBoard(context: PassiveContext) -> Bool {
-        context.zodiactionMeter > 0
-    }
+    /// Unlike the holes, which need something holding him up. Floating explains
+    /// why a hole is ground; nothing explains why the edge of the board would
+    /// come back just because the wind died, and a rule that appears and
+    /// disappears with the meter is one the player has to re-check every turn.
+    ///
+    /// So what counts as death stays fixed, the same way the reversed controls
+    /// do, and only the hole rule moves. One thing to learn instead of two.
+    func mayLeaveTheBoard(context: PassiveContext) -> Bool { true }
 
     func walksOnAir(during option: MovementPattern.MoveOption, context: PassiveContext) -> Bool {
         option.distance > 1
