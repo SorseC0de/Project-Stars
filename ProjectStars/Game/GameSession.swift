@@ -1985,6 +1985,11 @@ final class GameSession {
             await sleep(event.displayDuration)
 
         case let .zodiactionMeterChanged(to):
+            // Whether this is the change that arms the sign. Asked before and
+            // after, so the *crossing* fires rather than the state — otherwise
+            // it would throw again on every pip while the meter sat full.
+            let wasCharged = engine.isZodiactionCharged
+
             // Gaining charge flashes the piece its element's colour, and a sign
             // with a drawn strip for it throws that too.
             // Toward firing, not upward.
@@ -2016,6 +2021,16 @@ final class GameSession {
             withAnimation(.easeInOut(duration: max(event.displayDuration, 0.01))) {
                 engine.apply(event)
             }
+
+            // Becoming charged changes what the piece *is* rather than what it
+            // holds — Pisces' fish comes loose, the archer's shot is nocked —
+            // and a sprite that quietly swaps says less than that deserves.
+            if !wasCharged,
+               engine.isZodiactionCharged,
+               let flourish = EffectSprite.chargedFlourish(for: zodiac) {
+                playEffect(flourish, at: engine.piece.point, on: engine.piece.plane)
+            }
+
             await sleep(event.displayDuration)
 
         case let .zodiactionFired(zodiac, plane)

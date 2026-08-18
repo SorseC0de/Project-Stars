@@ -390,7 +390,13 @@ enum EffectSprite: String, CaseIterable, Hashable {
              .libraZodiaction: 0
         // Both belong to the ground: the strike is where the shaft went in, and
         // the warp square is the square itself.
-        case .sagittariusArrowHit, .sagittariusTeleTile: 0
+        //
+        // The hit is the exception: as the flourish for becoming charged it is
+        // the shot being nocked rather than one landing, so it belongs at the
+        // top of the bow — a full tile above the ground everything else here is
+        // measured from.
+        case .sagittariusArrowHit: CGFloat(GameRules.tilePixelSize)
+        case .sagittariusTeleTile: 0
         case .sagittariusArrow: 0
         // Water landing on a square, so it belongs to the square.
         case .droplet: 0
@@ -518,7 +524,9 @@ enum EffectSprite: String, CaseIterable, Hashable {
         case .lightning1, .lightning2, .lightning3, .lightning4: GameRules.lightningSpan
         // Under the piece's feet, not around it.
         case .crabWalk: 1.2
-        case .waterSplash: 1.0
+        // The charged flourish, not a droplet landing: it is the fish coming
+        // loose, and at one tile it read as something small happening near him.
+        case .waterSplash: 2.0
         // The warp square marks *one* square and has to fit inside it. At the
         // standard span it reached into its neighbours, which for a marker
         // saying "this tile is the one" is the whole thing it must not do.

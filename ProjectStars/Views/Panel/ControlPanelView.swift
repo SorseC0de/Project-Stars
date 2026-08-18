@@ -1722,17 +1722,28 @@ struct ZodiactionButton: View {
                 Haptics.zodiaction()
                 session.fireZodiaction()
             } label: {
-                // **Bright**, which is what the element badge beside the sign's
-                // name is drawn in. The pips were the ramp's mid — purple where
-                // the badge is magenta — so air read as two different elements
-                // depending on which end of the panel you looked at.
-                label(charged: element.bright, ready: ready)
+                label(charged: pipColour, ready: ready)
             }
             .frame(height: PanelStyle.zodiactionButtonHeight)
             .background {
                 if ready { readyGlow(element.bright, at: timeline.date) }
             }
         }
+    }
+
+    /// What a lit pip is coloured.
+    ///
+    /// The element's **mid**, which is the shade the rest of the game uses for
+    /// a sign's own colour — except air, whose mid is a purple dark enough to
+    /// disappear against the button beneath it. That one takes `bright`, which
+    /// is also what its badge is drawn in.
+    ///
+    /// One exception rather than moving everyone to `bright`: the others read
+    /// correctly at mid, and lightening all four to fix one is trading a real
+    /// problem on one element for a slightly wrong colour on three.
+    private var pipColour: Color {
+        let ramp = ElementFX.ramp(for: session.zodiac.element)
+        return session.zodiac.element == .air ? ramp.bright : ramp.mid
     }
 
     /// What the Zodiaction button is made of.

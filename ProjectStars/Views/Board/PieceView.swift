@@ -502,16 +502,30 @@ struct PieceView: View {
                 let now = clock(timeline.date.timeIntervalSinceReferenceDate)
 
                 if isCharged {
-                    let orbit = now / GameRules.piscesFishOrbitPeriod * 2 * .pi
-                    let spin = now / GameRules.piscesFishSpinPeriod * 360
+                    // A trail, drawn from where it **was**.
+                    //
+                    // The board's own afterimages are left by moving between
+                    // squares, and this fish never leaves its square — it turns
+                    // and circles in place, which is motion the trail system
+                    // cannot see. So each ghost is the same sprite wound back a
+                    // few moments along its own two clocks: not a copy placed
+                    // behind it, but where it genuinely was.
+                    ForEach((0...GameRules.piscesFishTrail).reversed(), id: \.self) { step in
+                        let past = now - Double(step) * GameRules.piscesFishTrailGap
+                        let orbit = past / GameRules.piscesFishOrbitPeriod * 2 * .pi
+                        let spin = past / GameRules.piscesFishSpinPeriod * 360
 
-                    PixelSprite(id: .piscesFishCharged) { Color.clear }
-                        .rotationEffect(.degrees(-spin))
-                        .offset(
-                            x: sin(orbit) * GameRules.piscesFishOrbit * scale,
-                            y: (cos(orbit) - 1) / 2 * GameRules.piscesFishOrbit * scale
-                                + GameRules.piscesFishDrop * scale
-                        )
+                        PixelSprite(id: .piscesFishCharged) { Color.clear }
+                            .rotationEffect(.degrees(-spin))
+                            .offset(
+                                x: sin(orbit) * GameRules.piscesFishOrbit * scale,
+                                y: (cos(orbit) - 1) / 2 * GameRules.piscesFishOrbit * scale
+                                    + GameRules.piscesFishDrop * scale
+                            )
+                            // The live fish is solid; every ghost behind it is
+                            // fainter than the one in front.
+                            .opacity(step == 0 ? 1 : GameRules.piscesFishTrailFade / Double(step))
+                    }
                 } else {
                     // Still, and stone. The fish is part of him until the meter
                     // fills; only then does it come loose.
@@ -547,6 +561,23 @@ struct PieceView: View {
                     : 0
 
                 PixelSprite(id: .sagittariusArrowRest) { Color.clear }
+                    // A smaller copy of itself, flattened to yellow, sitting
+                    // inside the drawn one.
+                    //
+                    // Drawn **here** rather than over the finished piece, so it
+                    // is inside everything that comes after — the gold swap, the
+                    // charge flash, and the bloom above all. A core added after
+                    // the glow would sit on top of the light instead of being
+                    // the thing casting it.
+                    .overlay {
+                        if isCharged {
+                            PixelSprite(id: .sagittariusArrowRest) { Color.clear }
+                                .colorEffect(
+                                    ShaderLibrary.flatSilhouette(.color(Palette.yellow))
+                                )
+                                .scaleEffect(GameRules.sagittariusArrowCoreScale)
+                        }
+                    }
                     .offset(y: -rise * GameRules.sagittariusArrowFloat * scale)
             }
             .frame(width: tileSize, height: tileSize)

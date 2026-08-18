@@ -2627,6 +2627,16 @@ enum GameRules {
     static let piscesFishOrbitPeriod: TimeInterval = 3.2
     static let piscesFishSpinPeriod: TimeInterval = 2.6
 
+    /// How many ghosts trail the energy fish, how far apart in time they are,
+    /// and how solid the first of them is.
+    ///
+    /// Wound back along the fish's own clocks rather than placed behind it, so
+    /// the trail curves with the orbit and turns with the spin — a fixed offset
+    /// would read as a row of fish rather than as one fish moving.
+    static let piscesFishTrail = 3
+    static let piscesFishTrailGap: TimeInterval = 0.06
+    static let piscesFishTrailFade: Double = 0.45
+
     /// Where the fish sits against the body, in art pixels.
     ///
     /// Four art pixels down, measured rather than derived: the art rests across
@@ -2640,6 +2650,12 @@ enum GameRules {
     /// shot waiting to be taken, and anything quick would read as agitation.
     static let sagittariusArrowFloat: CGFloat = 4
     static let sagittariusArrowPeriod: TimeInterval = 4.6
+
+    /// How big the lit core inside the archer's arrow is drawn.
+    ///
+    /// Half. It is the arrow's own shape, so anything larger stops reading as
+    /// heat inside the shaft and starts reading as a second arrow behind it.
+    static let sagittariusArrowCoreScale: CGFloat = 0.5
 
     // MARK: - The glow phase's hang
 
