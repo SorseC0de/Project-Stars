@@ -167,7 +167,11 @@ struct EffectSpriteView: View {
 
     /// Points per art pixel at the size this is being drawn, so the bloom is
     /// measured in the art's own units rather than in screen points.
+    ///
+    /// Against `glowBasis` rather than the frame's own width, so re-exporting a
+    /// strip at a higher resolution changes how crisp it is and nothing else.
+    /// See `EffectSprite.glowBasis`.
     private var artScale: CGFloat {
-        side / effect.frameSize.width
+        side / effect.glowBasis
     }
 }

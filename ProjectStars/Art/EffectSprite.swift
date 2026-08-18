@@ -295,6 +295,30 @@ enum EffectSprite: String, CaseIterable, Hashable {
         }
     }
 
+    /// The frame size this strip's **bloom** was tuned against.
+    ///
+    /// `EffectSpriteView` measures its glow in the art's own pixels — radius
+    /// times `side / frameSize.width` — which is right while the pixel count
+    /// says something about how big the drawing is. It stops being right the
+    /// moment a strip is **re-exported at a higher resolution**: the same
+    /// picture at twice the pixels is drawn at the same size on the board, but
+    /// the bloom silently halves, and the whole thing goes dark.
+    ///
+    /// That is what happened to the storm. The plates went from 64 to 128 to
+    /// fix their pixels being coarser than the board's, and took the funnel's
+    /// light with them — build 18 is visibly brighter for exactly this reason
+    /// and nothing else changed about the art. The file is byte for byte the
+    /// same; three hashes say so.
+    ///
+    /// So a strip may say what its bloom was tuned at, and the default is what
+    /// it is drawn at — which is every other strip, unchanged.
+    var glowBasis: CGFloat {
+        switch self {
+        case .aquariusArmor, .aquariusArmorGrey: 64
+        default: frameSize.width
+        }
+    }
+
     /// How many frames sit on one row of the sheet, or `nil` for all of them.
     ///
     /// A packing detail rather than an art one — see `SpriteSlice.columns` for
