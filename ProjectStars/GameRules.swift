@@ -3053,7 +3053,7 @@ enum GameRules {
     static let riftJumpRate: Double = 12
 
     /// How far the plates lean, in degrees. Upright for now.
-    static let riftTilt: Double = 0
+    static let riftTilt: Double = 30
 
     /// How long one breath takes, and how faint a plate gets at the bottom of
     /// it.
