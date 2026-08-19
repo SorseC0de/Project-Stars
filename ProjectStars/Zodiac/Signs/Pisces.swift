@@ -257,6 +257,17 @@ struct PiscesAridAquanaut: ZodiacPassive {
         context.plane == .terra ? GameRules.bubbleSpawnChance : 0
     }
 
+    /// **The fish is wet, so the ground it crosses is watered rather than worn.**
+    ///
+    /// Cover is fed by him instead of being spent — see `WearCause.water`. The
+    /// tile underneath still takes what his weight deals; what changes is that
+    /// grass survives him and flowers where he has been.
+    func modifyWear(_ proposal: WearProposal, context: PassiveContext) -> WearProposal {
+        var wet = proposal
+        wet.caused(by: .water)
+        return wet
+    }
+
 
 }
 

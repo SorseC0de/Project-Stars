@@ -290,6 +290,14 @@ enum GameRules {
     /// which puts the Bolt at one in a hundred coins. See `PickupCatalog`.
     static let astralBoltChance = 0.05
 
+    /// How much of the elemental wheel goes to your own element.
+    ///
+    /// Thirty of the hundred inside the group, leaving the other three a
+    /// little over twenty-one each once the Bolt has taken its five. An
+    /// affinity rather than a guarantee: your element is the one you meet most,
+    /// and the other three are still ordinary sights.
+    static let elementAffinityShare = 0.3
+
     /// How many committed moves the Bolt's charge lasts.
     ///
     /// **Versus: shorter, provisionally.** Ten moves of walking on holes and
@@ -442,10 +450,8 @@ enum GameRules {
 
     /// How often Taurus' Taurean Tear fires on an Astral Tear.
     ///
-    /// At `1` the bull practically does not decay on Terra: Hasty Hooves already
+    /// At `1` the bull practically does not decay on Terra: Hydroponic Hooves already
     /// halves what it does to the ground, and mending two tiles a coin outran
-    /// even that. Half the time is still the most reliable repair in the game.
-    static let taureanTearChance = 0.5
 
 
     // ── Embers ────────────────────────────────────────────────────────────
@@ -3006,7 +3012,26 @@ enum GameRules {
     ///
     /// - TODO: **Debug only.** Point this at whoever is being worked on, and
     ///   move it when the work moves. Never read in a shipped build.
-    static let debugStartingSign: Zodiac = .virgo
+    static let debugStartingSign: Zodiac = .taurus
+
+    /// How hard a square smokes when its cover is burnt or worn off.
+    ///
+    /// Under a landing's puff: something was scorched, not dropped on.
+    static let singeSmokeMagnitude: CGFloat = 0.7
+
+    /// How long one ring of a ground wave holds before the next goes out.
+    ///
+    /// Seven rings on a seven-square board measured from a corner, so the whole
+    /// sweep is under a second — long enough to read as travelling, short
+    /// enough that freezing the game for it is not an interruption.
+    static let groundWaveRingBeat: TimeInterval = 0.08
+
+    /// What the ram is paid for a Pentacle he runs through instead of taking.
+    ///
+    /// Two: one for each horn, and enough that a charge across a coin is a real
+    /// step toward the next charge rather than a consolation. See
+    /// `AriesReboundingRam`.
+    static let trampleCharge = 2
 
     /// How much red is washed over a badly cracked Terra tile.
     ///
@@ -3404,8 +3429,10 @@ enum GameRules {
     static let actionDim: Double = 0.10
 
     /// How far the board is dimmed while it waits on an answer. See
-    /// `BoardView.choiceDim`.
-    static let choiceDim: Double = 0.34
+    /// `BoardView.boardDim`. Named for the board rather than for the question,
+    /// because a sweep and anything else that holds the board use the same
+    /// weight — see `GameSession.isDimmed`.
+    static let boardDim: Double = 0.34
 
     /// How many squares a hop must cover to count as a leap worth drawing —
     /// Sagittarius' full bound rather than any long step.
@@ -3441,6 +3468,39 @@ enum GameRules {
 
     /// How long the whole thing takes.
     static let leapDuration: TimeInterval = 0.62
+
+    // MARK: The Flop, which is a leap with weight behind it
+
+    /// Taurus in the air, and Taurus arriving.
+    ///
+    /// The shared leap is Pisces' dive — a fish, and shaped like one. The bull
+    /// doing the same arc at the same size read as a hop with a flower on it.
+    /// She goes **higher, bigger and lands harder**: the whole joke of the Flop
+    /// is a very heavy animal choosing to leave the ground, and the landing is
+    /// the punchline, so it is the part that is held.
+    static let flopHeight: CGFloat = 52
+    static let flopRiseScale: CGFloat = 2.1
+    static let flopPancakeX: CGFloat = 2.6
+    static let flopPancakeY: CGFloat = 0.3
+    static let flopDuration: TimeInterval = 0.78
+
+    /// What one hydroponic growth costs, in pips.
+    ///
+    /// The bull is an earth sign drinking from Astral water, and it charges
+    /// her for it. One rule for every growth she raises — see
+    /// `GameEngine.hydroponicCost()`.
+    static let hydroponicCost = 1
+
+    /// What refusing to be carried costs her, in pips.
+    ///
+    /// One. Standing your ground is free to decide and not free to do — see
+    /// `TaurusStubbornStatue`.
+    static let stubbornStatueCost = 1
+
+    /// How hard the board is hit when she lands.
+    ///
+    /// Above a fall's own knock, which is the point: she chose to do this.
+    static let flopShake: CGFloat = 2.8
 
     /// How much of a vault is the crouch before it, and how long the climb
     /// off-screen takes.

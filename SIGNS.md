@@ -22,7 +22,7 @@ Status key: **done** · **partial** · **todo**
 |---|------|--------|
 | 1 | Normal movement | done |
 | 2 | No charge outside Pentacles | done |
-| 3 | Passive — Heavy/Hasty Hooves: Astra 2 stages per landing, Terra 2 landings per stage | done |
+| 3 | Passive — Heavy/Hydroponic Hooves: Astra 2 stages per landing, Terra grows cover that takes the first hit | done |
 | 4 | Zodiaction — Heavy Flop, Astra: crash to Terra, mend the tile below, fatal if open | done |
 | 5 | Zodiaction — Heavy Flop, Terra: fully mend the 3×3 including holes | done |
 

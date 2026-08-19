@@ -17,9 +17,22 @@ the wrong way.
 
 - **Wacky Whirlwind** — the passive that grants the reversed everything *and*
   the tornado body.
-- **Crazy Current** — the passive that floats them over holes and turns holes
-  into chutes.
+- **Crazy Current** — the passive that floats them over holes, turns holes into
+  chutes, and **drags a surfacing Pentacle one square toward her. A coin pulled
+  onto her square counts as a Shine-snipe.** The pull says the same sentence as
+  the rest of it — the wind moves what is near her — pointed at coins instead
+  of at holes. Her version of hitting the shot is standing next to it.
+- **Eolian Ejection** — the third passive. Falling on Terra with the storm wound
+  to firing spends all of it to throw her back up to Astra: the meter goes to
+  max (which, for her, is empty), she comes out one square along her heading
+  like the fish surfacing, and the cloud she came through is left as a hole.
+  Nothing new is drawn — the phases falling away *is* the transformation.
 - **Waterbearer Wipeout** — the Zodiaction.
+
+> **This list named two passives and a Zodiaction for weeks, and neither of us
+> noticed the third was missing** — because the doc was the checklist and the
+> checklist was short. Every sign has three. A rework here that names two is a
+> bug in the doc.
 
 The Pentacle formerly called **Corner Current** is renamed **Corner-Cut** to
 clear the collision, and its summary now says *gust* rather than *current*.

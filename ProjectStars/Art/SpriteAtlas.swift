@@ -191,6 +191,21 @@ enum SpriteAtlas {
         static let hole = 9 + SpriteAtlas.sheetShiftX
     }
 
+    /// The two rows the turn counter was drawn into, in raw sheet cells.
+    private enum TurnRow {
+        static let digits = 10
+        static let furniture = 11
+    }
+
+    /// Where the ground cover sits, in raw sheet cells.
+    private enum GrassRow {
+        static let light = 6
+        static let dark = 7
+        static let grass = 3
+        static let tuft = 4
+        static let flowers = 5
+    }
+
     /// Row of the drawn tile block. The face is on `row`, its edge on `row + 1`.
     ///
     /// Only Terra has one. Astra's squares are clusters of cloud drawn by
@@ -222,6 +237,40 @@ enum SpriteAtlas {
             map[.tileDamage(plane, .cracked)] = .cells(column: TileColumn.cracked, row: row)
             map[.tileDamage(plane, .badlyCracked)] = .cells(column: TileColumn.badlyCracked, row: row)
             map[.tileDamage(plane, .hole)] = .cells(column: TileColumn.hole, row: row)
+        }
+
+        // ── The turn counter ─────────────────────────────────────────────
+        //
+        // Two rows at the very bottom, in raw sheet cells: the numerals across
+        // row 10, and the counter's furniture on row 11 — the label over two
+        // cells, the cap, then the plate over three.
+        //
+        // Each numeral is drawn against the **bottom right** of its cell, so a
+        // digit can be laid down on a plain 16-point square and land where it
+        // should without the layout knowing anything about the glyph inside it.
+        for value in 0...9 {
+            map[.digit(value)] = .cells(column: value, row: TurnRow.digits)
+        }
+        map[.turnLabel] = .cells(column: 0, row: TurnRow.furniture, width: 2)
+        map[.turnCap] = .cells(column: 2, row: TurnRow.furniture)
+        map[.turnPlateLeft] = .cells(column: 3, row: TurnRow.furniture)
+        map[.turnPlateMiddle] = .cells(column: 4, row: TurnRow.furniture)
+        map[.turnPlateRight] = .cells(column: 5, row: TurnRow.furniture)
+
+        // ── Ground cover ─────────────────────────────────────────────────
+        //
+        // Two rows of three: the light shade above the dark, and within each
+        // row the two grass drawings followed by the flowered one. Declared in
+        // **raw sheet cells** rather than against `sheetShiftX`, because these
+        // were drawn into the sheet as it stands today — the shift describes
+        // where the older art moved to, and nothing that arrives now needs it.
+        for (shade, coverRow) in [
+            (Palette.TileShade.light, GrassRow.light),
+            (Palette.TileShade.dark, GrassRow.dark),
+        ] {
+            map[.tileCover(shade, .grass)] = .cells(column: GrassRow.grass, row: coverRow)
+            map[.tileCover(shade, .tuft)] = .cells(column: GrassRow.tuft, row: coverRow)
+            map[.tileCover(shade, .flowers)] = .cells(column: GrassRow.flowers, row: coverRow)
         }
 
         // ── Effects ──────────────────────────────────────────────────────

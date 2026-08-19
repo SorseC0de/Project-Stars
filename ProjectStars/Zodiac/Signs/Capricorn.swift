@@ -65,6 +65,7 @@ extension ZodiacCatalog {
 /// only where it lands, which is already less ground than two steps would cost.
 struct CapricornCapableClimber: ZodiacPassive {
 
+    let icon: String? = "capricorn_climber"
     let displayName = "Capable Climber"
     let summary = "Astra & Terra: northward moves may vault 2 tiles instead of stepping 1."
 
@@ -86,11 +87,46 @@ struct CapricornCapableClimber: ZodiacPassive {
 /// idea: north is where this sign is going, and north is where it is safe.
 struct CapricornHeavenlyHooves: ZodiacPassive {
 
+    let icon: String? = "capricorn_hooves"
     let displayName = "Heavenly Hooves"
     let summary = "Astra & Terra: while facing north, you stand on holes instead of falling through them."
 
     func preventsFall(from plane: Plane, at point: GridPoint, context: PassiveContext) -> Bool {
         context.facing == .up
+    }
+
+    /// **Hidden: soft ground to push off from.**
+    ///
+    /// Standing on grass or flowers, the goat can leap two squares in *any* of
+    /// the eight directions rather than only climbing north — and the tile pays
+    /// on the way out instead of on the way in, because the wear is him
+    /// shoving off it.
+    ///
+    /// Not in the summary. The goat is the sign that climbs, and finding out
+    /// that a meadow lets him bound anywhere is the kind of thing worth
+    /// discovering rather than reading. It also gives Taurus' fields a meaning
+    /// for somebody who is not Taurus, which is the point of cover being a
+    /// property of the *board* rather than of the bull.
+    func adjustedMovement(base: MovementPattern, context: PassiveContext) -> MovementPattern {
+        guard standsOnCover(context) else { return base }
+
+        return MovementPattern(
+            name: base.name,
+            options: base.options + [
+                .init(.everyWay, distance: 2, style: .superJump)
+            ]
+        )
+    }
+
+    /// The push-off is what wears the ground, so it is charged on exit.
+    func wearTiming(context: PassiveContext) -> WearTiming {
+        standsOnCover(context) ? .onExit : .onEntry
+    }
+
+    private func standsOnCover(_ context: PassiveContext) -> Bool {
+        let board = context.currentBoard
+        guard board.contains(context.piecePoint) else { return false }
+        return board[context.piecePoint].cover != nil
     }
 }
 
@@ -125,6 +161,7 @@ struct CapricornHeavenlyHooves: ZodiacPassive {
 /// than every coin along the way.
 struct CapricornCelestialCommerce: ZodiacPassive {
 
+    let icon: String? = "capricorn_commerce"
     let displayName = "Celestial Commerce"
     let summary = "Astra & Terra: Pentacles are banked instead of opened, and each is worth 1 ZC. Spend them with Cosmic Cash-in."
 

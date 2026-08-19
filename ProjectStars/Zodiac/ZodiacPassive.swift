@@ -77,7 +77,17 @@ protocol ZodiacPassive {
     ///
     /// Return `false` for "light-footed" passives that leave tiles intact.
     /// Default: `true`.
-    func causesWear(on tile: Tile, at point: GridPoint, plane: Plane, context: PassiveContext) -> Bool
+    /// - Parameter afterFalling: True when this wear is a landing paid for by a
+    ///   fall rather than by a move. A sign that spares the ground it walks on
+    ///   has not necessarily agreed to spare the ground it lands on from a
+    ///   plane above, and Aries' fresh tile explicitly does not.
+    func causesWear(
+        on tile: Tile,
+        at point: GridPoint,
+        plane: Plane,
+        afterFalling: Bool,
+        context: PassiveContext
+    ) -> Bool
 
     /// Whether the piece survives a fall it would normally take.
     ///
@@ -425,10 +435,41 @@ protocol ZodiacPassive {
     ///
     /// Defaulted to `icon`, so only a passive that genuinely changes with the
     /// plane writes one. Taurus is the case it exists for: his hooves are Heavy
-    /// above and Hasty below, and those are two different behaviours wearing
+    /// above and Hydroponic below, and those are two different behaviours wearing
     /// one name — the panel should show which one is running rather than a
     /// single mark that is right half the time.
     func icon(on plane: Plane) -> String?
+
+    /// The mark for what is true **right now**, or `nil` to show nothing.
+    ///
+    /// Defaulted to `icon(on:)`, so a passive that is always in effect writes
+    /// nothing and behaves as it always has. It exists for the ones that are
+    /// conditional — Aquarius' Ejection is only there to be used at phase zero,
+    /// and a mark that is lit while the ability cannot fire is worse than no
+    /// mark at all: it teaches the wrong rule every time the player looks at it.
+    func icon(in context: PassiveContext) -> String?
+
+    /// Whether a Pentacle is dragged a square toward the piece as it appears.
+    ///
+    /// Aquarius' current. Default: `false`.
+    func drawsPickupsIn(context: PassiveContext) -> Bool
+
+    /// Whether this piece grows ground cover out of Astral water.
+    ///
+    /// Taurus, and only Taurus. It is what makes her snipes flower and what
+    /// makes her pay a pip for the privilege. Default: `false`.
+    func growsOnWater(context: PassiveContext) -> Bool
+
+    /// Whether the piece refuses to be moved by anything but itself.
+    ///
+    /// A coin that would carry it, warp it or wash it along does nothing to it
+    /// at all. Default: `false`.
+    func resistsBeingMoved(context: PassiveContext) -> Bool
+
+    /// Whether a Pentacle crossed **mid-move** is trampled rather than taken.
+    ///
+    /// The ram running through a coin does not pocket it. Default: `false`.
+    func tramplesPickups(context: PassiveContext) -> Bool
 
     func banksPickups(_ id: PickupID, context: PassiveContext) -> Bool
 }
@@ -504,6 +545,10 @@ extension ZodiacPassive {
     /// No mark drawn yet. See `icon`.
     var icon: String? { nil }
 
+    func drawsPickupsIn(context: PassiveContext) -> Bool { false }
+    func growsOnWater(context: PassiveContext) -> Bool { false }
+    func resistsBeingMoved(context: PassiveContext) -> Bool { false }
+    func tramplesPickups(context: PassiveContext) -> Bool { false }
     func reversesCharge(context: PassiveContext) -> Bool { false }
     func reversesControls(context: PassiveContext) -> Bool { false }
     func walksOnHoles(context: PassiveContext) -> Bool { false }
@@ -511,6 +556,9 @@ extension ZodiacPassive {
 
     /// The same mark on both planes, unless the passive says otherwise.
     func icon(on plane: Plane) -> String? { icon }
+
+    /// Shown whenever the plane's mark is, unless the passive says otherwise.
+    func icon(in context: PassiveContext) -> String? { icon(on: context.plane) }
 
     func splitsOnDescent(context: PassiveContext) -> Bool { false }
 
@@ -522,7 +570,13 @@ extension ZodiacPassive {
         0
     }
 
-    func causesWear(on tile: Tile, at point: GridPoint, plane: Plane, context: PassiveContext) -> Bool {
+    func causesWear(
+        on tile: Tile,
+        at point: GridPoint,
+        plane: Plane,
+        afterFalling: Bool,
+        context: PassiveContext
+    ) -> Bool {
         true
     }
 
@@ -827,9 +881,15 @@ extension Array where Element == any ZodiacPassive {
         on tile: Tile,
         at point: GridPoint,
         plane: Plane,
+        afterFalling: Bool = false,
         context: PassiveContext
     ) -> Bool {
-        allSatisfy { $0.causesWear(on: tile, at: point, plane: plane, context: context) }
+        allSatisfy {
+            $0.causesWear(
+                on: tile, at: point, plane: plane,
+                afterFalling: afterFalling, context: context
+            )
+        }
     }
 
     func preventsFall(from plane: Plane, at point: GridPoint, context: PassiveContext) -> Bool {
@@ -868,6 +928,22 @@ extension Array where Element == any ZodiacPassive {
 
     func banksPickups(_ id: PickupID, context: PassiveContext) -> Bool {
         contains { $0.banksPickups(id, context: context) }
+    }
+
+    func drawsPickupsIn(context: PassiveContext) -> Bool {
+        contains { $0.drawsPickupsIn(context: context) }
+    }
+
+    func growsOnWater(context: PassiveContext) -> Bool {
+        contains { $0.growsOnWater(context: context) }
+    }
+
+    func resistsBeingMoved(context: PassiveContext) -> Bool {
+        contains { $0.resistsBeingMoved(context: context) }
+    }
+
+    func tramplesPickups(context: PassiveContext) -> Bool {
+        contains { $0.tramplesPickups(context: context) }
     }
 
     func reversesCharge(context: PassiveContext) -> Bool {

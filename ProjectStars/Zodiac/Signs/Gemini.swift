@@ -63,6 +63,7 @@ extension ZodiacCatalog {
 /// Zodiaction — without needing to know which.
 struct GeminiMirroredMending: ZodiacPassive {
 
+    let icon: String? = "gemini_mending"
     let displayName = "Mirrored Mending"
     let summary = "Astra: any repair to an Astra tile also repairs the Terra tile beneath it."
 
@@ -191,6 +192,7 @@ struct GeminiReflectiveRifts: ZodiacPassive {
 /// splitting worth risking in the first place.
 struct GeminiSoulSplit: ZodiacPassive {
 
+    let icon: String? = "gemini_split"
     let displayName = "Soul Split"
     let summary = "Astra & Terra: falling from Astra leaves half of you behind. The two halves move on alternating turns, and standing on the same square rejoins them for a full meter."
 

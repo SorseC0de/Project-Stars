@@ -58,6 +58,7 @@ struct VirgoControlledCompensation: ZodiacPassive {
     static let silencedKey = "virgo.compensationSilenced"
 
     let displayName = "Controlled Compensation"
+    let icon: String? = "virgo_compensation"
     let summary = "Astra & Terra: the Pentacle always appears on the sparkling tile you are moving onto. Silent for a turn after Regulated Reboot."
 
     func preferredRevealPoint(
@@ -150,6 +151,7 @@ struct VirgoScrupulousStep: ZodiacPassive {
 struct VirgoPoisedPlummet: ZodiacPassive {
 
     let displayName = "Poised Plummet"
+    let icon: String? = "virgo_plummet"
     let summary = "Astra: falling to Terra fully restores the tile you land on."
 
     /// Poised is the word. The repair is certain, not a roll, so this qualifies
@@ -205,7 +207,7 @@ struct VirgoPoisedPlummet: ZodiacPassive {
 struct VirgoRegulatedReboot: Zodiaction {
 
     let displayName = "Regulated Reboot"
-    let summary = "Astra & Terra: ring yourself with sparkles, holes included. Step onto the coin for half your meter back — or onto the hole that held it to mend it and get all of it."
+    let summary = "Astra & Terra: ring yourself with sparkles, holes included. Find the coin and the ground mends under you and your meter refills. Guess wrong and it is still a coin — but over a hole, nothing catches you."
 
     /// Virgo's charge comes from its passives and from Pentacles.
     func meterGain(from move: MoveSummary, context: PassiveContext) -> Int { 0 }

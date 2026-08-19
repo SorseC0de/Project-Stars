@@ -107,6 +107,15 @@ struct TileView: View {
             } else {
                 face
                 damage
+                // **Last, so it is actually a cover.**
+                //
+                // It went under the damage first, on the theory that a cracked
+                // tile should still read as cracked — which had it backwards:
+                // grass grows *over* the ground it is standing on, cracks
+                // included, and anything drawn on top of it is something the
+                // cover failed to hide. The crack is still there and shows the
+                // moment the cover is spent.
+                groundCover
             }
         }
         .frame(width: size, height: size)
@@ -144,6 +153,21 @@ struct TileView: View {
     }
 
     // MARK: - Layers
+
+    /// What is growing on this tile, drawn over its face.
+    ///
+    /// Over everything the tile is made of, damage included: it is growing on
+    /// top of the ground, and ground that has grass over it does not show its
+    /// cracks. They come back the instant the cover is spent, which is the
+    /// clearest possible statement of what the cover was doing.
+    ///
+    /// It takes the tile's own shade, so the checkerboard carries through it.
+    @ViewBuilder
+    private var groundCover: some View {
+        if let cover = tile.cover {
+            PixelSprite(id: .tileCover(shade, cover)) { EmptyView() }
+        }
+    }
 
     private var face: some View {
         PixelSprite(id: .tileFace(plane, shade, popped: isPopped)) {

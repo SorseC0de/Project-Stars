@@ -60,6 +60,7 @@ extension ZodiacCatalog {
 /// down below, and simply for scuttling up above.
 struct CancerCrabtitude: ZodiacPassive {
 
+    let icon: String? = "cancer_crabtitude"
     let displayName = "Crabtitude"
     let summary = "Astra: +1 ZC for a seafoam scuttle. Terra: none."
 
@@ -101,6 +102,16 @@ struct CancerSeafoamScuttle: ZodiacPassive {
         // asking the question that way cannot drift if the pattern is retuned.
         option.applies == .relative(.sideways)
     }
+    /// The scuttle is seafoam, and seafoam waters what it crosses.
+    ///
+    /// Same rule as the fish — `WearCause.water` — so a crab crossing a meadow
+    /// leaves it better than it found it while the ground below still pays.
+    func modifyWear(_ proposal: WearProposal, context: PassiveContext) -> WearProposal {
+        var wet = proposal
+        wet.caused(by: .water)
+        return wet
+    }
+
 }
 
 // MARK: - Passive 2: Homebound Harvest
@@ -132,7 +143,6 @@ struct CancerHomeboundHarvest: ZodiacPassive {
 struct CancerHeavenlyHoarder: ZodiacPassive {
 
     let displayName = "Heavenly Hoarder"
-    let icon: String? = "cancer_hoarder"
     let summary = "Open a Pentacle adjacent to the Nexys: +half meter on Terra, +full meter on Astra."
 
     func meterBonus(from move: MoveSummary, context: PassiveContext) -> Int {

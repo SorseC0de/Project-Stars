@@ -39,10 +39,35 @@ struct HopPose: Equatable {
     /// step with an arc on it, and these are a decision to leave the board.
     ///
     /// - Parameter progress: `0` at the crouch, `1` back at rest.
-    static func leap(progress: Double) -> HopPose {
+    /// How a leap is shaped. See `HopPose.Weight.flop`.
+    struct Weight: Equatable {
+        var height: CGFloat
+        var rise: CGFloat
+        var pancakeX: CGFloat
+        var pancakeY: CGFloat
+
+        /// Pisces' dive, and the default for anything that leaves the ground
+        /// deliberately.
+        static let dive = Weight(
+            height: GameRules.leapHeight,
+            rise: GameRules.leapRiseScale,
+            pancakeX: GameRules.leapPancakeX,
+            pancakeY: GameRules.leapPancakeY
+        )
+
+        /// Taurus. Higher, bigger in the air, and flattened on arrival.
+        static let flop = Weight(
+            height: GameRules.flopHeight,
+            rise: GameRules.flopRiseScale,
+            pancakeX: GameRules.flopPancakeX,
+            pancakeY: GameRules.flopPancakeY
+        )
+    }
+
+    static func leap(progress: Double, weight: Weight = .dive) -> HopPose {
         guard progress > 0, progress < 1 else { return .rest }
 
-        return interpolate(leapStops, at: progress)
+        return interpolate(leapStops(weight), at: progress)
     }
 
     /// Up big, down flat.
@@ -50,16 +75,14 @@ struct HopPose: Equatable {
     /// The landing stop is the point of the whole thing — twice as wide as it is
     /// anything else — so it holds a beat before settling rather than passing
     /// through on the way to rest.
-    private static var leapStops: [Stop] {
+    private static func leapStops(_ weight: Weight) -> [Stop] {
         [
             Stop(t: 0.00, scaleX: 1, scaleY: 1, lift: 0),
             Stop(t: 0.10, scaleX: GameRules.leapSquashX, scaleY: GameRules.leapSquashY, lift: 0),
-            Stop(t: 0.45, scaleX: GameRules.leapRiseScale, scaleY: GameRules.leapRiseScale,
-                 lift: GameRules.leapHeight),
-            Stop(t: 0.62, scaleX: GameRules.leapRiseScale, scaleY: GameRules.leapRiseScale,
-                 lift: GameRules.leapHeight * 0.92),
-            Stop(t: 0.80, scaleX: GameRules.leapPancakeX, scaleY: GameRules.leapPancakeY, lift: 0),
-            Stop(t: 0.92, scaleX: GameRules.leapPancakeX, scaleY: GameRules.leapPancakeY, lift: 0),
+            Stop(t: 0.45, scaleX: weight.rise, scaleY: weight.rise, lift: weight.height),
+            Stop(t: 0.62, scaleX: weight.rise, scaleY: weight.rise, lift: weight.height * 0.92),
+            Stop(t: 0.80, scaleX: weight.pancakeX, scaleY: weight.pancakeY, lift: 0),
+            Stop(t: 0.92, scaleX: weight.pancakeX, scaleY: weight.pancakeY, lift: 0),
             Stop(t: 1.00, scaleX: 1, scaleY: 1, lift: 0),
         ]
     }

@@ -44,6 +44,34 @@ enum WearCause: String, Equatable, Hashable, Codable {
     /// already been trodden.
     case hooves
 
+    /// Water: the Brook, the bubbles, a fish or a crab sliding through.
+    ///
+    /// Its own case because water is the one thing that goes *past* cover
+    /// without spending it — see `sparesCover`.
+    case water
+
+    /// Whether this leaves ground cover standing.
+    ///
+    /// **Water does.** Grass is not worn away by being rained on, so anything
+    /// wet damages the ground underneath and leaves what is growing on it
+    /// exactly as it was. It is the mirror of fire, which takes the cover and
+    /// deals its damage in full — and between them they say the rule out loud:
+    /// cover stops *impacts*, not weather.
+    var sparesCover: Bool { self == .water }
+
+    /// Whether this burns ground cover off rather than being absorbed by it.
+    ///
+    /// Fire does. The rule is stated by **the sprite**: if a flame is drawn on a
+    /// square, whatever is growing there is gone — even when the fire itself
+    /// deals nothing. So this asks the cause rather than the damage.
+    var burnsCover: Bool { self == .brazenBlaze }
+
+    /// Whether cover coming off this way is **scorched** rather than trodden.
+    ///
+    /// Only fire smokes. A hoof wearing grass away already throws the dust a
+    /// footfall throws, and adding ash to it drew two puffs for one step.
+    var singesCover: Bool { burnsCover }
+
     /// How many stages this takes out of a tile, here.
     func stages(on plane: Plane) -> Int {
         switch self {
@@ -53,13 +81,18 @@ enum WearCause: String, Equatable, Hashable, Codable {
             GameRules.wearPerLanding * 2
         case .hooves:
             plane == .astra ? GameRules.wearPerLanding * 2 : GameRules.wearPerLanding
+        // Whatever the coin or the current asked for. Water is a carrier here,
+        // not a weight of its own — the Brook's ends and a fish's wake each
+        // state their own number.
+        case .water:
+            GameRules.wearPerLanding
         }
     }
 
     /// The strip drawn over each square it touches, if any.
     var effect: EffectSprite? {
         switch self {
-        case .landing, .hooves: nil
+        case .landing, .hooves, .water: nil
         case .brazenBlaze: .blazeTrail
         }
     }
@@ -68,15 +101,13 @@ enum WearCause: String, Equatable, Hashable, Codable {
     ///
     /// Green for the free footfall — which is why this asks whether anything
     /// actually changed. A hoof that scuffed a square and a hoof that broke one
-    /// are the same cause, and only one of them is news.
-    func smokeTint(changedAnything: Bool) -> Color? {
-        // `neonGreen`, two steps up its own ramp from `green` — see
-        // `Palette.ramps`. The tint replaces the puff's colours outright rather
-        // than shading them, so a mid green came out as one flat dark cloud and
-        // read as poison. Two ramps up it reads as new growth, which is what a
-        // hoof that cost the ground nothing is meant to say.
-        self == .hooves && !changedAnything ? Palette.neonGreen : nil
-    }
+    /// A colour for the puff a footfall throws up, or `nil` for ordinary dust.
+    ///
+    /// Taurus' hooves used to tint it green whenever a landing cost the ground
+    /// nothing — the only sign that a tile had been scuffed rather than
+    /// damaged. The scuff is grass now, drawn on the tile itself, so the puff
+    /// that stood in for it has nothing left to say.
+    func smokeTint(changedAnything: Bool) -> Color? { nil }
 
     /// Whether the board shudders under it.
     func shakes(on plane: Plane) -> Bool {
@@ -88,7 +119,11 @@ enum WearCause: String, Equatable, Hashable, Codable {
     /// The free footfall is the whole reason this exists: "that step cost you
     /// nothing" is information, and before there was a cause to hang it on the
     /// rule was communicated by a tile conspicuously failing to change.
-    var isVisibleWithoutChange: Bool { self == .hooves }
+    /// Whether a landing that changed nothing still throws up a puff.
+    ///
+    /// Nothing does any more: the one case was Taurus scuffing a tile, and a
+    /// scuff is now a piece of grass coming off, which draws itself.
+    var isVisibleWithoutChange: Bool { false }
 }
 
 enum ChoiceSource: Equatable, Hashable {
@@ -313,6 +348,54 @@ enum GameEvent: Equatable {
     ///
     /// Distinct from `pickupCollected`: nobody got it. The coin is destroyed and
     /// the hunt restarts, which is why a fresh sparkle set always follows.
+    /// Whether this event carries the piece somewhere.
+    ///
+    /// Asked by anything that can refuse to be carried — see
+    /// `ZodiacPassive.resistsBeingMoved`. On the event rather than at the site
+    /// that asks, so a new way to move the piece is answered here once.
+    var movesThePiece: Bool {
+        switch self {
+        case .pieceMoved, .pieceSlid, .pieceFell:
+            true
+        default:
+            false
+        }
+    }
+
+    /// Ground cover appeared on a tile, or was taken off it.
+    ///
+    /// `nil` is the cover going: worn away by the damage it absorbed, or burnt
+    /// off by fire. One event either way, so the view has a single thing to
+    /// animate and the board a single thing to apply.
+    case tileCoverChanged(
+        plane: Plane,
+        point: GridPoint,
+        to: GroundCover?,
+        burnt: Bool = false
+    )
+
+    /// A wave is about to cross the board from `origin`.
+    ///
+    /// Carries nothing and changes nothing — the rings that follow do the work.
+    /// It exists so the board knows to dim and hold still for the length of the
+    /// sweep, and so whatever launched the wave has one place to put its noise:
+    /// Taurus' splash goes here, on her square, rather than on all forty-nine.
+    case groundWaveBegan(plane: Plane, origin: GridPoint)
+
+    /// One ring of a wave, applied together.
+    ///
+    /// Health and cover in **one event** because they are one pass over the same
+    /// tiles. A wave that mends and plants should not walk the board twice, and
+    /// two events per ring would let a view animate them out of step.
+    /// - Parameter cover: What is left growing on each square. A `nil` **value**
+    ///   is cover being taken off, which is how a ring of fire strips nine
+    ///   squares in the same instant it burns them.
+    case groundSwept(
+        plane: Plane,
+        health: [GridPoint: TileHealth],
+        cover: [GridPoint: GroundCover?]
+    )
+
     case pickupDestroyed(id: PickupID, plane: Plane, point: GridPoint)
 
     /// Water settled on a square and became a pool. See `TileKind.pool`.
@@ -456,6 +539,15 @@ enum GameEvent: Equatable {
         case .tilesWorn: GameRules.tileDamageHold
         case .tilesWornOnExit: GameRules.tileDamageOnExitDuration
         case .tileHealed: GameRules.tileHealDuration
+        // Instant. Cover appears and disperses *alongside* whatever caused it —
+        // a step, a heal, a charge — and holding the turn open for it would put
+        // a pause in the middle of the thing it is decorating.
+        case .tileCoverChanged: 0
+        // The marker is instant; each ring holds for a beat, which is what
+        // makes the wave read as travelling outward rather than as the board
+        // being rewritten in one frame.
+        case .groundWaveBegan: 0
+        case .groundSwept: GameRules.groundWaveRingBeat
         case .pieceFell: GameRules.fallDuration
         case .planeRestored: GameRules.planeRestoreDuration
         case .pieceChanged: GameRules.pieceChangeDuration

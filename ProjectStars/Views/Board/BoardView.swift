@@ -132,7 +132,7 @@ struct BoardView: View {
             // which reads as the board being covered rather than the moment
             // being someone else's.
             actionDim(metrics: metrics)
-            choiceDim(metrics: metrics)
+            boardDim(metrics: metrics)
 
 
 
@@ -433,11 +433,12 @@ struct BoardView: View {
     /// Deeper than the action wash, and a different colour, because it means
     /// something different: an action is over in a moment, and this is not over
     /// until the player does something.
-    private func choiceDim(metrics: PixelArtMetrics) -> some View {
+    private func boardDim(metrics: PixelArtMetrics) -> some View {
         Rectangle().fill(Palette.midnight)
             .frame(width: availableSide, height: availableSide)
-            .opacity(session.isChoosingTile ? GameRules.choiceDim : 0)
-            .animation(.easeOut(duration: 0.18), value: session.isChoosingTile)
+            // One question, whatever the reason — see `GameSession.isDimmed`.
+            .opacity(session.isDimmed ? GameRules.boardDim : 0)
+            .animation(.easeOut(duration: 0.18), value: session.isDimmed)
             .allowsHitTesting(false)
             .frame(width: metrics.boardSize, height: metrics.boardSize)
     }
@@ -2120,7 +2121,9 @@ struct BoardView: View {
         // A deliberate leap outranks a hop: it is a different shape, and the two
         // are never wanted at once.
         if let leapt = session.leapStartedAt {
-            return .leap(progress: date.timeIntervalSince(leapt) / GameRules.leapDuration)
+            let weight = session.leapWeight
+            let span = weight == .flop ? GameRules.flopDuration : GameRules.leapDuration
+            return .leap(progress: date.timeIntervalSince(leapt) / span, weight: weight)
         }
 
         guard let started = session.hopStartedAt else { return .rest }

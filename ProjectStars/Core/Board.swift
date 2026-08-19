@@ -136,3 +136,211 @@ struct Board: Codable, Equatable {
         self[point].heal()
     }
 }
+
+// MARK: - GroundWave
+
+/// Something crossing the board outward from a square, changing what it passes
+/// over.
+///
+/// One description for every sweep in the game. Taurus greening Terra on
+/// arrival, Polaris waking the ground, the Wipeout's ring of holes — they
+/// differ only in *which* tiles they touch and *what* they leave behind, so
+/// those are the closures and everything else is shared.
+///
+/// **Health and cover in the same pass.** A wave that both mends the ground and
+/// plants something on it walks each tile once, which is the difference between
+/// one rule and two that have to agree about which tiles were in range.
+///
+/// It plans from a board rather than from the engine, so a passive holding only
+/// a `PassiveContext` can raise one — which is how Taurus' arrival works.
+struct GroundWave {
+
+    /// Where it starts. Ring zero is this square alone.
+    let origin: GridPoint
+    let plane: Plane
+
+    /// Whether the wave affects this tile at all.
+    var touches: (Tile, GridPoint) -> Bool = { _, _ in true }
+
+    /// What the ground becomes, or `nil` to leave it as it is.
+    var health: (Tile, GridPoint) -> TileHealth? = { _, _ in nil }
+
+    /// What is left growing, or `nil` to leave that alone too.
+    var cover: (Tile, GridPoint) -> GroundCover? = { _, _ in nil }
+
+    /// The wave as events, ring by ring from `origin` outward.
+    ///
+    /// Rings are **Manhattan** distance — a diamond rather than a square —
+    /// because that is how the board is walked, so a wave spreading a square at
+    /// a time reads as something travelling along the ground rather than as a
+    /// box being drawn.
+    func plan(on board: Board) -> [GameEvent] {
+        var rings: [Int: [GridPoint]] = [:]
+        for point in board.allPoints {
+            let distance = abs(point.x - origin.x) + abs(point.y - origin.y)
+            rings[distance, default: []].append(point)
+        }
+
+        var events: [GameEvent] = [.groundWaveBegan(plane: plane, origin: origin)]
+
+        for distance in rings.keys.sorted() {
+            var changedHealth: [GridPoint: TileHealth] = [:]
+            var changedCover: [GridPoint: GroundCover?] = [:]
+
+            for point in rings[distance, default: []] {
+                let tile = board[point]
+                guard touches(tile, point) else { continue }
+
+                if let value = health(tile, point), value != tile.health {
+                    changedHealth[point] = value
+                }
+                if let value = cover(tile, point), value != tile.cover {
+                    changedCover[point] = value
+                }
+            }
+
+            guard !changedHealth.isEmpty || !changedCover.isEmpty else { continue }
+            events.append(
+                .groundSwept(plane: plane, health: changedHealth, cover: changedCover)
+            )
+        }
+
+        return events
+    }
+}
+
+// MARK: - Wearing a tile down
+
+extension Board {
+
+    /// The events for dealing `stages` of damage at `point` — **cover first**.
+    ///
+    /// The one place that answers "what happens when something damages this
+    /// square", so every source gets the same answer: a landing, a Tremor, a
+    /// Blaze, a phantom's footfall. Cover used to be checked inside the wear
+    /// that moves cause, which meant anything that damaged the ground *without*
+    /// a piece standing on it — a coin going off across the board — cracked
+    /// straight through the grass it should have burnt off first.
+    ///
+    /// Cover takes exactly one stage and disperses. It does not negate: two
+    /// stages strip the grass and still mark the ground underneath.
+    ///
+    /// `burningCover` is fire, which takes the cover **and** deals its damage
+    /// in full — see `WearCause.burnsCover`.
+    ///
+    /// Returns both events when both apply, so a caller physically cannot take
+    /// the health change and forget the cover.
+    /// What damaging a square would do to it, without saying it in events.
+    ///
+    /// The same rules as `wearEvents` — cover first, water past it, fire
+    /// through it — for callers that hit **several squares at once** and must
+    /// land them as one event. The Blaze burns nine tiles in one flash, and
+    /// emitting them one at a time made the ring arrive in sequence purely
+    /// because grass was involved, which is exactly the kind of inconsistency
+    /// that shows up as "why does this coin behave differently on Tuesdays".
+    func wearOutcome(
+        at point: GridPoint,
+        stages: Int = 1,
+        cause: WearCause = .landing,
+        seed: Int = 0
+    ) -> WearOutcome {
+        guard contains(point), stages > 0 else { return WearOutcome() }
+
+        let tile = self[point]
+        var outcome = WearOutcome()
+        var remaining = stages
+
+        if cause.sparesCover {
+            // Water feeds what it runs over. The ground below still takes what
+            // the effect deals — this is about the cover, not about mercy.
+            let fed = GroundCover.watered(tile.cover, at: point, seed: seed)
+            if fed != tile.cover { outcome.cover = .became(fed) }
+        } else if let cover = tile.cover {
+            if cause.burnsCover {
+                // Fire goes through **both** levels and still deals in full:
+                // flowers, grass and the ground underneath all answer to it.
+                outcome.cover = .became(nil)
+            } else {
+                outcome.cover = .became(cover.worn(at: point, seed: seed))
+                outcome.absorbed = true
+                remaining -= 1
+            }
+        }
+
+        guard remaining > 0, tile.canBeWorn else { return outcome }
+
+        let health = tile.health.worn(by: remaining)
+        if health != tile.health { outcome.health = health }
+
+        // The ground it was growing on has gone: so has the cover, whatever the
+        // step-down said a moment ago. `Tile.settled()` enforces this on the
+        // board itself; saying it here keeps the *events* honest so the view
+        // never draws a meadow over a hole even for a frame.
+        if health.isHole { outcome.cover = .became(nil) }
+        return outcome
+    }
+
+    func wearEvents(
+        at point: GridPoint,
+        on plane: Plane,
+        stages: Int = 1,
+        cause: WearCause = .landing,
+        seed: Int = 0
+    ) -> [GameEvent] {
+        guard contains(point), stages > 0 else { return [] }
+
+        let tile = self[point]
+        var events: [GameEvent] = []
+        var remaining = stages
+
+        // Water runs straight past: it damages the ground and leaves what is
+        // growing on it standing. See `WearCause.sparesCover`.
+        let outcome = wearOutcome(at: point, stages: stages, cause: cause, seed: seed)
+
+        if case let .became(cover) = outcome.cover {
+            events.append(
+                .tileCoverChanged(
+                    plane: plane, point: point, to: cover, burnt: cause.singesCover
+                )
+            )
+        }
+        if outcome.absorbed { remaining -= 1 }
+
+        guard remaining > 0, tile.canBeWorn else { return events }
+
+        let health = tile.health.worn(by: remaining)
+        guard health != tile.health else { return events }
+
+        events.append(.tileDamaged(plane: plane, point: point, to: health))
+        return events
+    }
+}
+
+
+/// What damaging a square would do to it.
+///
+/// A little type rather than a tuple of optionals, because "the cover did not
+/// change" and "the cover became nothing" are different answers and a plain
+/// `GroundCover?` cannot tell them apart.
+struct WearOutcome {
+    enum CoverChange: Equatable {
+        case unchanged
+        case became(GroundCover?)
+    }
+
+    var health: TileHealth?
+    var cover: CoverChange = .unchanged
+
+    /// Whether cover **took a stage** of this blow.
+    ///
+    /// Separate from `cover` moving at all, and the distinction is not
+    /// academic: cover is also reported as going when the ground under it
+    /// breaks, and when water plants some. Callers that subtract a stage for
+    /// being absorbed must ask this — reading it off `cover` instead meant
+    /// every blow that would open a hole had its final stage eaten by a piece
+    /// of grass that was not there, and nothing in the game could break a tile.
+    var absorbed = false
+
+    /// True when the cover moved at all — planted, stepped down or burnt off.
+    var coverChanged: Bool { cover != .unchanged }
+}

@@ -256,6 +256,25 @@ enum SpriteID: Hashable {
     // MARK: Effects
 
     /// One of the imported 64px effect strips. See `EffectSprite`.
+    /// One numeral of the turn counter, `0` through `9`.
+    case digit(Int)
+
+    /// The counter's furniture: its label, the three pieces of the plate the
+    /// numbers sit on, and the piece that closes off the end.
+    ///
+    /// The plate is drawn as ends and a **repeating middle**, so a counter is
+    /// as wide as the number inside it rather than as wide as the drawing —
+    /// which is what lets it grow from one digit to four without the art
+    /// stretching.
+    case turnLabel
+    case turnPlateLeft
+    case turnPlateMiddle
+    case turnPlateRight
+    case turnCap
+
+    /// Ground cover, by the shade of the tile under it and which drawing.
+    case tileCover(Palette.TileShade, GroundCover)
+
     case effect(EffectSprite)
 
     // MARK: - Asset names
@@ -267,6 +286,20 @@ enum SpriteID: Hashable {
         switch self {
         case let .tileFace(plane, shade, popped):
             "tile_\(plane.rawValue)_\(shade.assetSuffix)\(popped ? "_popped" : "")"
+        case let .digit(value):
+            "digit_\(value)"
+        case .turnLabel:
+            "turn_label"
+        case .turnPlateLeft:
+            "turn_plate_left"
+        case .turnPlateMiddle:
+            "turn_plate_middle"
+        case .turnPlateRight:
+            "turn_plate_right"
+        case .turnCap:
+            "turn_cap"
+        case let .tileCover(shade, cover):
+            "cover_\(cover.rawValue)_\(shade.assetSuffix)"
         case .directionGuide:
             "direction_guide"
         case let .libraArm(set):

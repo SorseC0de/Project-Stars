@@ -62,7 +62,12 @@ struct RetinueView: View {
             showsShadow: false,
             facing: facing
         )
-        .frame(width: tileSize, height: tileSize * 2)
+        // **No frame and no lift of its own.**
+        //
+        // `PieceView` already frames itself at two tiles and already sits its
+        // feet on the square, at the end of its own `body`. Doing either again
+        // here raised every phantom by half a tile plus the piece lift — which
+        // is exactly how they came to float while standing on the right square.
             // The same treatment as Shadow Work's double, and for the same
             // reason: a summoned figure that keeps its own colours reads as a
             // second player rather than as a thing Leo is projecting.
@@ -86,7 +91,6 @@ struct RetinueView: View {
             .modifier(RetinueFloat(hovering: hovering))
             // Matches `PieceView`'s figure box, so it stands on the ground
             // rather than hovering over it.
-            .offset(y: -tileSize / 2 - GameRules.pieceLift * scale)
             .allowsHitTesting(false)
     }
 }

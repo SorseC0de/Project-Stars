@@ -79,6 +79,19 @@ struct RevealedPickup: Equatable {
     /// evaporated with the sign that made it would be a trap; the pink sparkles
     /// are on the board, so what they are worth is on the board too.
     var fromRing = false
+
+    /// True when this coin is on the board but not *in* the hunt.
+    ///
+    /// One question with two answers, asked in every place the Pentacle economy
+    /// counts coins: a storm cloud and a ring's coin are both things an ability
+    /// put down, and neither is what a sparkle phase is waiting on. The phase
+    /// does not end because of them, the next phase does not sweep them away,
+    /// and nothing re-rolls around them.
+    ///
+    /// Written once because the two lists that care were already drifting —
+    /// `revealedPentacles` skipped clouds and the spawn wipe did not, so a new
+    /// phase quietly deleted coins that were supposed to outlive it.
+    var standsOutsideTheHunt: Bool { isCloud || fromRing }
 }
 
 // MARK: - GameEngine
@@ -381,11 +394,24 @@ struct GameEngine {
     /// This is what the styles are for: the rule is "did the leader cross the
     /// squares between", and before there was a name for that, every caller
     /// answered it from whichever event it happened to be handling.
+    /// Records where the piece has been, for whoever is following it.
+    ///
+    /// **Anything that came from somewhere leaves a trail.** The test used to be
+    /// `travelsTheGround`, which is a question about *the ground* — so a hop,
+    /// which is most of the moves in the game, restarted the trail at the
+    /// destination and put the whole retinue on the square the piece was
+    /// standing on. That is one bug wearing three costumes: the phantom drawn
+    /// on top of the lion and floating, its pose stuck at rest because it never
+    /// changed square, and the tile taking a second helping of wear from a
+    /// follower standing exactly where he was.
+    ///
+    /// Only a move with no journey — a teleport — has nothing to remember, and
+    /// that is when the trail starts again from where it arrived.
     private mutating func advanceTrail(_ type: MoveType, from: GridPoint, to: GridPoint) {
-        if type.travelsTheGround {
-            rememberStep(from)
-        } else {
+        if type.isInstant {
             restartTrail(at: to)
+        } else {
+            rememberStep(from)
         }
     }
 
@@ -468,7 +494,15 @@ struct GameEngine {
             // hunt's coins: the phase does not wait on it, nothing re-rolls
             // because of it, and it hangs where it was put whatever happens to
             // the ground. See `RevealedPickup.isCloud`.
-            !$0.isCloud && PickupCatalog.effect(for: $0.id).pickupClass == .pentacle
+            //
+            // **A ring's coin is the same kind of thing.** Virgo pays a full
+            // meter for eight lit squares, and if that coin were the hunt's one
+            // coin then popping the Reboot would only ever move the coin she
+            // was already going to get — a super that costs a meter and gives
+            // back the thing you had. Standing outside this list is what lets
+            // the two exist at once, so the ring is always *additional*.
+            !$0.standsOutsideTheHunt
+                && PickupCatalog.effect(for: $0.id).pickupClass == .pentacle
         }
     }
 
@@ -789,7 +823,19 @@ struct GameEngine {
             // is ordinarily available and merely obstructed here, and every
             // non-Virgo piece was nodding at corners it can never use.
             guard sim.canEverMove(direction) else { return [] }
-            return [.moveBlocked(direction: direction)]
+
+            // **A balk goes through the passives like any other outcome.**
+            //
+            // It used to return here, which meant the one thing that happens to
+            // every sign constantly — running into the edge of the world — was
+            // the one thing no ability could answer. Aries turning around when
+            // he bonks is exactly that, and it could not have been written
+            // without reaching into the engine for a special case.
+            //
+            // `amend` rather than a hook of its own: it is already "react to
+            // what the move did", and a move that did nothing did something.
+            let balk: [GameEvent] = [.moveBlocked(direction: direction)]
+            return balk + sim.activePassives.amend(balk, context: sim.passiveContext)
         }
 
         // Some signs cross a long move on the wind — see
@@ -2043,6 +2089,33 @@ struct GameEngine {
             return events
         }
 
+        // **The rescue is asked before the meter is touched.**
+        //
+        // This is how Aquarius actually dies — blown off the rim of Terra, not
+        // dropped through it — so a passive that saves her from dying has to be
+        // consulted here as well as at the fall. And it has to be consulted
+        // *first*: the drain below sets the meter to zero, which for the one
+        // sign that fires at empty is indistinguishable from being fully
+        // charged. Asked afterwards, Eolian Ejection would have been free and
+        // automatic; asked here, it costs the storm it is spending.
+        //
+        // The square handed over is the last one she stood on. `point` is off
+        // the board by definition, and nothing can surface from nowhere.
+        let size = currentBoard.size
+        let edge = GridPoint(
+            min(max(point.x, 0), size - 1),
+            min(max(point.y, 0), size - 1)
+        )
+        if let rescue = activePassives.survivesFatalFall(
+            at: edge, from: plane, context: passiveContext
+        ) {
+            for event in rescue {
+                events.append(event)
+                apply(event)
+            }
+            return events
+        }
+
         if zodiactionMeter != 0 {
             let drained = GameEvent.zodiactionMeterChanged(to: 0)
             events.append(drained)
@@ -2155,6 +2228,7 @@ struct GameEngine {
                 produced.append(event)
                 apply(event)
             }
+            produced += waterFalls(at: point, on: plane)
         }
         return produced
     }
@@ -2390,9 +2464,22 @@ struct GameEngine {
         }
         #endif
         guard let point = steered ?? usable.randomElement(using: &rng) else { return [] }
-        guard let pickup = drawPickup(at: point, on: sparkles.plane) else { return [] }
+
+        // **Did the coin land on the square being walked to?**
+        //
+        // For Virgo's ring that is the whole question — the guess. Her steering
+        // is silenced while the ring is up, so the coin goes somewhere random
+        // among the eight, and stepping onto the one that got it is the thing
+        // being rewarded. Everywhere else this is simply true whenever her
+        // Controlled Compensation steered the coin, which is why the ring is
+        // also required before it pays.
+        let sniped = point == destination
+        guard let pickup = drawPickup(
+            at: point, on: sparkles.plane, sniped: sniped
+        ) else { return [] }
 
         var events = [GameEvent.pickupRevealed(id: pickup, plane: sparkles.plane, point: point)]
+        events += hydroponicSnipe(sniped: sniped, at: point, on: sparkles.plane)
         events += secondReveal(among: usable, excluding: point, on: sparkles.plane)
 
         // Bubbles are rolled last and take no square the hunt wanted.
@@ -2412,6 +2499,71 @@ struct GameEngine {
     /// Rolled per bubble rather than as one draw with a count, so the chance
     /// means the same thing however many are allowed, and so the run's luck —
     /// Sagittarius' Fortunate Find — scales them without knowing they exist.
+    /// **Hidden: what the bull's hooves do to a square she called right.**
+    ///
+    /// Hitting the sparkle that held the coin waters it — the tile comes back
+    /// whole and flowers over — and the watering costs her a pip, the same pip
+    /// every other thing her hooves grow costs. So a snipe pays one and spends
+    /// one: her reward is the ground rather than the charge, which is the trade
+    /// the whole kit is built on.
+    ///
+    /// Holes are left alone. There is nothing there to grow in, and a coin
+    /// found over one is already a strange enough gift.
+    private mutating func hydroponicSnipe(
+        sniped: Bool,
+        at point: GridPoint,
+        on plane: Plane
+    ) -> [GameEvent] {
+        guard sniped,
+              activePassives.growsOnWater(context: passiveContext),
+              self[plane].contains(point),
+              !self[plane][point].health.isHole
+        else { return [] }
+
+        var events: [GameEvent] = []
+        if self[plane][point].health != .healthy {
+            events.append(.tileHealed(plane: plane, point: point, to: .healthy))
+        }
+        events.append(.tileCoverChanged(plane: plane, point: point, to: .flowers))
+        events += hydroponicCost()
+        return events
+    }
+
+    /// Water landing on a square, and what it leaves growing.
+    ///
+    /// Every drop in the game comes through here: a bubble surfacing, a droplet
+    /// left where a pool dried, the Brook washing past. Cover is *fed* rather
+    /// than worn — bare ground greens, grass flowers — which is the rule
+    /// `WearCause.water` states for damage and this states for arrival.
+    ///
+    /// Terra only, since Astra is cloud and nothing grows on it, and never on a
+    /// hole: there is nothing there to soak.
+    private mutating func waterFalls(at point: GridPoint, on plane: Plane) -> [GameEvent] {
+        guard plane == .terra, self[plane].contains(point) else { return [] }
+
+        let tile = self[plane][point]
+        guard !tile.health.isHole else { return [] }
+
+        let fed = GroundCover.watered(tile.cover, at: point, seed: moveCount)
+        guard fed != tile.cover else { return [] }
+
+        let event = GameEvent.tileCoverChanged(plane: plane, point: point, to: fed)
+        apply(event)
+        return [event]
+    }
+
+    /// The pip a hydroponic growth costs, wherever it was raised from.
+    ///
+    /// One rule, one place. It was being charged for some growths and not
+    /// others depending on which passive happened to plant them, which is the
+    /// kind of inconsistency that reads as a bug even when each half is
+    /// deliberate. Tapping Astral water is not free for a sign that is not a
+    /// water sign.
+    private func hydroponicCost() -> [GameEvent] {
+        let paid = max(zodiactionMeter - GameRules.hydroponicCost, 0)
+        return paid == zodiactionMeter ? [] : [.zodiactionMeterChanged(to: paid)]
+    }
+
     private mutating func revealBubbles(
         among usable: [GridPoint],
         excluding taken: [GridPoint],
@@ -2433,6 +2585,8 @@ struct GameEngine {
             let event = GameEvent.pickupRevealed(id: .bubble, plane: plane, point: point)
             apply(event)
             events.append(event)
+            // A bubble is water arriving, so the ground it lands on drinks.
+            events += waterFalls(at: point, on: plane)
         }
 
         return events
@@ -2451,7 +2605,11 @@ struct GameEngine {
     ///
     /// Everything a coin's identity depends on is available here, so this is
     /// where the draw belongs.
-    private mutating func drawPickup(at point: GridPoint, on plane: Plane) -> PickupID? {
+    private mutating func drawPickup(
+        at point: GridPoint,
+        on plane: Plane,
+        sniped: Bool = false
+    ) -> PickupID? {
         #if DEBUG
         if let forced = debugNextPickup {
             debugNextPickup = nil
@@ -2459,15 +2617,19 @@ struct GameEngine {
         }
         #endif
 
-        // **Virgo's ring deals one thing.**
+        // **Virgo's ring pays for a guess, not for a walk.**
         //
-        // The Reboot lights eight squares and says nothing about what is under
-        // them; this is where that is answered, because it is where every other
-        // question about a square's coin is answered. The pattern is the whole
-        // condition — `.ring` is Virgo's alone and nothing else spawns one — so
-        // the sign is not named here and a second sign that ever earns a ring
-        // inherits the behaviour rather than a copy of it.
-        if sparkles?.pattern == .ring {
+        // Two conditions, and the second one was missing: the set has to be the
+        // ring — `.ring` carries no weight in `sparklePatternWeights`, so it is
+        // hers alone and the sign never has to be named — *and* the coin has to
+        // have landed on the square being stepped onto.
+        //
+        // Without the second, the ring simply handed it over. The coin is
+        // revealed on the move after the Zodiaction, by which time the silence
+        // on her steering has lifted, so Controlled Compensation put the coin
+        // wherever she happened to be walking and the guess never happened.
+        // Every pink coin was a Victorylap.
+        if sparkles?.pattern == .ring, sniped {
             return .virgoVictorylap
         }
 
@@ -2478,7 +2640,11 @@ struct GameEngine {
             return .polaris
         }
 
-        return PickupCatalog.rollPickup(weighting: pickupWeighting(), using: &rng)
+        return PickupCatalog.rollPickup(
+            weighting: pickupWeighting(),
+            affinity: piece.zodiac.element,
+            using: &rng
+        )
     }
 
     /// A second Pentacle on one of the sparkles the first did not take.
@@ -2881,6 +3047,7 @@ struct GameEngine {
                 on: landed,
                 at: point,
                 plane: plane,
+                afterFalling: fellAlready,
                 context: passiveContext
             )
 
@@ -3336,6 +3503,7 @@ struct GameEngine {
         // board must never tug a coin away from a lion the coin was just drawn
         // to — the reward for having a sun out is the extra square below, not a
         // contest.
+        if let current = planCurrentDraw() { return current }
         if let magnetic = planMagneticPull() { return magnetic }
         return planSunPull()
     }
@@ -3344,6 +3512,56 @@ struct GameEngine {
     ///
     /// Returns `nil` when it does not fire, which is what lets the sun take the
     /// turn instead.
+    /// The storm dragging a coin that has just surfaced one square toward it.
+    ///
+    /// **Here rather than at the reveal**, which is where it was and where it
+    /// could never work: the coin is planned into existence there and does not
+    /// reach the board until the caller commits the event, so a pull that read
+    /// the board found nothing to pull. This runs with the other pulls, after
+    /// travel, when the coin is real.
+    ///
+    /// Only coins that surfaced **this move** — the current takes hold as
+    /// something appears in it, which is a different idea from Leo's mane
+    /// hunting coins down every turn.
+    ///
+    /// A coin dragged onto her square is collected by the rule that already
+    /// follows every pull, and paid as a snipe: she did not call the square,
+    /// the wind brought the coin, and that is her version of hitting the shot.
+    private mutating func planCurrentDraw() -> [GameEvent]? {
+        guard activePassives.drawsPickupsIn(context: passiveContext) else { return nil }
+
+        // **On the reveal, and only on the reveal.**
+        //
+        // `revealedOnMove == moveCount` is the engine's existing test for "this
+        // move" — the loose `>=` it replaces would have let a coin that had been
+        // sitting there qualify, which turns walking up to any old Pentacle into
+        // a free snipe. The current takes hold of something *surfacing* in it;
+        // a coin already on the board is just a coin.
+        //
+        // Anywhere on her plane. Distance is not the guard — **the reveal is**:
+        // it can only ever fire on the turn a coin surfaces, so a coin dragged
+        // one square from across the board is a single free nudge on the hunt
+        // rather than a way to walk coins in. Leo's mane reaches the whole map
+        // *every move*, which is the difference that matters.
+        let fresh = revealedPentacles.filter {
+            $0.plane == piece.plane && $0.revealedOnMove == moveCount
+        }
+        guard !fresh.isEmpty else { return nil }
+
+        let drawn = pullCoins(toward: piece.point, on: piece.plane, steps: 1)
+        guard !drawn.isEmpty else { return nil }
+
+        // Landed under her: pay what a called shot pays.
+        let arrived = drawn.contains { event in
+            if case let .pickupMoved(_, _, _, to) = event { return to == piece.point }
+            return false
+        }
+        guard arrived else { return drawn }
+
+        let paid = meter(afterGaining: GameRules.revealTileCharge)
+        return paid == zodiactionMeter ? drawn : drawn + [.zodiactionMeterChanged(to: paid)]
+    }
+
     private mutating func planMagneticPull() -> [GameEvent]? {
         let chance = activePassives.magneticPullChance(context: passiveContext)
         guard chance > 0 else { return nil }
@@ -3387,16 +3605,21 @@ struct GameEngine {
     /// dragged over a hole is dealt with by `ensurePentacleAvailable`, which
     /// already destroys any coin left standing on nothing and starts a fresh
     /// glow phase; special-casing it here would be a second copy of that rule.
+    /// - Parameter chosen: Pull just this coin and leave the rest where they
+    ///   are. Aquarius' current takes hold of the one that surfaced beside her;
+    ///   the manes and suns that reel in *everything* leave it `nil`.
     private mutating func pullCoins(
         toward target: GridPoint,
         on plane: Plane,
-        steps: Int
+        steps: Int,
+        only chosen: PickupID? = nil
     ) -> [GameEvent] {
         var events: [GameEvent] = []
 
         // Coins only: a droplet is water lying on a square, not something a
         // sun can reel in.
-        for coin in revealedPentacles where coin.plane == plane {
+        for coin in revealedPentacles
+        where coin.plane == plane && (chosen == nil || coin.id == chosen) {
             var from = coin.point
 
             for _ in 0..<steps {
@@ -3569,8 +3792,48 @@ struct GameEngine {
 
         // The tile underfoot. Several stages resolve to one final state rather
         // than to one event each.
-        if final.stages > 0, tile.canBeWorn {
-            let health = tile.health.worn(by: final.stages)
+        // **Cover takes one stage and disperses — it does not negate.**
+        //
+        // Here rather than inside `TileHealth.worn(by:)`, because it is not a
+        // property of health: the cover is a separate thing standing on the
+        // tile and what happens to it is an event of its own. A blow of two
+        // strips the grass *and* still marks the ground, which is the whole
+        // distinction from Bastion.
+        //
+        // Fire is the exception and burns it off without being slowed — the
+        // grass is gone and the flame does its full damage to what was under it.
+        // **The star wears nothing at all — cover included.**
+        //
+        // Checked here rather than at each caller because this is the one
+        // funnel every landing's damage goes through. It used to sit further
+        // down, past the point where the ground had been worked out, which was
+        // harmless while wear only meant health: cover is stripped on the way
+        // through, so a starred piece was mowing the grass it is supposed to be
+        // sailing over.
+        guard !signState.isStarred else { return result }
+
+        // **Through the board's own answer, like everything else.**
+        //
+        // This block used to strip cover to nothing outright, which predates
+        // there being two levels of it — so a landing took flowers straight to
+        // bare while every other source stepped them down to grass. The rule
+        // lives in `Board.wearOutcome` and this asks it rather than keeping a
+        // second copy that has to be remembered.
+        var stages = final.stages
+        let coverOutcome = self[plane].wearOutcome(
+            at: point, stages: stages, cause: final.cause, seed: moveCount
+        )
+        if case let .became(left) = coverOutcome.cover {
+            commit(.tileCoverChanged(
+                plane: plane, point: point, to: left, burnt: final.cause.singesCover
+            ))
+        }
+        // Only a stage that was actually *soaked up* is a stage spent — see
+        // `WearOutcome.absorbed`.
+        if coverOutcome.absorbed { stages -= 1 }
+
+        if stages > 0, tile.canBeWorn {
+            let health = tile.health.worn(by: stages)
             if health != tile.health {
                 changes[point] = health
                 result.tilesWorn += 1
@@ -3587,10 +3850,7 @@ struct GameEngine {
             }
         }
 
-        // The star wears nothing. Checked here rather than at each caller
-        // because this is the one funnel every landing's damage goes through —
-        // arrival, departure, and the extra squares passives add.
-        guard !signState.isStarred else { return result }
+
 
         // A cause may want saying even when it took nothing — Taurus' free
         // footfall is the point of the whole mechanism. The square goes in at
@@ -3706,29 +3966,37 @@ struct GameEngine {
 
         // A ring's coin pays whoever takes it, whatever sign that is by then.
         if pickup.fromRing {
-            let cap = piece.zodiac.zodiaction.meterMax(on: pickup.plane)
-
-            // Half, either way.
+            // **No meter here.** Guessing right is what pays, and it pays in
+            // Virgo Victorylap — the forced coin on the sniped square, which
+            // mends the ground and hands the whole meter back. A refund for
+            // missing as well made the Reboot a re-roll button: pop, take
+            // whatever turned up, pop again.
             //
-            // A full refund over a hole was the specified reward and it does not
-            // survive contact: the ring is dealt over holes on purpose, so on a
-            // worn board most of its coins sit over one — pop, take the coin,
-            // get the whole meter back, pop again until the coin lands where you
-            // wanted. A super that pays for its own re-use is not a super, it is
-            // a re-roll button.
+            // What a miss gets instead is that the coin is *additional*. A ring
+            // coin stands outside `revealedPentacles`, so the ordinary hunt
+            // carries on beside it and a spent meter is never nothing. The two
+            // changes together are a sidegrade, not a nerf.
             //
-            // The gamble still pays better, and it pays in the thing the gamble
-            // was about: taking a coin over nothing mends the ground under it.
-            // That is a reward the board keeps, rather than one that hands the
-            // ability straight back.
-            let half = min(max(zodiactionMeter, cap / 2), cap)
-            if half != zodiactionMeter { commit(.zodiactionMeterChanged(to: half)) }
+            // What a miss does get is the single ZC the coin would have paid if
+            // her auto-snipe had not been silenced for the ring — the charge
+            // she gave up by taking the gamble, rather than a share of the
+            // meter she spent on it. Asked through `meter(afterGaining:)` so a
+            // phantom carrying a backwards meter is charged the right way.
+            //
+            // Paid on any ring coin. A sniped one is already full from the
+            // Victorylap, so this only ever moves the needle on a miss.
+            let gained = meter(afterGaining: 1)
+            if gained != zodiactionMeter { commit(.zodiactionMeterChanged(to: gained)) }
 
-            if !wasSolid {
-                // Taken over nothing and got away with it: the ground comes
-                // back, but only to badly cracked — it remembers.
-                commit(.tileHealed(plane: pickup.plane, point: pickup.point, to: .badlyCracked))
-            }
+            // **Nothing rescues a missed coin over a hole.**
+            //
+            // It used to come back to badly cracked whether you had guessed
+            // right or not, which took the stakes out of the one decision the
+            // Reboot is made of: the ring is dealt over holes on purpose, and
+            // if the ground returns either way then reaching over nothing costs
+            // nothing. Guess right and the Victorylap mends it to full and
+            // hands the meter back; guess wrong over a hole and you go down it.
+            // Same shape as Leo's gamble, and the stakes are the point.
         }
 
         // What the *sign* makes of having opened one, before the ground under
@@ -3786,7 +4054,7 @@ struct GameEngine {
 
         // Effects that need an answer park here. The session collects it and
         // calls `planChoice(_:)`, which resumes from exactly this point.
-        guard effect.choice == .none else {
+        guard effect.choice == .none || pointless(effect.choice) else {
             // Asked through `rolledChoice`, so anything random inside the
             // question is decided now and travels with it.
             commit(.choiceRequested(
@@ -3840,7 +4108,21 @@ struct GameEngine {
             signState: signState
         )
 
-        for event in effect.plan(context: context, choice: choice, generator: &rng) {
+        var plan = effect.plan(context: context, choice: choice, generator: &rng)
+
+        // **Nothing moves her but her.**
+        //
+        // A coin that would carry the piece somewhere is refused outright, and
+        // the whole plan goes with it: the Brook's plan *is* a journey — its
+        // wear lands on the ends of a slide that no longer happens — so keeping
+        // the remainder would mean damage arriving from a trip nobody took.
+        // See `ZodiacPassive.resistsBeingMoved`.
+        if activePassives.resistsBeingMoved(context: passiveContext),
+           plan.contains(where: \.movesThePiece) {
+            plan = plantedInstead()
+        }
+
+        for event in plan {
             guard let allowed = sheltered(event) else { continue }
             commit(allowed)
             for sweep in gatherIfCrossed(allowed) { commit(sweep) }
@@ -4224,6 +4506,24 @@ struct GameEngine {
         let to = crossing.point
         let plane = crossing.plane
 
+        // **Some pieces do not pocket what they run through.**
+        //
+        // Aries charging is a body at speed, and a coin in the way of one is
+        // debris rather than treasure — see `AriesReboundingRam`. He is paid in
+        // charge instead, which is the point: the ram that just crossed the
+        // board on a Zodiaction is already most of the way to the next one, and
+        // is not stopping to pick anything up on the way.
+        if activePassives.tramplesPickups(context: passiveContext) {
+            let broken = GameEvent.pickupDestroyed(id: coin.id, plane: plane, point: to)
+            apply(broken)
+
+            let paid = GameEvent.zodiactionMeterChanged(
+                to: meter(afterGaining: GameRules.trampleCharge)
+            )
+            apply(paid)
+            return [broken, paid]
+        }
+
         let gathered = GameEvent.pickupGathered(id: coin.id, plane: plane, point: to)
         apply(gathered)
         return [gathered]
@@ -4311,7 +4611,7 @@ struct GameEngine {
             let effect = PickupCatalog.effect(for: coin.id)
 
             // A coin that needs an answer parks exactly as it would have.
-            guard effect.choice == .none else {
+            guard effect.choice == .none || pointless(effect.choice) else {
                 let asked = GameEvent.choiceRequested(
                     source: .pickup(coin.id),
                     kind: effect.choice
@@ -4344,6 +4644,51 @@ struct GameEngine {
     /// Built as a closure over a *snapshot* of the context rather than reading
     /// the engine as it runs: the roll happens with `&rng` already borrowed, and
     /// touching `self` inside it would be overlapping access to the same value.
+    /// Whether asking this question would be asking for nothing.
+    ///
+    /// "Where would you like to be carried" has no answer worth giving to a
+    /// piece that cannot be carried — see `ZodiacPassive.resistsBeingMoved`. It
+    /// was still being asked, and the answer was still being thrown away, which
+    /// is worse than either refusing or obeying: the player picks a square, the
+    /// board dims for it, and then nothing happens.
+    ///
+    /// Asked of the *question*, not of the coin, so anything that ever asks
+    /// where to put the piece is covered by the same sentence.
+    private func pointless(_ choice: PickupChoice) -> Bool {
+        choice == .tile && activePassives.resistsBeingMoved(context: passiveContext)
+    }
+
+    /// What a refused journey leaves behind: ground cover, and the bill.
+    ///
+    /// She does not simply ignore the coin — she puts down roots where she is
+    /// standing and pays a pip for it. That is what makes the refusal a
+    /// *decision the board made about her* rather than an immunity: the coin is
+    /// still spent and the meter still moves.
+    private func plantedInstead() -> [GameEvent] {
+        // The balk, first. It is the same statement a wall makes — *you are not
+        // going that way* — and the board already knows how to shove for it, so
+        // the refusal is felt rather than merely not happening.
+        var events: [GameEvent] = [.moveBlocked(direction: piece.facing)]
+        let point = piece.point
+
+        if self[piece.plane][point].cover == nil,
+           !self[piece.plane][point].health.isHole {
+            events.append(
+                .tileCoverChanged(
+                    plane: piece.plane,
+                    point: point,
+                    to: GroundCover.ordinary(at: point, seed: moveCount)
+                )
+            )
+        }
+
+        let paid = max(zodiactionMeter - GameRules.stubbornStatueCost, 0)
+        if paid != zodiactionMeter {
+            events.append(.zodiactionMeterChanged(to: paid))
+        }
+        return events
+    }
+
     #if DEBUG
     /// Rolls `count` coins through the **real** draw and tallies what came up.
     ///
@@ -4501,18 +4846,38 @@ struct GameEngine {
         case let .tilesChanged(plane, changes):
             for (point, health) in changes {
                 self[plane][point].health = health
+                self[plane][point] = self[plane][point].settled()
             }
 
         case let .tilesWorn(plane, changes, _), let .tilesWornOnExit(plane, changes, _):
             for (point, health) in changes {
                 self[plane][point].health = health
+                self[plane][point] = self[plane][point].settled()
             }
 
         case let .tileDamaged(plane, point, health):
             self[plane][point].health = health
+            self[plane][point] = self[plane][point].settled()
 
         case let .tileHealed(plane, point, health):
             self[plane][point].health = health
+            self[plane][point] = self[plane][point].settled()
+
+        case let .tileCoverChanged(plane, point, cover, _):
+            guard self[plane].contains(point) else { break }
+            self[plane][point].cover = cover
+
+        case .groundWaveBegan:
+            break
+
+        case let .groundSwept(plane, health, cover):
+            for (point, value) in health where self[plane].contains(point) {
+                self[plane][point].health = value
+                self[plane][point] = self[plane][point].settled()
+            }
+            for (point, value) in cover where self[plane].contains(point) {
+                self[plane][point].cover = value
+            }
 
         case let .pieceMoved(_, to, fromPlane, toPlane, type, _, _):
             // A move that crossed the ground leaves the retinue strung out
@@ -4683,6 +5048,7 @@ struct GameEngine {
         case let .planeRestored(plane):
             for point in self[plane].allPoints where self[plane][point].kind == .normal {
                 self[plane][point].health = .healthy
+                self[plane][point] = self[plane][point].settled()
             }
             // The plane has re-formed, so nothing is standing proud of it any
             // more. Without this a pop-up left behind on Astra was still there
@@ -4783,9 +5149,18 @@ struct GameEngine {
             sparkles = set
             pendingPickup = true
             // Only the hunt's own leftovers. A boon is somewhere an ability put
-            // it and stays there across any number of hunts.
+            // it and stays there across any number of hunts — and so is a coin
+            // that stands outside the hunt, which is why this asks the same
+            // question `revealedPentacles` does rather than its own.
+            //
+            // This wipe is also the Reboot's whole flavour. Virgo says *I want
+            // a Pentacle, near me, now*: whatever phase was in progress ends,
+            // wherever its coin was going stops mattering, and eight squares
+            // light up around her. What it must not do is sweep away the coin
+            // the *last* ring left standing.
             revealedPickups.removeAll {
-                PickupCatalog.effect(for: $0.id).pickupClass == .pentacle
+                !$0.standsOutsideTheHunt
+                    && PickupCatalog.effect(for: $0.id).pickupClass == .pentacle
             }
             // A raised square with no coin on it is stampable, not permanent.
             raisedTiles = []

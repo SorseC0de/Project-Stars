@@ -52,7 +52,14 @@ struct VaultBadgeView: View {
             Haptics.longer()
             session.vaultForward()
         } label: {
-            Image("Signs/VulcanVault")
+            // **The passive's own icon, styled as a button.**
+            //
+            // There were two drawings of the same ability — one for this badge
+            // and one for the row of passives — which meant the vault looked
+            // like two different things depending on where you saw it. The row
+            // is the set that has to stay consistent with itself, so the badge
+            // takes its icon rather than the other way round.
+            Image("Icons/sagittarius_vulcan_vault")
                 .resizable()
                 .renderingMode(.template)
                 .aspectRatio(contentMode: .fit)

@@ -161,10 +161,8 @@ struct SignState: Equatable {
     /// Tiles that have taken a partial footfall but not yet a full stage of
     /// wear.
     ///
-    /// Taurus' Hasty Hooves needs two steps on Terra to advance one stage; this
+    /// Taurus' Hydroponic Hooves grows the cover that takes the first hit; this
     /// is where the first of the two is remembered. Keyed by plane so the two
-    /// boards cannot bleed into each other.
-    var partialWear: [Plane: Set<GridPoint>] = [:]
 
     /// Free-form per-sign counters for anything the named fields do not cover.
     var counters: [String: Int] = [:]
@@ -369,7 +367,7 @@ struct SignState: Equatable {
     /// A named field rather than a `buffs` entry because a buff is only a
     /// number of moves — this also has to remember *where* and *on which
     /// plane*, and the engine has to be able to ask about it on every single
-    /// tile change. Same reasoning as `partialWear`.
+    /// tile change.
     var sanctuary: Sanctuary?
 
     /// Ground that refuses to get any worse.
@@ -446,10 +444,6 @@ struct SignState: Equatable {
         remaining(key) > 0
     }
 
-    /// True when a tile already carries a partial footfall.
-    func hasPartialWear(at point: GridPoint, on plane: Plane) -> Bool {
-        partialWear[plane]?.contains(point) ?? false
-    }
 
     // MARK: - Mutation
     //
@@ -466,16 +460,8 @@ struct SignState: Equatable {
         buffs[key] = max(moves, 0)
     }
 
-    /// Records a partial footfall on a tile.
-    mutating func addPartialWear(at point: GridPoint, on plane: Plane) {
-        partialWear[plane, default: []].insert(point)
-    }
 
     /// Clears a tile's partial footfall, e.g. because it has now taken a full
-    /// stage, or because the tile was repaired out from under the memory.
-    mutating func clearPartialWear(at point: GridPoint, on plane: Plane) {
-        partialWear[plane]?.remove(point)
-    }
 
     /// Folds a committed move into the streak counter.
     mutating func recordMove(direction: SwipeDirection) {

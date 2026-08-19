@@ -37,11 +37,32 @@ struct RootView: View {
         #endif
     }()
 
+    /// The build whose notes this device has already read.
+    ///
+    /// Stored rather than derived: the question is not "is this a new build"
+    /// but "has *this player* seen this build's notes", and only the device can
+    /// answer that. A fresh install shows them once, which is right — a tester
+    /// coming in cold still wants to know what the build is about.
+    @AppStorage("changelogSeenBuild") private var seenBuild = ""
+
     var body: some View {
         content
             // Hidden on every screen, not just in-game, so the transition
             // between them does not shift the layout.
             .statusBarHidden()
+            .overlay {
+                // Over everything, the picker included: the notes are about the
+                // build rather than about the run, so they come before any
+                // choice the player makes.
+                if seenBuild != Changelog.current.build {
+                    ChangelogView(entry: Changelog.current) {
+                        withAnimation(.easeOut(duration: 0.2)) {
+                            seenBuild = Changelog.current.build
+                        }
+                    }
+                    .transition(.opacity)
+                }
+            }
     }
 
     @ViewBuilder

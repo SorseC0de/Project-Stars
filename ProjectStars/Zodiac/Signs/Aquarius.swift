@@ -25,6 +25,7 @@ extension ZodiacCatalog {
         passives: [
             AquariusWackyWhirlwind(),
             AquariusCrazyCurrent(),
+            AquariusEolianEjection(),
         ],
         zodiaction: AquariusWaterbearerWipeout(),
         constellation: ZodiacCatalog.aquariusConstellation
@@ -56,6 +57,7 @@ extension ZodiacCatalog {
 /// you are standing on is always the one about to break. Aquarius cannot loiter.
 struct AquariusWackyWhirlwind: ZodiacPassive {
 
+    let icon: String? = "aquarius_wacky"
     let displayName = "Wacky Whirlwind"
     let summary = "Astra & Terra: everything about the waterbearer runs backwards."
 
@@ -135,6 +137,7 @@ extension MovementPattern {
 /// move has nothing to cross.
 struct AquariusCrazyCurrent: ZodiacPassive {
 
+    let icon: String? = "aquarius_current"
     let displayName = "Crazy Current"
     let summary = "Astra & Terra: holes cannot hold you, and what is past the edge of the plane is not nothing."
 
@@ -156,6 +159,50 @@ struct AquariusCrazyCurrent: ZodiacPassive {
     /// So what counts as death stays fixed, the same way the reversed controls
     /// do, and only the hole rule moves. One thing to learn instead of two.
     func mayLeaveTheBoard(context: PassiveContext) -> Bool { true }
+
+    /// **The current takes hold of a coin the moment it appears.**
+    ///
+    /// It is dragged one square toward her in the same turn it surfaces, and if
+    /// that puts it under her feet she has sniped it. Folded in here rather than
+    /// given a passive of its own because it is the same sentence Crazy Current
+    /// already says — *the wind moves what is near her* — pointed at coins
+    /// instead of at holes.
+    /// No storm, no current. At phase zero there is nothing blowing, so a coin
+    /// surfacing next to her is just a coin surfacing.
+    func drawsPickupsIn(context: PassiveContext) -> Bool {
+        context.zodiactionMeter < context.zodiactionMeterMax
+    }
+
+    /// **Arriving on Terra costs her the storm.**
+    ///
+    /// The wind is spent bracing for the ground — the meter goes to max, which
+    /// for the sign that fires at empty means *nothing left* and a full climb
+    /// back to firing. See `AquariusWaterbearerWipeout.firesAtEmpty`.
+    ///
+    /// It is a nerf that pays for itself: with no storm she is not floating,
+    /// and a piece that is not floating cannot take a second hole on the way
+    /// down. Landing hard is what stops the fall from continuing.
+    ///
+    /// Any arrival, not only a drop — riding the island down is still arriving,
+    /// and a rule that asked *how* she got here would be a rule the player has
+    /// to learn twice.
+    func amend(_ events: [GameEvent], context: PassiveContext) -> [GameEvent] {
+        guard context.zodiactionMeter != context.zodiactionMeterMax else { return [] }
+
+        let landed = events.contains { event in
+            switch event {
+            case let .pieceFell(_, to, _):
+                return to == .terra
+            case let .pieceMoved(_, _, fromPlane, toPlane, _, _, _):
+                return toPlane == .terra && fromPlane != .terra
+            default:
+                return false
+            }
+        }
+        guard landed else { return [] }
+
+        return [.zodiactionMeterChanged(to: context.zodiactionMeterMax)]
+    }
 
     func walksOnAir(during option: MovementPattern.MoveOption, context: PassiveContext) -> Bool {
         option.distance > 1
@@ -295,3 +342,89 @@ struct AquariusWaterbearerWipeout: Zodiaction {
         return events
     }
 }
+// MARK: - Passive 3: Eolian Ejection
+
+/// Dying on Terra with a full storm throws her back up to Astra instead.
+///
+/// The storm is already wound to firing when the ground gives out, and rather
+/// than spend it on the board she spends it on herself: the transformation goes
+/// off downward, the wind takes her up through the cloud, and she comes out of
+/// it on the plane she belongs to.
+///
+/// ## Why an empty meter is the full one
+///
+/// Hers counts down — see `AquariusWaterbearerWipeout.firesAtEmpty`. Zero is a
+/// storm at its largest and one press away from going off, which is exactly the
+/// state that has something to spend. The save costs her all of it: the meter
+/// goes to max, which for her is *nothing*, and the animation of the storm
+/// coming apart is the transformation she already plays whenever a phase
+/// changes. Nothing new is drawn for this.
+///
+/// ## Where she comes out
+///
+/// One square along her heading, like Pisces surfacing — and the cloud she
+/// breaks through is left as a hole, for the same reason his is: something came
+/// up through it.
+struct AquariusEolianEjection: ZodiacPassive {
+
+    let icon: String? = "aquarius_ejection"
+    let displayName = "Eolian Ejection"
+
+    /// Only while it can actually fire — see `ZodiacPassive.icon(in:)`.
+    func icon(in context: PassiveContext) -> String? {
+        context.zodiactionMeter >= context.zodiactionMeterMax ? icon : nil
+    }
+    let summary = "Terra: falling with a full storm spends it to throw you back up to Astra."
+
+    func survivesFatalFall(
+        at point: GridPoint,
+        from plane: Plane,
+        context: PassiveContext
+    ) -> [GameEvent]? {
+        // Terra only: falling off Astra lands you on Terra, which is a fall
+        // rather than an ending, and there is nothing above Astra to eject to.
+        guard plane == .terra else { return nil }
+
+        // **Phase zero, and only phase zero.**
+        //
+        // The wind she leaves on is the *transformation* — the burst of
+        // becoming the storm — so she has to not be one yet. Stored max is a
+        // meter with nothing in it for the sign that fires at empty, which is
+        // exactly the state she lands on Terra in. See `AquariusCrazyCurrent`.
+        guard context.zodiactionMeter >= context.zodiactionMeterMax else { return nil }
+
+        // Away from the way she came, and back the other way if that is off the
+        // board — the same rule the fish surfaces by.
+        var heading = context.facing
+        if !context.currentBoard.contains(point.offset(by: heading.unitOffset)) {
+            heading = context.facing.opposite
+        }
+        let surface = point.offset(by: heading.unitOffset)
+        guard context.currentBoard.contains(surface) else { return nil }
+
+        var events: [GameEvent] = []
+        if heading != context.facing { events.append(.pieceTurned(to: heading)) }
+
+        // She becomes the storm on the way out — the meter goes to zero, which
+        // is a full one for her, and the phases arriving all at once *is* the
+        // transformation. Nothing else is drawn for it.
+        events.append(.zodiactionMeterChanged(to: 0))
+
+        // Out through the cloud, which does not survive being come through.
+        if surface != GameRules.nexysPoint {
+            events.append(.tileDamaged(plane: .astra, point: surface, to: .hole))
+        }
+
+        events.append(
+            .pieceMoved(
+                from: point,
+                to: surface,
+                fromPlane: .terra,
+                toPlane: .astra,
+                type: .rise
+            )
+        )
+        return events
+    }
+}
+

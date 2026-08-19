@@ -492,7 +492,7 @@ struct ControlPanelView: View {
                             ForEach(
                                 Array(
                                     session.zodiac.passives
-                                        .compactMap { $0.icon(on: session.visiblePlane) }
+                                        .compactMap { $0.icon(in: session.engine.passiveSnapshot) }
                                         .enumerated()
                                 ),
                                 id: \.offset
@@ -903,7 +903,7 @@ private struct PanelFrontView: View {
     /// the only thing this button does is call it back. A bow says that in less
     /// space than a sentence would.
     private var recallLabel: some View {
-        Image("saggitarius_zaction")
+        Image("sagittarius_zaction")
             .renderingMode(.template)
             .resizable()
             .scaledToFit()

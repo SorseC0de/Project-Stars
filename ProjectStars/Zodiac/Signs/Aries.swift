@@ -25,6 +25,7 @@ extension ZodiacCatalog {
         passives: [
             AriesSearingStride(),
             AriesSixSinge(),
+            AriesReboundingRam(),
         ],
         zodiaction: AriesBrazenBlaze(),
         constellation: ZodiacCatalog.ariesConstellation
@@ -65,8 +66,67 @@ struct AriesSearingStride: ZodiacPassive {
     /// Counts the move being priced, so `3` is "two repeats after the first".
     static let requiredStreak = 3
 
+    /// The visit's one free tile, spent on the first move made on a plane.
+    static let freshTileKey = "aries.freshTile"
+
     let displayName = "Searing Stride"
-    let summary = "Astra & Terra: +1 ZC for each consecutive move in the same direction after the second."
+    let icon: String? = "aries_stride"
+    let summary = "Astra & Terra: +1 ZC for each consecutive move in the same direction after the second. The first tile you touch on a plane takes no damage, and Pentacles you charge through break for +2 ZC."
+
+    /// **A coin in the way of a charging ram is debris.**
+    ///
+    /// Anything that moves him across the ground — his own Blaze, the Brook,
+    /// a current — breaks what it crosses rather than pocketing it, and pays
+    /// two charge for the wreckage. That is a genuine trade rather than a
+    /// straight loss: he gives up an unknown coin and gets a known step toward
+    /// the next Zodiaction, which for the sign with the easiest meter in the
+    /// game is the thing he was going to do with it anyway.
+    ///
+    /// It also spares him the specific indignity of an automatic movement
+    /// firing the instant he has finished automatically moving across the whole
+    /// board.
+    ///
+    /// Filed with the Stride rather than with the Ram because it is a rule
+    /// about **travelling**, and the Ram is a rule about stopping.
+    func tramplesPickups(context: PassiveContext) -> Bool { true }
+
+
+    /// **The first tile of a visit is free.**
+    ///
+    /// Aries commits to a direction harder than anyone — both his passives pay
+    /// for an unbroken line and his Zodiaction ends only at a wall or a hole —
+    /// and the board he is committing across is usually one he wrecked himself.
+    /// One tile of grace per plane is the smallest possible cushion for that,
+    /// and it lands where it is most useful: the move you make before you know
+    /// what the plane looks like.
+    ///
+    /// **Not falls.** Arriving from the plane above is not a step, and a sign
+    /// that spares the ground he walks on has not agreed to spare the ground he
+    /// lands on — see `afterFalling`. It is also why the flag can be spent on
+    /// the first *move*: a fall neither uses it nor wastes it, so dropping onto
+    /// Terra still leaves the grace intact for the step that follows.
+    func causesWear(
+        on tile: Tile,
+        at point: GridPoint,
+        plane: Plane,
+        afterFalling: Bool,
+        context: PassiveContext
+    ) -> Bool {
+        guard !afterFalling else { return true }
+        return context.signState.planeFlags.contains(Self.freshTileKey)
+    }
+
+    /// Spends the visit's free tile on the first move made here.
+    func stateAfterMove(
+        option: MovementPattern.MoveOption,
+        direction: SwipeDirection,
+        context: PassiveContext
+    ) -> SignState? {
+        guard !context.signState.planeFlags.contains(Self.freshTileKey) else { return nil }
+        var state = context.signState
+        state.planeFlags.insert(Self.freshTileKey)
+        return state
+    }
 
     func meterBonus(from move: MoveSummary, context: PassiveContext) -> Int {
         // The charge itself pays nothing. Brazen Blaze crosses several squares
@@ -77,6 +137,44 @@ struct AriesSearingStride: ZodiacPassive {
         // `signState` is updated before charging, so the streak already counts
         // the move being priced. Length 1 is a fresh direction and pays nothing.
         return context.signState.streakLength >= Self.requiredStreak ? 1 : 0
+    }
+}
+
+// MARK: - Passive: Rebounding Ram
+
+/// Bouncing off a wall turns the ram around.
+///
+/// **Tied to the bonk, not to standing near a wall.** It fires when a move is
+/// actually attempted and refused — the balk animation every sign plays and no
+/// sign has ever done anything with. So it triggers off whatever tried to move
+/// him: the player's own swipe, a current, the Brook, the end of his own
+/// charge. Standing beside the edge does nothing at all, because nothing has
+/// happened yet.
+///
+/// ## Why turning is the reward
+///
+/// Both of Aries' other passives pay for an unbroken line, and running out of
+/// board is how every line ends. Without this, the turn costs him a move *and*
+/// resets the streak he was building — the sign that commits hardest to a
+/// direction is punished worst for reaching the end of one. Now the wall sends
+/// him back down the lane already facing the right way.
+///
+/// The ram hits the thing, and the thing hits back. That is the entire animal.
+struct AriesReboundingRam: ZodiacPassive {
+
+    let displayName = "Rebounding Ram"
+    let icon: String? = "aries_rebounding"
+    let summary = "Astra & Terra: bouncing off a wall turns you to face back the way you came."
+
+    /// Answers the balk. See `GameEngine.plan(_:reach:)`, which hands a refused
+    /// move to the passives exactly as it hands them a completed one.
+    func amend(_ events: [GameEvent], context: PassiveContext) -> [GameEvent] {
+        for event in events {
+            if case let .moveBlocked(direction) = event {
+                return [.pieceTurned(to: direction.opposite)]
+            }
+        }
+        return []
     }
 }
 
@@ -102,6 +200,7 @@ struct AriesSixSinge: ZodiacPassive {
     /// Key this sign owns in `SignState.planeFlags`.
     static let usedThisVisitKey = "aries.sixSinge"
 
+    let icon: String? = "aries_singe"
     let displayName = "Six Singe"
     let summary = "Astra & Terra: crossing the board in a straight line tops your meter up to full. Once per visit to a plane."
 

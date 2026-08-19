@@ -188,6 +188,7 @@ struct ScorpioSamsaricShed: ZodiacPassive {
     static let usedKey = "scorpio.samsaricShed.used"
     static let ascentLockedKey = "scorpio.samsaricShed.ascentLocked"
 
+    let icon: String? = "scorpio_shed"
     let displayName = "Samsaric Shed"
     let summary = "Terra: once per run, dying puts you on the Nexys wherever it is — but you can never ascend again."
 

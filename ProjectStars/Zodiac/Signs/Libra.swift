@@ -60,6 +60,7 @@ extension ZodiacCatalog {
 /// travel.
 struct LibraEquitableImpact: ZodiacPassive {
 
+    let icon: String? = "libra_impact"
     let displayName = "Equitable Impact"
     let summary = "Astra & Terra: damage the two tiles flanking your facing instead of the one you land on."
 

@@ -62,6 +62,7 @@ extension ZodiacCatalog {
 /// took it, which `MoveSummary.collectedOnRevealTile` isolates.
 struct SagittariusFortunateFind: ZodiacPassive {
 
+    let icon: String? = "sagittarius_fortune"
     let displayName = "Fortunate Find"
     let summary = "Astra & Terra: a sparkle phase sometimes reveals a second Pentacle as well — take either, and the other shatters."
 
@@ -94,7 +95,7 @@ struct SagittariusVulcanVault: ZodiacPassive {
     static let vaultingKey = "sagittarius.vaulting"
 
     let displayName = "Vulcan Vault"
-    let icon: String? = "saggitarius_vulcan_vault"
+    let icon: String? = "sagittarius_vulcan_vault"
     let summary = "Astra & Terra: leap two squares in any direction, wearing the tile you push off from. Not twice in a row, and a landing sometimes spares a badly cracked tile."
 
     /// The archer draws before it looses.
@@ -186,7 +187,7 @@ struct SagittariusLuckyLanding: ZodiacPassive {
     static let chance = 0.12
 
     let displayName = "Lucky Landing"
-    let icon: String? = "saggitarius_lucky"
+    let icon: String? = "sagittarius_lucky"
 
     /// Astra only. It is a chance taken on the way *down*, so on Terra it is
     /// describing something that cannot happen from here.

@@ -27,8 +27,10 @@ struct PlaneBadgeView: View {
             .foregroundStyle(Palette.textPrimary)
             .padding(.horizontal, 10)
             .padding(.vertical, 5)
+            // Fill and nothing else. The outline was a hairline drawn at screen
+            // resolution over art that is drawn at whole pixels, so it read as
+            // a different material from everything else on the board.
             .background(Capsule().fill(Palette.planeTint(plane)))
-            .overlay(Capsule().strokeBorder(Palette.outline, lineWidth: 1))
             .animation(.easeInOut(duration: 0.25), value: plane)
             .allowsHitTesting(false)
     }

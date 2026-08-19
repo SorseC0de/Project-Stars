@@ -78,6 +78,25 @@ struct GameScreen: View {
                     .padding(10)
                     .frame(width: side, height: side, alignment: .topTrailing)
 
+                    // How far the run has got, opposite the plane badge.
+                    //
+                    // The two top corners are the run's two facts: where you
+                    // are, and how long you have lasted. Nothing else competes
+                    // for that band of sky.
+                    // **A step down, not a fraction.**
+                    //
+                    // The counter should read smaller than the board it sits
+                    // over, and the way to shrink pixel art is to draw it at
+                    // the next whole scale — 0.75 of three is 2.25, which puts
+                    // some art pixels at two screen pixels and some at three.
+                    // One scale down is the same intent, honestly expressed.
+                    TurnCounterView(
+                        turn: session.engine.moveCount,
+                        scale: max(PixelArtMetrics(availableSide: side).scale - 1, 1)
+                    )
+                    .padding(10)
+                    .frame(width: side, height: side, alignment: .topLeading)
+
                     // What you just opened, on every pickup rather than only the
                     // first. Pinned low so it never covers the piece.
                     //
@@ -150,18 +169,22 @@ struct GameScreen: View {
             #if DEBUG
             // Over the panel rather than the board: it is a bench control, and
             // the thing it is adjusting is what must stay unobstructed.
-            RiftPreviewControls()
-                .padding(.leading, 8)
-                .padding(.bottom, 8)
+            VStack(alignment: .leading, spacing: 6) {
+                TurnCounterTunerControls()
+                RiftPreviewControls()
+            }
+            .padding(.leading, 8)
+            .padding(.bottom, 8)
             #endif
         }
-        .overlay(alignment: .topLeading) {
+        .overlay(alignment: .top) {
             #if DEBUG
             // Over everything, including the pause and game-over sheets: the
             // frames that matter most are the ones being dropped while
             // something is covering the board.
+            //
+            // Centred, because the top left is the turn counter's corner now.
             FrameRateView()
-                .padding(.leading, 8)
                 .padding(.top, 8)
             #endif
         }

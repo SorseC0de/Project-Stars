@@ -37,6 +37,22 @@ struct GridPoint: Hashable, Codable, CustomStringConvertible {
     ///
     /// Not bounds-checked — callers filter against the board, because "the 3x3
     /// around you" legitimately runs off the edge near a wall.
+    /// The square block of `radius` cells around this point.
+    ///
+    /// `radius: 1` is the nine of `surrounding(includingSelf: true)`; `2` is
+    /// twenty-five — the 3x3 and the ring around it, which is what Taurus'
+    /// Flop reaches when it has fallen a whole plane to arrive.
+    func surrounding(radius: Int, includingSelf: Bool = false) -> [GridPoint] {
+        var points: [GridPoint] = []
+        for dy in -radius...radius {
+            for dx in -radius...radius {
+                if dx == 0, dy == 0, !includingSelf { continue }
+                points.append(GridPoint(x + dx, y + dy))
+            }
+        }
+        return points
+    }
+
     func surrounding(includingSelf: Bool = false) -> [GridPoint] {
         var points: [GridPoint] = []
         for dy in -1...1 {

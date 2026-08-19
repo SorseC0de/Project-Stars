@@ -488,10 +488,8 @@ struct AstralBrookEffect: PickupEffect {
         events.append(.moveBlocked(direction: heading))
 
         // The two ends. `from` is where the water finally set the piece down.
-        for square in [origin, from] where board[square].canBeWorn {
-            events.append(
-                .tileDamaged(plane: plane, point: square, to: board[square].health.damaged)
-            )
+        for square in [origin, from] {
+            events += board.wearEvents(at: square, on: plane, cause: .water)
         }
 
         return events
@@ -758,10 +756,13 @@ struct TrivialTremorEffect: PickupEffect {
         // shield that nullifies *the next damage* has to know what "next" is —
         // three events would let a Nexyial Bastion eat a third of a Shakedown
         // and pass the rest through, which is not what absorbing a hit means.
-        let before = context.currentBoard[target].health
-        let health = before.worn(by: max(points, 1))
-        guard health != before else { return [] }
-        return [.tileDamaged(plane: context.plane, point: target, to: health)]
+        // Through the board's own wear, which is where cover is answered — see
+        // `Board.wearEvents`. It still arrives as one hit: cover coming off and
+        // the ground being marked are two events describing one blow, and
+        // anything counting "the next damage" sees the pair together.
+        return context.currentBoard.wearEvents(
+            at: target, on: context.plane, stages: max(points, 1)
+        )
     }
 }
 
@@ -825,29 +826,39 @@ struct AstralBlazeEffect: PickupEffect {
         choice: PickupChoiceResult?,
         generator: inout SeededRandom
     ) -> [GameEvent] {
-        // The blaze goes up all at once, so the whole ring travels as one
-        // `tilesChanged` rather than nine separate hits.
-        var changes: [GridPoint: TileHealth] = [:]
+        // **Fire, so it burns the grass off rather than being slowed by it.**
+        //
+        // Everything goes through `Board.wearEvents`, which is the one place
+        // that knows cover takes a hit before the ground does. The Blaze is the
+        // exception it also knows about: a square with a flame drawn on it
+        // loses whatever was growing there *and* takes the damage in full.
+        var health: [GridPoint: TileHealth] = [:]
+        var cover: [GridPoint: GroundCover?] = [:]
         var charge = 0
 
         for point in context.piecePoint.surrounding(includingSelf: false) {
             guard context.currentBoard.contains(point) else { continue }
 
-            let tile = context.currentBoard[point]
-            guard tile.canBeWorn else { continue }
+            // One flash, so one event. `wearOutcome` answers what would happen
+            // without committing to how it is announced, which is what lets the
+            // whole ring arrive together whether or not grass was in the way.
+            let outcome = context.currentBoard.wearOutcome(
+                at: point, stages: 1, cause: .brazenBlaze, seed: point.x &* 31 &+ point.y
+            )
+            if case let .became(left) = outcome.cover { cover[point] = left }
+            guard let damage = outcome.health else { continue }
+            health[point] = damage
 
-            let health = tile.health.damaged
-            changes[point] = health
-
-            // Breaking a tile outright is worth double.
-            charge += health.isHole
+            // Paid on what the fire actually did: a square that only lost its
+            // cover has not been damaged and does not pay.
+            charge += damage.isHole
                 ? GameRules.astralBlazeChargePerBreak
                 : GameRules.astralBlazeChargePerDamage
         }
 
         var events: [GameEvent] = []
-        if !changes.isEmpty {
-            events.append(.tilesChanged(plane: context.plane, changes: changes))
+        if !health.isEmpty || !cover.isEmpty {
+            events.append(.groundSwept(plane: context.plane, health: health, cover: cover))
         }
 
         let meter = context.meter(afterGaining: charge)
@@ -878,7 +889,7 @@ struct AstralBlossomEffect: PickupEffect {
     /// down around them.
     let chance = 5
     let displayName = "Astral Essence ✧ Blossom"
-    let summary = "A ring of Astral energy blooms in a ring around you, fully healing all damaged tiles except holes."
+    let summary = "A ring of Astral energy blooms around you. On Astra it fully heals the ring; on Terra it mends one stage and leaves flowers, even on holes."
     let glyph = "✽"
     let icon: String? = "Element_Earth"
 
@@ -889,23 +900,69 @@ struct AstralBlossomEffect: PickupEffect {
     ) -> [GameEvent] {
         // Everything blooms together — one `tilesChanged`, not a ripple.
         var changes: [GridPoint: TileHealth] = [:]
+        var planted: [GameEvent] = []
+
+        // **The same coin means different things on the two planes.**
+        //
+        // On Astra it heals the ring outright, which is what it has always
+        // done. On Terra it mends a single stage and leaves **flowers** over
+        // what it touched — less repair, but the cover is worth a stage of its
+        // own the next time something stands there, and it reaches ground the
+        // full heal never could: a hole comes back as crumbling with flowers
+        // growing out of it.
+        //
+        // The plane split is the point rather than a balance patch. Terra is
+        // where things grow.
+        let onEarth = context.plane == .terra
 
         for point in context.piecePoint.surrounding(includingSelf: false) {
             guard context.currentBoard.contains(point) else { continue }
 
             let tile = context.currentBoard[point]
-            // Holes are past saving: the blossom mends damage, it does not
-            // rebuild what has already fallen through.
-            guard tile.canBeRepaired, !tile.health.isHole else { continue }
 
-            // Fully, not by a stage. The Blaze it mirrors takes a tile most of
-            // the way to a hole in one go, and a repair worth crossing the board
-            // for has to answer that rather than nudge it.
-            changes[point] = .healthy
+            if onEarth {
+                // **Every square in the ring, healthy or not.**
+                //
+                // The guard here used to be `canBeRepaired`, which is false for
+                // healthy ground — so a ring that was in good shape got nothing
+                // at all and the coin looked like it had fired backwards. The
+                // heal is for damage; the *flowers* are for everyone, and on
+                // Terra the flowers are the point.
+                //
+                // A hole is not past saving either: the bloom reaches into it
+                // and brings the ground back a stage, which is the one thing in
+                // the game besides a Nexys that undoes one.
+                guard tile.kind == .normal else { continue }
+
+                let mended = tile.health.healed
+                if mended != tile.health { changes[point] = mended }
+
+                // Flowers only where there is ground to hold them. A hole that
+                // could not be mended stays a hole, and drawing a meadow over
+                // one is how you walk onto a square that is not there.
+                guard !mended.isHole else { continue }
+                planted.append(
+                    .tileCoverChanged(plane: context.plane, point: point, to: .flowers)
+                )
+            } else {
+                // Holes are past saving up here: the blossom mends damage, it
+                // does not rebuild what has already fallen through.
+                guard tile.canBeRepaired, !tile.health.isHole else { continue }
+
+                // Fully, not by a stage. The Blaze it mirrors takes a tile most
+                // of the way to a hole in one go, and a repair worth crossing
+                // the board for has to answer that rather than nudge it.
+                changes[point] = .healthy
+            }
         }
 
-        guard !changes.isEmpty else { return [] }
-        return [.tilesChanged(plane: context.plane, changes: changes)]
+        guard !changes.isEmpty || !planted.isEmpty else { return [] }
+
+        var events: [GameEvent] = []
+        if !changes.isEmpty {
+            events.append(.tilesChanged(plane: context.plane, changes: changes))
+        }
+        return events + planted
     }
 }
 
@@ -995,8 +1052,9 @@ struct NexysShiftEffect: PickupEffect {
     /// different plane" asks the player to work out which half applies; the
     /// board already knows.
     func summary(in context: PickupSummaryContext) -> String {
+        // Standing on it, the third case: it goes rather than you.
         context.nexysPlane == context.plane
-            ? "Return to the Nexys."
+            ? "Return to the Nexys, or dismiss it if you are already on it."
             : "Summon the Nexys to this plane."
     }
     let glyph = "◈"
@@ -1013,8 +1071,18 @@ struct NexysShiftEffect: PickupEffect {
             return [.nexysMoved(to: context.plane, carryingPiece: false)]
         }
 
-        // Island here: go to it.
-        guard context.piecePoint != GameRules.nexysPoint else { return [] }
+        // **Standing on it: send it away.**
+        //
+        // The Node is the Shift, and the Shift's other half is dismissal — so
+        // this case did nothing at all, which is the one outcome a Pentacle
+        // must never have. It leaves the same way the button sends it, and the
+        // ground you are left standing over is your problem, exactly as it is
+        // when you dismiss it by hand.
+        guard context.piecePoint != GameRules.nexysPoint else {
+            return [.nexysMoved(to: context.plane.opposite, carryingPiece: false)]
+        }
+
+        // Island here, and you are elsewhere on this plane: go to it.
 
         return [
             .pieceMoved(
@@ -1483,6 +1551,59 @@ enum PickupCatalog {
     /// The effect for an id. Traps on an unregistered id, which can only happen
     /// if a `PickupID` case was added without its implementation.
     /// The four Essences that can turn out to be the fifth.
+    /// Which Essence an elemental result turns out to be, and whether it turns
+    /// out to be the Bolt instead.
+    ///
+    /// ## Why the four are re-rolled after being drawn
+    ///
+    /// Because the table answers *how often an Essence comes up* and this
+    /// answers *which one*, and only the second question knows about the sign
+    /// holding the controls. Authoring four separate chances made them one
+    /// question, so leaning the wheel toward a piece's own element would have
+    /// meant rewriting four numbers every time the group's share moved.
+    ///
+    /// The group keeps whatever the four are authored at between them. Inside
+    /// it: **thirty percent to your own element**, the remaining three sharing
+    /// what is left, and the Bolt taking its five off the top — which is what
+    /// keeps the fifth Essence a share of the other four's share rather than a
+    /// number of its own. See `GameRules.astralBoltChance`.
+    ///
+    /// A piece with no element, or one whose element has no Essence, gets an
+    /// even wheel — the skew is an affinity, and nothing to be affine to means
+    /// no skew rather than a default favourite.
+    private static func elemental(
+        affinity: ZodiacElement?,
+        using generator: inout SeededRandom
+    ) -> PickupID {
+        let roll = Double(generator.next() % 10_000) / 10_000
+        if roll < GameRules.astralBoltChance { return .astralBolt }
+
+        // Ordered, so a seeded run replays identically.
+        let wheel = essences.sorted { $0.rawValue < $1.rawValue }
+        let favoured = affinity.flatMap { element in
+            wheel.first { effect(for: $0).element == element }
+        }
+
+        guard let favoured else {
+            return wheel.randomElement(using: &generator) ?? .astralBrook
+        }
+
+        // Shares of what is left once the Bolt has taken its cut.
+        let remaining = 1 - GameRules.astralBoltChance
+        let mine = remaining * GameRules.elementAffinityShare
+        let theirs = (remaining - mine) / Double(wheel.count - 1)
+
+        var pick = roll - GameRules.astralBoltChance
+        if pick < mine { return favoured }
+
+        pick -= mine
+        for essence in wheel where essence != favoured {
+            if pick < theirs { return essence }
+            pick -= theirs
+        }
+        return favoured
+    }
+
     static let essences: Set<PickupID> = [
         .astralBrook, .astralBreeze, .astralBlaze, .astralBlossom,
     ]
@@ -1510,6 +1631,7 @@ enum PickupCatalog {
     ///   `ZodiacPassive.pickupWeight`. Defaults to leaving every weight alone.
     static func rollPickup(
         weighting: (PickupID, Int) -> Int = { _, chance in chance },
+        affinity: ZodiacElement? = nil,
         using generator: inout SeededRandom
     ) -> PickupID? {
 
@@ -1581,8 +1703,7 @@ enum PickupCatalog {
         // most ordinary, and that relationship should not need maintaining in
         // two places.
         if Self.essences.contains(drawn) {
-            let roll = Double(generator.next() % 10_000) / 10_000
-            if roll < GameRules.astralBoltChance { return .astralBolt }
+            return elemental(affinity: affinity, using: &generator)
         }
 
         return drawn

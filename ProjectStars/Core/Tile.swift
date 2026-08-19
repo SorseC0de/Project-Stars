@@ -51,10 +51,119 @@ enum TileKind: String, CaseIterable, Codable, Hashable {
 /// Deliberately thin: a tile knows its own kind and wear and nothing else.
 /// Sparkles, the pickup, and the piece are tracked separately by `GameEngine`
 /// so a tile never has to be kept in sync with them.
+/// What is growing over a tile.
+///
+/// An **overlay**, not a shield. It takes exactly one stage of wear and is gone
+/// — so a blow that would deal two still leaves the ground one worse off. That
+/// is the whole difference between this and Cancer's Bastion, which negates.
+///
+/// Terra only: it is ground cover, and Astra is cloud.
+///
+/// The three cases are one rule and three drawings. Grass and its second
+/// variant are dealt 2:1 purely so a field of it does not tile visibly;
+/// flowers behave identically and exist because Taurus' Flop and the Bloom
+/// should leave something prettier than a lawn behind.
+enum GroundCover: String, Hashable, Codable, CaseIterable {
+    case grass
+    case tuft
+    case flowers
+
+    /// How much cover this is: bare ground is nothing, grass is one, flowers
+    /// are two.
+    ///
+    /// The number exists so "did this square get better or worse" can be asked
+    /// without a case list at every site that wants to know — the growing
+    /// effects play on an increase and stay quiet on a step down.
+    static func level(of cover: GroundCover?) -> Int {
+        switch cover {
+        case .none: 0
+        case .grass, .tuft: 1
+        case .flowers: 2
+        }
+    }
+
+    /// What is left after this takes one hit. `nil` is bare ground.
+    ///
+    /// **Two levels, one drawing each way down.** Flowers step down to grass
+    /// and grass steps down to nothing, so a flowered square is two free hits
+    /// and a grassed one is a single. Neither absorbs more than one stage at a
+    /// time: a blow of three takes flowers to grass to bare and still marks the
+    /// ground, which keeps a multi-stage hit legible as a sequence rather than
+    /// as arithmetic.
+    func worn(at point: GridPoint, seed: Int) -> GroundCover? {
+        switch self {
+        case .flowers: GroundCover.ordinary(at: point, seed: seed)
+        case .grass, .tuft: nil
+        }
+    }
+
+    /// What water leaves here. Bare ground greens; grass flowers.
+    ///
+    /// Water does not wear cover away — it feeds it. The Brook and a fish's
+    /// wake are the only things in the game that improve the ground they cross,
+    /// which is worth the exception because it makes the water signs read as
+    /// *nourishing* rather than as another way to break tiles.
+    static func watered(_ cover: GroundCover?, at point: GridPoint, seed: Int) -> GroundCover {
+        switch cover {
+        case .none: GroundCover.ordinary(at: point, seed: seed)
+        case .grass, .tuft: .flowers
+        case .flowers: .flowers
+        }
+    }
+
+    /// A patch of ordinary ground cover: two parts grass to one part tuft.
+    ///
+    /// The mix exists so a field of it does not read as one drawing repeated
+    /// forty-nine times. Flowers are never dealt here — they are placed
+    /// deliberately by whatever wanted something prettier than a lawn.
+    static func ordinary(using generator: inout SeededRandom) -> GroundCover {
+        generator.next() % 3 == 0 ? .tuft : .grass
+    }
+
+    /// The same 2:1 mix, decided from the square rather than from a generator.
+    ///
+    /// A wave is planned inside `amend`, which has no RNG to draw on — and
+    /// threading one through would mean every passive that reacts to anything
+    /// carrying a generator it does not use. Hashing the point gives the same
+    /// mix, holds still under a redraw, and varies between waves through
+    /// `seed`.
+    static func ordinary(at point: GridPoint, seed: Int) -> GroundCover {
+        let hashed = (point.x &* 73_856_093) ^ (point.y &* 19_349_663) ^ (seed &* 83_492_791)
+        return abs(hashed) % 3 == 0 ? .tuft : .grass
+    }
+}
+
 struct Tile: Hashable, Codable {
 
     var kind: TileKind = .normal
     var health: TileHealth = .healthy
+
+    /// Whether anything can grow here at all.
+    ///
+    /// A hole has no ground to grow on. Asked wherever cover is planted, and
+    /// enforced when health changes — see `Tile.settled()`.
+    var canHoldCover: Bool { !health.isHole && kind == .normal }
+
+    /// This tile with anything impossible about it removed.
+    ///
+    /// One rule today: **cover cannot sit over a hole**. A blow of two steps the
+    /// flowers down to grass *and* breaks the ground under them, which left a
+    /// hole with a lawn drawn across it that you could walk onto and fall
+    /// through. Applied at the point health changes rather than at each thing
+    /// that changes it, so no future source can reintroduce it.
+    func settled() -> Tile {
+        guard !canHoldCover, cover != nil else { return self }
+        var fixed = self
+        fixed.cover = nil
+        return fixed
+    }
+
+    /// What is growing here, if anything. See `GroundCover`.
+    ///
+    /// On the tile rather than in a set beside the board, so it cannot drift
+    /// out of step with the ground it is covering: a tile that is copied,
+    /// healed, broken or serialised carries its cover with it by construction.
+    var cover: GroundCover? = nil
 
     // MARK: Queries
 

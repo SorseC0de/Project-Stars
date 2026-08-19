@@ -519,20 +519,50 @@ final class GameSession {
 
     private(set) var leapStartedAt: Date?
 
+    /// The shape of the leap currently in the air. See `HopPose.Weight`.
+    private(set) var leapWeight: HopPose.Weight = .dive
+
     /// True while the piece is climbing away off the top of the board.
     private(set) var isLaunching = false
 
     /// Throws the piece into the air and waits out the arc.
-    func playLeap() async {
+    /// A deliberate leap, played out in full.
+    ///
+    /// The bull's is its own shape and its own length — see `HopPose.Weight` —
+    /// and it hits the ground hard enough to be felt. The shake is scheduled
+    /// for the moment of the pancake rather than the end of the arc, because
+    /// the impact is what shakes the board and the flattening *is* the impact.
+    func playLeap(weight: HopPose.Weight = .dive) async {
+        let duration = weight == .flop ? GameRules.flopDuration : GameRules.leapDuration
+        leapWeight = weight
         leapStartedAt = .now
         beginMovement(
             .superJump,
             direction: engine.piece.facing,
-            duration: GameRules.leapDuration
+            duration: duration
         )
         defer { endMovement() }
-        await sleep(GameRules.leapDuration)
+
+        // The pancake begins at 0.8 of the arc — `HopPose.leapStops`.
+        if weight == .flop {
+            await sleep(duration * 0.8)
+            shake(for: GameRules.arrowLandShake, strength: GameRules.flopShake)
+            Haptics.longer()
+            // The **fall's** cloud, not a footfall's — the same one a piece
+            // dropping out of Astra throws, because that is the weight the
+            // landing is claiming to have.
+            kickUpDust(
+                at: engine.piece.point,
+                on: engine.piece.plane,
+                magnitude: GameRules.smokeFallMagnitude
+            )
+            await sleep(duration * 0.2)
+        } else {
+            await sleep(duration)
+        }
+
         leapStartedAt = nil
+        leapWeight = .dive
     }
 
     /// True while Aries is mid-charge, so the piece burns for the length of the
@@ -660,6 +690,25 @@ final class GameSession {
     /// single turn of the game. The wash is meant to say *stop and watch this*,
     /// and something that happens on every step says nothing at all.
     private(set) var isResolvingAction = false
+
+    /// Something is holding the board: watch, do not play.
+    ///
+    /// **Raised by whatever needs it**, and named for what it does rather than
+    /// for who asked. A ground wave sets it today; the next thing that wants
+    /// the player to sit still sets the same flag instead of inventing a second
+    /// one, which is what stops the dim from becoming a list of features that
+    /// the view has to keep in step.
+    ///
+    /// Cleared at the end of the plan that raised it — see `replay`.
+    private(set) var isHoldingBoard = false
+
+    /// Whether the board is dimmed, for any reason at all.
+    ///
+    /// The single question the view asks. It used to ask two — "is a tile being
+    /// chosen, or is a sweep running" — which meant every new reason to dim was
+    /// an edit in `BoardView` as well as here, and the two drifting apart was a
+    /// matter of time.
+    var isDimmed: Bool { isChoosingTile || isHoldingBoard }
 
     /// When the ambient clock was stopped, or `nil` while it is running.
     private var ambientPausedAt: TimeInterval?
@@ -1411,7 +1460,11 @@ final class GameSession {
             switch event {
             case .zodiactionFired, .pieceSlid, .pieceFell,
                  .nexysMoved, .planeRestored, .tilesChanged, .pickupCollected,
-                 .arrowPlanted, .stingStruck, .poolFormed, .pickupBanked:
+                 .arrowPlanted, .stingStruck, .poolFormed, .pickupBanked,
+                 // The board is being rewritten from one square outward and the
+                 // player is meant to watch it happen — that is the whole
+                 // reason the wave is rings rather than one event.
+                 .groundWaveBegan:
                 return true
 
             // A move that did not walk there is always worth watching; the
@@ -1441,6 +1494,7 @@ final class GameSession {
         // that travels or transforms, not merely a turn that is in progress.
         isResolvingAction = Self.isWorthWatching(events)
         defer { isResolvingAction = false }
+        defer { isHoldingBoard = false }
 
         // The ambient art holds its pose for the same span, and only that span.
         if isResolvingAction {
@@ -1617,6 +1671,39 @@ final class GameSession {
             await sleep(event.displayDuration)
             clearFlashLater(changes.keys)
 
+        case let .groundWaveBegan(plane, origin):
+            // **The wave dims the board on its own authority.**
+            //
+            // `isWorthWatching` reads the plan up front, and a wave raised by a
+            // passive can arrive inside a sequence that was judged ordinary
+            // before it existed. Rather than teach that judgement about every
+            // way an ability can appear late, the one event that *knows* a
+            // sweep is starting says so. `replay` still clears it at the end.
+            // The same dim a tile choice uses, because it is the same
+            // statement: the board is busy and your input is not wanted yet.
+            // `actionDim` at a tenth is a mood; this is a modal.
+            isHoldingBoard = true
+            pauseAmbient(at: Date.now.timeIntervalSinceReferenceDate)
+
+            // **One splash, on the square it starts from.**
+            //
+            // Not one per tile: forty-nine splashes is a screen of water, and
+            // the thing being said is "this came from her", which only the
+            // origin can say. The rings that follow are silent and carry the
+            // spread on their own.
+            playEffect(.waterSplash, at: origin, on: plane)
+            Haptics.longer()
+            engine.apply(event)
+
+        case let .groundSwept(plane, _, cover):
+            for (point, grown) in cover {
+                growthPlayed(at: point, on: plane, becoming: grown)
+            }
+            withAnimation(.easeOut(duration: GameRules.groundWaveRingBeat * 1.6)) {
+                engine.apply(event)
+            }
+            await sleep(event.displayDuration)
+
         case let .shadowSpawned(point, plane, _):
             playEffect(.astralBloom, at: point, on: plane)
             withAnimation(.spring(response: 0.34, dampingFraction: 0.7)) {
@@ -1662,6 +1749,37 @@ final class GameSession {
             playEffect(.astralBloom, at: point, on: plane)
             engine.apply(event)
             await sleep(event.displayDuration)
+
+        case let .tileCoverChanged(plane, point, cover, _) where cover != nil:
+            // **Only when the square got better.**
+            //
+            // Flowers stepping down to grass is also a cover change with
+            // something left growing, and it was playing the whole planting
+            // fanfare — so walking on a meadow looked like sowing one. Asked as
+            // a level rather than as a list of cases: see `GroundCover.level`.
+            growthPlayed(at: point, on: plane, becoming: cover)
+            withAnimation(.easeOut(duration: GameRules.tileHealDuration)) {
+                engine.apply(event)
+            }
+
+        case let .tileCoverChanged(plane, point, cover, burnt) where cover == nil:
+            // **Something hit this square; the grass took it.**
+            //
+            // Absorbing is not the same as nothing happening, and it read as
+            // nothing happening: the fire, the shake and the puff all hung off
+            // `tileDamaged`, so a blow the cover ate arrived in silence with a
+            // sprite quietly vanishing. The feedback belongs to the *hit*, not
+            // to whether the ground underneath was marked.
+            // **Only fire smokes.** Grass worn away underfoot is part of the
+            // step and already has the step's puff; adding ash to it drew two
+            // clouds for one footfall.
+            if burnt { singe(at: point, on: plane) }
+            if let strength = pendingTremor {
+                shake(for: GameRules.arrowLandShake, strength: strength)
+                pendingTremor = nil
+            }
+            if let plume = pluming { playEffect(plume, at: point, on: plane) }
+            engine.apply(event)
 
         case let .tileDamaged(plane, point, _):
             // A trailing effect marks each square as the water reaches it.
@@ -2042,7 +2160,7 @@ final class GameSession {
                 playEffect(layer, at: engine.piece.point, on: plane)
             }
             engine.apply(event)
-            await playLeap()
+            await playLeap(weight: zodiac == .taurus ? .flop : .dive)
 
         case let .zodiactionFired(zodiac, plane):
             // The ram burns for the length of its run — the embers on the piece
@@ -2066,15 +2184,25 @@ final class GameSession {
             }
             await sleep(event.displayDuration)
 
-        case let .pickupMoved(_, plane, _, to):
-            // The pull that did it, on the piece rather than on the coin.
+        case let .pickupMoved(_, plane, from, to):
+            // **Whose pull is this?**
+            //
+            // The gold pulse and the lion's coat catching are Leo's signature
+            // and read as *magnetism*. Aquarius drags a coin with weather, so
+            // hers is the wind — and it plays along the coin's own path rather
+            // than at the piece, because the gust is the thing that moved it.
+            if engine.piece.zodiac.passives.drawsPickupsIn(context: engine.passiveSnapshot) {
+                playEffect(.windMisc, at: from, on: plane)
+                playEffect(.windMisc, at: to, on: plane)
+            }
+            // Leo's, on the piece rather than on the coin.
             //
             // The ring is the same one a bubble throws when it pops, and it
             // belongs at the *source*: what the player needs to understand is
             // that the lion is doing this, not that the coin decided to move.
             // Fired once per move however many coins answer it — see
             // `manePulledThisMove`.
-            if !manePulledThisMove {
+            else if !manePulledThisMove {
                 manePulledThisMove = true
                 // Its own picture: water's ripples drawn red. Borrowing an
                 // element would have meant a burning ring or a wet lion, and
@@ -3145,6 +3273,42 @@ extension GameSession {
     ///   earth-green wherever it happens.
     /// The dust an arrival raises, wherever the sign actually puts its weight.
     ///
+    /// Something took root here.
+    ///
+    /// The bloom for every square, because growth is the same event wherever it
+    /// happens — and water on top of it when it comes up **under the piece**,
+    /// which for the sign whose hooves are hydroponic is the moment worth
+    /// hearing. The board answers the growing; the splash answers *her*.
+    func growthPlayed(at point: GridPoint, on plane: Plane, becoming cover: GroundCover?) {
+        // Terra only. Nothing grows on cloud, and the bloom was going off up
+        // there for changes that could not have planted anything.
+        guard plane == .terra, engine[plane].contains(point) else { return }
+
+        let before = GroundCover.level(of: engine[plane][point].cover)
+        guard GroundCover.level(of: cover) > before else { return }
+
+        playEffect(.astralBloom, at: point, on: plane)
+
+        if point == engine.piece.point, plane == engine.piece.plane {
+            playEffect(.waterSplash, at: point, on: plane)
+        }
+    }
+
+    /// Grey smoke off a square whose cover was just spent.
+    ///
+    /// Programmatic rather than a strip: it is the same puff the board already
+    /// throws for a landing, tinted to ash and thrown a little weaker, so grass
+    /// coming off reads as *scorched* rather than as an effect of its own. The
+    /// tint is what separates it from dust — see `SmokeSpriteView.tint`.
+    func singe(at point: GridPoint, on plane: Plane) {
+        kickUpDust(
+            at: point,
+            on: plane,
+            magnitude: GameRules.singeSmokeMagnitude,
+            tint: Palette.smoke
+        )
+    }
+
     /// One puff under the piece for eleven signs; for Libra, one on each square
     /// her pans trench and none beneath her.
     func kickUpLandingDust(at point: GridPoint, on plane: Plane) {
