@@ -41,6 +41,7 @@ struct SpriteRate: Equatable, Hashable {
     static let fps20 = SpriteRate(20)
     static let fps24 = SpriteRate(24)
     static let fps30 = SpriteRate(30)
+    static let fps45 = SpriteRate(45)
 
     /// For the very long strips. Forty frames at 24fps is nearly two seconds;
     /// the same strip at 60 lands in two thirds of one, which is the difference
@@ -49,7 +50,7 @@ struct SpriteRate: Equatable, Hashable {
 
     /// The presets, slowest first. For debug readouts and pickers.
     static let allCases: [SpriteRate] = [
-        .fps7_5, .fps10, .fps12, .fps15, .fps20, .fps24, .fps30, .fps60,
+        .fps7_5, .fps10, .fps12, .fps15, .fps20, .fps24, .fps30, .fps45, .fps60,
     ]
 
     // MARK: Timing

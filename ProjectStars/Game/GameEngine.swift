@@ -2459,6 +2459,18 @@ struct GameEngine {
         }
         #endif
 
+        // **Virgo's ring deals one thing.**
+        //
+        // The Reboot lights eight squares and says nothing about what is under
+        // them; this is where that is answered, because it is where every other
+        // question about a square's coin is answered. The pattern is the whole
+        // condition — `.ring` is Virgo's alone and nothing else spawns one — so
+        // the sign is not named here and a second sign that ever earns a ring
+        // inherits the behaviour rather than a copy of it.
+        if sparkles?.pattern == .ring {
+            return .virgoVictorylap
+        }
+
         // The star's own square, and only a third of the time even then.
         if point == GameRules.polarisPoint,
            !polarisTaken,
@@ -4339,15 +4351,26 @@ struct GameEngine {
     /// actually shapes a run's luck: the plane filter, the sign's passives, the
     /// lot. A table read off the source is the authored answer; this is the
     /// played one, and the gap between them is the interesting number.
-    func debugPickupSample(_ count: Int, seed: UInt64 = 20_260_818) -> [(PickupID, Int)] {
-        var generator = SeededRandom(seed: seed)
+    mutating func debugPickupSample(_ count: Int) -> [(PickupID, Int)] {
         var tally: [PickupID: Int] = [:]
-        let weighting = pickupWeighting()
+
+        // **The engine's own generator, through the engine's own draw.**
+        //
+        // The first version of this made a fresh `SeededRandom` and called
+        // `PickupCatalog.rollPickup` — which proved the catalogue's arithmetic
+        // and nothing about what a run actually deals. Everything interesting
+        // sits between the two: the plane filter, the sign's passives, the
+        // star's square, and whatever state `rng` is in by the time a coin is
+        // drawn. Sampling anywhere but here is sampling a different game.
+        //
+        // Away from Polaris' square, since that one is decided before the table
+        // is consulted at all.
+        let elsewhere = GridPoint(0, 0) == GameRules.polarisPoint
+            ? GridPoint(1, 1)
+            : GridPoint(0, 0)
 
         for _ in 0..<count {
-            guard let drawn = PickupCatalog.rollPickup(
-                weighting: weighting, using: &generator
-            ) else { continue }
+            guard let drawn = drawPickup(at: elsewhere, on: piece.plane) else { continue }
             tally[drawn, default: 0] += 1
         }
         return tally.sorted { $0.value > $1.value }.map { ($0.key, $0.value) }

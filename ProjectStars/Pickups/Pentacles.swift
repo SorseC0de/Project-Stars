@@ -113,7 +113,70 @@ enum PickupID: String, CaseIterable, Codable, Identifiable, Hashable {
     /// she is playing — see `LibraJudicatorElevator` and `GaleforceGavelEffect`.
     case galeforceGavel
 
+    /// The only thing Virgo's Regulated Reboot ever deals. Never rolled — see
+    /// `VirgoVictorylapEffect`.
+    case virgoVictorylap
+
     var id: String { rawValue }
+}
+
+/// What Virgo's Regulated Reboot deals, and the only thing it deals.
+///
+/// - TODO: **Not the final name.**
+///
+/// Mends the square it was sitting on and hands the whole meter back. Both
+/// halves matter and neither is the reward on its own: the meter is what makes
+/// guessing right worth the guess, and the mend is what lets the ring be thrown
+/// over broken ground at all. Step onto the hole that held it and the hole is
+/// gone before you can fall into it — coins are opened inside `settle`, ahead
+/// of the ground check, which is the same ordering that lets an Astral Tear
+/// save a landing.
+///
+/// Authored at zero because it is never rolled. It is *placed*, by
+/// `GameEngine.drawPickup(at:on:)`, on any square of a `.ring` sparkle set —
+/// and the ring is Virgo's alone. That is why this is a coin rather than a
+/// clause inside the Zodiaction: the Reboot lights squares and walks away, and
+/// what a square turns out to hold is a question the catalogue already answers
+/// for everything else in the game.
+struct VirgoVictorylapEffect: PickupEffect {
+
+    let id: PickupID = .virgoVictorylap
+    let rarity: PickupRarity = .legendary
+
+    /// Never drawn from the table. See the type's note.
+    let chance = 0
+    let displayName = "Virgo Victorylap"
+    let summary = "Mends the tile it was on, hole or not, and fills your meter."
+    let glyph = "✦"
+    let icon: String? = nil
+
+    func plan(
+        context: PickupContext,
+        choice: PickupChoiceResult?,
+        generator: inout SeededRandom
+    ) -> [GameEvent] {
+        var events: [GameEvent] = []
+
+        // **Where the coin was**, which is where she is now standing.
+        //
+        // Healed unconditionally rather than through `repairablePoints`: that
+        // list is about what a *repair* may touch, and it excludes nothing this
+        // needs — but a hole is exactly the case this coin exists for, so it is
+        // stated here rather than inherited from a rule written for a different
+        // question.
+        let here = context.piecePoint
+        if context.currentBoard[here].health != .healthy {
+            events.append(.tileHealed(plane: context.plane, point: here, to: .healthy))
+        }
+
+        // The whole thing, not a share of it. Guessing right is the hard part.
+        let full = context.zodiactionMeterMax
+        if context.zodiactionMeter != full {
+            events.append(.zodiactionMeterChanged(to: full))
+        }
+
+        return events
+    }
 }
 
 /// Grants a flat amount of Zodiaction charge.
@@ -1406,6 +1469,8 @@ enum PickupCatalog {
         .astralEssence: AstralEssenceEffect(),
         .trivialTremor: TrivialTremorEffect(),
         .seismicShakedown: SeismicShakedownEffect(),
+
+        .virgoVictorylap: VirgoVictorylapEffect(),
 
         .polaris: PolarisEffect(),
         .shadowWork: ShadowWorkEffect(),

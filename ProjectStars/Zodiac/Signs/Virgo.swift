@@ -122,12 +122,21 @@ struct VirgoScrupulousStep: ZodiacPassive {
     }
 
     func wearTiming(context: PassiveContext) -> WearTiming {
-        // Only over ground that is one landing from gone. Everywhere else Virgo
-        // wears on arrival like anyone else, so this cannot be turned into a
-        // general "damage happens behind me" by standing on a healthy tile.
-        context.currentBoard[context.piecePoint].health == .badlyCracked
-            ? .onExit
-            : .onEntry
+        // **Always behind her.**
+        //
+        // This used to ask whether the tile she was *standing on* was badly
+        // cracked, which is the wrong square by one move: the rule is about
+        // what she is stepping *onto*. Walking from healthy ground onto a badly
+        // cracked tile answered `.onEntry`, the destination was charged as she
+        // arrived, and it broke under her — the exact death the passive exists
+        // to prevent, and the one it advertises preventing.
+        //
+        // The destination is not knowable here — this is read once, before the
+        // move — so the fix is not a better condition but the absence of one.
+        // Wear lands on the square being left, always. Every tile she crosses
+        // still pays; it simply pays behind her, which is what "breaks as you
+        // leave it, never as you arrive" says.
+        .onExit
     }
 }
 
@@ -221,9 +230,17 @@ struct VirgoRegulatedReboot: Zodiaction {
         // holds what is settled when one is stepped on — see
         // `GameEngine.drawPickup(at:on:)`.
         var state = context.signState
-        // Two, because timers tick down at the end of the turn that set them —
-        // and this pop is a turn.
-        state.startBuff(VirgoControlledCompensation.silencedKey, moves: 2)
+        // **One**, and the summary says one.
+        //
+        // Two was reasoned from timers ticking at the end of the turn that sets
+        // them — but firing a Zodiaction is not a move and does not tick, so
+        // two covered the ring's own turn *and the two moves after it*. The
+        // steering stayed off long enough that it read as never coming back:
+        // you take the ring, you take a couple of steps, and the coin still
+        // lands somewhere you did not choose.
+        //
+        // One silences exactly the ring, which is the gamble this is protecting.
+        state.startBuff(VirgoControlledCompensation.silencedKey, moves: 1)
 
         return [
             .signStateChanged(state),

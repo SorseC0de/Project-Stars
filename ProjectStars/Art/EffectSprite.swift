@@ -396,7 +396,7 @@ enum EffectSprite: String, CaseIterable, Hashable {
         // Forty-four frames. At twelve it lasts nearly four seconds, which is
         // longer than the move that earned it and reads as the game stopping to
         // congratulate you; at twenty it is over in two.
-        case .bonus: .fps20
+        case .bonus: .fps45
         // Prideful Plant, one stage down. Eleven frames of fire went past too
         // quickly to read as a landing.
         case .leoPridefulLanding: .fps10
@@ -651,7 +651,7 @@ enum EffectSprite: String, CaseIterable, Hashable {
         // A banner over the board rather than a mark on a square — but eleven
         // tiles is wider than the board itself, which read as a title card
         // rather than as something that happened on a square.
-        case .bonus: 6
+        case .bonus: 4.5
 
         // A tear in the board is bigger than the square it opens on, but it is
         // still a *place* — at four it stopped being somewhere you could stand
