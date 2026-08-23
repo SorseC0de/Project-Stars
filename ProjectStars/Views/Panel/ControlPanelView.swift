@@ -2533,57 +2533,11 @@ private struct PanelStartView: View {
     /// two thirds as long — the biggest thing on the panel without being the
     /// whole panel.
     private var start: some View {
-        CelButton(
-            tint: Palette.coolBlack,
-            action: onStart,
-            label: {
-                Text("START")
-                    .font(.system(size: PanelStyle.startLabelSize, weight: .black, design: .rounded))
-                    .tracking(PanelStyle.signNameTracking)
-                    .foregroundStyle(Palette.white)
-                    // Hard and straight down: a cast shadow, not a glow. Zero
-                    // radius keeps the edge, which is what lifts white letters
-                    // off a face that is never one colour for long.
-                    .shadow(color: Palette.coolBlack, radius: 0, x: 0,
-                            y: PanelStyle.startLabelShadow)
-            },
-            surface: {
-                // Over the face and under the word — see `CelButton.surface`.
-                // A drifting field of colour rather than a flat one, kept
-                // inside the button's own corners.
-                AnyView(
-                    SpectrumPane(isLive: session.modeCardHasLanded)
-                        .clipShape(RoundedRectangle(cornerRadius: PanelStyle.buttonCorner))
-                        .allowsHitTesting(false)
-                )
-
-                // The drifting blobs are parked — see `SpectrumFace`.
-                // AnyView(
-                //     SpectrumFace(isLive: session.modeCardHasLanded)
-                //         .clipShape(RoundedRectangle(cornerRadius: PanelStyle.buttonCorner))
-                //         .allowsHitTesting(false)
-                // )
+        StartButton(isLive: session.modeCardHasLanded, action: onStart)
+            .frame(height: PanelStyle.zodiactionButtonHeight)
+            .containerRelativeFrame(.horizontal) { width, _ in
+                width * PanelStyle.startButtonLength
             }
-        )
-        .frame(height: PanelStyle.zodiactionButtonHeight)
-        .containerRelativeFrame(.horizontal) { width, _ in
-            width * PanelStyle.startButtonLength
-        }
-        .background {
-            SpectrumGlow(isLive: session.modeCardHasLanded, isSwelling: isSwelling)
-        }
-        .animation(
-            .easeInOut(duration: PanelStyle.startGlowPeriod).repeatForever(autoreverses: true),
-            value: isSwelling
-        )
-        // **Nothing on this panel moves until the card has stopped.**
-        //
-        // The card is on the upper screen saying what the run is; a glow
-        // breathing on the lower one at the same time is a second thing asking
-        // to be looked at, and the card is the one with something to say.
-        .onChange(of: session.modeCardHasLanded, initial: true) { _, landed in
-            isSwelling = landed
-        }
     }
 
     /// A word on a button two chrome-buttons wide.
@@ -2630,18 +2584,12 @@ private enum Spectrum {
 
     /// How soft the glow is at each end of the breath.
     ///
-    /// The blur was never the problem — how far the light *reached* was. That
-    /// is `bloomSpread`, and it is the halo's size rather than its softness.
+    /// The blur was never the problem — how far the light *reached* was, which
+    /// is the halo's size rather than its softness and lives on the button's
+    /// own bench as `StartStyle.glowSpread`.
     static let bloomNear: CGFloat = 10
     static let bloomFar: CGFloat = 26
-
-    /// How far past the button the light goes.
-    static let bloomSpread: CGFloat = 5
     static let strength: Double = 0.85
-
-    /// The glass, and the light behind it.
-    static let paneSoftness: CGFloat = 9
-    static let paneStrength: Double = 0.95
 
     /// The blobs on the parked face: how many, how big, how soft, and how far
     /// they wander as a share of the button.
@@ -2690,8 +2638,8 @@ private struct SpectrumGlow: View {
             // Square, and as wide as the halo's diagonal, so no corner of it can
             // swing into view as it turns.
             let halo = CGSize(
-                width: geometry.size.width + Spectrum.bloomSpread * 2,
-                height: geometry.size.height + Spectrum.bloomSpread * 2
+                width: geometry.size.width + StartStyle.glowSpread * 2,
+                height: geometry.size.height + StartStyle.glowSpread * 2
             )
             let side = hypot(halo.width, halo.height)
 
@@ -2752,8 +2700,8 @@ private struct SpectrumPane: View {
                     .fill(AngularGradient(colors: Spectrum.ring, center: .center))
                     .frame(width: side, height: side)
                     .rotationEffect(.degrees(turned ? 360 : 0))
-                    .blur(radius: Spectrum.paneSoftness)
-                    .opacity(isLive ? Spectrum.paneStrength : 0)
+                    .blur(radius: StartStyle.paneSoftness)
+                    .opacity(isLive ? StartStyle.paneStrength : 0)
                     .animation(
                         .linear(duration: Spectrum.period).repeatForever(autoreverses: false),
                         value: turned
@@ -2852,5 +2800,223 @@ private struct SpectrumFace: View {
     private func wobble(_ index: Int, _ question: Int) -> CGFloat {
         let n = sin(Double(index) * 12.9898 + Double(question) * 78.233) * 43758.5453
         return CGFloat(n - n.rounded(.down))
+    }
+}
+
+// MARK: - The way in
+
+/// Everything about the Start button that is not shared with the panel.
+///
+/// Its own numbers rather than `PanelStyle`'s, because it is the only control
+/// on the screen that is trying to look like light rather than like a moulded
+/// key — and a value borrowed from the row of buttons beside it would drag one
+/// of them along every time this was adjusted.
+@MainActor
+enum StartStyle {
+
+    static let defaultPaneStrength: Double = 0.95
+    static let defaultPaneSoftness: Double = 9
+
+    /// How tall the button's side is against the panel's usual.
+    static let defaultDepthScale: Double = 1.5
+    static let defaultRimOpacity: Double = 0.75
+
+    static let defaultStrokeWidth: Double = 3
+    static let defaultStrokeOpacity: Double = 1
+    static let defaultShine: Double = 0.66
+
+    static let defaultGlowSpread: Double = 5
+    static let defaultGlowCorner: Double = 26
+
+    // ── The bench's value in a debug build, the shipped one otherwise ──
+    //
+    // Written out one by one rather than through a key path, because a key
+    // path's root has to be named — and the bench is a type that does not exist
+    // in a release build. Nine repetitive accessors compile everywhere; one
+    // clever one compiles in Debug and nowhere else.
+
+    static var paneStrength: Double {
+        #if DEBUG
+        StartButtonTuning.shared.paneStrength
+        #else
+        defaultPaneStrength
+        #endif
+    }
+
+    static var paneSoftness: CGFloat {
+        #if DEBUG
+        CGFloat(StartButtonTuning.shared.paneSoftness)
+        #else
+        CGFloat(defaultPaneSoftness)
+        #endif
+    }
+
+    static var depthScale: CGFloat {
+        #if DEBUG
+        CGFloat(StartButtonTuning.shared.depthScale)
+        #else
+        CGFloat(defaultDepthScale)
+        #endif
+    }
+
+    static var rimOpacity: Double {
+        #if DEBUG
+        StartButtonTuning.shared.rimOpacity
+        #else
+        defaultRimOpacity
+        #endif
+    }
+
+    static var strokeWidth: CGFloat {
+        #if DEBUG
+        CGFloat(StartButtonTuning.shared.strokeWidth)
+        #else
+        CGFloat(defaultStrokeWidth)
+        #endif
+    }
+
+    static var strokeOpacity: Double {
+        #if DEBUG
+        StartButtonTuning.shared.strokeOpacity
+        #else
+        defaultStrokeOpacity
+        #endif
+    }
+
+    static var shine: Double {
+        #if DEBUG
+        StartButtonTuning.shared.shine
+        #else
+        defaultShine
+        #endif
+    }
+
+    static var glowSpread: CGFloat {
+        #if DEBUG
+        CGFloat(StartButtonTuning.shared.glowSpread)
+        #else
+        CGFloat(defaultGlowSpread)
+        #endif
+    }
+
+    static var glowCorner: CGFloat {
+        #if DEBUG
+        CGFloat(StartButtonTuning.shared.glowCorner)
+        #else
+        CGFloat(defaultGlowCorner)
+        #endif
+    }
+
+    /// Where the lit edge's gradient runs out to.
+    static var strokeEnd: UnitPoint {
+        #if DEBUG
+        StartButtonTuning.shared.strokeToCorner ? .bottomTrailing : .bottom
+        #else
+        .bottom
+        #endif
+    }
+
+
+    /// The lit edge: white at the top corner, gone by the bottom.
+    ///
+    /// Four stops rather than two. A straight ramp from white to nothing puts
+    /// half its length in the middle greys, which reads as a grey border; held
+    /// bright for the first stretch and let go quickly after, it reads as a
+    /// highlight catching an edge.
+    static var strokeGradient: LinearGradient {
+        LinearGradient(
+            stops: [
+                .init(color: Palette.white.opacity(strokeOpacity), location: 0),
+                .init(color: Palette.white.opacity(strokeOpacity * 0.55), location: 0.28),
+                .init(color: Palette.white.opacity(strokeOpacity * 0.12), location: 0.62),
+                .init(color: .clear, location: 1),
+            ],
+            startPoint: .topLeading,
+            endPoint: strokeEnd
+        )
+    }
+}
+
+/// The Start button.
+///
+/// **A copy of `CelButton`, not a use of it.** Four of its parts had to become
+/// knobs — the side's height and opacity, the plane of light across the top,
+/// and a lit edge it does not have at all — and every one of those is shared
+/// with the row of buttons beside it. Parameterising them there would put a
+/// Start-button question into every control on the panel. The press behaviour
+/// is copied verbatim, including why it needs a drag gesture as well as a tap.
+private struct StartButton: View {
+
+    let isLive: Bool
+    let action: () -> Void
+
+    @State private var isPressed = false
+    @State private var isSwelling = false
+
+    var body: some View {
+        let depth = PanelStyle.buttonDepth * StartStyle.depthScale
+        let colours = CelPalette(face: Palette.coolBlack)
+
+        ZStack {
+            // The side, standing proud below the face.
+            RoundedRectangle(cornerRadius: PanelStyle.buttonCorner)
+                .fill(colours.rim.opacity(StartStyle.rimOpacity))
+                .offset(y: depth)
+
+            RoundedRectangle(cornerRadius: PanelStyle.buttonCorner)
+                .fill(colours.face)
+                .overlay {
+                    SpectrumPane(isLive: isLive)
+                        .clipShape(RoundedRectangle(cornerRadius: PanelStyle.buttonCorner))
+                        .allowsHitTesting(false)
+                }
+                .overlay {
+                    // One hard-edged lighter plane across the top, not a sheen.
+                    RoundedRectangle(cornerRadius: PanelStyle.buttonCorner)
+                        .fill(Palette.white.opacity(StartStyle.shine))
+                        .padding(PanelStyle.buttonHighlightInset)
+                        .mask(alignment: .top) {
+                            Rectangle().frame(maxHeight: PanelStyle.buttonHighlightHeight)
+                        }
+                }
+                .overlay {
+                    // Inside the edge rather than centred on it, so the button
+                    // keeps its own size.
+                    RoundedRectangle(cornerRadius: PanelStyle.buttonCorner)
+                        .strokeBorder(StartStyle.strokeGradient, lineWidth: StartStyle.strokeWidth)
+                }
+                .offset(y: isPressed ? depth : 0)
+
+            Text("START")
+                .font(.system(size: PanelStyle.startLabelSize, weight: .black, design: .rounded))
+                .tracking(PanelStyle.signNameTracking)
+                .foregroundStyle(Palette.white)
+                // Hard and straight down: a cast shadow, not a glow. Zero radius
+                // keeps the edge, which is what lifts white letters off a face
+                // that is never one colour for long.
+                .shadow(color: Palette.coolBlack, radius: 0, x: 0,
+                        y: PanelStyle.startLabelShadow)
+                .offset(y: isPressed ? depth : 0)
+        }
+        .background {
+            SpectrumGlow(isLive: isLive, isSwelling: isSwelling)
+        }
+        .animation(.easeOut(duration: PanelStyle.buttonPressDuration), value: isPressed)
+        .animation(
+            .easeInOut(duration: PanelStyle.startGlowPeriod).repeatForever(autoreverses: true),
+            value: isSwelling
+        )
+        .contentShape(Rectangle())
+        .onTapGesture { action() }
+        // A press has to show the instant the finger lands, which a tap gesture
+        // alone cannot do — it only reports once the tap completes.
+        .simultaneousGesture(
+            DragGesture(minimumDistance: 0)
+                .onChanged { _ in isPressed = true }
+                .onEnded { _ in isPressed = false }
+        )
+        .onChange(of: isLive, initial: true) { _, live in
+            isSwelling = live
+        }
     }
 }
