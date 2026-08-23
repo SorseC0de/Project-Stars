@@ -100,7 +100,10 @@ struct LayerBenchControls: View {
             .buttonStyle(.plain)
 
             if isOpen {
-                ModeCardControls { session.modeCard = session.mode }
+                ModeCardControls(
+                    onReplay: { session.modeCard = session.mode },
+                    onTrigger: { session.announce(passive: PassivePrompt.debugNames.randomElement()!) }
+                )
                     .padding(8)
                     .background(Palette.background.opacity(0.85))
             }

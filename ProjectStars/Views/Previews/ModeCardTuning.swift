@@ -47,6 +47,19 @@ final class ModeCardTuning {
         didSet { ModeCardTuning.remember("warp", warp) }
     }
 
+    /// The passing streaks in the passives prompt: how long, and how fast.
+    var sideLength: Double = ModeCardTuning.remembered("sideLength", ModeCardStyle.defaultSideLength) {
+        didSet { ModeCardTuning.remember("sideLength", sideLength) }
+    }
+    var sideSpeed: Double = ModeCardTuning.remembered("sideSpeed", ModeCardStyle.defaultSideSpeed) {
+        didSet { ModeCardTuning.remember("sideSpeed", sideSpeed) }
+    }
+
+    /// Whether the prompt's word leaves with its shape or goes first.
+    var wordsRideOut: Bool = ModeCardTuning.rememberedFlag("wordsRideOut", true) {
+        didSet { ModeCardTuning.remember("wordsRideOut", wordsRideOut ? 1 : 0) }
+    }
+
     /// How thick a capsule is at the rim.
     var thickness: Double = ModeCardTuning.remembered("thickness", ModeCardStyle.defaultThickness) {
         didSet { ModeCardTuning.remember("thickness", thickness) }
@@ -67,7 +80,7 @@ final class ModeCardTuning {
     /// the old number reads back as that number, and the value written in the
     /// source is never seen again on any machine that has tuned it once. On a
     /// bump every knob is forgotten, so the shipped values are what comes up.
-    private static let vintage = 5
+    private static let vintage = 6
 
     private static func checkVintage() {
         let store = UserDefaults.standard
@@ -86,6 +99,10 @@ final class ModeCardTuning {
         return store.double(forKey: prefix + name)
     }
 
+    private static func rememberedFlag(_ name: String, _ fallback: Bool) -> Bool {
+        remembered(name, fallback ? 1 : 0) > 0.5
+    }
+
     private static func remember(_ name: String, _ value: Double) {
         UserDefaults.standard.set(value, forKey: prefix + name)
     }
@@ -101,10 +118,14 @@ final class ModeCardTuning {
         fadeTo = ModeCardStyle.defaultFadeTo
         warp = ModeCardStyle.defaultWarp
         thickness = ModeCardStyle.defaultThickness
+        sideLength = ModeCardStyle.defaultSideLength
+        sideSpeed = ModeCardStyle.defaultSideSpeed
+        wordsRideOut = true
     }
 
     private static let names = [
         "length", "spread", "fadeFrom", "fadeTo", "warp", "thickness",
+        "sideLength", "sideSpeed", "wordsRideOut",
     ]
 
     func dump() {
@@ -114,6 +135,8 @@ final class ModeCardTuning {
         print(String(format: "  fade     %.2f → %.2f of length", fadeFrom, fadeTo))
         print(String(format: "  warp     %.2f", warp))
         print(String(format: "  thick    %.2f", thickness))
+        print(String(format: "  prompt   len %.2f  spd %.2f  %@",
+                     sideLength, sideSpeed, wordsRideOut ? "words ride out" : "words go first"))
     }
 }
 
@@ -124,6 +147,9 @@ struct ModeCardControls: View {
 
     /// Puts the card back on screen, since both knobs are invisible without it.
     let onReplay: () -> Void
+
+    /// Fires a passive announcement, for the same reason.
+    let onTrigger: () -> Void
 
     var body: some View {
         VStack(alignment: .leading, spacing: 5) {
@@ -144,6 +170,17 @@ struct ModeCardControls: View {
             row("warp", value: $tuning.warp, in: 0...1, step: 0.01)
 
             row("thick", value: $tuning.thickness, in: 0.5...12, step: 0.1)
+
+            group("prompt")
+            row("side len", value: $tuning.sideLength, in: 0.02...1.2, step: 0.01)
+            row("side spd", value: $tuning.sideSpeed, in: 0.02...2, step: 0.01)
+
+            HStack(spacing: 6) {
+                Button("▸ trigger") { onTrigger() }
+                Button(tuning.wordsRideOut ? "words: ride out" : "words: go first") {
+                    tuning.wordsRideOut.toggle()
+                }
+            }
 
         }
         .font(.system(size: 10, weight: .semibold, design: .monospaced))

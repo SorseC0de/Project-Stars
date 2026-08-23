@@ -279,6 +279,11 @@ final class GameSession {
     /// What game this run is. See `GameMode`.
     var mode: GameMode = .survival
 
+    /// The passive announcements on screen, oldest first. Never more than two.
+    ///
+    /// See `announce(passive:)` for the rules that keep it to two.
+    private(set) var passivePrompts: [PassivePrompt] = []
+
     /// True once the card's bars have finished arriving.
     ///
     /// The panel waits for it before anything on it starts moving. Two things
@@ -930,6 +935,7 @@ final class GameSession {
         modeCard = mode
         modeCardIsLeaving = false
         modeCardHasLanded = false
+        passivePrompts = []
     }
 
     /// Abandons the current run and starts a new one.
@@ -2393,6 +2399,11 @@ final class GameSession {
             // `manePulledThisMove`.
             else if !manePulledThisMove {
                 manePulledThisMove = true
+
+                // Said once per move, alongside the ring and for the same
+                // reason: the lion did this, and a prompt is the part of that
+                // sentence a picture cannot carry.
+                announce(passive: "Magnetic Mane")
                 // Its own picture: water's ripples drawn red. Borrowing an
                 // element would have meant a burning ring or a wet lion, and
                 // both say something the pull does not.
@@ -3145,6 +3156,46 @@ final class GameSession {
         guard pentacleIntro != nil else { return false }
         dismissPentacleIntro()
         return true
+    }
+
+    // MARK: - Passive announcements
+
+    /// Says that a passive just did something.
+    ///
+    /// ## Why there are two of these on screen and not one, or five
+    ///
+    /// One would mean a second trigger either replaced the first mid-sentence or
+    /// was dropped, and both of those lose something the player was told. More
+    /// than two would mean a column of them down the side of the board, which is
+    /// a log rather than a prompt.
+    ///
+    /// So: the one already up is asked to shrink away in place, and the new one
+    /// slides in over it. Unless the old one has already begun sliding out — a
+    /// card that is leaving is allowed to finish, because interrupting an exit
+    /// looks like a mistake where letting it run looks like two things having
+    /// happened. Either way there are at most two, and a third arriving throws
+    /// the oldest away outright.
+    func announce(passive name: String) {
+        // Full: the one at the back has had its turn.
+        if passivePrompts.count >= 2 { passivePrompts.removeFirst() }
+
+        // Whatever is current gives up its place, unless it is already going.
+        if let last = passivePrompts.indices.last, !passivePrompts[last].isLeaving {
+            passivePrompts[last].isShrinking = true
+        }
+
+        passivePrompts.append(PassivePrompt(name: name))
+    }
+
+    /// This one has begun sliding out, and may not be asked to shrink instead.
+    func passivePromptIsLeaving(_ id: PassivePrompt.ID) {
+        guard let index = passivePrompts.firstIndex(where: { $0.id == id }) else { return }
+        passivePrompts[index].isLeaving = true
+    }
+
+    /// This one has finished, whichever way it went.
+    func passivePromptFinished(_ id: PassivePrompt.ID) {
+        passivePrompts.removeAll { $0.id == id }
     }
 
     /// Sends the card away and lets the run begin. The Start button's door.

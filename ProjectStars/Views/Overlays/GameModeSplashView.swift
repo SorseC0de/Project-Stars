@@ -367,8 +367,24 @@ enum ModeCardStyle {
     /// short and slow the meekest of them is allowed to be, as a share of the
     /// longest and fastest. A spread is what makes a field read as depth; all
     /// one length and one speed reads as a moving pattern.
-    static let warpLength: CGFloat = 0.30
-    static let warpSpeed: CGFloat = 0.55
+    static var warpLength: CGFloat {
+        #if DEBUG
+        CGFloat(ModeCardTuning.shared.sideLength)
+        #else
+        CGFloat(defaultSideLength)
+        #endif
+    }
+
+    static var warpSpeed: CGFloat {
+        #if DEBUG
+        CGFloat(ModeCardTuning.shared.sideSpeed)
+        #else
+        CGFloat(defaultSideSpeed)
+        #endif
+    }
+
+    static let defaultSideLength: Double = 0.30
+    static let defaultSideSpeed: Double = 0.55
     static let warpShortest: Double = 0.18
     static let warpSlowest: Double = 0.35
 
@@ -846,7 +862,7 @@ private struct WormholeField: View {
 /// for a shape that is *passing*, which is what the passives prompt does. The
 /// upper half of the field runs one way and the lower half the other, so a
 /// two-bar assembly gets both and a single bar gets whichever half it covers.
-private struct SideStreaks: View {
+struct SideStreaks: View {
 
     var body: some View {
         TimelineView(.animation) { timeline in

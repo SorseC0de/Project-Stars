@@ -29,6 +29,9 @@ struct GameScreen: View {
         self._session = State(initialValue: GameSession(zodiac: zodiac))
     }
 
+    /// How much room the turn counter takes, so the prompt can line up with it.
+    @State private var counterSpan: CGSize = .zero
+
     var body: some View {
         GeometryReader { proxy in
             let side = squareSide(in: proxy.size)
@@ -94,8 +97,39 @@ struct GameScreen: View {
                         turn: session.engine.moveCount,
                         scale: max(PixelArtMetrics(availableSide: side).scale - 1, 1)
                     )
+                    // Measured rather than guessed: the prompt below lines up
+                    // with this, and the only thing that knows how wide the
+                    // counter is is the counter.
+                    .background {
+                        GeometryReader { counter in
+                            Color.clear.preference(
+                                key: TurnCounterSpan.self,
+                                value: counter.size
+                            )
+                        }
+                    }
                     .padding(10)
                     .frame(width: side, height: side, alignment: .topLeading)
+
+                    // What a passive just did, under the counter and out to its
+                    // trailing edge. See `PassivePromptView`.
+                    VStack(alignment: .leading, spacing: 0) {
+                        ForEach(session.passivePrompts) { prompt in
+                            PassivePromptView(
+                                prompt: prompt,
+                                reach: counterSpan.width,
+                                onLeaving: { session.passivePromptIsLeaving(prompt.id) },
+                                onFinished: { session.passivePromptFinished(prompt.id) }
+                            )
+                            // Stacked in place, so the newer one slides in over
+                            // the older rather than pushing it down the screen.
+                            .frame(height: 0, alignment: .top)
+                        }
+                    }
+                    .padding(.leading, 10)
+                    .padding(.top, counterSpan.height + 10 + PanelStyle.rowSpacing)
+                    .frame(width: side, height: side, alignment: .topLeading)
+                    .onPreferenceChange(TurnCounterSpan.self) { counterSpan = $0 }
 
                     // What you just opened, on every pickup rather than only the
                     // first. Pinned low so it never covers the piece.
@@ -487,4 +521,13 @@ struct GameScreen: View {
     // skips `RootView` and the picker entirely, so a sign hardcoded here is the
     // sign anybody testing through it actually gets.
     GameScreen(zodiac: GameRules.debugStartingSign, onQuit: {})
+}
+
+/// The turn counter's measured size, handed down to whatever lines up with it.
+private struct TurnCounterSpan: PreferenceKey {
+    static let defaultValue: CGSize = .zero
+    static func reduce(value: inout CGSize, nextValue: () -> CGSize) {
+        let next = nextValue()
+        if next != .zero { value = next }
+    }
 }
