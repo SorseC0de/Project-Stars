@@ -2532,7 +2532,7 @@ private struct PanelStartView: View {
     /// whole panel.
     private var start: some View {
         CelButton(
-            tint: Palette.purple,
+            tint: Palette.coolBlack,
             action: onStart,
             label: {
                 Text("START")
@@ -2598,27 +2598,35 @@ private struct PanelStartView: View {
 private enum Spectrum {
 
     static let ring: [Color] = [
-        Palette.magenta, Palette.pink, Palette.orange,
-        Palette.gold, Palette.sky, Palette.blue,
-        Palette.purple, Palette.magenta,
+        Palette.magenta, Palette.pink, Palette.orange, Palette.gold,
+        Palette.yellowGreen, Palette.cyan, Palette.sky, Palette.blue,
+        Palette.purple, Palette.darkMagenta, Palette.magenta,
     ]
 
     /// One turn of the sweep.
     static let period: Double = 4.5
 
     /// How far the glow reaches, and how much of it there is.
-    static let bloomNear: CGFloat = 10
-    static let bloomFar: CGFloat = 26
+    static let bloomNear: CGFloat = 3
+    static let bloomFar: CGFloat = 24
     static let bloomSpread: CGFloat = 14
     static let strength: Double = 0.85
 
     /// The blobs on the face: how many, how big, how soft, and how far they
     /// wander as a share of the button.
-    static let blobs = 7
-    static let blobSize: CGFloat = 0.62
-    static let blobSoftness: CGFloat = 22
-    static let blobDrift: CGFloat = 0.55
-    static let faceStrength: Double = 0.55
+    static let blobs = 9
+    static let blobSoftness: CGFloat = 20
+    static let blobDrift: CGFloat = 0.85
+    static let faceStrength: Double = 0.75
+
+    /// The smallest and largest a blob is, against the button's *height*.
+    ///
+    /// The large end is deliberately past 1: a blob wider than the button is
+    /// tall has no visible edge inside it, so what shows is a field of colour
+    /// rather than a circle crossing. All the same size — any size — reads as a
+    /// row of dots on a conveyor.
+    static let blobSmallest: CGFloat = 0.55
+    static let blobLargest: CGFloat = 2.3
 
     /// How long a blob takes to cross and back, and how much that varies.
     static let driftPeriod: Double = 5.2
@@ -2639,27 +2647,44 @@ private struct SpectrumGlow: View {
     @State private var turned = false
 
     var body: some View {
-        RoundedRectangle(cornerRadius: PanelStyle.buttonCorner)
-            .fill(
-                AngularGradient(
-                    colors: Spectrum.ring,
-                    center: .center,
-                    angle: .degrees(turned ? 360 : 0)
+        GeometryReader { geometry in
+            // **Turned, not re-angled.**
+            //
+            // An `AngularGradient`'s angle is not something SwiftUI can
+            // interpolate — handed a new one it draws the new one, so a sweep
+            // built that way advances in steps and visibly catches on each
+            // repeat. `rotationEffect` is animatable, so the same colours turned
+            // by it run continuously and the loop closes where it opened.
+            //
+            // Square, and as wide as the halo's diagonal, so no corner of it can
+            // swing into view as it turns.
+            let halo = CGSize(
+                width: geometry.size.width + Spectrum.bloomSpread * 2,
+                height: geometry.size.height + Spectrum.bloomSpread * 2
+            )
+            let side = hypot(halo.width, halo.height)
+
+            Rectangle()
+                .fill(AngularGradient(colors: Spectrum.ring, center: .center))
+                .frame(width: side, height: side)
+                .rotationEffect(.degrees(turned ? 360 : 0))
+                .frame(width: halo.width, height: halo.height)
+                .mask {
+                    RoundedRectangle(cornerRadius: PanelStyle.buttonCorner)
+                        .frame(width: halo.width, height: halo.height)
+                }
+                .blur(radius: isSwelling ? Spectrum.bloomFar : Spectrum.bloomNear)
+                .opacity(isLive ? Spectrum.strength : 0)
+                .position(x: geometry.size.width / 2, y: geometry.size.height / 2)
+                .animation(
+                    .linear(duration: Spectrum.period).repeatForever(autoreverses: false),
+                    value: turned
                 )
-            )
-            // Wider than the button before it is blurred, or the blur eats its
-            // way inward and the glow reads as a soft edge instead of a halo.
-            .padding(-Spectrum.bloomSpread)
-            .blur(radius: isSwelling ? Spectrum.bloomFar : Spectrum.bloomNear)
-            .opacity(isLive ? Spectrum.strength : 0)
-            .animation(
-                .linear(duration: Spectrum.period).repeatForever(autoreverses: false),
-                value: turned
-            )
-            .onChange(of: isLive, initial: true) { _, live in
-                if live { turned = true }
-            }
-            .allowsHitTesting(false)
+        }
+        .onChange(of: isLive, initial: true) { _, live in
+            if live { turned = true }
+        }
+        .allowsHitTesting(false)
     }
 }
 
@@ -2685,26 +2710,33 @@ private struct SpectrumFace: View {
 
     var body: some View {
         GeometryReader { geometry in
-            let span = max(geometry.size.width, geometry.size.height)
-            let blob = span * Spectrum.blobSize
-
             ZStack {
                 ForEach(0..<Spectrum.blobs, id: \.self) { index in
-                    let seed = Double(index) / Double(Spectrum.blobs)
+                    // Scattered rather than stepped, so size does not march up
+                    // the row in order with position.
+                    let seed = wobble(index, 1)
+                    let lane = wobble(index, 2)
                     let colour = Spectrum.ring[index % Spectrum.ring.count]
                     let reach = geometry.size.width * Spectrum.blobDrift
 
                     Circle()
                         .fill(colour)
-                        .frame(width: blob * (0.6 + seed * 0.8))
-                        // Leading to trailing and back, each on its own line
-                        // across the face so they cross rather than convoy.
-                        .position(
-                            x: geometry.size.width / 2
-                                + (drifted ? reach : -reach) * (index.isMultiple(of: 2) ? 1 : -1),
-                            y: geometry.size.height * (0.2 + 0.6 * seed)
+                        .frame(
+                            width: geometry.size.height
+                                * (Spectrum.blobSmallest
+                                    + seed * (Spectrum.blobLargest - Spectrum.blobSmallest))
                         )
-                        .scaleEffect(drifted ? 1.25 : 0.75)
+                        // **All of them the same way.**
+                        //
+                        // Alternating the direction made two of them pass each
+                        // other, which reads as things crossing rather than as
+                        // one field moving. A conveyor only looks like a
+                        // conveyor if nothing on it is going the other way.
+                        .position(
+                            x: geometry.size.width / 2 + (drifted ? reach : -reach),
+                            y: geometry.size.height * (0.15 + 0.7 * lane)
+                        )
+                        .scaleEffect(drifted ? 1.2 : 0.8)
                         .animation(
                             .easeInOut(duration: Spectrum.driftPeriod + seed * Spectrum.driftSpread)
                                 .repeatForever(autoreverses: true),
@@ -2720,5 +2752,11 @@ private struct SpectrumFace: View {
         .onChange(of: isLive, initial: true) { _, live in
             if live { drifted = true }
         }
+    }
+
+    /// A fixed number in `0..<1` for this blob and this question.
+    private func wobble(_ index: Int, _ question: Int) -> CGFloat {
+        let n = sin(Double(index) * 12.9898 + Double(question) * 78.233) * 43758.5453
+        return CGFloat(n - n.rounded(.down))
     }
 }

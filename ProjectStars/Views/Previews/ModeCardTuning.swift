@@ -42,11 +42,6 @@ final class ModeCardTuning {
         didSet { ModeCardTuning.remember("fadeTo", fadeTo) }
     }
 
-    /// Which tunnel is showing: the wormhole, or the parked side-on field.
-    var sideOn: Bool = ModeCardTuning.rememberedFlag("sideOn") {
-        didSet { ModeCardTuning.remember("sideOn", sideOn ? 1 : 0) }
-    }
-
     /// How bright the warp streaks running through the bars are.
     var warp: Double = ModeCardTuning.remembered("warp", ModeCardStyle.defaultWarp) {
         didSet { ModeCardTuning.remember("warp", warp) }
@@ -56,33 +51,6 @@ final class ModeCardTuning {
     var thickness: Double = ModeCardTuning.remembered("thickness", ModeCardStyle.defaultThickness) {
         didSet { ModeCardTuning.remember("thickness", thickness) }
     }
-
-    /// The clear eye at the middle of the tunnel.
-    var core: Double = ModeCardTuning.remembered("core", ModeCardStyle.defaultCore) {
-        didSet { ModeCardTuning.remember("core", core) }
-    }
-
-    /// How many of the tunnel's marks are stars rather than streaks.
-    var stars: Double = ModeCardTuning.remembered("stars", ModeCardStyle.defaultStars) {
-        didSet { ModeCardTuning.remember("stars", stars) }
-    }
-
-    /// How the tunnel is laid over the bars.
-    ///
-    /// Kept as a place in `BlendMode.pickable` rather than as the mode itself:
-    /// `BlendMode` is not something that can be written to `UserDefaults`, and
-    /// its place in that list is stable in a way a raw value would not be.
-    var blendIndex: Int = Int(ModeCardTuning.remembered("blendIndex", ModeCardTuning.defaultBlendIndex)) {
-        didSet { ModeCardTuning.remember("blendIndex", Double(blendIndex)) }
-    }
-
-    var blend: BlendMode {
-        BlendMode.pickable[min(max(blendIndex, 0), BlendMode.pickable.count - 1)]
-    }
-
-    static let defaultBlendIndex = Double(
-        BlendMode.pickable.firstIndex(of: ModeCardStyle.defaultBlend) ?? 0
-    )
 
     // ── Kept between builds ───────────────────────────────────────────
     //
@@ -99,7 +67,7 @@ final class ModeCardTuning {
     /// the old number reads back as that number, and the value written in the
     /// source is never seen again on any machine that has tuned it once. On a
     /// bump every knob is forgotten, so the shipped values are what comes up.
-    private static let vintage = 4
+    private static let vintage = 5
 
     private static func checkVintage() {
         let store = UserDefaults.standard
@@ -118,10 +86,6 @@ final class ModeCardTuning {
         return store.double(forKey: prefix + name)
     }
 
-    private static func rememberedFlag(_ name: String) -> Bool {
-        remembered(name, 0) > 0.5
-    }
-
     private static func remember(_ name: String, _ value: Double) {
         UserDefaults.standard.set(value, forKey: prefix + name)
     }
@@ -136,16 +100,11 @@ final class ModeCardTuning {
         fadeFrom = ModeCardStyle.defaultFadeFrom
         fadeTo = ModeCardStyle.defaultFadeTo
         warp = ModeCardStyle.defaultWarp
-        sideOn = false
         thickness = ModeCardStyle.defaultThickness
-        core = ModeCardStyle.defaultCore
-        stars = ModeCardStyle.defaultStars
-        blendIndex = Int(ModeCardTuning.defaultBlendIndex)
     }
 
     private static let names = [
-        "length", "spread", "fadeFrom", "fadeTo", "warp", "sideOn",
-        "thickness", "core", "stars", "blendIndex",
+        "length", "spread", "fadeFrom", "fadeTo", "warp", "thickness",
     ]
 
     func dump() {
@@ -153,9 +112,8 @@ final class ModeCardTuning {
         print(String(format: "  length   %.2f bars", length))
         print(String(format: "  spread   %.2f bars", spread))
         print(String(format: "  fade     %.2f → %.2f of length", fadeFrom, fadeTo))
-        print(String(format: "  warp     %.2f  %@", warp, sideOn ? "side-on" : "wormhole"))
-        print(String(format: "  tunnel   thick %.1f  eye %.2f  stars %.2f  %@",
-                     thickness, core, stars, String(describing: blend)))
+        print(String(format: "  warp     %.2f", warp))
+        print(String(format: "  thick    %.2f", thickness))
     }
 }
 
@@ -185,21 +143,8 @@ struct ModeCardControls: View {
             row("fade b", value: $tuning.fadeTo, in: 0...0.9, step: 0.01)
             row("warp", value: $tuning.warp, in: 0...1, step: 0.01)
 
-            Button(tuning.sideOn ? "tunnel: side-on" : "tunnel: wormhole") {
-                tuning.sideOn.toggle()
-            }
-
             row("thick", value: $tuning.thickness, in: 0.5...12, step: 0.1)
-            row("eye", value: $tuning.core, in: 0...0.4, step: 0.005)
-            row("stars", value: $tuning.stars, in: 0...1, step: 0.01)
 
-            Picker("blend", selection: $tuning.blendIndex) {
-                ForEach(Array(BlendMode.pickable.enumerated()), id: \.offset) { index, mode in
-                    Text(String(describing: mode)).tag(index)
-                }
-            }
-            .pickerStyle(.menu)
-            .tint(Palette.white)
         }
         .font(.system(size: 10, weight: .semibold, design: .monospaced))
         .foregroundStyle(Palette.stone)

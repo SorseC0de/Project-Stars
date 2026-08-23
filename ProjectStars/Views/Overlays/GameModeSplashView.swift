@@ -71,7 +71,7 @@ struct GameModeSplashView: View {
                 // and a vanishing point per bar is two tunnels seen at once.
                 // The mask is the bars' own tapered fill, so the tunnel thins
                 // out at their tips exactly as they do.
-                warpField
+                WormholeField()
                     .frame(width: width, height: bar.height * 2)
                     // **Last, not first.**
                     //
@@ -134,16 +134,6 @@ struct GameModeSplashView: View {
         /// *through* the card rather than arriving at it, and the composition
         /// it passes through is the one that was drawn.
         var outward: CGFloat { self == .upper ? -1 : 1 }
-    }
-
-    /// Whichever tunnel is being looked at. See `ModeCardStyle.isSideOn`.
-    @ViewBuilder
-    private var warpField: some View {
-        if ModeCardStyle.isSideOn {
-            SideStreaks()
-        } else {
-            WormholeField()
-        }
     }
 
     /// The pair, in their places.
@@ -399,34 +389,16 @@ enum ModeCardStyle {
     /// Streaks begin here rather than at a point. Everything converging on one
     /// pixel reads as an explosion; a small clear eye with the light starting
     /// around it reads as distance.
-    static var core: Double {
-        #if DEBUG
-        ModeCardTuning.shared.core
-        #else
-        defaultCore
-        #endif
-    }
+    static var core: Double { defaultCore }
 
     /// How many of the tunnel's marks are stars rather than streaks.
-    static var stars: Double {
-        #if DEBUG
-        ModeCardTuning.shared.stars
-        #else
-        defaultStars
-        #endif
-    }
+    static var stars: Double { defaultStars }
 
     /// How the tunnel is laid over the bars.
-    static var blend: BlendMode {
-        #if DEBUG
-        ModeCardTuning.shared.blend
-        #else
-        defaultBlend
-        #endif
-    }
+    static var blend: BlendMode { defaultBlend }
 
     static let defaultThickness: Double = 4.50
-    static let defaultCore: Double = 0.07
+    static let defaultCore: Double = 0.10
     static let defaultStars: Double = 0.66
     static let defaultBlend: BlendMode = .plusLighter
 
@@ -447,15 +419,6 @@ enum ModeCardStyle {
     }
 
     // ── The wormhole ──────────────────────────────────────────────────
-
-    /// Whether the bench is showing the side-on field instead.
-    static var isSideOn: Bool {
-        #if DEBUG
-        ModeCardTuning.shared.sideOn
-        #else
-        false
-        #endif
-    }
 
     /// How many streaks are in the tunnel.
     static let wormholeCount = 90
@@ -877,17 +840,12 @@ private struct WormholeField: View {
     }
 }
 
-/// Seen from the side: streaks running the way each bar is headed.
+/// Seen from the side: streaks running the way the shape they are in is headed.
 ///
-/// **Parked, and kept.** It is not the wormhole that was asked for — this is a
-/// ship passing the window, where the card wants the view out of the front — but
-/// it is a good effect in its own right and something else will want it. The
-/// bench switches between the two.
-///
-/// One canvas across both bars rather than one per bar, so it mounts exactly
-/// where the wormhole does: the upper half of the field runs with the upper bar
-/// and the lower half with the lower one, which is the only thing either half
-/// needs to know about which bar it is under.
+/// Not the card's tunnel — that one looks out of the front — but the right thing
+/// for a shape that is *passing*, which is what the passives prompt does. The
+/// upper half of the field runs one way and the lower half the other, so a
+/// two-bar assembly gets both and a single bar gets whichever half it covers.
 private struct SideStreaks: View {
 
     var body: some View {
