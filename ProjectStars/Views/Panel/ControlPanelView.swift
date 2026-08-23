@@ -2814,19 +2814,26 @@ private struct SpectrumFace: View {
 @MainActor
 enum StartStyle {
 
-    static let defaultPaneStrength: Double = 0.95
-    static let defaultPaneSoftness: Double = 9
+    // ── Settled ───────────────────────────────────────────────────────
 
-    /// How tall the button's side is against the panel's usual.
-    static let defaultDepthScale: Double = 1.5
-    static let defaultRimOpacity: Double = 0.75
+    /// The light behind the glass, and how soft its bands are.
+    static let paneStrength: Double = 0.85
+    static let paneSoftness: CGFloat = 33
+
+    /// How tall the button's side is against the panel's usual, and how solid.
+    static let depthScale: CGFloat = 2
+    static let rimOpacity: Double = 0.66
+
+    /// The halo: no reach past the button at all, and rounder than any corner
+    /// the button has. What shows is light on the button rather than a shape
+    /// behind it — which is why there is no spread left to give it.
+    static let glowSpread: CGFloat = 0
+    static let glowCorner: CGFloat = 60
+
+    // ── Still being looked at ─────────────────────────────────────────
 
     static let defaultStrokeWidth: Double = 3
     static let defaultStrokeOpacity: Double = 1
-    static let defaultShine: Double = 0.66
-
-    static let defaultGlowSpread: Double = 5
-    static let defaultGlowCorner: Double = 26
 
     // ── The bench's value in a debug build, the shipped one otherwise ──
     //
@@ -2834,38 +2841,6 @@ enum StartStyle {
     // path's root has to be named — and the bench is a type that does not exist
     // in a release build. Nine repetitive accessors compile everywhere; one
     // clever one compiles in Debug and nowhere else.
-
-    static var paneStrength: Double {
-        #if DEBUG
-        StartButtonTuning.shared.paneStrength
-        #else
-        defaultPaneStrength
-        #endif
-    }
-
-    static var paneSoftness: CGFloat {
-        #if DEBUG
-        CGFloat(StartButtonTuning.shared.paneSoftness)
-        #else
-        CGFloat(defaultPaneSoftness)
-        #endif
-    }
-
-    static var depthScale: CGFloat {
-        #if DEBUG
-        CGFloat(StartButtonTuning.shared.depthScale)
-        #else
-        CGFloat(defaultDepthScale)
-        #endif
-    }
-
-    static var rimOpacity: Double {
-        #if DEBUG
-        StartButtonTuning.shared.rimOpacity
-        #else
-        defaultRimOpacity
-        #endif
-    }
 
     static var strokeWidth: CGFloat {
         #if DEBUG
@@ -2875,6 +2850,13 @@ enum StartStyle {
         #endif
     }
 
+    static let defaultStopTwoAt: Double = 0.28
+    static let defaultStopThreeAt: Double = 0.62
+    static let defaultStopOneGlow: Double = 1
+    static let defaultStopTwoGlow: Double = 0.55
+    static let defaultStopThreeGlow: Double = 0.12
+    static let defaultStopFourGlow: Double = 0
+
     static var strokeOpacity: Double {
         #if DEBUG
         StartButtonTuning.shared.strokeOpacity
@@ -2883,27 +2865,51 @@ enum StartStyle {
         #endif
     }
 
-    static var shine: Double {
+    static var stopTwoAt: Double {
         #if DEBUG
-        StartButtonTuning.shared.shine
+        StartButtonTuning.shared.stopTwoAt
         #else
-        defaultShine
+        defaultStopTwoAt
         #endif
     }
 
-    static var glowSpread: CGFloat {
+    static var stopThreeAt: Double {
         #if DEBUG
-        CGFloat(StartButtonTuning.shared.glowSpread)
+        StartButtonTuning.shared.stopThreeAt
         #else
-        CGFloat(defaultGlowSpread)
+        defaultStopThreeAt
         #endif
     }
 
-    static var glowCorner: CGFloat {
+    static var stopOneGlow: Double {
         #if DEBUG
-        CGFloat(StartButtonTuning.shared.glowCorner)
+        StartButtonTuning.shared.stopOneGlow
         #else
-        CGFloat(defaultGlowCorner)
+        defaultStopOneGlow
+        #endif
+    }
+
+    static var stopTwoGlow: Double {
+        #if DEBUG
+        StartButtonTuning.shared.stopTwoGlow
+        #else
+        defaultStopTwoGlow
+        #endif
+    }
+
+    static var stopThreeGlow: Double {
+        #if DEBUG
+        StartButtonTuning.shared.stopThreeGlow
+        #else
+        defaultStopThreeGlow
+        #endif
+    }
+
+    static var stopFourGlow: Double {
+        #if DEBUG
+        StartButtonTuning.shared.stopFourGlow
+        #else
+        defaultStopFourGlow
         #endif
     }
 
@@ -2917,23 +2923,39 @@ enum StartStyle {
     }
 
 
-    /// The lit edge: white at the top corner, gone by the bottom.
+    /// The lit edge: white where the light comes from, gone by the far side.
     ///
-    /// Four stops rather than two. A straight ramp from white to nothing puts
-    /// half its length in the middle greys, which reads as a grey border; held
-    /// bright for the first stretch and let go quickly after, it reads as a
-    /// highlight catching an edge.
+    /// Four stops. The first and last are the ends by definition, so only the
+    /// two in between have somewhere to be — what is worth tuning is where they
+    /// sit and how bright each one is. A straight ramp from white to nothing
+    /// puts half its length in the middle greys and reads as a grey border;
+    /// held bright and then let go, it reads as a highlight catching an edge.
+    ///
+    /// Every brightness is a share of `strokeOpacity`, so that one turns the
+    /// whole edge up and down without flattening the shape of it.
     static var strokeGradient: LinearGradient {
-        LinearGradient(
+        let master = strokeOpacity
+        let middle = [stopTwoAt, stopThreeAt].sorted()
+
+        return LinearGradient(
             stops: [
-                .init(color: Palette.white.opacity(strokeOpacity), location: 0),
-                .init(color: Palette.white.opacity(strokeOpacity * 0.55), location: 0.28),
-                .init(color: Palette.white.opacity(strokeOpacity * 0.12), location: 0.62),
-                .init(color: .clear, location: 1),
+                .init(color: Palette.white.opacity(master * stopOneGlow), location: 0),
+                .init(color: Palette.white.opacity(master * stopTwoGlow), location: middle[0]),
+                .init(color: Palette.white.opacity(master * stopThreeGlow), location: middle[1]),
+                .init(color: Palette.white.opacity(master * stopFourGlow), location: 1),
             ],
-            startPoint: .topLeading,
+            startPoint: strokeStart,
             endPoint: strokeEnd
         )
+    }
+
+    /// Where the light is coming from.
+    static var strokeStart: UnitPoint {
+        #if DEBUG
+        StartButtonTuning.shared.strokeFromCorner ? .topLeading : .top
+        #else
+        .topLeading
+        #endif
     }
 }
 
@@ -2970,15 +2992,10 @@ private struct StartButton: View {
                         .clipShape(RoundedRectangle(cornerRadius: PanelStyle.buttonCorner))
                         .allowsHitTesting(false)
                 }
-                .overlay {
-                    // One hard-edged lighter plane across the top, not a sheen.
-                    RoundedRectangle(cornerRadius: PanelStyle.buttonCorner)
-                        .fill(Palette.white.opacity(StartStyle.shine))
-                        .padding(PanelStyle.buttonHighlightInset)
-                        .mask(alignment: .top) {
-                            Rectangle().frame(maxHeight: PanelStyle.buttonHighlightHeight)
-                        }
-                }
+                // **No lit plane.** Every other button on the panel has one —
+                // it is what makes a moulded key look moulded. This one is not
+                // a key, it is a pane with light behind it, and a hard-edged
+                // highlight across the top of glass says the glass is solid.
                 .overlay {
                     // Inside the edge rather than centred on it, so the button
                     // keeps its own size.
