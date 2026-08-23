@@ -279,6 +279,16 @@ final class GameSession {
     /// What game this run is. See `GameMode`.
     var mode: GameMode = .survival
 
+    /// True once Start has been pressed and the card is on its way out.
+    ///
+    /// Separate from clearing `modeCard`, because the bars have to be told to
+    /// leave and then given the time to do it — cleared outright they would
+    /// vanish rather than slide off.
+    private(set) var modeCardIsLeaving = false
+
+    /// Whether the run is still waiting behind the card.
+    var isAwaitingStart: Bool { modeCard != nil && !modeCardIsLeaving }
+
     /// The mode being announced right now, or `nil` between runs.
     ///
     /// Holds the mode rather than a flag so the card can outlive a change of
@@ -911,6 +921,7 @@ final class GameSession {
         // through it — it is built here — so the card would have been the one
         // thing a player saw on every run except their first.
         modeCard = mode
+        modeCardIsLeaving = false
     }
 
     /// Abandons the current run and starts a new one.
@@ -922,6 +933,7 @@ final class GameSession {
         // rather than after, so the card is already up while the first frame of
         // a fresh board is being put together.
         modeCard = mode
+        modeCardIsLeaving = false
 
         let sign = zodiac ?? startingZodiac
         startingZodiac = sign
@@ -3115,23 +3127,27 @@ final class GameSession {
     /// the opposite of what a splash is for.
     @discardableResult
     func dismissIntroIfShowing() -> Bool {
-        // The mode card first: it is the one that opens a run, so it is the one
-        // an impatient player reaches through. Same rule as the Pentacle's
-        // card — reaching for the controls is how a splash is put away, and the
-        // input is spent doing it.
-        if modeCard != nil {
-            modeCard = nil
-            return true
-        }
-
+        // **The mode card is not dismissed this way.**
+        //
+        // It was, back when it timed its own exit and reaching for the controls
+        // only hurried it along. It waits for Start now, and Start is a button
+        // on the panel — a card that also went away on any stray input would
+        // make that button optional, and a run would begin by accident.
         guard pentacleIntro != nil else { return false }
         dismissPentacleIntro()
         return true
     }
 
-    /// The card has finished leaving on its own.
+    /// Sends the card away and lets the run begin. The Start button's door.
+    func startRun() {
+        guard modeCard != nil else { return }
+        modeCardIsLeaving = true
+    }
+
+    /// The bars have finished sliding off.
     func modeCardFinished() {
         modeCard = nil
+        modeCardIsLeaving = false
     }
 
     func dismissPentacleIntro() {

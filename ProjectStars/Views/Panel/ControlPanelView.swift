@@ -278,6 +278,28 @@ enum PanelStyle {
     /// Height of the fire button, and the gap between its stacked lines.
     static let zodiactionButtonHeight: CGFloat = 78
 
+    // ── The start screen ──────────────────────────────────────────────
+
+    /// A chrome button two wide, spanning the gap between them.
+    ///
+    /// Derived rather than typed out: it is *by definition* two of the buttons
+    /// beside it plus the space between, and a literal here would go quietly
+    /// wrong the first time either of those changed.
+    static var wideChromeWidth: CGFloat { chromeButtonWidth * 2 + topRowSpacing }
+
+    /// How much of the panel's width the Start button takes.
+    static let startButtonLength: CGFloat = 0.66
+
+    /// How far the glow under Start swells, and how long a breath takes.
+    static let startGlowNear: CGFloat = 6
+    static let startGlowFar: CGFloat = 22
+    static let startGlowPeriod: Double = 1.1
+    static let startGlowStrength: Double = 0.9
+
+    /// The word on the way in, and the words either side of it.
+    static let startLabelSize: CGFloat = 30
+    static let wideLabelSize: CGFloat = 15
+
     /// The full height of the Zodiaction row, which the lift panel sits above.
     ///
     /// Named separately from the button's own height so the two can diverge —
@@ -429,13 +451,20 @@ struct ControlPanelView: View {
     /// Edge length of the square, in points.
     let side: CGFloat
 
+    /// Leaving the run entirely, from the start screen's way back.
+    let onQuit: () -> Void
+
     /// How many times the panel has been turned over.
     ///
     /// A count rather than a flag, so the board keeps rotating the *same way*
     /// each time instead of winding back. Turning something over and then
     /// un-turning it reads as a mistake being undone; turning it again reads as
     /// a board with two sides.
-    @State private var turns = 0
+    ///
+    /// Starts at one because the run opens on the start screen, which is on the
+    /// far side: the first press has to bring the panel *round* to the controls
+    /// rather than starting there and turning away.
+    @State private var turns = 1
 
     /// Where the in-progress drag points, and how far past the commit threshold
     /// it has run.
@@ -446,7 +475,21 @@ struct ControlPanelView: View {
     @State private var liveDirection: SwipeDirection?
     @State private var liveReach = 0
 
-    private var showingInfo: Bool { !turns.isMultiple(of: 2) }
+    /// Which of the three faces the player is looking at.
+    ///
+    /// Derived rather than stored. The start screen is not a third position on
+    /// the same axis — it is the near face while the run has not begun, and the
+    /// controls the moment it has. Storing that as well as `turns` would be two
+    /// answers to one question, and they would disagree the first time a run was
+    /// restarted from the back.
+    private var showing: PanelFace {
+        if session.isAwaitingStart { return .start }
+        return turns.isMultiple(of: 2) ? .front : .back
+    }
+
+    private var showingInfo: Bool { showing == .back }
+
+    enum PanelFace { case start, front, back }
 
     var body: some View {
         ZStack {
@@ -504,7 +547,10 @@ struct ControlPanelView: View {
                         // *is* — the same category as the name above them.
                         HStack(spacing: PanelStyle.passiveMarkSpacing) {
                             let snapshot = session.engine.passiveSnapshot
-                            let marks = session.zodiac.passives
+                            // Nothing of the run's state on the start screen —
+                            // it says what you are about to play, not how it is
+                            // going.
+                            let marks = showing == .start ? [] : session.zodiac.passives
                                 .compactMap { passive -> (mark: String, lit: Bool)? in
                                     guard let mark = passive.icon(in: snapshot) else {
                                         return nil
@@ -543,7 +589,7 @@ struct ControlPanelView: View {
             // Both faces stay mounted; the turn hides whichever faces away.
             // Rebuilding them on every flip would restart the meter's animation
             // and drop the drag mid-gesture.
-            face(isVisible: !showingInfo, flip: 0) {
+            face(isVisible: showing == .front, flip: 0) {
                 PanelFrontView(
                     session: session,
                     liveDirection: $liveDirection,
@@ -552,12 +598,32 @@ struct ControlPanelView: View {
                 )
             }
 
-            face(isVisible: showingInfo, flip: 180) {
+            face(isVisible: showing == .back, flip: 180) {
                 PanelBackView(session: session, onBack: turn)
+            }
+
+            // Shares the far side with the back, and never shares a moment with
+            // it: one belongs to a run that has not started and the other to one
+            // that has.
+            face(isVisible: showing == .start, flip: 180) {
+                PanelStartView(
+                    session: session,
+                    onStart: {
+                        session.startRun()
+                        turn()
+                    },
+                    onRules: { },
+                    onQuit: onQuit
+                )
             }
         }
         .frame(width: side, height: side)
         .clipped()
+        // A fresh run puts the start screen back up, and it lives on the odd
+        // side — so the panel turns to meet it rather than appearing mirrored.
+        .onChange(of: session.isAwaitingStart) { _, awaiting in
+            if awaiting, turns.isMultiple(of: 2) { turn() }
+        }
     }
 
     /// One side of the board, turned to face the player or away.
@@ -2363,7 +2429,7 @@ struct ControlPanelPreview: View {
                 .tracking(4)
                 .foregroundStyle(Palette.textSecondary)
 
-            ControlPanelView(session: session, side: side)
+            ControlPanelView(session: session, side: side, onQuit: {})
                 .border(Palette.outline)
 
             VStack(spacing: 10) {
@@ -2404,4 +2470,92 @@ struct ControlPanelPreview: View {
         session.debugSwapSign(to: all[(index + 1) % all.count])
     }
     #endif
+}
+
+// MARK: - The start screen
+
+/// What a run opens on: the sign you drew, and the button that begins.
+///
+/// Deliberately almost empty. Everything the panel normally carries — the
+/// stick, the passives, the Zodiaction, pause — belongs to a run in progress,
+/// and putting them here would offer them before there is anything to use them
+/// on. The sign's element and name are already drawn as the panel's own chrome,
+/// so this face adds only what is missing: a way in, a way out, and a way to
+/// read the rules first.
+private struct PanelStartView: View {
+
+    let session: GameSession
+    let onStart: () -> Void
+    let onRules: () -> Void
+    let onQuit: () -> Void
+
+    /// Whether the glow is at its wide end. Flipped once on appear and left to
+    /// breathe on a repeating animation — a pulse SwiftUI runs itself, rather
+    /// than a clock this view has to be woken up by.
+    @State private var isSwelling = false
+
+    var body: some View {
+        VStack(spacing: PanelStyle.rowSpacing) {
+            // Sits where the scroll and pause do on the front, and takes
+            // exactly their combined width.
+            HStack(spacing: PanelStyle.topRowSpacing) {
+                Spacer(minLength: 0)
+                wideButton("RULES", tint: Palette.sky, action: onRules)
+            }
+
+            Spacer(minLength: 0)
+
+            start
+
+            Spacer(minLength: 0)
+
+            HStack(spacing: PanelStyle.topRowSpacing) {
+                wideButton("BACK", tint: Palette.red, action: onQuit)
+                Spacer(minLength: 0)
+            }
+        }
+        .padding(.horizontal, PanelStyle.padding)
+        .padding(.top, PanelStyle.padding)
+        .padding(.bottom, PanelStyle.padding)
+    }
+
+    /// The way in. As tall as the Zodiaction button it will be replaced by, and
+    /// two thirds as long — the biggest thing on the panel without being the
+    /// whole panel.
+    private var start: some View {
+        CelButton(tint: Palette.green, action: onStart) {
+            Text("START")
+                .font(.system(size: PanelStyle.startLabelSize, weight: .black, design: .rounded))
+                .tracking(PanelStyle.signNameTracking)
+                .foregroundStyle(Palette.warmBlack)
+        }
+        .frame(height: PanelStyle.zodiactionButtonHeight)
+        .containerRelativeFrame(.horizontal) { width, _ in
+            width * PanelStyle.startButtonLength
+        }
+        .shadow(
+            color: Palette.green.opacity(PanelStyle.startGlowStrength),
+            radius: isSwelling ? PanelStyle.startGlowFar : PanelStyle.startGlowNear
+        )
+        .animation(
+            .easeInOut(duration: PanelStyle.startGlowPeriod).repeatForever(autoreverses: true),
+            value: isSwelling
+        )
+        .onAppear { isSwelling = true }
+    }
+
+    /// A word on a button two chrome-buttons wide.
+    private func wideButton(
+        _ word: String,
+        tint: Color,
+        action: @escaping () -> Void
+    ) -> some View {
+        CelButton(tint: tint, action: action) {
+            Text(word)
+                .font(.system(size: PanelStyle.wideLabelSize, weight: .heavy, design: .rounded))
+                .tracking(PanelStyle.signNameTracking)
+                .foregroundStyle(Palette.warmBlack)
+        }
+        .frame(width: PanelStyle.wideChromeWidth, height: PanelStyle.chromeButtonHeight)
+    }
 }

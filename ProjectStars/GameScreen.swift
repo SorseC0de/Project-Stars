@@ -145,12 +145,15 @@ struct GameScreen: View {
                 // without being able to move anything laid out inside them.
                 .overlay {
                     if let mode = session.modeCard {
-                        GameModeSplashView(mode: mode) { session.modeCardFinished() }
+                        GameModeSplashView(
+                    mode: mode,
+                    isLeaving: session.modeCardIsLeaving
+                ) { session.modeCardFinished() }
                     }
                 }
 
                 // Lower square: information and the input zone.
-                ControlPanelView(session: session, side: side)
+                ControlPanelView(session: session, side: side, onQuit: onQuit)
                     .frame(width: side, height: side)
                     .overlay(alignment: .bottomLeading) {
                         #if DEBUG
@@ -167,10 +170,10 @@ struct GameScreen: View {
                         // The layer switchboard is *not* parked, because what it is for is
                         // not finished: it takes the board apart one layer at a time while
                         // the frame counter is running. See `LayerBench`.
-                        LayerBenchControls(session: session)
+                        /*LayerBenchControls(session: session)
                             .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .topLeading)
                             .padding(.leading, 6)
-                            .padding(.top, 40)
+                            .padding(.top, 40)*/
                         #endif
                     }
             }

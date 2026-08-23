@@ -30,6 +30,9 @@ struct GameModeSplashView: View {
 
     let mode: GameMode
 
+    /// Raised when the player presses Start. The bars leave on it.
+    let isLeaving: Bool
+
     /// Called once the bars are gone. The card removes itself.
     let onFinished: () -> Void
 
@@ -78,7 +81,11 @@ struct GameModeSplashView: View {
             .frame(width: width, height: geometry.size.height)
         }
         .allowsHitTesting(false)
-        .task { await play() }
+        .onAppear { arrive() }
+        .task(id: isLeaving) {
+            guard isLeaving else { return }
+            await leave()
+        }
     }
 
     // MARK: - The bars
@@ -188,13 +195,19 @@ struct GameModeSplashView: View {
 
     // MARK: - The sequence
 
-    private func play() async {
+    /// Arrives, and stays.
+    ///
+    /// The card used to time its own exit. It does not any more: it is the thing
+    /// a run opens with, and a run opens when the player says so — see
+    /// `isLeaving`, which the Start button raises.
+    private func arrive() {
         withAnimation(.easeOut(duration: ModeCardStyle.arrival)) { stage = .gathered }
-        await sleep(ModeCardStyle.arrival + ModeCardStyle.hold)
+    }
 
+    /// Leaves, and reports that it has gone.
+    private func leave() async {
         withAnimation(.easeIn(duration: ModeCardStyle.departure)) { stage = .parted }
         await sleep(ModeCardStyle.departure)
-
         onFinished()
     }
 
@@ -244,7 +257,11 @@ enum ModeCardStyle {
     /// part of the world, so it does not answer to the world's colours — and
     /// the palette's near-blacks are close enough to Astra's night sky that the
     /// bars sank into it.
-    static let face = Color.black
+    static let face = Color.black.opacity(faceOpacity)
+
+    /// How solid the bars ever get. Just short of opaque, so the board is
+    /// always faintly there behind them rather than cut out of the screen.
+    static let faceOpacity: Double = 0.90
 
     /// One bar's fill: solid at its inner end, gone at its outer one.
     ///
@@ -363,10 +380,10 @@ enum ModeCardStyle {
         #endif
     }
 
-    static let defaultLength: Double = 0
-    static let defaultSpread: Double = 0
-    static let defaultFadeFrom: Double = 0
-    static let defaultFadeTo: Double = 0.2
+    static let defaultLength: Double = 2.0
+    static let defaultSpread: Double = -0.30
+    static let defaultFadeFrom: Double = 0.25
+    static let defaultFadeTo: Double = 0.50
 
     /// How far each bar settles past centre, into the other's side.
     ///
@@ -413,22 +430,16 @@ enum ModeCardStyle {
 
     // ── The shapes' timing ────────────────────────────────────────────
     //
-    // How long the bars take to arrive, how long they are held, and how long
-    // they take to leave. Nothing here touches the words.
+    // How long the bars take to arrive and how long they take to leave. There
+    // is no third number: the card is held until the player presses Start, and
+    // a duration for that would be a duration for how long somebody takes to
+    // decide.
 
     static var arrival: Double {
         #if DEBUG
         ModeCardTuning.shared.arrival
         #else
         defaultArrival
-        #endif
-    }
-
-    static var hold: Double {
-        #if DEBUG
-        ModeCardTuning.shared.hold
-        #else
-        defaultHold
         #endif
     }
 
@@ -440,9 +451,8 @@ enum ModeCardStyle {
         #endif
     }
 
-    static let defaultArrival: Double = 0.42
-    static let defaultHold: Double = 1.9
-    static let defaultDeparture: Double = 0.42
+    static let defaultArrival: Double = 0.30
+    static let defaultDeparture: Double = 0.30
 
     // ── The words' timing ─────────────────────────────────────────────
     //
@@ -477,7 +487,7 @@ enum ModeCardStyle {
         #endif
     }
 
-    static let defaultTextDelay: Double = 0
-    static let defaultTextResponse: Double = 0.34
-    static let defaultTextBounce: Double = 0.52
+    static let defaultTextDelay: Double = 0.15
+    static let defaultTextResponse: Double = 0.35
+    static let defaultTextBounce: Double = 0.50
 }
