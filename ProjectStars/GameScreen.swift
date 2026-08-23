@@ -186,6 +186,14 @@ struct GameScreen: View {
                 .padding(.top, 40)
             #endif
         }
+        // Over the board and the panel both: it announces the run, so nothing
+        // belonging to the run should be in front of it.
+        .overlay {
+            if let mode = session.modeCard {
+                GameModeSplashView(mode: mode) { session.modeCardFinished() }
+                    .transition(.identity)
+            }
+        }
         .overlay(alignment: .topTrailing) {
             #if DEBUG
             // Over everything, including the pause and game-over sheets: the
@@ -387,6 +395,11 @@ struct GameScreen: View {
 
             Button("Restart run") { session.restart() }
                 .keyboardShortcut("r", modifiers: [])
+
+            #if DEBUG
+            Button("Replay the mode card") { session.modeCard = session.mode }
+                .keyboardShortcut("m", modifiers: [])
+            #endif
 
             #if DEBUG
             Button("Shift Nexys") { session.debugShiftNexys() }
