@@ -84,24 +84,27 @@ struct LayerBenchControls: View {
 
     var body: some View {
         VStack(alignment: .leading, spacing: 0) {
-            ModeCardControls { session.modeCard = session.mode }
-                .padding(8)
-                .background(Palette.background.opacity(0.85))
-        }
-    }
-
-    private func toggle(_ name: String, _ value: Binding<Bool>) -> some View {
-        Button {
-            value.wrappedValue.toggle()
-        } label: {
-            HStack(spacing: 6) {
-                Text(value.wrappedValue ? "◉" : "○")
-                Text(name)
+            // Folded away by default. A bench is for the thing being tuned
+            // right now, and one left open covers the panel it is tuning
+            // against for everything that comes after.
+            Button {
+                isOpen.toggle()
+            } label: {
+                Text(isOpen ? "card ▾" : "card ▸")
+                    .font(.system(size: 11, weight: .bold, design: .monospaced))
+                    .foregroundStyle(Palette.textPrimary)
+                    .padding(.horizontal, 8)
+                    .padding(.vertical, 4)
+                    .background(Palette.background.opacity(0.85))
             }
-            .font(.system(size: 11, weight: .medium, design: .monospaced))
-            .foregroundStyle(value.wrappedValue ? Palette.lime : Palette.textSecondary)
+            .buttonStyle(.plain)
+
+            if isOpen {
+                ModeCardControls { session.modeCard = session.mode }
+                    .padding(8)
+                    .background(Palette.background.opacity(0.85))
+            }
         }
-        .buttonStyle(.plain)
     }
 }
 
