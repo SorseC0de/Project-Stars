@@ -113,8 +113,7 @@ struct GameModeSplashView: View {
     /// draws attention back to the fact that they are two.
     private func title(on bar: ModeCardStyle.Bar) -> some View {
         Text(mode.title)
-            .font(.system(size: ModeCardStyle.titleSize * bar.height, weight: .black))
-            .fontWidth(.compressed)
+            .font(ModeCardStyle.titleFont(ModeCardStyle.titleSize * bar.height))
             .tracking(ModeCardStyle.titleTracking * bar.height)
             // The tracking is applied after the last letter too, which walks the
             // whole line left of centre by half a gap.
@@ -130,7 +129,7 @@ struct GameModeSplashView: View {
     /// The one-line description, under the name on the lower bar.
     private func blurb(on bar: ModeCardStyle.Bar) -> some View {
         Text(mode.blurb)
-            .font(.system(size: ModeCardStyle.blurbSize * bar.height, weight: .medium))
+            .font(ModeCardStyle.blurbFont(ModeCardStyle.blurbSize * bar.height))
             .foregroundStyle(ModeCardStyle.ink)
             .lineLimit(1)
             .minimumScaleFactor(ModeCardStyle.textSqueeze)
@@ -246,6 +245,21 @@ enum ModeCardStyle {
     /// sit one directly above the other and the slants would read as a single
     /// leaning block.
     static let overshoot: CGFloat = 0.24
+
+    /// The face the mode's name is set in.
+    ///
+    /// A function rather than a size, so swapping the whole card onto a drawn
+    /// face is this line and nothing else — `.custom("YourFace", size: size)`.
+    /// The system's compressed black is a stand-in for the squared-off display
+    /// lettering in the sequence, and stand-ins are worth being easy to replace.
+    static func titleFont(_ size: CGFloat) -> Font {
+        .system(size: size, weight: .black).width(.compressed)
+    }
+
+    /// The face the description is set in. Same idea.
+    static func blurbFont(_ size: CGFloat) -> Font {
+        .system(size: size, weight: .medium)
+    }
 
     /// The name's size, and the air between its letters.
     static let titleSize: CGFloat = 0.63
