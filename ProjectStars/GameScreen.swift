@@ -152,8 +152,30 @@ struct GameScreen: View {
                 // Lower square: information and the input zone.
                 ControlPanelView(session: session, side: side)
                     .frame(width: side, height: side)
+                    .overlay(alignment: .bottomLeading) {
+                        #if DEBUG
+                        // **Both benches parked.** The counter is placed and the rift is
+                        // waiting for Gemini, so neither is being tuned — and a bench left
+                        // on screen after the tuning is done is just something covering the
+                        // panel. Uncomment the stack to bring either back; both control
+                        // types and every value they drive are untouched.
+                        //
+                        // Both benches are parked: the counter is placed and the rift is
+                        // waiting for Gemini. `TurnCounterTunerControls` and
+                        // `RiftPreviewControls` are intact — this is the mount.
+                        //
+                        // The layer switchboard is *not* parked, because what it is for is
+                        // not finished: it takes the board apart one layer at a time while
+                        // the frame counter is running. See `LayerBench`.
+                        LayerBenchControls(session: session)
+                            .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .topLeading)
+                            .padding(.leading, 6)
+                            .padding(.top, 40)
+                        #endif
+                    }
             }
             .frame(width: proxy.size.width, height: proxy.size.height)
+            
         }
         .background(Palette.background)
         .ignoresSafeArea(.container, edges: .bottom)
@@ -177,28 +199,7 @@ struct GameScreen: View {
                 GameOverOverlay(session: session, onChangeSign: onQuit)
             }
         }
-        .overlay(alignment: .bottomLeading) {
-            #if DEBUG
-            // **Both benches parked.** The counter is placed and the rift is
-            // waiting for Gemini, so neither is being tuned — and a bench left
-            // on screen after the tuning is done is just something covering the
-            // panel. Uncomment the stack to bring either back; both control
-            // types and every value they drive are untouched.
-            //
-            // Both benches are parked: the counter is placed and the rift is
-            // waiting for Gemini. `TurnCounterTunerControls` and
-            // `RiftPreviewControls` are intact — this is the mount.
-            //
-            // The layer switchboard is *not* parked, because what it is for is
-            // not finished: it takes the board apart one layer at a time while
-            // the frame counter is running. See `LayerBench`.
-            LayerBenchControls(session: session)
-                .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .topLeading)
-                .padding(.leading, 6)
-                .padding(.top, 40)
-            #endif
-        }
-        .overlay(alignment: .topTrailing) {
+        .overlay(alignment: .top) {
             #if DEBUG
             // Over everything, including the pause and game-over sheets: the
             // frames that matter most are the ones being dropped while

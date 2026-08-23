@@ -84,35 +84,9 @@ struct LayerBenchControls: View {
 
     var body: some View {
         VStack(alignment: .leading, spacing: 0) {
-            Button {
-                isOpen.toggle()
-            } label: {
-                Text(isOpen ? "layers ▾" : "layers ▸")
-                    .font(.system(size: 11, weight: .bold, design: .monospaced))
-                    .foregroundStyle(Palette.textPrimary)
-                    .padding(.horizontal, 8)
-                    .padding(.vertical, 4)
-                    .background(Palette.background.opacity(0.85))
-            }
-            .buttonStyle(.plain)
-
-            if isOpen {
-                VStack(alignment: .leading, spacing: 2) {
-                    toggle("scenery", $bench.scenery)
-                    toggle("tile edges", $bench.tileEdges)
-                    toggle("ground", $bench.ground)
-                    toggle("clouds", $bench.clouds)
-                    toggle("sparkles", $bench.sparkles)
-                    toggle("fracture", $bench.fracture)
-                    Divider().frame(width: 90)
-
-                    // The card's two shape knobs, and the button that puts it
-                    // back on screen to look at them.
-                    ModeCardControls { session.modeCard = session.mode }
-                }
+            ModeCardControls { session.modeCard = session.mode }
                 .padding(8)
                 .background(Palette.background.opacity(0.85))
-            }
         }
     }
 

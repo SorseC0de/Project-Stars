@@ -47,12 +47,12 @@ struct FrameRateView: View {
                 // What rebuilt, and how often, over the same second. See
                 // `RenderTally` — in a turn-based game every one of these
                 // should be near zero while nothing is moving.
-                ForEach(rebuilds, id: \.self) { line in
+                /*ForEach(rebuilds, id: \.self) { line in
                     Text(line)
                         .font(.system(size: 9, weight: .bold, design: .monospaced))
                         .foregroundStyle(Palette.gold)
                         .fixedSize()
-                }
+                }*/
             }
             .padding(.horizontal, 6)
             .padding(.vertical, 3)

@@ -240,15 +240,21 @@ enum ModeCardStyle {
 
     /// One bar's fill: solid at its inner end, gone at its outer one.
     ///
-    /// **Three stops and no more** — the two ends and the place the colours
-    /// meet. A gradient with spare stops in it is a gradient nobody can tune,
-    /// because moving the one that matters no longer moves the edge.
+    /// **Four stops, two to a colour** — where the clear run ends, and where the
+    /// black run begins. Between them is the ramp; outside them the bar is
+    /// simply one colour or the other. One stop each was a fade that started at
+    /// the very tip whether or not it should, with no way to hold the end fully
+    /// clear before it began.
     static func taper(towards slat: GameModeSplashView.Slat) -> LinearGradient {
-        let meet = fade
+        // Ordered whatever the two knobs are set to. A gradient whose stops run
+        // backwards does not warn — it draws something else.
+        let from = min(fadeFrom, fadeTo)
+        let to = max(fadeFrom, fadeTo)
 
         let stops = [
             Gradient.Stop(color: .clear, location: 0),
-            Gradient.Stop(color: face, location: meet),
+            Gradient.Stop(color: .clear, location: from),
+            Gradient.Stop(color: face, location: to),
             Gradient.Stop(color: face, location: 1),
         ]
 
@@ -261,8 +267,15 @@ enum ModeCardStyle {
         )
     }
 
-    /// The curve the words arrive on.
-    static let pop = Animation.spring(response: 0.34, dampingFraction: 0.52)
+    /// The curve the words arrive on, and leave on.
+    ///
+    /// Built from its own three knobs rather than shared with the bars: the
+    /// words do not travel with the card, they land on it, and the two want
+    /// different shapes.
+    static var pop: Animation {
+        .spring(response: textResponse, dampingFraction: textBounce)
+        .delay(textDelay)
+    }
 
     /// The words on them.
     static let ink = Palette.textPrimary
@@ -304,24 +317,34 @@ enum ModeCardStyle {
     /// middle: the inner ends make the Z and must not move.
     static var spread: CGFloat {
         #if DEBUG
-        ModeCardTuning.shared.spread
+        CGFloat(ModeCardTuning.shared.spread)
         #else
-        defaultSpread
+        CGFloat(defaultSpread)
         #endif
     }
 
-    /// How far in from a bar's outer edge the fade finishes, as a share of its
-    /// length. `0` is no fade at all; `0.5` fades across half the bar.
-    static var fade: CGFloat {
+    /// Where the fully-clear run ends, as a share of a bar's length in from its
+    /// outer edge. `0` starts the ramp at the very tip.
+    static var fadeFrom: CGFloat {
         #if DEBUG
-        ModeCardTuning.shared.fade
+        CGFloat(ModeCardTuning.shared.fadeFrom)
         #else
-        defaultFade
+        CGFloat(defaultFadeFrom)
         #endif
     }
 
-    static let defaultSpread: CGFloat = 0
-    static let defaultFade: CGFloat = 0.2
+    /// Where the ramp reaches full black, measured the same way.
+    static var fadeTo: CGFloat {
+        #if DEBUG
+        CGFloat(ModeCardTuning.shared.fadeTo)
+        #else
+        CGFloat(defaultFadeTo)
+        #endif
+    }
+
+    static let defaultSpread: Double = 0
+    static let defaultFadeFrom: Double = 0
+    static let defaultFadeTo: Double = 0.2
 
     /// How far each bar settles past centre, into the other's side.
     ///
@@ -366,12 +389,73 @@ enum ModeCardStyle {
     static let textWidth: CGFloat = 3.9
     static let textSqueeze: CGFloat = 0.6
 
-    /// How long the bars take to arrive, how long they are read, and how long
-    /// they take to leave.
-    static let arrival: Double = 0.42
-    static let hold: Double = 1.9
-    static let departure: Double = 0.42
+    // ── The shapes' timing ────────────────────────────────────────────
+    //
+    // How long the bars take to arrive, how long they are held, and how long
+    // they take to leave. Nothing here touches the words.
 
-    /// The whole card, start to finish.
-    static var duration: Double { arrival + hold + departure }
+    static var arrival: Double {
+        #if DEBUG
+        ModeCardTuning.shared.arrival
+        #else
+        defaultArrival
+        #endif
+    }
+
+    static var hold: Double {
+        #if DEBUG
+        ModeCardTuning.shared.hold
+        #else
+        defaultHold
+        #endif
+    }
+
+    static var departure: Double {
+        #if DEBUG
+        ModeCardTuning.shared.departure
+        #else
+        defaultDeparture
+        #endif
+    }
+
+    static let defaultArrival: Double = 0.42
+    static let defaultHold: Double = 1.9
+    static let defaultDeparture: Double = 0.42
+
+    // ── The words' timing ─────────────────────────────────────────────
+    //
+    // Separate on purpose. The words can wait for the bars to settle, or beat
+    // them there, without either being re-timed to suit the other.
+
+    /// How long after the bars start moving the words begin.
+    static var textDelay: Double {
+        #if DEBUG
+        ModeCardTuning.shared.textDelay
+        #else
+        defaultTextDelay
+        #endif
+    }
+
+    /// The spring's period — smaller is snappier.
+    static var textResponse: Double {
+        #if DEBUG
+        ModeCardTuning.shared.textResponse
+        #else
+        defaultTextResponse
+        #endif
+    }
+
+    /// How much it overshoots. Below 1 springs past and settles back; at 1 it
+    /// arrives without any overshoot at all.
+    static var textBounce: Double {
+        #if DEBUG
+        ModeCardTuning.shared.textBounce
+        #else
+        defaultTextBounce
+        #endif
+    }
+
+    static let defaultTextDelay: Double = 0
+    static let defaultTextResponse: Double = 0.34
+    static let defaultTextBounce: Double = 0.52
 }

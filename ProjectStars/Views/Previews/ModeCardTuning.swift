@@ -22,16 +22,30 @@ final class ModeCardTuning {
     static let shared = ModeCardTuning()
 
     /// Extra length on each bar, in bar-thicknesses, added outward only.
-    var spread: CGFloat = ModeCardStyle.defaultSpread
+    var spread: Double = ModeCardStyle.defaultSpread
 
-    /// Where the fade finishes, as a share of a bar's length in from its outer
-    /// end.
-    var fade: CGFloat = ModeCardStyle.defaultFade
+    /// The two ends of the taper, as shares of a bar's length in from its outer
+    /// edge: where the clear run stops, and where full black begins.
+    var fadeFrom: Double = ModeCardStyle.defaultFadeFrom
+    var fadeTo: Double = ModeCardStyle.defaultFadeTo
+
+    /// The bars: in, held, out.
+    var arrival: Double = ModeCardStyle.defaultArrival
+    var hold: Double = ModeCardStyle.defaultHold
+    var departure: Double = ModeCardStyle.defaultDeparture
+
+    /// The words, timed on their own.
+    var textDelay: Double = ModeCardStyle.defaultTextDelay
+    var textResponse: Double = ModeCardStyle.defaultTextResponse
+    var textBounce: Double = ModeCardStyle.defaultTextBounce
 
     func dump() {
         print("── mode card ──")
-        print(String(format: "  spread %.2f bars", spread))
-        print(String(format: "  fade   %.2f of length", fade))
+        print(String(format: "  spread   %.2f bars", spread))
+        print(String(format: "  fade     %.2f → %.2f of length", fadeFrom, fadeTo))
+        print(String(format: "  bars     in %.2f  hold %.2f  out %.2f", arrival, hold, departure))
+        print(String(format: "  words    delay %.2f  spring %.2f  bounce %.2f",
+                     textDelay, textResponse, textBounce))
     }
 }
 
@@ -50,8 +64,20 @@ struct ModeCardControls: View {
                 Button("print") { tuning.dump() }
             }
 
+            group("shape")
             row("spread", value: $tuning.spread, in: 0...6, step: 0.1)
-            row("fade", value: $tuning.fade, in: 0...0.9, step: 0.01)
+            row("fade a", value: $tuning.fadeFrom, in: 0...0.9, step: 0.01)
+            row("fade b", value: $tuning.fadeTo, in: 0...0.9, step: 0.01)
+
+            group("bars")
+            row("in", value: $tuning.arrival, in: 0.05...1.5, step: 0.01)
+            row("hold", value: $tuning.hold, in: 0.2...5, step: 0.05)
+            row("out", value: $tuning.departure, in: 0.05...1.5, step: 0.01)
+
+            group("words")
+            row("delay", value: $tuning.textDelay, in: 0...1.5, step: 0.01)
+            row("spring", value: $tuning.textResponse, in: 0.05...1.2, step: 0.01)
+            row("bounce", value: $tuning.textBounce, in: 0.2...1, step: 0.01)
         }
         .font(.system(size: 10, weight: .semibold, design: .monospaced))
         .foregroundStyle(Palette.stone)
@@ -59,11 +85,19 @@ struct ModeCardControls: View {
         .background(Palette.midnight.opacity(0.9), in: RoundedRectangle(cornerRadius: 8))
     }
 
+    /// A heading, so nine sliders read as three groups.
+    private func group(_ name: String) -> some View {
+        Text(name)
+            .font(.system(size: 9, weight: .bold, design: .monospaced))
+            .foregroundStyle(Palette.textSecondary)
+            .padding(.top, 2)
+    }
+
     private func row(
         _ label: String,
-        value: Binding<CGFloat>,
-        in range: ClosedRange<CGFloat>,
-        step: CGFloat
+        value: Binding<Double>,
+        in range: ClosedRange<Double>,
+        step: Double
     ) -> some View {
         HStack(spacing: 6) {
             Text(label).frame(width: 44, alignment: .leading)
