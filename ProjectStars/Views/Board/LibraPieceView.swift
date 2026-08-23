@@ -33,6 +33,9 @@ import SwiftUI
 /// vertically. Four poses out of two cells, and no cell that can fall out of step
 /// with its twin.
 struct LibraPieceView: View {
+    @Environment(\.planeIsAsleep) private var planeIsAsleep
+
+
 
     /// Which part of the assembly this copy draws.
     ///
@@ -83,7 +86,10 @@ struct LibraPieceView: View {
     @Environment(\.ambientClock) private var ambientClock
 
     var body: some View {
-        TimelineView(.animation) { timeline in
+        TimelineView(.animation(paused: planeIsAsleep)) { timeline in
+            #if DEBUG
+            let _ = RenderTally.tick("LibraPiece")
+            #endif
             let now = ambientClock(timeline.date.timeIntervalSinceReferenceDate)
             // The idle breath, and whatever the current move is doing on top of
             // it. A move overrides the breath rather than adding to it: the two

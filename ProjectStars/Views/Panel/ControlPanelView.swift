@@ -623,7 +623,12 @@ private struct PanelFrontView: View {
                         liveReach = $1
                         session.preview(direction: $0, reach: $1)
                     },
-                    onStepForward: { session.stepForward() }
+                    onStepForward: {
+                        // A tap is a stick input like any other, and was the
+                        // only one landing without the knock.
+                        Haptics.step()
+                        session.stepForward()
+                    }
                 )
             }
 

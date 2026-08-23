@@ -466,6 +466,11 @@ enum EffectSprite: String, CaseIterable, Hashable {
         // doubled-up drawing, while a beat between them reads as depth.
         case .cancerZodiaction, .crabWalk, .waterSplash: .fps15
         // Long strips of dissipating smoke: at 15 the tail crawls.
+        // Fifteen frames of ground shattering. At the default it is over in a
+        // third of a second, which is under the sleep the damage it belongs to
+        // takes — so the coin broke the tile and the picture of it breaking had
+        // already been and gone.
+        case .plateBurst: .fps12
         case .explosion: .fps20
         // Aries Activation 15 -> 24. The early and late frames are very similar
         case .ariesActivation: .fps24

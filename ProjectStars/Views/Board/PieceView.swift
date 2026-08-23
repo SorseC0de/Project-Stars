@@ -17,6 +17,9 @@ import SwiftUI
 /// - Note: Every sign currently points at the same sprite. That is one line in
 ///   `SpriteAtlas`, not a limitation here.
 struct PieceView: View {
+    @Environment(\.planeIsAsleep) private var planeIsAsleep
+
+
 
     let zodiac: Zodiac
 
@@ -569,7 +572,10 @@ struct PieceView: View {
     @ViewBuilder
     private var sagittariusArrow: some View {
         if zodiac == .sagittarius {
-            TimelineView(.animation) { timeline in
+            TimelineView(.animation(paused: planeIsAsleep)) { timeline in
+                #if DEBUG
+                let _ = RenderTally.tick("Piece#1")
+                #endif
                 let now = clock(timeline.date.timeIntervalSinceReferenceDate)
                 // Still while he is stone. The float is the shot being *ready*,
                 // and an arrow drifting over a dark statue promises something
@@ -619,7 +625,10 @@ struct PieceView: View {
     @ViewBuilder
     private var leoEmbers: some View {
         if zodiac == .leo, isCharged {
-            TimelineView(.animation) { timeline in
+            TimelineView(.animation(paused: planeIsAsleep)) { timeline in
+                #if DEBUG
+                let _ = RenderTally.tick("Piece#2")
+                #endif
                 maneEmbers(at: clock(timeline.date.timeIntervalSinceReferenceDate))
             }
             .frame(width: tileSize, height: tileSize * 2)
@@ -638,6 +647,7 @@ struct PieceView: View {
     /// - Parameter seed: Which flame this is. Two embers on one seed move
     ///   together and read as one thing in two places.
     private struct Flickering: ViewModifier {
+
 
         let now: TimeInterval
         let scale: CGFloat
@@ -756,7 +766,10 @@ struct PieceView: View {
     @ViewBuilder
     private func virgoGemLayer(behind: Bool) -> some View {
         if zodiac == .virgo {
-            TimelineView(.animation) { timeline in
+            TimelineView(.animation(paused: planeIsAsleep)) { timeline in
+                #if DEBUG
+                let _ = RenderTally.tick("Piece#3")
+                #endif
                 let now = clock(timeline.date.timeIntervalSinceReferenceDate)
                 let swing = now / GameRules.virgoGemPeriod * 2 * .pi
                 let bob = now / GameRules.virgoGemFloatPeriod * 2 * .pi

@@ -79,6 +79,19 @@ final class LayerBench {
     // the state without the sweep; the style cycles what a covered square is
     // drawn as, so the same state can be tested with three different pictures.
 
+    /// Whether the hardware-keyboard shortcuts are mounted at all.
+    ///
+    /// Twenty-eight zero-sized buttons, each registering a system key command,
+    /// live in the board's background so a keyboard can drive the game. They
+    /// draw nothing and they are never rebuilt — but they are the one part of
+    /// this screen that exists **only in the simulator**, because that is the
+    /// only place with a keyboard attached. Which makes them the first thing to
+    /// take away when the simulator is slow and the device is not.
+    ///
+    /// Turning this off takes WASD and the debug keys with it; the on-screen
+    /// controls still work.
+    var keyboard = true
+
     /// What a covered square is drawn as.
     var coverStyle: CoverStyle = .art
 
@@ -102,6 +115,11 @@ final class LayerBench {
         /// No sprite at all: a flat fill, which asks nothing of the atlas.
         case rectangle
 
+        /// Nothing drawn. The state is still there; the picture is not — which
+        /// is the only way to tell the cost of *having* cover from the cost of
+        /// *painting* it.
+        case hidden
+
         var next: CoverStyle {
             let all = Self.allCases
             let i = all.firstIndex(of: self) ?? 0
@@ -119,6 +137,7 @@ final class LayerBench {
     let fracture = true
     let magneticMane = true
     let chargeEffects = true
+    let keyboard = true
     let coverStyle: CoverStyle = .art
     let grassObjects = true
 
@@ -174,6 +193,17 @@ struct LayerBenchControls: View {
                             .foregroundStyle(Palette.sky)
                     }
                     .buttonStyle(.plain)
+
+                    Button {
+                        session.debugCoverFarBoard()
+                    } label: {
+                        Text("▸ cover far plane")
+                            .font(.system(size: 11, weight: .medium, design: .monospaced))
+                            .foregroundStyle(Palette.sky)
+                    }
+                    .buttonStyle(.plain)
+
+                    toggle("keyboard", $bench.keyboard)
 
                     toggle("grass objects", $bench.grassObjects)
 

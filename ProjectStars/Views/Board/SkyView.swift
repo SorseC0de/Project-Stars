@@ -17,6 +17,8 @@ import SwiftUI
 /// upper half of the screen is meant to be strictly on-palette. Depth comes from
 /// bands and layering instead.
 struct SkyView: View {
+    @Environment(\.planeIsAsleep) private var planeIsAsleep
+
 
     let plane: Plane
 
@@ -127,6 +129,7 @@ struct SkyView: View {
 
     /// One star's fixed place and its own rhythm.
     private struct Star {
+
         let x: Double
         let y: Double
         let size: Double
@@ -171,7 +174,10 @@ struct SkyView: View {
                 Color.clear
             }
 
-            TimelineView(.animation) { timeline in
+            TimelineView(.animation(paused: planeIsAsleep)) { timeline in
+                #if DEBUG
+                let _ = RenderTally.tick("Sky")
+                #endif
                 let now = clock(timeline.date.timeIntervalSinceReferenceDate)
 
                 ZStack {

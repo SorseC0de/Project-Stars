@@ -32,20 +32,34 @@ import SwiftUI
 struct FrameRateView: View {
 
     @State private var window = FrameWindow()
+    @State private var tally = TallyWindow()
 
     var body: some View {
         TimelineView(.animation) { timeline in
             let rate = window.record(timeline.date)
+            let rebuilds = tally.record(timeline.date)
 
-            Text(rate > 0 ? "\(Int(rate.rounded())) FPS" : "— FPS")
-                .font(.system(size: 11, weight: .heavy, design: .monospaced))
-                .foregroundStyle(colour(for: rate))
-                .padding(.horizontal, 6)
-                .padding(.vertical, 3)
-                .background(
-                    RoundedRectangle(cornerRadius: 4)
-                        .fill(Palette.coolBlack.opacity(0.7))
-                )
+            VStack(alignment: .trailing, spacing: 2) {
+                Text(rate > 0 ? "\(Int(rate.rounded())) FPS" : "— FPS")
+                    .font(.system(size: 11, weight: .heavy, design: .monospaced))
+                    .foregroundStyle(colour(for: rate))
+
+                // What rebuilt, and how often, over the same second. See
+                // `RenderTally` — in a turn-based game every one of these
+                // should be near zero while nothing is moving.
+                ForEach(rebuilds, id: \.self) { line in
+                    Text(line)
+                        .font(.system(size: 9, weight: .bold, design: .monospaced))
+                        .foregroundStyle(Palette.gold)
+                        .fixedSize()
+                }
+            }
+            .padding(.horizontal, 6)
+            .padding(.vertical, 3)
+            .background(
+                RoundedRectangle(cornerRadius: 4)
+                    .fill(Palette.coolBlack.opacity(0.7))
+            )
         }
         .allowsHitTesting(false)
     }
@@ -97,6 +111,33 @@ private final class FrameWindow {
         guard !intervals.isEmpty else { return 0 }
         let mean = intervals.reduce(0, +) / Double(intervals.count)
         return mean > 0 ? 1 / mean : 0
+    }
+}
+
+/// A one-second sample of `RenderTally`, held between frames.
+///
+/// Sampled on the frame clock rather than a timer of its own: a second timer is
+/// a second thing waking the main thread up, which is the very thing being
+/// measured.
+@MainActor
+private final class TallyWindow {
+
+    private var openedAt: Date?
+    private var lines: [String] = []
+
+    /// The last completed second's rebuild counts, busiest first.
+    func record(_ now: Date) -> [String] {
+        guard let openedAt else {
+            self.openedAt = now
+            _ = RenderTally.drain()
+            return lines
+        }
+
+        guard now.timeIntervalSince(openedAt) >= 1 else { return lines }
+
+        self.openedAt = now
+        lines = RenderTally.drain()
+        return lines
     }
 }
 

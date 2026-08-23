@@ -24,6 +24,9 @@ import SwiftUI
 /// piece reads as part of the sprite; one that lags and settles reads as an
 /// object going along for the ride.
 struct CarriedPickupView: View {
+    @Environment(\.planeIsAsleep) private var planeIsAsleep
+
+
 
     /// Size of a board cell, in points.
     let tileSize: CGFloat
@@ -40,7 +43,10 @@ struct CarriedPickupView: View {
 
 
     var body: some View {
-        TimelineView(.animation) { timeline in
+        TimelineView(.animation(paused: planeIsAsleep)) { timeline in
+            #if DEBUG
+            let _ = RenderTally.tick("CarriedPickup")
+            #endif
             let now = clock(timeline.date.timeIntervalSinceReferenceDate)
             let bob = sin(now / GameRules.carriedBobPeriod * 2 * .pi)
             let side = GameRules.carriedSize * scale

@@ -26,6 +26,9 @@ import SwiftUI
 /// possible. Drawing it in the tile colours it will actually take means the
 /// player reads that the same way they read the rest of the board.
 struct SlabPhantomView: View {
+    @Environment(\.planeIsAsleep) private var planeIsAsleep
+
+
 
     let slab: GavelSlab
     let metrics: PixelArtMetrics
@@ -63,7 +66,10 @@ struct SlabPhantomView: View {
 
         let cell = metrics.tileSize * Style.scale
 
-        TimelineView(.animation) { timeline in
+        TimelineView(.animation(paused: planeIsAsleep)) { timeline in
+            #if DEBUG
+            let _ = RenderTally.tick("SlabPhantom")
+            #endif
             let bob = sin(clock(timeline.date.timeIntervalSinceReferenceDate) * 2) * Style.bob
 
             ZStack(alignment: .topLeading) {

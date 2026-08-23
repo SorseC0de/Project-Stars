@@ -3578,7 +3578,7 @@ enum GameRules {
 
     /// How big the shattering plate is drawn for each of the two coins that
     /// break ground. A bump and a hole should not look the same size.
-    static let tremorBurstScale: CGFloat = 0.7
+    static let tremorBurstScale: CGFloat = 1
 
     static let shakedownBurstScale: CGFloat = 1.35
 
@@ -4119,7 +4119,16 @@ enum GameRules {
     /// At an eighth of a second the two hops overlapped so heavily that they
     /// read as one animation with a soft edge. The gap wants to be visible: Leo
     /// lands, and *then* the phantom goes.
-    static let retinueBeat: TimeInterval = 0.14
+    /// **A share of the hop, not a fixed gap.**
+    ///
+    /// It was an eighth of a second, chosen when a hop lasted longer than that.
+    /// The hop is faster now, so a fixed beat put each phantom's jump *after*
+    /// the lion had finished his — a chain lagging behind rather than a retinue
+    /// following. Stated against the pose's own clock so the two cannot drift
+    /// apart again when the pacing is retuned.
+    static var retinueBeat: TimeInterval {
+        hopDuration * hopPoseStretch * 0.5
+    }
 
     /// The shadow under a phantom, and how far below it sits.
     /// How far a shadowed figure is lifted back up after being multiplied down.

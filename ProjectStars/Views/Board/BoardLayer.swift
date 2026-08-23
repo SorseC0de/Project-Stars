@@ -314,6 +314,9 @@ struct OnBoard: ViewModifier {
 /// placed — a piece mid-hop, say — can still be handed a hover without being
 /// re-placed.
 struct Hovering: ViewModifier {
+    @Environment(\.planeIsAsleep) private var planeIsAsleep
+
+
 
     let style: HoverStyle
     var salt: Int = 0
@@ -323,7 +326,10 @@ struct Hovering: ViewModifier {
         if case .none = style {
             content
         } else {
-            TimelineView(.animation) { timeline in
+            TimelineView(.animation(paused: planeIsAsleep)) { timeline in
+                #if DEBUG
+                let _ = RenderTally.tick("BdLayer")
+                #endif
                 let now = clock(timeline.date.timeIntervalSinceReferenceDate)
                 content
                     .scaleEffect(style.breath(at: now))

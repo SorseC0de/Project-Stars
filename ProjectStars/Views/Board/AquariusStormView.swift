@@ -33,6 +33,9 @@ import SwiftUI
 /// storm lies — large under the funnel, small under the pot — so it is sized by
 /// whoever draws the piece, from the same `stage`.
 struct AquariusStormView: View {
+    @Environment(\.planeIsAsleep) private var planeIsAsleep
+
+
 
     /// How far through the storm's retreat this is, `0` fully wrapped and `1`
     /// fully revealed.
@@ -58,7 +61,10 @@ struct AquariusStormView: View {
     @Environment(\.ambientClock) private var ambientClock
 
     var body: some View {
-        TimelineView(.animation) { timeline in
+        TimelineView(.animation(paused: planeIsAsleep)) { timeline in
+            #if DEBUG
+            let _ = RenderTally.tick("AquariusStorm")
+            #endif
             let now = ambientClock(timeline.date.timeIntervalSinceReferenceDate)
             let hidden = 1 - min(max(revealed, 0), 1)
 

@@ -2624,6 +2624,14 @@ struct GameEngine {
         let tile = self[plane][point]
         guard !tile.health.isHole else { return [] }
 
+        // **Water feeds what is growing. It does not plant.**
+        //
+        // Bare ground stayed bare: a droplet landing on stone made grass out of
+        // nothing, which is Taurus' whole job being done for free by anyone
+        // carrying water. Feeding is grass to flowers — an upgrade to something
+        // already there.
+        guard tile.cover != nil else { return [] }
+
         let fed = GroundCover.watered(tile.cover, at: point, seed: moveCount)
         guard fed != tile.cover else { return [] }
 

@@ -1243,6 +1243,20 @@ final class GameSession {
         engine.debugCoverEverything(on: visiblePlane)
         publish()
     }
+
+    /// Covers the plane that is **not** on screen.
+    ///
+    /// The one test that separates the two remaining explanations for the
+    /// Hydroponic tank. Covered ground costs frames even with nothing drawing
+    /// it, which leaves either something rendering that should not be, or
+    /// something reading the board that has nothing to do with rendering. Cover
+    /// the far plane and the first explanation is gone: nothing up there is on
+    /// screen, so nothing up there can be drawn. If the frame rate falls anyway,
+    /// it was never about the picture.
+    func debugCoverFarBoard() {
+        engine.debugCoverEverything(on: visiblePlane.opposite)
+        publish()
+    }
     #endif
 
     func debugStageLightning() {
@@ -1471,7 +1485,21 @@ final class GameSession {
     /// meant the long one is exactly the mistake the drag exists to avoid.
     func stepForward() {
         if dismissIntroIfShowing() { return }
-        guard acceptsInput else { return }
+
+        // **Not `acceptsInput`, which threw the tap away.**
+        //
+        // A turn is longer than the hop inside it, and `submit` exists to
+        // *remember* an input that lands during that tail rather than lose it.
+        // Guarding here on `acceptsInput` — false for the whole tail — meant the
+        // tap never reached the part that remembers it, so a player tapping at a
+        // comfortable pace had every second tap silently dropped while the very
+        // same input arriving as a swipe or a key was kept and replayed.
+        //
+        // That read as the stick being laggy, and it was not: it was the tap
+        // being the one input in the game without a memory. `submit` still holds
+        // every real gate — pause, splash, parked Pentacle — so letting the
+        // resolving tail through only reaches the buffer.
+        guard acceptsInput || phase == .resolvingMove else { return }
 
         // **Already in the piece's own terms, so it must not be turned around.**
         //
@@ -3773,6 +3801,15 @@ extension GameSession {
 
     /// The board being rendered in the top half of the screen.
     var visibleBoard: Board { engine[visiblePlane] }
+
+    /// Whether `plane` is off screen and can stop asking for frames.
+    ///
+    /// See `EnvironmentValues.planeIsAsleep` for what this is for. Both planes
+    /// are mounted at once, so the one not being looked at is a full board's
+    /// worth of animation running behind a clip.
+    func planeIsAsleep(_ plane: Plane) -> Bool {
+        plane != visiblePlane && !isFalling
+    }
 
     /// Every square the piece could move to this turn, and the swipe that gets
     /// it there.

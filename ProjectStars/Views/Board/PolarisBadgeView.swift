@@ -91,12 +91,18 @@ struct PolarisBadgeView: View {
 /// `#42CAFD`, `#FFCE00` — rather than chosen, so the burst is made of the same
 /// palette entries as the thing that made it.
 private struct PolarisChargeBurst: View {
+    @Environment(\.planeIsAsleep) private var planeIsAsleep
+
+
 
     let start: Date
     let size: CGFloat
 
     var body: some View {
-        TimelineView(.animation) { timeline in
+        TimelineView(.animation(paused: planeIsAsleep)) { timeline in
+            #if DEBUG
+            let _ = RenderTally.tick("PolarisBadge")
+            #endif
             let elapsed = timeline.date.timeIntervalSince(start)
             let progress = min(max(elapsed / Style.duration, 0), 1)
 

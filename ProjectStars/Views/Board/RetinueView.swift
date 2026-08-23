@@ -101,6 +101,9 @@ struct RetinueView: View {
 /// a hole reads as a bug rather than as an ability. Only over holes: everywhere
 /// else it has ground, and ground is what the shadow is for.
 private struct RetinueFloat: ViewModifier {
+    @Environment(\.planeIsAsleep) private var planeIsAsleep
+
+
 
     let hovering: Bool
 
@@ -108,7 +111,10 @@ private struct RetinueFloat: ViewModifier {
 
     func body(content: Content) -> some View {
         if hovering {
-            TimelineView(.animation) { timeline in
+            TimelineView(.animation(paused: planeIsAsleep)) { timeline in
+                #if DEBUG
+                let _ = RenderTally.tick("Retinue")
+                #endif
                 let now = ambientClock(timeline.date.timeIntervalSinceReferenceDate)
                 let rise = sin(now / GameRules.retinueFloatPeriod * 2 * .pi)
 

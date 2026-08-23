@@ -38,6 +38,9 @@ import SwiftUI
 /// the one behind it, and that no two are the same size or in the same place for
 /// long.
 struct CloudSpriteField: View, Equatable {
+    @Environment(\.planeIsAsleep) private var planeIsAsleep
+
+
 
     let board: Board
     let metrics: PixelArtMetrics
@@ -140,7 +143,10 @@ struct CloudSpriteField: View, Equatable {
         // Forty-nine clusters, each a sprite with its own wander and breath —
         // the most expensive still thing on the board, and none of it moves
         // fast enough to need a frame a frame.
-        TimelineView(.animation(minimumInterval: 1 / GameRules.cloudFrameRate)) { timeline in
+        TimelineView(.animation(minimumInterval: 1 / GameRules.cloudFrameRate, paused: planeIsAsleep)) { timeline in
+            #if DEBUG
+            let _ = RenderTally.tick("CloudSpriteField")
+            #endif
             let now = clock(timeline.date.timeIntervalSinceReferenceDate)
 
             // Padded well past the board on every side.

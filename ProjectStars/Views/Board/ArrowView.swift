@@ -28,6 +28,9 @@ import SwiftUI
 /// shaft leans a few degrees — which says it arrived rather than being
 /// installed, without pretending it flew at that angle.
 struct ArrowView: View {
+    @Environment(\.planeIsAsleep) private var planeIsAsleep
+
+
 
     /// Rendered edge length of one cell, in points.
     let tileSize: CGFloat
@@ -44,7 +47,10 @@ struct ArrowView: View {
 
 
     var body: some View {
-        TimelineView(.animation) { timeline in
+        TimelineView(.animation(paused: planeIsAsleep)) { timeline in
+            #if DEBUG
+            let _ = RenderTally.tick("Arrow")
+            #endif
             let now = clock(timeline.date.timeIntervalSinceReferenceDate)
             let pulse = (sin(now / GameRules.arrowPulsePeriod * 2 * .pi) + 1) / 2
 

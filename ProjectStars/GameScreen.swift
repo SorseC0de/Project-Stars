@@ -186,22 +186,30 @@ struct GameScreen: View {
                 .padding(.top, 40)
             #endif
         }
-        .overlay(alignment: .top) {
+        .overlay(alignment: .topTrailing) {
             #if DEBUG
             // Over everything, including the pause and game-over sheets: the
             // frames that matter most are the ones being dropped while
             // something is covering the board.
             //
-            // Centred, because the top left is the turn counter's corner now.
+            // Down the right edge rather than centred: the rate is one line but
+            // the rebuild counts under it are a column as long as there are
+            // clocks running, and a column has to hang off an edge to be read.
+            // The top left is the turn counter's corner.
             FrameRateView()
                 .padding(.top, 8)
+                .padding(.trailing, 6)
             #endif
         }
         // Every ambient animation below this reads it, `PixelSprite` included —
         // which is how the whole board stops at once rather than view by view as
         // somebody remembers each one.
         .environment(\.ambientClock, session.ambientClock(at:))
-        .background { keyboardCommands }
+        .background {
+            // See `LayerBench.keyboard` — the one part of this screen that only
+            // exists where the lag does.
+            if LayerBench.shared.keyboard { keyboardCommands }
+        }
         .animation(.easeInOut(duration: 0.3), value: session.phase)
         .animation(.easeInOut(duration: 0.25), value: session.pentacleIntro)
         .animation(.easeInOut(duration: 0.2), value: session.isPaused)
@@ -273,6 +281,13 @@ struct GameScreen: View {
     /// lets the two be stacked at all — Astra's stars and Terra's daylight are
     /// as much a part of where you are as the ground is.
     private func planeSquare(_ plane: Plane, side: CGFloat) -> some View {
+        planeContents(plane, side: side)
+            // Everything inside stops asking for frames while this plane is the
+            // one off screen. See `EnvironmentValues.planeIsAsleep`.
+            .environment(\.planeIsAsleep, session.planeIsAsleep(plane))
+    }
+
+    private func planeContents(_ plane: Plane, side: CGFloat) -> some View {
         ZStack {
             // The sky fills the whole square, not just the grid — the
             // letterboxing either side of a 7x7 board at whole-pixel scale is

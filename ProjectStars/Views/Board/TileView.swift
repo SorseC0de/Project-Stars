@@ -69,6 +69,9 @@ struct TileView: View {
     var drawnByField: Bool = false
 
     var body: some View {
+        #if DEBUG
+        let _ = RenderTally.tick("tile")
+        #endif
         pressed {
             content
         }

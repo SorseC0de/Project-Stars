@@ -21,6 +21,9 @@ import SwiftUI
 /// on the board at all shows the white set at low opacity, because the point is
 /// that there is nothing there.
 struct CursorView: View {
+    @Environment(\.planeIsAsleep) private var planeIsAsleep
+
+
 
     let status: GameEngine.CursorStatus
 
@@ -41,7 +44,10 @@ struct CursorView: View {
     var showsWarning: Bool = true
 
     var body: some View {
-        TimelineView(.animation) { timeline in
+        TimelineView(.animation(paused: planeIsAsleep)) { timeline in
+            #if DEBUG
+            let _ = RenderTally.tick("Cursor")
+            #endif
             let spread = flare(at: timeline.date) * scale
 
             ZStack {

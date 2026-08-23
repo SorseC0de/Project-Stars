@@ -21,6 +21,9 @@ import SwiftUI
 /// cursor, then the piece and the Nexys — whose order relative to each other is
 /// decided per frame, see `nexysDrawsBehindPiece`.
 struct BoardView: View {
+    @Environment(\.planeIsAsleep) private var planeIsAsleep
+
+
 
     let session: GameSession
 
@@ -42,6 +45,9 @@ struct BoardView: View {
     let availableSide: CGFloat
 
     var body: some View {
+        #if DEBUG
+        let _ = RenderTally.tick("board")
+        #endif
         let metrics = PixelArtMetrics(availableSide: availableSide)
         let plane = shown
         let board = session.visibleBoard
@@ -138,32 +144,25 @@ struct BoardView: View {
             // island's drift while standing on it.
             // Paused means paused: the board's whole clock stops, so nothing
             // is quietly still moving behind the menu.
-            TimelineView(.animation(paused: session.isPaused)) { timeline in
-                // **One container.** The board and the wash over it are two
-                // views, and a timeline handed two views has no stack to lay
-                // them out in — which is a sizing question, not a z-order one,
-                // and it took the board's own frame with it.
-                ZStack {
-                let bob = nexysBob(at: timeline.date, metrics: metrics)
-                let pose = hopPose(at: timeline.date)
-                let arrival = arrivalProgress(at: timeline.date)
-                let sway = cloudSway(at: timeline.date, metrics: metrics)
-                let flash = chargeFlash(at: timeline.date)
-                let starElement = starElement(at: timeline.date)
-                let ascent = ascentPose(at: timeline.date, metrics: metrics)
-                let travel = nexysTravelPose(at: timeline.date, metrics: metrics)
+            // **The board is not on a clock. The things that move are.**
+            //
+            // This whole stack used to sit inside one `TimelineView`, which is
+            // a rebuild of every object on the board sixty times a second — in
+            // a game where the board changes only when a turn is taken. The
+            // ground alone is forty-nine of those, and it does not move at all.
+            //
+            // The clock belongs to the handful of things that genuinely animate
+            // between turns: the piece and its pose, the cursor, the island's
+            // drift, the retinue, the facing arrow, Scorpio's tail. Each takes
+            // its own — see `ticking` — which also keeps them sorted against
+            // the ground, since a single shared timeline would be one sibling
+            // of this stack and everything inside it would share that one
+            // place in the order.
+            ZStack {
                 objects(
                     board: board,
                     plane: plane,
-                    metrics: metrics,
-                    bob: bob,
-                    pose: pose,
-                    arrival: arrival,
-                    ascent: ascent,
-                    travel: travel,
-                    sway: sway,
-                    flash: flash,
-                    starElement: starElement
+                    metrics: metrics
                 )
 
                 // **The wash, with everything standing on the board punched
@@ -233,15 +232,7 @@ struct BoardView: View {
                                     board: board,
                                     plane: plane,
                                     includesGround: false,
-                                    metrics: metrics,
-                                    bob: bob,
-                                    pose: pose,
-                                    arrival: arrival,
-                                    ascent: ascent,
-                                    travel: travel,
-                                    sway: sway,
-                                    flash: flash,
-                                    starElement: starElement
+                                    metrics: metrics
                                 )
                                 // **Rasterised first, not merely grouped.**
                                 //
@@ -277,7 +268,6 @@ struct BoardView: View {
                     .compositingGroup()
                 )
                 }
-            }
             }
             // **No group-wide z any more.**
             //
@@ -362,7 +352,10 @@ struct BoardView: View {
     @ViewBuilder
     private func shedSkin(plane: Plane, metrics: PixelArtMetrics) -> some View {
         if let skin = session.engine.signState.shedSkin, skin.plane == plane {
-            TimelineView(.animation) { timeline in
+            TimelineView(.animation(paused: planeIsAsleep)) { timeline in
+                #if DEBUG
+                let _ = RenderTally.tick("Bd#1")
+                #endif
                 let phase = timeline.date.timeIntervalSinceReferenceDate
                     / GameRules.shedSkinFloatPeriod * 2 * .pi
                 let drift = CGFloat(sin(phase))
@@ -395,7 +388,10 @@ struct BoardView: View {
     @ViewBuilder
     private func loosedArrow(metrics: PixelArtMetrics) -> some View {
         if let shot = session.loosedArrow, shot.plane == shown {
-            TimelineView(.animation) { timeline in
+            TimelineView(.animation(paused: planeIsAsleep)) { timeline in
+                #if DEBUG
+                let _ = RenderTally.tick("Bd#2")
+                #endif
                 let progress = min(
                     max(timeline.date.timeIntervalSince(shot.start)
                         / GameRules.arrowRiseDuration, 0),
@@ -428,7 +424,10 @@ struct BoardView: View {
     @ViewBuilder
     private func reeledCoin(metrics: PixelArtMetrics) -> some View {
         if let flight = session.coinFlight, flight.plane == shown {
-            TimelineView(.animation) { timeline in
+            TimelineView(.animation(paused: planeIsAsleep)) { timeline in
+                #if DEBUG
+                let _ = RenderTally.tick("Bd#3")
+                #endif
                 let progress = min(
                     max(timeline.date.timeIntervalSince(flight.start)
                         / GameRules.stingReelDuration, 0),
@@ -467,7 +466,10 @@ struct BoardView: View {
     private func bastionAura(metrics: PixelArtMetrics) -> some View {
         if let point = session.engine.signState.bastion,
            session.engine.signState.bastionPlane == shown {
-            TimelineView(.animation(paused: session.isPaused)) { timeline in
+            TimelineView(.animation(paused: session.isPaused || planeIsAsleep)) { timeline in
+                #if DEBUG
+                let _ = RenderTally.tick("Bd#4")
+                #endif
                 let tick = session.ambientClock(
                     at: timeline.date.timeIntervalSinceReferenceDate
                 )
@@ -531,7 +533,10 @@ struct BoardView: View {
         //
         // Paused when nothing is falling, so a standing shard costs the same as
         // any other sprite.
-        TimelineView(.animation(paused: session.prongsFalling == nil)) { timeline in
+        TimelineView(.animation(paused: session.prongsFalling == nil || planeIsAsleep)) { timeline in
+            #if DEBUG
+            let _ = RenderTally.tick("Bd#5")
+            #endif
             let falling: CGFloat = {
                 guard let began = session.prongsFalling else { return 0 }
                 let progress = min(
@@ -596,7 +601,10 @@ struct BoardView: View {
            session.prongsFalling == nil,
            let pole = prongs.poles.first(where: { $0.direction == prongs.active }) {
 
-            TimelineView(.animation(paused: session.isPaused)) { timeline in
+            TimelineView(.animation(paused: session.isPaused || planeIsAsleep)) { timeline in
+                #if DEBUG
+                let _ = RenderTally.tick("Bd#6")
+                #endif
                 // A fresh ring every `prongPulsePeriod`, from a clock rather
                 // than from an event: nothing *happens* to start it, the pole
                 // simply is the live one.
@@ -709,7 +717,10 @@ struct BoardView: View {
             // No cover, no overlay, no timeline asking to be woken sixty times
             // a second to draw nothing.
             if !covered.isEmpty {
-            TimelineView(.animation(paused: session.isPaused)) { timeline in
+            TimelineView(.animation(paused: session.isPaused || planeIsAsleep)) { timeline in
+                #if DEBUG
+                let _ = RenderTally.tick("Bd#7")
+                #endif
                 let now = session.ambientClock(
                     at: timeline.date.timeIntervalSinceReferenceDate
                 )
@@ -951,7 +962,10 @@ struct BoardView: View {
     @ViewBuilder
     private func slabDrop(metrics: PixelArtMetrics) -> some View {
         if let drop = session.slabDrop, drop.plane == shown {
-            TimelineView(.animation) { timeline in
+            TimelineView(.animation(paused: planeIsAsleep)) { timeline in
+                #if DEBUG
+                let _ = RenderTally.tick("Bd#8")
+                #endif
                 let elapsed = timeline.date.timeIntervalSince(drop.start)
                 let arrival = min(max(elapsed / GameRules.slabDropDuration, 0), 1)
 
@@ -1647,15 +1661,7 @@ struct BoardView: View {
         board: Board,
         plane: Plane,
         includesGround: Bool = true,
-        metrics: PixelArtMetrics,
-        bob: CGFloat,
-        pose: HopPose,
-        arrival: CGFloat,
-        ascent: AscentPose,
-        travel: AscentPose,
-        sway: CGSize,
-        flash: Double,
-        starElement: ZodiacElement?
+        metrics: PixelArtMetrics
     ) -> some View {
         ZStack {
             // **Drawn in list order and stacked by row, which have to agree.**
@@ -1676,35 +1682,53 @@ struct BoardView: View {
                     case .raisedTile:
                         raisedTile(at: object.point, plane: plane, metrics: metrics)
                     case .cursorBack:
-                        cursor(
-                            at: object.point, metrics: metrics, bob: bob,
-                            corners: [.topLeft, .topRight], showsWarning: false
-                        )
+                        // On its own clock — see `BoardView.ticking`.
+                        ticking(metrics) { tick in
+                            let bob = tick.bob
+                            cursor(
+                                at: object.point, metrics: metrics, bob: bob,
+                                corners: [.topLeft, .topRight], showsWarning: false
+                            )
+                        }
                     case .cursorFront:
-                        cursor(
-                            at: object.point, metrics: metrics, bob: bob,
-                            corners: [.bottomLeft, .bottomRight], showsWarning: true
-                        )
+                        // On its own clock — see `BoardView.ticking`.
+                        ticking(metrics) { tick in
+                            let bob = tick.bob
+                            cursor(
+                                at: object.point, metrics: metrics, bob: bob,
+                                corners: [.bottomLeft, .bottomRight], showsWarning: true
+                            )
+                        }
                     case .tileRow:
                         bandRow(object.point.y, board: board, plane: plane, metrics: metrics)
 
                     case .pentacle:
                         pentacle(at: object.point, metrics: metrics)
                     case .libraPan:
-                        piece(
-                            metrics: metrics, bob: bob, pose: pose,
-                            arrival: arrival, ascent: ascent, sway: sway,
-                            flash: flash, starElement: starElement,
-                            // **Sorted forward, drawn in place.**
-                            //
-                            // The object sits on the row ahead so it clears
-                            // that row's ground, but the pan is on the end of
-                            // her arm and has to be drawn where her arm is —
-                            // placing it forward as well tore it off her.
-                            part: .frontPan,
-                            placedAt: session.engine.piece.point
-                        )
+                        // On its own clock — see `BoardView.ticking`.
+                        ticking(metrics) { tick in
+                            let bob = tick.bob
+                            let pose = tick.pose
+                            let arrival = tick.arrival
+                            let ascent = tick.ascent
+                            let sway = tick.sway
+                            let flash = tick.flash
+                            let starElement = tick.starElement
+                            piece(
+                                metrics: metrics, bob: bob, pose: pose,
+                                arrival: arrival, ascent: ascent, sway: sway,
+                                flash: flash, starElement: starElement,
+                                // **Sorted forward, drawn in place.**
+                                //
+                                // The object sits on the row ahead so it clears
+                                // that row's ground, but the pan is on the end of
+                                // her arm and has to be drawn where her arm is —
+                                // placing it forward as well tore it off her.
+                                part: .frontPan,
+                                placedAt: session.engine.piece.point
+                            )
 
+                        }
                     case .sigil:
                         if let tint = sigil(at: object.point, on: plane) {
                             // **Turning inside its own upright space, then laid
@@ -1716,7 +1740,10 @@ struct BoardView: View {
                             // `isStanding: false` is the whole of the fix for
                             // Astra: an object lies here rather than stands, so
                             // it takes the plane's ground shape either way.
-                            TimelineView(.animation) { timeline in
+                            TimelineView(.animation(paused: planeIsAsleep)) { timeline in
+                                #if DEBUG
+                                let _ = RenderTally.tick("Bd#9")
+                                #endif
                                 let turn = timeline.date.timeIntervalSinceReferenceDate
                                     / GameRules.miasmaMarkPeriod
 
@@ -1774,41 +1801,45 @@ struct BoardView: View {
                         }
 
                     case .sting:
-                        if let strike = session.stingStrike {
-                            StingLanceView(
-                                direction: strike.direction,
-                                reach: strike.reach,
-                                tileSize: metrics.tileSize,
-                                start: strike.start
-                            )
-                            // **Foreshortened going away, and behind him.**
-                            //
-                            // A tail thrown north is going *into* the board, so
-                            // it is drawn short and passes behind the figure it
-                            // comes off — at full length it stood up the board
-                            // like a wall and covered him.
-                            .scaleEffect(
-                                x: 1,
-                                y: strike.direction == .up ? GameRules.stingAwaySquash : 1,
-                                anchor: .bottom
-                            )
-                            .offset(y: -GameRules.stingLift * metrics.scale)
-                            // Riding the island when he is standing on it, the
-                            // same as everything else that stands there.
-                            .offset(y: surfaceOffset(
-                                of: strike.from, bob: bob, metrics: metrics
-                            ))
-                            .onBoard(
-                                strike.from,
-                                // Thrown south it hangs out over every row in
-                                // front of him and would be sliced by each of
-                                // their tiles in turn; north it belongs behind
-                                // him, among the objects on his own row.
-                                layer: strike.direction == .down ? .effect : .object,
-                                in: context(for: plane, metrics: metrics)
-                            )
-                        }
+                        // On its own clock — see `BoardView.ticking`.
+                        ticking(metrics) { tick in
+                            let bob = tick.bob
+                            if let strike = session.stingStrike {
+                                StingLanceView(
+                                    direction: strike.direction,
+                                    reach: strike.reach,
+                                    tileSize: metrics.tileSize,
+                                    start: strike.start
+                                )
+                                // **Foreshortened going away, and behind him.**
+                                //
+                                // A tail thrown north is going *into* the board, so
+                                // it is drawn short and passes behind the figure it
+                                // comes off — at full length it stood up the board
+                                // like a wall and covered him.
+                                .scaleEffect(
+                                    x: 1,
+                                    y: strike.direction == .up ? GameRules.stingAwaySquash : 1,
+                                    anchor: .bottom
+                                )
+                                .offset(y: -GameRules.stingLift * metrics.scale)
+                                // Riding the island when he is standing on it, the
+                                // same as everything else that stands there.
+                                .offset(y: surfaceOffset(
+                                    of: strike.from, bob: bob, metrics: metrics
+                                ))
+                                .onBoard(
+                                    strike.from,
+                                    // Thrown south it hangs out over every row in
+                                    // front of him and would be sliced by each of
+                                    // their tiles in turn; north it belongs behind
+                                    // him, among the objects on his own row.
+                                    layer: strike.direction == .down ? .effect : .object,
+                                    in: context(for: plane, metrics: metrics)
+                                )
+                            }
 
+                        }
                     case .prong:
                         if let prongs = session.engine.signState.prongs,
                            object.slot < prongs.poles.count {
@@ -1867,88 +1898,120 @@ struct BoardView: View {
                         // )
                         // .allowsHitTesting(false)
                     case .nexys:
-                        nexys(plane: plane, metrics: metrics, bob: bob, ascent: ascent, travel: travel)
-                    case .facing:
-                        // Positioned on the *piece's* square and offset forward from
-                        // there by the view itself, even though it sorts by the
-                        // square ahead — the arrow's reach is a fraction of a tile,
-                        // so it belongs between the two rather than centred on
-                        // either.
-                        groundMark(
-                            FacingArrowView(
-                                facing: session.visibleFacing,
-                                tileSize: metrics.tileSize,
-                                scale: metrics.scale,
-                                lift: arrowLift,
-                                liftScale: liftBoost(
-                                    at: session.engine.piece.point, metrics: metrics
-                                ),
-                                depthLift: arrowDepthLift(
-                                    at: session.engine.piece.point, metrics: metrics
-                                ),
-                                clock: session.ambientClock(at:)
-                            ),
-                            at: session.engine.piece.point,
-                            metrics: metrics,
-                            // The arrow's art is drawn as a mark already lying on a
-                            // tilted plane, so the floor's squash would foreshorten
-                            // it a second time. That double is exactly what four
-                            // hand-tuned y-scales of 1.25 were cancelling — 1.25
-                            // being 1 / 0.8, and 0.8 being the squash.
-                            squashed: false
-                        )
-                        // Ground, like the cursor: it is a mark on the square
-                        // ahead, not something standing there.
-                        .offset(
-                            y: surfaceOffset(
-                                of: session.engine.piece.point, bob: bob, metrics: metrics
-                            ) * rowScale(at: session.engine.piece.point, metrics: metrics)
-                        )
-                        .offset(sway)
-
-                    case .follower:
-                        follower(
-                            step: object.slot,
-                            at: object.point,
-                            metrics: metrics,
-                            bob: bob,
-                            pose: pose,
-                            sway: sway
-                        )
-
-                    case .sun:
-                        // On the lion's head, and over everything.
-                        //
-                        // It is not a thing on the board any more — it is the light
-                        // that says a phantom is out — so it rides the piece rather
-                        // than sitting on a square, and nothing may draw across it.
-                        if let burning = session.visibleSun {
-                            SunView(sun: burning, tileSize: metrics.tileSize)
-                                .modifier(placedOnPlaneModifier(object.point, metrics: metrics))
-                                .offset(y: surfaceOffset(
-                                    of: object.point, bob: bob, metrics: metrics
-                                ))
-                                .offset(sway)
-                                .offset(y: -metrics.tileSize
-                                    - GameRules.sunHeadroom * metrics.scale)
+                        // On its own clock — see `BoardView.ticking`.
+                        ticking(metrics) { tick in
+                            let bob = tick.bob
+                            let ascent = tick.ascent
+                            let travel = tick.travel
+                            nexys(plane: plane, metrics: metrics, bob: bob, ascent: ascent, travel: travel)
                         }
+                    case .facing:
+                        // On its own clock — see `BoardView.ticking`.
+                        ticking(metrics) { tick in
+                            let bob = tick.bob
+                            let sway = tick.sway
+                            // Positioned on the *piece's* square and offset forward from
+                            // there by the view itself, even though it sorts by the
+                            // square ahead — the arrow's reach is a fraction of a tile,
+                            // so it belongs between the two rather than centred on
+                            // either.
+                            groundMark(
+                                FacingArrowView(
+                                    facing: session.visibleFacing,
+                                    tileSize: metrics.tileSize,
+                                    scale: metrics.scale,
+                                    lift: arrowLift,
+                                    liftScale: liftBoost(
+                                        at: session.engine.piece.point, metrics: metrics
+                                    ),
+                                    depthLift: arrowDepthLift(
+                                        at: session.engine.piece.point, metrics: metrics
+                                    ),
+                                    clock: session.ambientClock(at:)
+                                ),
+                                at: session.engine.piece.point,
+                                metrics: metrics,
+                                // The arrow's art is drawn as a mark already lying on a
+                                // tilted plane, so the floor's squash would foreshorten
+                                // it a second time. That double is exactly what four
+                                // hand-tuned y-scales of 1.25 were cancelling — 1.25
+                                // being 1 / 0.8, and 0.8 being the squash.
+                                squashed: false
+                            )
+                            // Ground, like the cursor: it is a mark on the square
+                            // ahead, not something standing there.
+                            .offset(
+                                y: surfaceOffset(
+                                    of: session.engine.piece.point, bob: bob, metrics: metrics
+                                ) * rowScale(at: session.engine.piece.point, metrics: metrics)
+                            )
+                            .offset(sway)
 
+                        }
+                    case .follower:
+                        // On its own clock — see `BoardView.ticking`.
+                        ticking(metrics) { tick in
+                            let bob = tick.bob
+                            let pose = tick.pose
+                            let sway = tick.sway
+                            follower(
+                                step: object.slot,
+                                at: object.point,
+                                metrics: metrics,
+                                bob: bob,
+                                pose: pose,
+                                sway: sway
+                            )
+
+                        }
+                    case .sun:
+                        // On its own clock — see `BoardView.ticking`.
+                        ticking(metrics) { tick in
+                            let bob = tick.bob
+                            let sway = tick.sway
+                            // On the lion's head, and over everything.
+                            //
+                            // It is not a thing on the board any more — it is the light
+                            // that says a phantom is out — so it rides the piece rather
+                            // than sitting on a square, and nothing may draw across it.
+                            if let burning = session.visibleSun {
+                                SunView(sun: burning, tileSize: metrics.tileSize)
+                                    .modifier(placedOnPlaneModifier(object.point, metrics: metrics))
+                                    .offset(y: surfaceOffset(
+                                        of: object.point, bob: bob, metrics: metrics
+                                    ))
+                                    .offset(sway)
+                                    .offset(y: -metrics.tileSize
+                                        - GameRules.sunHeadroom * metrics.scale)
+                            }
+
+                        }
                     case .piece:
-                        // Sorted with everything else again. It was drawn outside
-                        // the board while the perspective was being homed, which is
-                        // exactly what stopped it depth-sorting — and there is
-                        // nothing left to home.
-                        piece(
-                            metrics: metrics,
-                            bob: bob,
-                            pose: pose,
-                            arrival: arrival,
-                            ascent: ascent,
-                            sway: sway,
-                            flash: flash,
-                            starElement: starElement
-                        )
-                        // Where the figure sits on its square, in art pixels.
+                        // On its own clock — see `BoardView.ticking`.
+                        ticking(metrics) { tick in
+                            let bob = tick.bob
+                            let pose = tick.pose
+                            let arrival = tick.arrival
+                            let ascent = tick.ascent
+                            let sway = tick.sway
+                            let flash = tick.flash
+                            let starElement = tick.starElement
+                            // Sorted with everything else again. It was drawn outside
+                            // the board while the perspective was being homed, which is
+                            // exactly what stopped it depth-sorting — and there is
+                            // nothing left to home.
+                            piece(
+                                metrics: metrics,
+                                bob: bob,
+                                pose: pose,
+                                arrival: arrival,
+                                ascent: ascent,
+                                sway: sway,
+                                flash: flash,
+                                starElement: starElement
+                            )
+                            // Where the figure sits on its square, in art pixels.
+                        }
                                         }
                 }
                 // Applied here, to the sibling, because this is the stack
@@ -2825,6 +2888,57 @@ struct BoardView: View {
         return (turns * steps).rounded(.down) / steps
     }
 
+    /// Everything about the board that changes between *frames* rather than
+    /// between turns.
+    ///
+    /// Small and cheap to build, because it is built once per animated object
+    /// per frame rather than once for the whole board — and a handful of
+    /// objects move where forty-nine tiles do not.
+    struct BoardTick {
+
+        let bob: CGFloat
+        let pose: HopPose
+        let arrival: CGFloat
+        let ascent: AscentPose
+        let travel: AscentPose
+        let sway: CGSize
+        let flash: Double
+        let starElement: ZodiacElement?
+    }
+
+    private func boardTick(at date: Date, metrics: PixelArtMetrics) -> BoardTick {
+        BoardTick(
+            bob: nexysBob(at: date, metrics: metrics),
+            pose: hopPose(at: date),
+            arrival: arrivalProgress(at: date),
+            ascent: ascentPose(at: date, metrics: metrics),
+            travel: nexysTravelPose(at: date, metrics: metrics),
+            sway: cloudSway(at: date, metrics: metrics),
+            flash: chargeFlash(at: date),
+            starElement: starElement(at: date)
+        )
+    }
+
+    /// Puts one board object on its own clock.
+    ///
+    /// Its own, rather than a shared one wrapped round the board: a timeline is
+    /// a view, and everything inside a view shares that view's place in the
+    /// stack it sits in. One timeline over the whole board would collapse every
+    /// moving thing onto a single rung of the row order, which is the ordering
+    /// the board is built to get right.
+    @ViewBuilder
+    private func ticking<Content: View>(
+        _ metrics: PixelArtMetrics,
+        @ViewBuilder content: @escaping (BoardTick) -> Content
+    ) -> some View {
+        TimelineView(.animation(paused: session.isPaused || planeIsAsleep)) { timeline in
+            #if DEBUG
+            let _ = RenderTally.tick("Bd#10")
+            #endif
+            content(boardTick(at: timeline.date, metrics: metrics))
+        }
+    }
+
     private func hopPose(at date: Date) -> HopPose {
         // A deliberate leap outranks a hop: it is a different shape, and the two
         // are never wanted at once.
@@ -3291,6 +3405,10 @@ struct BandRow: View, Equatable {
     let pressed: Set<GridPoint>
 
     var body: some View {
+        #if DEBUG
+        let _ = RenderTally.tick("row")
+        #endif
+
         // The row's ground, laid edge to edge so no seam can open between
         // neighbours however the band is scaled.
         HStack(spacing: 0) {
@@ -3351,6 +3469,13 @@ struct BandRow: View, Equatable {
     /// A `Canvas` has no children. It draws.
     private var cover: some View {
         Canvas { context, _ in
+            #if DEBUG
+            RenderTally.tick("cover")
+            // See `LayerBench.CoverStyle` — the switch that separates having
+            // cover from drawing it.
+            guard LayerBench.shared.coverStyle != .hidden else { return }
+            #endif
+
             var resolved: [SpriteID: GraphicsContext.ResolvedImage] = [:]
 
             for column in 0..<metrics.gridSize {
@@ -3370,9 +3495,19 @@ struct BandRow: View, Equatable {
                     continue
                 }
 
+                // **Rides the tile it is growing on.**
+                //
+                // A popped square lifts, and its cover has to lift with it —
+                // painted flat at `y: 0` the grass stayed on the ground while
+                // the tile rose out from under it, which reads as the cover
+                // being *over* the raised tile rather than on it.
+                let lift = raised.contains(point)
+                    ? -GameRules.tilePopLift * metrics.scale
+                    : 0
+
                 context.draw(image, in: CGRect(
                     x: CGFloat(column) * metrics.tileSize,
-                    y: 0,
+                    y: lift,
                     width: metrics.tileSize,
                     height: metrics.tileSize
                 ))

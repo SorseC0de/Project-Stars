@@ -24,6 +24,9 @@ import SwiftUI
 /// Contrast `PentacleIntroView`, which *does* show the effect's own glyph,
 /// because by then the coin is open.
 struct PentacleView: View {
+    @Environment(\.planeIsAsleep) private var planeIsAsleep
+
+
 
     /// How this coin looks.
     var appearance: PentacleAppearance = .standard
@@ -82,7 +85,10 @@ struct PentacleView: View {
     }
 
     private var hovering: some View {
-        TimelineView(.animation) { timeline in
+        TimelineView(.animation(paused: planeIsAsleep)) { timeline in
+            #if DEBUG
+            let _ = RenderTally.tick("Pentacle")
+            #endif
             // One phase drives everything, so the coin, its orbit and its pool
             // of light can never drift out of step with each other.
             let phase = clock(timeline.date.timeIntervalSinceReferenceDate) + phaseOffset

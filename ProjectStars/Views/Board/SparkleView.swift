@@ -176,23 +176,35 @@ struct SparkleGlyph: Shape {
 /// Breathes a sparkle in and out on a rate of its own.
 /// Rides the drift of the square underneath, a frame at a time.
 private struct SparkleSway: ViewModifier {
+    @Environment(\.planeIsAsleep) private var planeIsAsleep
+
+
 
     let sway: (Date) -> CGSize
 
     func body(content: Content) -> some View {
-        TimelineView(.animation) { timeline in
+        TimelineView(.animation(paused: planeIsAsleep)) { timeline in
+            #if DEBUG
+            let _ = RenderTally.tick("Sparkle#1")
+            #endif
             content.offset(sway(timeline.date))
         }
     }
 }
 
 private struct SparklePulse: ViewModifier {
+    @Environment(\.planeIsAsleep) private var planeIsAsleep
+
+
 
     let index: Int
     let clock: (TimeInterval) -> TimeInterval
 
     func body(content: Content) -> some View {
-        TimelineView(.animation) { timeline in
+        TimelineView(.animation(paused: planeIsAsleep)) { timeline in
+            #if DEBUG
+            let _ = RenderTally.tick("Sparkle#2")
+            #endif
             let pulse = pulse(at: timeline.date)
             content
                 .scaleEffect(0.72 + 0.28 * pulse)

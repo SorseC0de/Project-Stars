@@ -48,6 +48,9 @@ struct Vesica: Shape {
 ///   blended copies of a sixteen-frame strip is a lot of composited layers per
 ///   frame, which is the cost that has bitten this project before.
 struct AquariusStorm: View {
+    @Environment(\.planeIsAsleep) private var planeIsAsleep
+
+
 
     /// `0` is the bare pot; `10` is the full tornado.
     var phase: Int = 10
@@ -119,7 +122,10 @@ struct AquariusStorm: View {
     var scale: CGFloat = 3
 
     var body: some View {
-        TimelineView(.animation(paused: frozenAt != nil)) { timeline in
+        TimelineView(.animation(paused: frozenAt != nil || planeIsAsleep)) { timeline in
+            #if DEBUG
+            let _ = RenderTally.tick("AquariusStormPiece#1")
+            #endif
             let now = frozenAt ?? timeline.date.timeIntervalSinceReferenceDate
 
             ZStack {
@@ -357,6 +363,9 @@ struct StormEyes: View {
 /// three ever lines up with another — three motions in step read as one
 /// motion, which is the thing that makes something look mechanical.
 struct FloatingAquarius: View {
+    @Environment(\.planeIsAsleep) private var planeIsAsleep
+
+
 
     let blend: BlendMode
 
@@ -396,7 +405,10 @@ struct FloatingAquarius: View {
     var height: CGFloat = GameRules.aquariusFigureY
 
     var body: some View {
-        TimelineView(.animation) { timeline in
+        TimelineView(.animation(paused: planeIsAsleep)) { timeline in
+            #if DEBUG
+            let _ = RenderTally.tick("AquariusStormPiece#2")
+            #endif
             let now = timeline.date.timeIntervalSinceReferenceDate
             let sway = sin(now / 5.2 * 2 * .pi) * turn
             let lift = sin(now / 3.7 * 2 * .pi) * 14
@@ -493,6 +505,9 @@ struct FloatingAquarius: View {
 /// so when it goes there is nothing left over: no float, no turn, no breath, no
 /// eyes. That is what makes the reveal a reveal rather than a fade.
 struct AquariusStormPiece: View {
+    @Environment(\.planeIsAsleep) private var planeIsAsleep
+
+
 
     /// `0`…`10`, how full the meter is.
     var phase: Int = 10
@@ -612,7 +627,10 @@ struct AquariusStormPiece: View {
             // The cached loop. Costs a texture swap a frame, whatever the piece
             // is doing — which is the whole point, since the live version is
             // rebuilt from scratch the moment anything under it moves.
-            TimelineView(.animation) { timeline in
+            TimelineView(.animation(paused: planeIsAsleep)) { timeline in
+                #if DEBUG
+                let _ = RenderTally.tick("AquariusStormPiece#3")
+                #endif
                 let elapsed = timeline.date.timeIntervalSinceReferenceDate
 
                 // **Every phase mounted at once, all but one at zero.**

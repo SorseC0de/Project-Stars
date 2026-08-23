@@ -24,6 +24,9 @@ import SwiftUI
 /// `CloudPoofView`. Generating the cluster also means every square is a slightly
 /// different cloud for free, which a sheet would need one drawing each to match.
 struct CloudTileView: View {
+    @Environment(\.planeIsAsleep) private var planeIsAsleep
+
+
 
     let health: TileHealth
     let shade: Palette.TileShade
@@ -72,7 +75,10 @@ struct CloudTileView: View {
     // machinery, which is what this is for.
 
     var body: some View {
-        TimelineView(.animation) { timeline in
+        TimelineView(.animation(paused: planeIsAsleep)) { timeline in
+            #if DEBUG
+            let _ = RenderTally.tick("CloudTile")
+            #endif
             Canvas { context, canvas in
                 draw(&context, in: canvas, at: timeline.date.timeIntervalSinceReferenceDate)
             }
