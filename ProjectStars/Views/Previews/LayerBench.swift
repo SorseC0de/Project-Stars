@@ -100,9 +100,6 @@ struct LayerBenchControls: View {
             .buttonStyle(.plain)
 
             if isOpen {
-                StartButtonControls()
-                    .padding(.bottom, 4)
-
                 ModeCardControls {
                     // The same door a real passive uses, so pressing it twice
                     // exercises the stacking rather than a shortcut around it.
