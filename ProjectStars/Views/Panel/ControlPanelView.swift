@@ -290,11 +290,11 @@ enum PanelStyle {
     /// How much of the panel's width the Start button takes.
     static let startButtonLength: CGFloat = 0.66
 
-    /// How far the glow under Start swells, and how long a breath takes.
-    static let startGlowNear: CGFloat = 6
-    static let startGlowFar: CGFloat = 22
+    /// How long one breath of the Start button's glow takes.
+    ///
+    /// How far it reaches and how strong it is belong to `Spectrum`, with the
+    /// colours they are made of.
     static let startGlowPeriod: Double = 1.1
-    static let startGlowStrength: Double = 0.9
 
     /// The word on the way in, and the words either side of it.
     static let startLabelSize: CGFloat = 30
@@ -2531,22 +2531,33 @@ private struct PanelStartView: View {
     /// two thirds as long — the biggest thing on the panel without being the
     /// whole panel.
     private var start: some View {
-        CelButton(tint: Palette.green, action: onStart) {
-            Text("START")
-                .font(.system(size: PanelStyle.startLabelSize, weight: .black, design: .rounded))
-                .tracking(PanelStyle.signNameTracking)
-                // Warms with the glow rather than on a clock of its own, so the
-                // word is brightest at the moment the button is.
-                .foregroundStyle(isSwelling ? Palette.gold : Palette.warmBlack)
-        }
+        CelButton(
+            tint: Palette.purple,
+            action: onStart,
+            label: {
+                Text("START")
+                    .font(.system(size: PanelStyle.startLabelSize, weight: .black, design: .rounded))
+                    .tracking(PanelStyle.signNameTracking)
+                    .foregroundStyle(Palette.warmBlack)
+            },
+            surface: {
+                // Over the face and under the word — see `CelButton.surface`.
+                // A drifting field of colour rather than a flat one, kept
+                // inside the button's own corners.
+                AnyView(
+                    SpectrumFace(isLive: session.modeCardHasLanded)
+                        .clipShape(RoundedRectangle(cornerRadius: PanelStyle.buttonCorner))
+                        .allowsHitTesting(false)
+                )
+            }
+        )
         .frame(height: PanelStyle.zodiactionButtonHeight)
         .containerRelativeFrame(.horizontal) { width, _ in
             width * PanelStyle.startButtonLength
         }
-        .shadow(
-            color: Palette.green.opacity(PanelStyle.startGlowStrength),
-            radius: isSwelling ? PanelStyle.startGlowFar : PanelStyle.startGlowNear
-        )
+        .background {
+            SpectrumGlow(isLive: session.modeCardHasLanded, isSwelling: isSwelling)
+        }
         .animation(
             .easeInOut(duration: PanelStyle.startGlowPeriod).repeatForever(autoreverses: true),
             value: isSwelling
@@ -2574,5 +2585,140 @@ private struct PanelStartView: View {
                 .foregroundStyle(Palette.warmBlack)
         }
         .frame(width: PanelStyle.wideChromeWidth, height: PanelStyle.chromeButtonHeight)
+    }
+}
+
+// MARK: - The spectrum
+
+/// The colours the Start button is lit and painted with.
+///
+/// A ring rather than a list: the last has to meet the first or the sweep has a
+/// seam in it, and a seam travelling round the button is the one thing a
+/// continuous glow must not have.
+private enum Spectrum {
+
+    static let ring: [Color] = [
+        Palette.magenta, Palette.pink, Palette.orange,
+        Palette.gold, Palette.sky, Palette.blue,
+        Palette.purple, Palette.magenta,
+    ]
+
+    /// One turn of the sweep.
+    static let period: Double = 4.5
+
+    /// How far the glow reaches, and how much of it there is.
+    static let bloomNear: CGFloat = 10
+    static let bloomFar: CGFloat = 26
+    static let bloomSpread: CGFloat = 14
+    static let strength: Double = 0.85
+
+    /// The blobs on the face: how many, how big, how soft, and how far they
+    /// wander as a share of the button.
+    static let blobs = 7
+    static let blobSize: CGFloat = 0.62
+    static let blobSoftness: CGFloat = 22
+    static let blobDrift: CGFloat = 0.55
+    static let faceStrength: Double = 0.55
+
+    /// How long a blob takes to cross and back, and how much that varies.
+    static let driftPeriod: Double = 5.2
+    static let driftSpread: Double = 3.4
+}
+
+/// The glow: the spectrum travelling clockwise around the button.
+///
+/// An angular gradient turned by a repeating animation, blurred well past the
+/// button's edge so what shows is the light rather than the ring making it.
+/// The pulse is left alone — it is the button's heartbeat and the sweep is its
+/// colour, and they are on different clocks on purpose.
+private struct SpectrumGlow: View {
+
+    let isLive: Bool
+    let isSwelling: Bool
+
+    @State private var turned = false
+
+    var body: some View {
+        RoundedRectangle(cornerRadius: PanelStyle.buttonCorner)
+            .fill(
+                AngularGradient(
+                    colors: Spectrum.ring,
+                    center: .center,
+                    angle: .degrees(turned ? 360 : 0)
+                )
+            )
+            // Wider than the button before it is blurred, or the blur eats its
+            // way inward and the glow reads as a soft edge instead of a halo.
+            .padding(-Spectrum.bloomSpread)
+            .blur(radius: isSwelling ? Spectrum.bloomFar : Spectrum.bloomNear)
+            .opacity(isLive ? Spectrum.strength : 0)
+            .animation(
+                .linear(duration: Spectrum.period).repeatForever(autoreverses: false),
+                value: turned
+            )
+            .onChange(of: isLive, initial: true) { _, live in
+                if live { turned = true }
+            }
+            .allowsHitTesting(false)
+    }
+}
+
+/// The face: soft blobs of colour drifting across each other.
+///
+/// ## Why blobs and a blur rather than a gradient
+///
+/// Because a gradient between two points is a straight line of colour however
+/// it is animated, and what this wants is colour that *moves through* other
+/// colour. A handful of heavily blurred circles overlapping do that on their
+/// own: where two meet, the blur has already mixed them, and the mixture moves
+/// when they do. It is the trick from Plentacle, and it is a better fit here
+/// than a mesh would be — a mesh needs its control points driven every frame,
+/// where these are each on a repeating animation SwiftUI runs by itself.
+///
+/// Each blob has its own period and its own delay, so they never line up into a
+/// single pulse. All of it is one `onAppear`; nothing here is on a clock.
+private struct SpectrumFace: View {
+
+    let isLive: Bool
+
+    @State private var drifted = false
+
+    var body: some View {
+        GeometryReader { geometry in
+            let span = max(geometry.size.width, geometry.size.height)
+            let blob = span * Spectrum.blobSize
+
+            ZStack {
+                ForEach(0..<Spectrum.blobs, id: \.self) { index in
+                    let seed = Double(index) / Double(Spectrum.blobs)
+                    let colour = Spectrum.ring[index % Spectrum.ring.count]
+                    let reach = geometry.size.width * Spectrum.blobDrift
+
+                    Circle()
+                        .fill(colour)
+                        .frame(width: blob * (0.6 + seed * 0.8))
+                        // Leading to trailing and back, each on its own line
+                        // across the face so they cross rather than convoy.
+                        .position(
+                            x: geometry.size.width / 2
+                                + (drifted ? reach : -reach) * (index.isMultiple(of: 2) ? 1 : -1),
+                            y: geometry.size.height * (0.2 + 0.6 * seed)
+                        )
+                        .scaleEffect(drifted ? 1.25 : 0.75)
+                        .animation(
+                            .easeInOut(duration: Spectrum.driftPeriod + seed * Spectrum.driftSpread)
+                                .repeatForever(autoreverses: true),
+                            value: drifted
+                        )
+                }
+            }
+            .blur(radius: Spectrum.blobSoftness)
+            // The blur reaches past the button; the clip outside puts it back.
+            .frame(width: geometry.size.width, height: geometry.size.height)
+        }
+        .opacity(isLive ? Spectrum.faceStrength : 0)
+        .onChange(of: isLive, initial: true) { _, live in
+            if live { drifted = true }
+        }
     }
 }

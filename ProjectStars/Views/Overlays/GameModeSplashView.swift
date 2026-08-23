@@ -73,6 +73,20 @@ struct GameModeSplashView: View {
                 // out at their tips exactly as they do.
                 warpField
                     .frame(width: width, height: bar.height * 2)
+                    // **Last, not first.**
+                    //
+                    // The card arrives, the name lands, and only then does the
+                    // tunnel come up behind it. All three at once is three
+                    // things starting in the same instant and no order to read
+                    // them in.
+                    .opacity(said)
+                    .animation(
+                        stage == .gathered
+                            ? .easeIn(duration: ModeCardStyle.warpFade)
+                                .delay(ModeCardStyle.warpDawn)
+                            : .easeOut(duration: ModeCardStyle.departure),
+                        value: said
+                    )
                     .mask { bars(bar: bar, width: width) }
 
                 // **Both words over both bars.**
@@ -411,9 +425,9 @@ enum ModeCardStyle {
         #endif
     }
 
-    static let defaultThickness: Double = 3
-    static let defaultCore: Double = 0.03
-    static let defaultStars: Double = 0.28
+    static let defaultThickness: Double = 4.50
+    static let defaultCore: Double = 0.07
+    static let defaultStars: Double = 0.66
     static let defaultBlend: BlendMode = .plusLighter
 
     /// How bright each colour is against the others, evened out.
@@ -473,6 +487,22 @@ enum ModeCardStyle {
     /// twinkle's spikes reach past its body.
     static let starSize: CGFloat = 0.9
     static let sparkleReach: CGFloat = 2.4
+
+    /// When the tunnel starts coming up, and how long it takes — timed so it
+    /// is fully there about as the name finishes settling.
+    static let warpDawn: Double = 0.30
+    static let warpFade: Double = 0.55
+
+    /// How wide the band is that marks start in, as a share of the eye. The
+    /// spread either side of it is what softens the hole's edge.
+    static let eyeRagged: Double = 0.5
+
+    /// The shortest a streak may be, as a share of the longest.
+    static let stretchLeast: Double = 0.22
+
+    /// How hard the brightness roll bunches toward the dim end. `1` is flat;
+    /// higher makes the bright ones rarer and the contrast wider.
+    static let glowBunching: Double = 2.2
 
     /// How much of a streak's life is spent fading in, and out.
     static let wormholeDawn: Double = 0.18
@@ -748,10 +778,25 @@ private struct WormholeField: View {
                     let phase = turn - turn.rounded(.down)
 
                     // Out faster than time goes.
-                    // Out of the eye rather than out of a point.
+                    // **Out of the eye, and not all from the same ring.**
+                    //
+                    // Every mark starting at exactly the same radius drew the
+                    // eye as a hard black disc — the edge was not a colour, it
+                    // was the line where the light began. Each mark now starts
+                    // somewhere in a band around the eye, and brightness comes
+                    // up across that band rather than at it, which is the
+                    // radial gradient the hole was missing.
                     let eye = reach * ModeCardStyle.core
+                        * (ModeCardStyle.eyeRagged + scatter(index, 7))
                     let head = eye + (reach - eye) * pow(phase, ModeCardStyle.wormholeCurve)
-                    let tail = max(eye, head - reach * ModeCardStyle.wormholeStretch * phase)
+
+                    // Length varies per streak as well as with distance, so the
+                    // field is a spread of lengths at every radius instead of
+                    // one length that happens to grow.
+                    let stretch = ModeCardStyle.wormholeStretch
+                        * (ModeCardStyle.stretchLeast
+                            + scatter(index, 8) * (1 - ModeCardStyle.stretchLeast))
+                    let tail = max(eye, head - reach * stretch * phase)
 
                     let direction = CGPoint(x: cos(angle), y: sin(angle))
                     let width = ModeCardStyle.thickness
@@ -763,8 +808,22 @@ private struct WormholeField: View {
                     let entering = min(1, phase / ModeCardStyle.wormholeDawn)
                     let leaving = min(1, (1 - phase) / ModeCardStyle.wormholeDusk)
                     let colour = streakColour(scatter(index, 5))
-                    let glow = ModeCardStyle.warp * entering * leaving
-                        * (ModeCardStyle.warpFaintest + scatter(index, 4))
+
+                    // **Its own brightness, then the master.**
+                    //
+                    // Raised to a power so the roll bunches low: most marks are
+                    // faint and a few are not, which is a field with depth in
+                    // it. A flat roll gives every mark a middling brightness and
+                    // the whole thing reads as one grey sheet.
+                    //
+                    // `warp` multiplies the lot afterwards, so turning it down
+                    // dims everything in proportion and keeps the spread — the
+                    // group volume, not a level every mark is set to.
+                    let own = ModeCardStyle.warpFaintest
+                        + pow(scatter(index, 4), ModeCardStyle.glowBunching)
+                        * (1 - ModeCardStyle.warpFaintest)
+
+                    let glow = ModeCardStyle.warp * entering * leaving * own
                         * ModeCardStyle.gain(of: colour)
 
                     let shading = GraphicsContext.Shading.color(colour.opacity(glow))
