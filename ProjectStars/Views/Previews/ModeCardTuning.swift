@@ -72,7 +72,10 @@ struct ModeCardControls: View {
 
             group("shape")
             row("length", value: $tuning.length, in: -4...8, step: 0.1)
-            row("spread", value: $tuning.spread, in: 0...6, step: 0.1)
+            // Centred on zero, so the slider's middle is the card as drawn and
+            // either half of its travel is a decision. Negative draws the two
+            // bars *toward* each other, past the overlap the sequence has.
+            row("spread", value: $tuning.spread, in: -6...6, step: 0.1)
             row("fade a", value: $tuning.fadeFrom, in: 0...0.9, step: 0.01)
             row("fade b", value: $tuning.fadeTo, in: 0...0.9, step: 0.01)
 
