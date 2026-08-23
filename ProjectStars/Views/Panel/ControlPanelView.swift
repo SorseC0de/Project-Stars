@@ -296,8 +296,10 @@ enum PanelStyle {
     /// colours they are made of.
     static let startGlowPeriod: Double = 1.1
 
-    /// The word on the way in, and the words either side of it.
+    /// The word on the way in, how far its shadow falls, and the words either
+    /// side of it.
     static let startLabelSize: CGFloat = 30
+    static let startLabelShadow: CGFloat = 2
     static let wideLabelSize: CGFloat = 15
 
     /// The full height of the Zodiaction row, which the lift panel sits above.
@@ -2538,7 +2540,12 @@ private struct PanelStartView: View {
                 Text("START")
                     .font(.system(size: PanelStyle.startLabelSize, weight: .black, design: .rounded))
                     .tracking(PanelStyle.signNameTracking)
-                    .foregroundStyle(Palette.warmBlack)
+                    .foregroundStyle(Palette.white)
+                    // Hard and straight down: a cast shadow, not a glow. Zero
+                    // radius keeps the edge, which is what lifts white letters
+                    // off a face that is never one colour for long.
+                    .shadow(color: Palette.coolBlack, radius: 0, x: 0,
+                            y: PanelStyle.startLabelShadow)
             },
             surface: {
                 // Over the face and under the word — see `CelButton.surface`.
@@ -2597,19 +2604,32 @@ private struct PanelStartView: View {
 /// continuous glow must not have.
 private enum Spectrum {
 
-    static let ring: [Color] = [
+    static let ring: [Color] = hues + hues + [hues[0]]
+
+    /// **Twice round, not once.**
+    ///
+    /// The bands were reading as quadrants, and the fix is not different
+    /// colours — it is more of them. The same run laid twice halves how much of
+    /// the circle any one hue owns, so no band is wide enough to be seen as a
+    /// side of something, and the sweep still returns to where it began.
+    private static let hues: [Color] = [
         Palette.magenta, Palette.pink, Palette.orange, Palette.gold,
         Palette.yellowGreen, Palette.cyan, Palette.sky, Palette.blue,
-        Palette.purple, Palette.darkMagenta, Palette.magenta,
+        Palette.purple, Palette.darkMagenta,
     ]
 
     /// One turn of the sweep.
     static let period: Double = 4.5
 
-    /// How far the glow reaches, and how much of it there is.
-    static let bloomNear: CGFloat = 3
-    static let bloomFar: CGFloat = 24
-    static let bloomSpread: CGFloat = 14
+    /// How soft the glow is at each end of the breath.
+    ///
+    /// The blur was never the problem — how far the light *reached* was. That
+    /// is `bloomSpread`, and it is the halo's size rather than its softness.
+    static let bloomNear: CGFloat = 10
+    static let bloomFar: CGFloat = 26
+
+    /// How far past the button the light goes.
+    static let bloomSpread: CGFloat = 5
     static let strength: Double = 0.85
 
     /// The blobs on the face: how many, how big, how soft, and how far they
@@ -2625,8 +2645,8 @@ private enum Spectrum {
     /// tall has no visible edge inside it, so what shows is a field of colour
     /// rather than a circle crossing. All the same size — any size — reads as a
     /// row of dots on a conveyor.
-    static let blobSmallest: CGFloat = 0.55
-    static let blobLargest: CGFloat = 2.3
+    static let blobSmallest: CGFloat = 0.9
+    static let blobLargest: CGFloat = 3.4
 
     /// How long a blob takes to cross and back, and how much that varies.
     static let driftPeriod: Double = 5.2
@@ -2732,8 +2752,15 @@ private struct SpectrumFace: View {
                         // other, which reads as things crossing rather than as
                         // one field moving. A conveyor only looks like a
                         // conveyor if nothing on it is going the other way.
+                        // **Each on its own run, all of them the same way.**
+                        //
+                        // Same direction or it stops being a conveyor; different
+                        // ends or they travel as one row however their timings
+                        // differ, because a shared start and a shared finish is
+                        // a formation whatever happens in between.
                         .position(
-                            x: geometry.size.width / 2 + (drifted ? reach : -reach),
+                            x: geometry.size.width / 2
+                                + (drifted ? reach * (0.5 + lane) : -reach * (0.5 + seed)),
                             y: geometry.size.height * (0.15 + 0.7 * lane)
                         )
                         .scaleEffect(drifted ? 1.2 : 0.8)

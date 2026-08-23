@@ -21,13 +21,6 @@ struct PassivePrompt: Identifiable, Equatable {
     /// Already sliding out, and past being asked to do anything else.
     var isLeaving = false
 
-    #if DEBUG
-    /// Real passive names, for firing one at the bench without playing the sign
-    /// that owns it.
-    static let debugNames = [
-        "Magnetic Mane", "Samsaric Shed", "Fortunate Find", "Rallying Roar",
-    ]
-    #endif
 }
 
 /// The mode card's upper bar, shrunk down and sent across the top of the board.
@@ -239,4 +232,49 @@ enum PromptStyle {
         true
         #endif
     }
+
+    // ── The streaks passing through it ────────────────────────────────
+    //
+    // The card's tunnel is settled and its numbers are written down; these are
+    // the ones still being looked at, so they are the ones on the bench.
+
+    /// How bright the streaks are. Zero turns them off.
+    static var warp: Double {
+        #if DEBUG
+        ModeCardTuning.shared.warp
+        #else
+        defaultWarp
+        #endif
+    }
+
+    /// How thick a streak is.
+    static var thickness: CGFloat {
+        #if DEBUG
+        CGFloat(ModeCardTuning.shared.thickness)
+        #else
+        CGFloat(defaultThickness)
+        #endif
+    }
+
+    /// How long and how fast, as shares of the shape's own length.
+    static var streakLength: CGFloat {
+        #if DEBUG
+        CGFloat(ModeCardTuning.shared.streakLength)
+        #else
+        CGFloat(defaultStreakLength)
+        #endif
+    }
+
+    static var streakSpeed: CGFloat {
+        #if DEBUG
+        CGFloat(ModeCardTuning.shared.streakSpeed)
+        #else
+        CGFloat(defaultStreakSpeed)
+        #endif
+    }
+
+    static let defaultWarp: Double = 0.66
+    static let defaultThickness: Double = 3
+    static let defaultStreakLength: Double = 0.30
+    static let defaultStreakSpeed: Double = 0.55
 }

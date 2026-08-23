@@ -367,24 +367,7 @@ enum ModeCardStyle {
     /// short and slow the meekest of them is allowed to be, as a share of the
     /// longest and fastest. A spread is what makes a field read as depth; all
     /// one length and one speed reads as a moving pattern.
-    static var warpLength: CGFloat {
-        #if DEBUG
-        CGFloat(ModeCardTuning.shared.sideLength)
-        #else
-        CGFloat(defaultSideLength)
-        #endif
-    }
 
-    static var warpSpeed: CGFloat {
-        #if DEBUG
-        CGFloat(ModeCardTuning.shared.sideSpeed)
-        #else
-        CGFloat(defaultSideSpeed)
-        #endif
-    }
-
-    static let defaultSideLength: Double = 0.30
-    static let defaultSideSpeed: Double = 0.55
     static let warpShortest: Double = 0.18
     static let warpSlowest: Double = 0.35
 
@@ -536,44 +519,20 @@ enum ModeCardStyle {
     /// All of it is added at the outer end — the end that fades — because the
     /// inner end is the seam the two bars share, and a bar that grows at the
     /// seam pushes the Z apart instead of reaching further across the screen.
-    static var length: CGFloat {
-        #if DEBUG
-        CGFloat(ModeCardTuning.shared.length)
-        #else
-        CGFloat(defaultLength)
-        #endif
-    }
+    static var length: CGFloat { CGFloat(defaultLength) }
 
     /// How much further apart the two bars sit, in bar-thicknesses.
     ///
     /// A move, not a resize: each bar goes half of this along its own heading,
     /// so the pair opens up while both stay exactly as long as they were.
-    static var spread: CGFloat {
-        #if DEBUG
-        CGFloat(ModeCardTuning.shared.spread)
-        #else
-        CGFloat(defaultSpread)
-        #endif
-    }
+    static var spread: CGFloat { CGFloat(defaultSpread) }
 
     /// Where the fully-clear run ends, as a share of a bar's length in from its
     /// outer edge. `0` starts the ramp at the very tip.
-    static var fadeFrom: CGFloat {
-        #if DEBUG
-        CGFloat(ModeCardTuning.shared.fadeFrom)
-        #else
-        CGFloat(defaultFadeFrom)
-        #endif
-    }
+    static var fadeFrom: CGFloat { CGFloat(defaultFadeFrom) }
 
     /// Where the ramp reaches full black, measured the same way.
-    static var fadeTo: CGFloat {
-        #if DEBUG
-        CGFloat(ModeCardTuning.shared.fadeTo)
-        #else
-        CGFloat(defaultFadeTo)
-        #endif
-    }
+    static var fadeTo: CGFloat { CGFloat(defaultFadeTo) }
 
     static let defaultLength: Double = 2.22
     static let defaultSpread: Double = -0.20
@@ -867,7 +826,7 @@ struct SideStreaks: View {
     var body: some View {
         TimelineView(.animation) { timeline in
             Canvas { context, size in
-                guard ModeCardStyle.warp > 0 else { return }
+                guard PromptStyle.warp > 0 else { return }
                 // Between the marks themselves. How the tunnel as a whole
                 // meets the bars is the picker's business — see the modifier
                 // on this view.
@@ -884,9 +843,9 @@ struct SideStreaks: View {
                     let span = scatter(index, 2)
                     let pace = scatter(index, 3)
 
-                    let length = size.width * ModeCardStyle.warpLength
+                    let length = size.width * PromptStyle.streakLength
                         * (ModeCardStyle.warpShortest + span)
-                    let speed = size.width * ModeCardStyle.warpSpeed
+                    let speed = size.width * PromptStyle.streakSpeed
                         * (ModeCardStyle.warpSlowest + pace)
 
                     // Wrapped over the width plus one streak, so a streak leaves
@@ -900,13 +859,13 @@ struct SideStreaks: View {
                     let y = scatter(index, 1) * half + (isUpper ? 0 : half)
                     let streak = CGRect(
                         x: x,
-                        y: y - ModeCardStyle.thickness / 2,
+                        y: y - PromptStyle.thickness / 2,
                         width: length,
-                        height: ModeCardStyle.thickness
+                        height: PromptStyle.thickness
                     )
 
                     let colour = streakColour(scatter(index, 5))
-                    let glow = ModeCardStyle.warp
+                    let glow = PromptStyle.warp
                         * (ModeCardStyle.warpFaintest + scatter(index, 4))
                         * ModeCardStyle.gain(of: colour)
 
@@ -917,7 +876,7 @@ struct SideStreaks: View {
                 }
             }
         }
-        .blendMode(ModeCardStyle.blend)
+        .blendMode(.plusLighter)
         .allowsHitTesting(false)
     }
 }

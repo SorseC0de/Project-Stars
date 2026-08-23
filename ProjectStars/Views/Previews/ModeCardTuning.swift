@@ -21,38 +21,22 @@ final class ModeCardTuning {
 
     static let shared = ModeCardTuning()
 
-    /// How much longer each bar is, in bar-thicknesses, all of it at the outer
-    /// end. Negative shortens it.
-    var length: Double = ModeCardTuning.remembered("length", ModeCardStyle.defaultLength) {
-        didSet { ModeCardTuning.remember("length", length) }
-    }
-
-    /// How much further apart the two bars sit, in bar-thicknesses. A move
-    /// rather than a resize — see `ModeCardStyle.spread`.
-    var spread: Double = ModeCardTuning.remembered("spread", ModeCardStyle.defaultSpread) {
-        didSet { ModeCardTuning.remember("spread", spread) }
-    }
-
-    /// The two ends of the taper, as shares of a bar's length in from its outer
-    /// edge: where the clear run stops, and where full black begins.
-    var fadeFrom: Double = ModeCardTuning.remembered("fadeFrom", ModeCardStyle.defaultFadeFrom) {
-        didSet { ModeCardTuning.remember("fadeFrom", fadeFrom) }
-    }
-    var fadeTo: Double = ModeCardTuning.remembered("fadeTo", ModeCardStyle.defaultFadeTo) {
-        didSet { ModeCardTuning.remember("fadeTo", fadeTo) }
-    }
-
-    /// How bright the warp streaks running through the bars are.
-    var warp: Double = ModeCardTuning.remembered("warp", ModeCardStyle.defaultWarp) {
+    /// How bright the prompt's streaks are.
+    var warp: Double = ModeCardTuning.remembered("warp", PromptStyle.defaultWarp) {
         didSet { ModeCardTuning.remember("warp", warp) }
     }
 
-    /// The passing streaks in the passives prompt: how long, and how fast.
-    var sideLength: Double = ModeCardTuning.remembered("sideLength", ModeCardStyle.defaultSideLength) {
-        didSet { ModeCardTuning.remember("sideLength", sideLength) }
+    /// How thick one of them is.
+    var thickness: Double = ModeCardTuning.remembered("thickness", PromptStyle.defaultThickness) {
+        didSet { ModeCardTuning.remember("thickness", thickness) }
     }
-    var sideSpeed: Double = ModeCardTuning.remembered("sideSpeed", ModeCardStyle.defaultSideSpeed) {
-        didSet { ModeCardTuning.remember("sideSpeed", sideSpeed) }
+
+    /// How long, and how fast.
+    var streakLength: Double = ModeCardTuning.remembered("streakLength", PromptStyle.defaultStreakLength) {
+        didSet { ModeCardTuning.remember("streakLength", streakLength) }
+    }
+    var streakSpeed: Double = ModeCardTuning.remembered("streakSpeed", PromptStyle.defaultStreakSpeed) {
+        didSet { ModeCardTuning.remember("streakSpeed", streakSpeed) }
     }
 
     /// Whether the prompt's word leaves with its shape or goes first.
@@ -60,9 +44,12 @@ final class ModeCardTuning {
         didSet { ModeCardTuning.remember("wordsRideOut", wordsRideOut ? 1 : 0) }
     }
 
-    /// How thick a capsule is at the rim.
-    var thickness: Double = ModeCardTuning.remembered("thickness", ModeCardStyle.defaultThickness) {
-        didSet { ModeCardTuning.remember("thickness", thickness) }
+    func dump() {
+        print("── passive prompt ──")
+        print(String(format: "  warp     %.2f", warp))
+        print(String(format: "  thick    %.2f", thickness))
+        print(String(format: "  streak   len %.2f  spd %.2f", streakLength, streakSpeed))
+        print("  words    " + (wordsRideOut ? "ride out" : "go first"))
     }
 
     // ── Kept between builds ───────────────────────────────────────────
@@ -72,7 +59,7 @@ final class ModeCardTuning {
     // live in `UserDefaults` under their own prefix, debug builds only, and the
     // shipped defaults are what a fresh install reads.
 
-    private static let prefix = "modeCard."
+    static let prefix = "modeCard."
 
     /// Bumped whenever a shipped default changes.
     ///
@@ -80,7 +67,7 @@ final class ModeCardTuning {
     /// the old number reads back as that number, and the value written in the
     /// source is never seen again on any machine that has tuned it once. On a
     /// bump every knob is forgotten, so the shipped values are what comes up.
-    private static let vintage = 6
+    private static let vintage = 7
 
     private static func checkVintage() {
         let store = UserDefaults.standard
@@ -112,32 +99,17 @@ final class ModeCardTuning {
         let store = UserDefaults.standard
         for name in ModeCardTuning.names { store.removeObject(forKey: ModeCardTuning.prefix + name) }
 
-        length = ModeCardStyle.defaultLength
-        spread = ModeCardStyle.defaultSpread
-        fadeFrom = ModeCardStyle.defaultFadeFrom
-        fadeTo = ModeCardStyle.defaultFadeTo
-        warp = ModeCardStyle.defaultWarp
-        thickness = ModeCardStyle.defaultThickness
-        sideLength = ModeCardStyle.defaultSideLength
-        sideSpeed = ModeCardStyle.defaultSideSpeed
+        warp = PromptStyle.defaultWarp
+        thickness = PromptStyle.defaultThickness
+        streakLength = PromptStyle.defaultStreakLength
+        streakSpeed = PromptStyle.defaultStreakSpeed
         wordsRideOut = true
     }
 
-    private static let names = [
-        "length", "spread", "fadeFrom", "fadeTo", "warp", "thickness",
-        "sideLength", "sideSpeed", "wordsRideOut",
+    static let names = [
+        "warp", "thickness", "streakLength", "streakSpeed", "wordsRideOut",
     ]
 
-    func dump() {
-        print("── mode card ──")
-        print(String(format: "  length   %.2f bars", length))
-        print(String(format: "  spread   %.2f bars", spread))
-        print(String(format: "  fade     %.2f → %.2f of length", fadeFrom, fadeTo))
-        print(String(format: "  warp     %.2f", warp))
-        print(String(format: "  thick    %.2f", thickness))
-        print(String(format: "  prompt   len %.2f  spd %.2f  %@",
-                     sideLength, sideSpeed, wordsRideOut ? "words ride out" : "words go first"))
-    }
 }
 
 /// The bench: reach, and taper.
@@ -145,56 +117,31 @@ struct ModeCardControls: View {
 
     @Bindable var tuning = ModeCardTuning.shared
 
-    /// Puts the card back on screen, since both knobs are invisible without it.
-    let onReplay: () -> Void
-
-    /// Fires a passive announcement, for the same reason.
+    /// Fires a sample announcement, since every knob here is invisible without
+    /// one on screen.
     let onTrigger: () -> Void
 
     var body: some View {
         VStack(alignment: .leading, spacing: 5) {
             HStack(spacing: 6) {
-                Button("▸ play") { onReplay() }
+                Button("▸ sample") { onTrigger() }
                 Button("print") { tuning.dump() }
                 Button("reset") { tuning.reset() }
             }
 
-            group("shape")
-            row("length", value: $tuning.length, in: -4...8, step: 0.1)
-            // Centred on zero, so the slider's middle is the card as drawn and
-            // either half of its travel is a decision. Negative draws the two
-            // bars *toward* each other, past the overlap the sequence has.
-            row("spread", value: $tuning.spread, in: -6...6, step: 0.1)
-            row("fade a", value: $tuning.fadeFrom, in: 0...0.9, step: 0.01)
-            row("fade b", value: $tuning.fadeTo, in: 0...0.9, step: 0.01)
             row("warp", value: $tuning.warp, in: 0...1, step: 0.01)
-
             row("thick", value: $tuning.thickness, in: 0.5...12, step: 0.1)
+            row("len", value: $tuning.streakLength, in: 0.02...1.2, step: 0.01)
+            row("spd", value: $tuning.streakSpeed, in: 0.02...2, step: 0.01)
 
-            group("prompt")
-            row("side len", value: $tuning.sideLength, in: 0.02...1.2, step: 0.01)
-            row("side spd", value: $tuning.sideSpeed, in: 0.02...2, step: 0.01)
-
-            HStack(spacing: 6) {
-                Button("▸ trigger") { onTrigger() }
-                Button(tuning.wordsRideOut ? "words: ride out" : "words: go first") {
-                    tuning.wordsRideOut.toggle()
-                }
+            Button(tuning.wordsRideOut ? "words: ride out" : "words: go first") {
+                tuning.wordsRideOut.toggle()
             }
-
         }
         .font(.system(size: 10, weight: .semibold, design: .monospaced))
         .foregroundStyle(Palette.stone)
         .padding(8)
         .background(Palette.midnight.opacity(0.9), in: RoundedRectangle(cornerRadius: 8))
-    }
-
-    /// A heading, so nine sliders read as three groups.
-    private func group(_ name: String) -> some View {
-        Text(name)
-            .font(.system(size: 9, weight: .bold, design: .monospaced))
-            .foregroundStyle(Palette.textSecondary)
-            .padding(.top, 2)
     }
 
     private func row(

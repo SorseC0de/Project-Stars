@@ -100,10 +100,11 @@ struct LayerBenchControls: View {
             .buttonStyle(.plain)
 
             if isOpen {
-                ModeCardControls(
-                    onReplay: { session.modeCard = session.mode },
-                    onTrigger: { session.announce(passive: PassivePrompt.debugNames.randomElement()!) }
-                )
+                ModeCardControls {
+                    // The same door a real passive uses, so pressing it twice
+                    // exercises the stacking rather than a shortcut around it.
+                    session.announce(passive: "Sample Text")
+                }
                     .padding(8)
                     .background(Palette.background.opacity(0.85))
             }
