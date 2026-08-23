@@ -62,11 +62,18 @@ struct GameModeSplashView: View {
             let bar = ModeCardStyle.bar(across: width)
 
             ZStack {
-                slat(.upper, bar: bar, width: width)
-                    .offset(y: -bar.height / 2)
+                bars(bar: bar, width: width)
 
-                slat(.lower, bar: bar, width: width)
-                    .offset(y: bar.height / 2)
+                // **The view through the card, not a pattern on it.**
+                //
+                // Drawn once across the whole assembly and masked by it, rather
+                // than once per bar: the wormhole has a single vanishing point,
+                // and a vanishing point per bar is two tunnels seen at once.
+                // The mask is the bars' own tapered fill, so the tunnel thins
+                // out at their tips exactly as they do.
+                warpField
+                    .frame(width: width, height: bar.height * 2)
+                    .mask { bars(bar: bar, width: width) }
 
                 // **Both words over both bars.**
                 //
@@ -115,6 +122,32 @@ struct GameModeSplashView: View {
         var outward: CGFloat { self == .upper ? -1 : 1 }
     }
 
+    /// Whichever tunnel is being looked at. See `ModeCardStyle.isSideOn`.
+    @ViewBuilder
+    private var warpField: some View {
+        if ModeCardStyle.isSideOn {
+            SideStreaks()
+        } else {
+            WormholeField()
+        }
+    }
+
+    /// The pair, in their places.
+    ///
+    /// One view rather than two statements, because it is used twice — as the
+    /// card itself, and as the shape the wormhole is seen through. Written out
+    /// twice they would drift apart, and the tunnel would show through
+    /// somewhere the bars are not.
+    private func bars(bar: ModeCardStyle.Bar, width: CGFloat) -> some View {
+        ZStack {
+            slat(.upper, bar: bar, width: width)
+                .offset(y: -bar.height / 2)
+
+            slat(.lower, bar: bar, width: width)
+                .offset(y: bar.height / 2)
+        }
+    }
+
     /// One bar, at its current place along its own line of travel.
     ///
     /// It fades out at its **outer** edge — leading for the upper bar, trailing
@@ -124,18 +157,7 @@ struct GameModeSplashView: View {
         Parallelogram(lean: ModeCardStyle.lean)
             .fill(ModeCardStyle.taper(towards: slat))
             .frame(width: bar.width, height: bar.height)
-            // Streaks running the way the bar is headed, cut to the bar's own
-            // shape *and* its own fade — masked by the same tapered fill, so
-            // they thin out at the tip exactly as the bar does rather than
-            // stopping at a hard edge inside it.
-            .overlay {
-                WarpStreaks(slat: slat, bar: bar)
-                    .mask {
-                        Parallelogram(lean: ModeCardStyle.lean)
-                            .fill(ModeCardStyle.taper(towards: slat))
-                            .frame(width: bar.width, height: bar.height)
-                    }
-            }
+
             // **Two different moves, both outward.**
             //
             // `length` has already gone into `bar.width`, and a frame grows from
@@ -346,9 +368,55 @@ enum ModeCardStyle {
     static let warpShortest: Double = 0.18
     static let warpSlowest: Double = 0.35
 
-    /// How faint the dimmest streak is, and how thick any of them are.
+    /// How faint the dimmest streak is, and how thick a wormhole streak is at
+    /// the rim.
     static let warpFaintest: Double = 0.15
     static let warpThickness: CGFloat = 1.5
+
+    /// Twice the height of a line, because a capsule at a line's width is a
+    /// line with rounded ends.
+    static let sideThickness: CGFloat = 3
+
+    // ── The wormhole ──────────────────────────────────────────────────
+
+    /// Whether the bench is showing the side-on field instead.
+    static var isSideOn: Bool {
+        #if DEBUG
+        ModeCardTuning.shared.sideOn
+        #else
+        false
+        #endif
+    }
+
+    /// How many streaks are in the tunnel.
+    static let wormholeCount = 90
+
+    /// How far past the corners a streak travels before it wraps.
+    ///
+    /// Well past, not just clear of. A streak accelerates, so it is still only
+    /// three quarters of the way out when it begins fading — measured to the
+    /// corner exactly, the tunnel fills its middle and leaves the ends of the
+    /// bars empty. The bars are also wider than the screen, and this is
+    /// measured against the screen.
+    static let wormholeReach: CGFloat = 2.2
+
+    /// How fast the tunnel runs, and how much slower the slowest streak is.
+    static let wormholeSpeed: Double = 0.42
+    static let wormholeSlowest: Double = 0.45
+
+    /// How sharply a streak accelerates outward. `1` would be a constant crawl;
+    /// above `2` the middle is nearly still and the rim is a blur.
+    static let wormholeCurve: Double = 2.4
+
+    /// How long a streak is at the rim, as a share of the reach.
+    static let wormholeStretch: Double = 0.34
+
+    /// How thin a streak is at the centre, as a share of its width at the rim.
+    static let wormholeThinnest: Double = 0.25
+
+    /// How much of a streak's life is spent fading in, and out.
+    static let wormholeDawn: Double = 0.18
+    static let wormholeDusk: Double = 0.12
 
     /// The curve the words arrive on, and leave on.
     ///
@@ -557,71 +625,108 @@ enum ModeCardStyle {
     static let defaultTextBounce: Double = 0.50
 }
 
-// MARK: - The streaks
+// MARK: - The tunnels
 
-/// Light drawn past the bar in the direction it is travelling.
-///
-/// The look is the one every ship jumping to lightspeed has: thin streaks,
-/// stretched along the direction of travel, at a spread of lengths, speeds and
-/// brightnesses so the field reads as depth rather than as a moving pattern.
-///
-/// ## Why one canvas rather than a view per streak
-///
-/// Forty views each asking for a frame is forty timelines, which is the cost
-/// that took a week out of this project to find. A `Canvas` has no children: it
-/// is one view, one clock, and forty draw calls that never touch the view tree.
-///
-/// ## Why the randomness is arithmetic
+/// A fixed number in `0..<1` for this streak and this question.
 ///
 /// Each streak's lane, length and speed come from a hash of its own index, so
-/// they are scattered but *fixed* — the field looks the same every time the
-/// card is shown, and nothing has to be stored between frames to keep it
-/// stable. A real random number generator would need seeding, keeping and
-/// restoring, and would make every showing subtly different for no gain.
-private struct WarpStreaks: View {
+/// they are scattered but **fixed** — the field looks the same every time the
+/// card is shown, and nothing has to be kept between frames to hold it steady.
+/// A real generator would need seeding, storing and restoring, and would make
+/// every showing subtly different for no gain.
+///
+/// The usual trick: take something irrational-looking, multiply, keep the
+/// fraction. It is not a good random number and does not need to be. It needs
+/// to be scattered, and it needs to be the same every time.
+private func scatter(_ index: Int, _ question: Int) -> Double {
+    let n = sin(Double(index) * 12.9898 + Double(question) * 78.233) * 43758.5453
+    return n - n.rounded(.down)
+}
 
-    let slat: GameModeSplashView.Slat
-    let bar: ModeCardStyle.Bar
+/// One streak's colour, drawn from the four in the weights they were asked for.
+///
+/// Blue is the field and the other three are the exceptions in it — a spread of
+/// four colours in equal numbers reads as confetti, where four in a lopsided mix
+/// reads as one colour with sparks through it.
+private func streakColour(_ roll: Double) -> Color {
+    switch roll * 10 {
+    case ..<4: Palette.blue
+    case ..<7: Palette.white
+    case ..<9: Palette.magenta
+    default: Palette.gold
+    }
+}
+
+/// Seen from behind the ship: streaks flying outward from a vanishing point.
+///
+/// ## What makes it read as depth rather than as a firework
+///
+/// Two things, both of them acceleration. A streak's distance from the centre
+/// goes up faster than time does, so nothing crawls near the middle and
+/// everything tears past at the rim; and its length and width grow with that
+/// distance, so a streak arriving at the edge is long and thick where the same
+/// streak leaving the centre was a point. Together they are what a camera
+/// pointed down a tunnel actually shows.
+///
+/// ## Why one canvas
+///
+/// Ninety views each asking for a frame is ninety timelines, which is the cost
+/// that took a week out of this project to find. A `Canvas` has no children: one
+/// view, one clock, and ninety draw calls that never touch the view tree.
+private struct WormholeField: View {
 
     var body: some View {
         TimelineView(.animation) { timeline in
             Canvas { context, size in
                 guard ModeCardStyle.warp > 0 else { return }
-
                 context.blendMode = .plusLighter
+
                 let now = timeline.date.timeIntervalSinceReferenceDate
+                let centre = CGPoint(x: size.width / 2, y: size.height / 2)
 
-                for index in 0..<ModeCardStyle.warpCount {
-                    let lane = scatter(index, 1)
-                    let span = scatter(index, 2)
-                    let pace = scatter(index, 3)
-                    let glow = scatter(index, 4)
+                // Past the corners, so a streak is still travelling when it
+                // leaves rather than stopping at the edge of the picture.
+                let reach = hypot(size.width, size.height) / 2
+                    * ModeCardStyle.wormholeReach
 
-                    let length = size.width * ModeCardStyle.warpLength
-                        * (ModeCardStyle.warpShortest + span)
-                    let speed = size.width * ModeCardStyle.warpSpeed
-                        * (ModeCardStyle.warpSlowest + pace)
+                for index in 0..<ModeCardStyle.wormholeCount {
+                    let angle = scatter(index, 1) * 2 * .pi
+                    let pace = ModeCardStyle.wormholeSlowest + scatter(index, 2)
 
-                    // Wrapped over the bar's width plus one streak, so a streak
-                    // leaves one end and returns at the other with no moment
-                    // where it is half-drawn at both.
-                    let run = size.width + length
-                    let travelled = (now * speed + Double(index) * 97).truncatingRemainder(
-                        dividingBy: run
-                    )
-                    // With the bar, not against it.
-                    let x = slat.heading < 0 ? size.width - travelled : travelled - length
+                    let turn = now * ModeCardStyle.wormholeSpeed * pace
+                        + scatter(index, 3)
+                    let phase = turn - turn.rounded(.down)
 
-                    let y = lane * size.height
-                    let streak = CGRect(
-                        x: x, y: y - ModeCardStyle.warpThickness / 2,
-                        width: length, height: ModeCardStyle.warpThickness
-                    )
+                    // Out faster than time goes.
+                    let head = reach * pow(phase, ModeCardStyle.wormholeCurve)
+                    let tail = max(0, head - reach * ModeCardStyle.wormholeStretch * phase)
 
-                    context.fill(
-                        Capsule().path(in: streak),
-                        with: .color(
-                            .white.opacity(ModeCardStyle.warp * (ModeCardStyle.warpFaintest + glow))
+                    let direction = CGPoint(x: cos(angle), y: sin(angle))
+                    var path = Path()
+                    path.move(to: CGPoint(
+                        x: centre.x + direction.x * tail,
+                        y: centre.y + direction.y * tail
+                    ))
+                    path.addLine(to: CGPoint(
+                        x: centre.x + direction.x * head,
+                        y: centre.y + direction.y * head
+                    ))
+
+                    // In from nothing, out before it stops — a streak that
+                    // appears or vanishes at full brightness is a streak you
+                    // notice being drawn.
+                    let entering = min(1, phase / ModeCardStyle.wormholeDawn)
+                    let leaving = min(1, (1 - phase) / ModeCardStyle.wormholeDusk)
+                    let glow = ModeCardStyle.warp * entering * leaving
+                        * (ModeCardStyle.warpFaintest + scatter(index, 4))
+
+                    context.stroke(
+                        path,
+                        with: .color(streakColour(scatter(index, 5)).opacity(glow)),
+                        style: StrokeStyle(
+                            lineWidth: ModeCardStyle.warpThickness
+                                * (ModeCardStyle.wormholeThinnest + phase),
+                            lineCap: .round
                         )
                     )
                 }
@@ -629,14 +734,69 @@ private struct WarpStreaks: View {
         }
         .allowsHitTesting(false)
     }
+}
 
-    /// A fixed number in `0..<1` for this streak and this question.
-    ///
-    /// The usual trick: take something irrational-looking, multiply, and keep
-    /// the fraction. It is not a good random number and does not need to be —
-    /// it needs to be *scattered* and *the same every time*.
-    private func scatter(_ index: Int, _ question: Int) -> Double {
-        let n = sin(Double(index) * 12.9898 + Double(question) * 78.233) * 43758.5453
-        return n - n.rounded(.down)
+/// Seen from the side: streaks running the way each bar is headed.
+///
+/// **Parked, and kept.** It is not the wormhole that was asked for — this is a
+/// ship passing the window, where the card wants the view out of the front — but
+/// it is a good effect in its own right and something else will want it. The
+/// bench switches between the two.
+///
+/// One canvas across both bars rather than one per bar, so it mounts exactly
+/// where the wormhole does: the upper half of the field runs with the upper bar
+/// and the lower half with the lower one, which is the only thing either half
+/// needs to know about which bar it is under.
+private struct SideStreaks: View {
+
+    var body: some View {
+        TimelineView(.animation) { timeline in
+            Canvas { context, size in
+                guard ModeCardStyle.warp > 0 else { return }
+                context.blendMode = .plusLighter
+
+                let now = timeline.date.timeIntervalSinceReferenceDate
+                let half = size.height / 2
+
+                for index in 0..<ModeCardStyle.warpCount {
+                    let isUpper = index.isMultiple(of: 2)
+                    // The same headings the bars themselves take.
+                    let heading: CGFloat = isUpper ? 1 : -1
+
+                    let span = scatter(index, 2)
+                    let pace = scatter(index, 3)
+
+                    let length = size.width * ModeCardStyle.warpLength
+                        * (ModeCardStyle.warpShortest + span)
+                    let speed = size.width * ModeCardStyle.warpSpeed
+                        * (ModeCardStyle.warpSlowest + pace)
+
+                    // Wrapped over the width plus one streak, so a streak leaves
+                    // one end and returns at the other with no moment where it
+                    // is half-drawn at both.
+                    let run = size.width + length
+                    let travelled = (now * speed + Double(index) * 97)
+                        .truncatingRemainder(dividingBy: run)
+                    let x = heading < 0 ? size.width - travelled : travelled - length
+
+                    let y = scatter(index, 1) * half + (isUpper ? 0 : half)
+                    let streak = CGRect(
+                        x: x,
+                        y: y - ModeCardStyle.sideThickness / 2,
+                        width: length,
+                        height: ModeCardStyle.sideThickness
+                    )
+
+                    let glow = ModeCardStyle.warp
+                        * (ModeCardStyle.warpFaintest + scatter(index, 4))
+
+                    context.fill(
+                        Capsule().path(in: streak),
+                        with: .color(streakColour(scatter(index, 5)).opacity(glow))
+                    )
+                }
+            }
+        }
+        .allowsHitTesting(false)
     }
 }

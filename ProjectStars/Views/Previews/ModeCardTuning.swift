@@ -42,6 +42,11 @@ final class ModeCardTuning {
         didSet { ModeCardTuning.remember("fadeTo", fadeTo) }
     }
 
+    /// Which tunnel is showing: the wormhole, or the parked side-on field.
+    var sideOn: Bool = ModeCardTuning.rememberedFlag("sideOn") {
+        didSet { ModeCardTuning.remember("sideOn", sideOn ? 1 : 0) }
+    }
+
     /// How bright the warp streaks running through the bars are.
     var warp: Double = ModeCardTuning.remembered("warp", ModeCardStyle.defaultWarp) {
         didSet { ModeCardTuning.remember("warp", warp) }
@@ -82,7 +87,7 @@ final class ModeCardTuning {
     /// the old number reads back as that number, and the value written in the
     /// source is never seen again on any machine that has tuned it once. On a
     /// bump every knob is forgotten, so the shipped values are what comes up.
-    private static let vintage = 2
+    private static let vintage = 3
 
     private static func checkVintage() {
         let store = UserDefaults.standard
@@ -101,6 +106,10 @@ final class ModeCardTuning {
         return store.double(forKey: prefix + name)
     }
 
+    private static func rememberedFlag(_ name: String) -> Bool {
+        remembered(name, 0) > 0.5
+    }
+
     private static func remember(_ name: String, _ value: Double) {
         UserDefaults.standard.set(value, forKey: prefix + name)
     }
@@ -115,6 +124,7 @@ final class ModeCardTuning {
         fadeFrom = ModeCardStyle.defaultFadeFrom
         fadeTo = ModeCardStyle.defaultFadeTo
         warp = ModeCardStyle.defaultWarp
+        sideOn = false
         arrival = ModeCardStyle.defaultArrival
         departure = ModeCardStyle.defaultDeparture
         textDelay = ModeCardStyle.defaultTextDelay
@@ -123,7 +133,7 @@ final class ModeCardTuning {
     }
 
     private static let names = [
-        "length", "spread", "fadeFrom", "fadeTo", "warp",
+        "length", "spread", "fadeFrom", "fadeTo", "warp", "sideOn",
         "arrival", "departure", "textDelay", "textResponse", "textBounce",
     ]
 
@@ -132,7 +142,7 @@ final class ModeCardTuning {
         print(String(format: "  length   %.2f bars", length))
         print(String(format: "  spread   %.2f bars", spread))
         print(String(format: "  fade     %.2f → %.2f of length", fadeFrom, fadeTo))
-        print(String(format: "  warp     %.2f", warp))
+        print(String(format: "  warp     %.2f  %@", warp, sideOn ? "side-on" : "wormhole"))
         print(String(format: "  bars     in %.2f  out %.2f", arrival, departure))
         print(String(format: "  words    delay %.2f  spring %.2f  bounce %.2f",
                      textDelay, textResponse, textBounce))
@@ -164,6 +174,10 @@ struct ModeCardControls: View {
             row("fade a", value: $tuning.fadeFrom, in: 0...0.9, step: 0.01)
             row("fade b", value: $tuning.fadeTo, in: 0...0.9, step: 0.01)
             row("warp", value: $tuning.warp, in: 0...1, step: 0.01)
+
+            Button(tuning.sideOn ? "tunnel: side-on" : "tunnel: wormhole") {
+                tuning.sideOn.toggle()
+            }
 
             group("bars")
             row("in", value: $tuning.arrival, in: 0.05...1.5, step: 0.01)
