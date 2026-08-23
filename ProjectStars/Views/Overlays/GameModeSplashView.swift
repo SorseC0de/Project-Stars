@@ -102,11 +102,19 @@ struct GameModeSplashView: View {
         Parallelogram(lean: ModeCardStyle.lean)
             .fill(ModeCardStyle.taper(towards: slat))
             .frame(width: bar.width, height: bar.height)
-            // **Outward only.** Widening a centred bar moves both ends, and the
-            // inner end is the one holding the seam — so the extra length is
-            // pushed entirely out toward the edge the bar fades into.
+            // **Two different moves, both outward.**
+            //
+            // `length` has already gone into `bar.width`, and a frame grows from
+            // its middle — so half of it has to be pushed back out, or the bar
+            // gets longer at the seam as well as at the tip. The inner end is
+            // what holds the Z, and it must not move.
+            //
+            // `spread` moves the bar without resizing it: the two slide apart
+            // along their own headings, which is a different picture from either
+            // of them being longer.
             .offset(x: travel(slat, width: width, bar: bar)
-                + slat.heading * ModeCardStyle.spread * bar.height / 2)
+                + slat.heading * (ModeCardStyle.length + ModeCardStyle.spread)
+                * bar.height / 2)
     }
 
     /// How far this bar is from centre right now.
@@ -286,7 +294,7 @@ enum ModeCardStyle {
     /// One bar's size for a given screen width.
     static func bar(across width: CGFloat) -> Bar {
         let height = barHeight * width
-        return Bar(width: height * barAspect, height: height)
+        return Bar(width: height * (barAspect + length), height: height)
     }
 
     struct Bar {
@@ -311,10 +319,23 @@ enum ModeCardStyle {
     /// How much longer than it is thick a bar is, straight off the sequence.
     private static let barAspect: CGFloat = 5.18
 
-    /// Extra length on each bar, in bar-thicknesses, all of it added outward.
+    /// How much longer each bar is, in bar-thicknesses. Negative shortens it.
     ///
-    /// Reaches toward the screen's edges rather than growing the card from its
-    /// middle: the inner ends make the Z and must not move.
+    /// All of it is added at the outer end — the end that fades — because the
+    /// inner end is the seam the two bars share, and a bar that grows at the
+    /// seam pushes the Z apart instead of reaching further across the screen.
+    static var length: CGFloat {
+        #if DEBUG
+        CGFloat(ModeCardTuning.shared.length)
+        #else
+        CGFloat(defaultLength)
+        #endif
+    }
+
+    /// How much further apart the two bars sit, in bar-thicknesses.
+    ///
+    /// A move, not a resize: each bar goes half of this along its own heading,
+    /// so the pair opens up while both stay exactly as long as they were.
     static var spread: CGFloat {
         #if DEBUG
         CGFloat(ModeCardTuning.shared.spread)
@@ -342,6 +363,7 @@ enum ModeCardStyle {
         #endif
     }
 
+    static let defaultLength: Double = 0
     static let defaultSpread: Double = 0
     static let defaultFadeFrom: Double = 0
     static let defaultFadeTo: Double = 0.2

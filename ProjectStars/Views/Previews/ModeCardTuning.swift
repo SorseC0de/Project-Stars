@@ -21,7 +21,12 @@ final class ModeCardTuning {
 
     static let shared = ModeCardTuning()
 
-    /// Extra length on each bar, in bar-thicknesses, added outward only.
+    /// How much longer each bar is, in bar-thicknesses, all of it at the outer
+    /// end. Negative shortens it.
+    var length: Double = ModeCardStyle.defaultLength
+
+    /// How much further apart the two bars sit, in bar-thicknesses. A move
+    /// rather than a resize — see `ModeCardStyle.spread`.
     var spread: Double = ModeCardStyle.defaultSpread
 
     /// The two ends of the taper, as shares of a bar's length in from its outer
@@ -41,6 +46,7 @@ final class ModeCardTuning {
 
     func dump() {
         print("── mode card ──")
+        print(String(format: "  length   %.2f bars", length))
         print(String(format: "  spread   %.2f bars", spread))
         print(String(format: "  fade     %.2f → %.2f of length", fadeFrom, fadeTo))
         print(String(format: "  bars     in %.2f  hold %.2f  out %.2f", arrival, hold, departure))
@@ -65,6 +71,7 @@ struct ModeCardControls: View {
             }
 
             group("shape")
+            row("length", value: $tuning.length, in: -4...8, step: 0.1)
             row("spread", value: $tuning.spread, in: 0...6, step: 0.1)
             row("fade a", value: $tuning.fadeFrom, in: 0...0.9, step: 0.01)
             row("fade b", value: $tuning.fadeTo, in: 0...0.9, step: 0.01)
