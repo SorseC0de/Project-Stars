@@ -113,7 +113,10 @@ struct GameScreen: View {
 
                     // What a passive just did, under the counter and out to its
                     // trailing edge. See `PassivePromptView`.
-                    VStack(alignment: .leading, spacing: 0) {
+                    // **Stacked, not listed.** The newer one slides in over the
+                    // older; in a `VStack` it would push the older one down the
+                    // screen instead, and a zero height to stop that clips it.
+                    ZStack(alignment: .topLeading) {
                         ForEach(session.passivePrompts) { prompt in
                             PassivePromptView(
                                 prompt: prompt,
@@ -121,15 +124,11 @@ struct GameScreen: View {
                                 onLeaving: { session.passivePromptIsLeaving(prompt.id) },
                                 onFinished: { session.passivePromptFinished(prompt.id) }
                             )
-                            // Stacked in place, so the newer one slides in over
-                            // the older rather than pushing it down the screen.
-                            .frame(height: 0, alignment: .top)
                         }
                     }
                     .padding(.leading, 10)
                     .padding(.top, counterSpan.height + 10 + PanelStyle.rowSpacing)
                     .frame(width: side, height: side, alignment: .topLeading)
-                    .onPreferenceChange(TurnCounterSpan.self) { counterSpan = $0 }
 
                     // What you just opened, on every pickup rather than only the
                     // first. Pinned low so it never covers the piece.
@@ -170,6 +169,11 @@ struct GameScreen: View {
                 // square, and every past attempt to add something at this level
                 // with a frame threw those positions across the screen.
                 .overlay { edgeVignette(side: side) }
+                // **Read here, not beside the counter.** A preference travels
+                // *up* the tree, so only an ancestor of the view that set it can
+                // hear it — read from a sibling it never arrives, and the prompt
+                // was being asked to fly a distance of zero.
+                .onPreferenceChange(TurnCounterSpan.self) { counterSpan = $0 }
                 // **The upper square, not the screen.**
                 //
                 // The card announces the run, and the run is the board — centred

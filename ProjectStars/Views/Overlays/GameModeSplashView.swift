@@ -271,30 +271,6 @@ struct GameModeSplashView: View {
     }
 }
 
-// MARK: - The shape
-
-/// A rectangle with its top edge pushed right.
-///
-/// `lean` is the shift as a share of the height, so the slant holds its angle
-/// whatever the bar is scaled to — a fixed number of points would stand up
-/// straighter on a tall bar and lie flatter on a short one, and the two bars
-/// only line up into a Z while their slants match exactly.
-struct Parallelogram: Shape {
-
-    var lean: CGFloat
-
-    func path(in rect: CGRect) -> Path {
-        let shift = rect.height * lean
-        var path = Path()
-        path.move(to: CGPoint(x: rect.minX + shift, y: rect.minY))
-        path.addLine(to: CGPoint(x: rect.maxX, y: rect.minY))
-        path.addLine(to: CGPoint(x: rect.maxX - shift, y: rect.maxY))
-        path.addLine(to: CGPoint(x: rect.minX, y: rect.maxY))
-        path.closeSubpath()
-        return path
-    }
-}
-
 // MARK: - Measurements
 
 /// Everything about the card's proportions, in shares of the screen's width.
