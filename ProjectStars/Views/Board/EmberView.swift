@@ -23,6 +23,9 @@ import SwiftUI
 /// from the wall clock and simply repeats, which means the fire is *there* for
 /// as long as the buff is and needs no start or end.
 struct EmberView: View {
+    @Environment(\.planeIsAsleep) private var planeIsAsleep
+
+
 
     /// Size of a board cell, in points.
     let tileSize: CGFloat
@@ -51,7 +54,10 @@ struct EmberView: View {
     var drift: CGFloat = 0
 
     var body: some View {
-        TimelineView(.animation) { timeline in
+        TimelineView(.animation(paused: planeIsAsleep)) { timeline in
+            #if DEBUG
+            let _ = RenderTally.tick("Ember")
+            #endif
             let now = clock(timeline.date.timeIntervalSinceReferenceDate)
 
             ZStack {

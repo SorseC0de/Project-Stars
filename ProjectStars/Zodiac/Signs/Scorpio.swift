@@ -184,6 +184,13 @@ struct ScorpioDeathDream: ZodiacPassive {
 /// board answers that without a counter in the panel.
 struct ScorpioSamsaricShed: ZodiacPassive {
 
+    /// Lit while the husk is still his to spend.
+    ///
+    /// Not on the shedding: that is the moment it is *used up*. What the mark
+    /// is worth knowing is whether he still has one, which is true from the
+    /// start of the run until the fall that takes it.
+    func isLit(in context: PassiveContext) -> Bool { context.signState.shedSkin == nil }
+
     /// Keys this sign owns in `SignState.runFlags`.
     static let usedKey = "scorpio.samsaricShed.used"
     static let ascentLockedKey = "scorpio.samsaricShed.ascentLocked"
@@ -203,7 +210,7 @@ struct ScorpioSamsaricShed: ZodiacPassive {
         var state = context.signState
         state.runFlags.insert(Self.usedKey)
         state.runFlags.insert(Self.ascentLockedKey)
-        state.shedSkin = SignState.ShedSkin(point: point, plane: plane)
+        state.shedSkin = SignState.ShedSkin(point: point, plane: plane, facing: context.facing)
 
         return [
             .signStateChanged(state),

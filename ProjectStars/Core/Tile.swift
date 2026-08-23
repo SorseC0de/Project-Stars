@@ -155,7 +155,18 @@ struct Tile: Hashable, Codable {
         guard !canHoldCover, cover != nil else { return self }
         var fixed = self
         fixed.cover = nil
+        fixed.seed = fixed.seed &+ 97
         return fixed
+    }
+
+    /// This tile with its cover set, re-strawing when the cover comes off.
+    ///
+    /// One place, so nothing has to remember the rule — see `seed`.
+    func covered(by cover: GroundCover?) -> Tile {
+        var next = self
+        next.cover = cover
+        if cover == nil { next.seed = next.seed &+ 97 }
+        return next
     }
 
     /// What is growing here, if anything. See `GroundCover`.
@@ -164,6 +175,17 @@ struct Tile: Hashable, Codable {
     /// out of step with the ground it is covering: a tile that is copied,
     /// healed, broken or serialised carries its cover with it by construction.
     var cover: GroundCover? = nil
+
+    /// The straw this square drew, deciding which patch of dirt shows through
+    /// when something grows on it.
+    ///
+    /// Drawn once when the board is built and **drawn again whenever the cover
+    /// is stripped**, so a square that is grassed, trampled and grassed again
+    /// does not come back wearing the same dirt it had before. Living on the
+    /// tile rather than being hashed from its coordinates is the whole point:
+    /// coordinates never change, so a square derived from them would look
+    /// identical for the whole run. See `DirtPatterns`.
+    var seed: UInt8 = 0
 
     // MARK: Queries
 

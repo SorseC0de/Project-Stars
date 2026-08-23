@@ -588,9 +588,6 @@ enum GameRules {
     /// hole is not damage to the tile, it is the absence of one.
     static let sunHealsItsTile = true
 
-    /// How many squares the Pentacle is dragged each move the sun burns.
-    static let sunPullPerMove = 1
-
     /// How bright the sun is on its final move, so its last turn is visible as
     /// its last turn.
     static let sunGuttering: Double = 0.55
@@ -1491,6 +1488,15 @@ enum GameRules {
     /// A single hop between tiles.
     static let hopDuration: TimeInterval = 0.12
 
+    /// How much longer the hop's *drawing* runs than the hop itself.
+    ///
+    /// **Pace and performance are not the same number.** `hopDuration` is how
+    /// long a step takes — it is what every event sleeps for, so raising it to
+    /// give the crouch some frames slowed the whole game down. The pose runs on
+    /// its own stretched clock instead: the piece is free to take its next step
+    /// while the tail of the last landing is still settling, which is what an
+    /// animation outlasting its own input normally does.
+
     /// How long a move asked for mid-turn stays worth answering, in seconds.
     ///
     /// Generous enough to cover the tail of an ordinary turn — which is what the
@@ -1501,7 +1507,9 @@ enum GameRules {
     static let inputBufferWindow: TimeInterval = 0.6
 
     /// Peak height of a hop's arc, above the straight line between squares.
-    static let hopArcHeight: CGFloat = 6
+    /// At six the piece skimmed the board and the hop read as a slide with a
+    /// wobble on it. A step should leave the ground like a step.
+    static let hopArcHeight: CGFloat = 10
 
     /// Extra arc height per tile travelled beyond the first, as a fraction of
     /// `hopArcHeight`.
@@ -1528,6 +1536,18 @@ enum GameRules {
     /// makes the landing read as getting *up* there.
     static let hopArcHeightOntoNexys: CGFloat = 1.1
 
+    /// **1.35, down from 1.8.**
+    ///
+    /// The step reopens input at `hopDuration` either way, so this does not
+    /// change how fast the game accepts a move — but it is how long the piece
+    /// is visibly still hopping, and at 1.8 the arc was lasting nearly twice as
+    /// long as the step that caused it. Every sign read as heavier, which is
+    /// the one thing the split was supposed to avoid.
+    ///
+    /// This is the knob for that feel. Lower it toward 1 for a snappier hop at
+    /// the cost of the crouch having fewer frames to be seen in.
+    static let hopPoseStretch: Double = 1.35
+
     /// Extra hop time per tile travelled beyond the first, as a fraction of
     /// `hopDuration`.
     ///
@@ -1538,15 +1558,24 @@ enum GameRules {
     /// arcing, this is the knob. Try `0.25`.
     static let hopDurationPerExtraTile: Double = 0
 
-    /// Widest and flattest the piece gets, winding up and on impact.
-    static let hopSquashX: CGFloat = 1.28
+    /// Widest and flattest the piece gets on impact.
+    static let hopSquashX: CGFloat = 1.34
 
-    static let hopSquashY: CGFloat = 0.76
+    static let hopSquashY: CGFloat = 0.68
+
+    /// The crouch before it leaves the ground.
+    ///
+    /// Its own pair rather than the landing's: winding up is a push and landing
+    /// is a stop, and a jump where both ends look identical reads as a bounce.
+    static let hopCrouchX: CGFloat = 1.44
+
+    static let hopCrouchY: CGFloat = 0.56
 
     /// Tallest and thinnest the piece gets, at the top of the arc.
-    static let hopStretchX: CGFloat = 0.80
+    static let hopStretchX: CGFloat = 0.88
 
-    static let hopStretchY: CGFloat = 1.24
+    static let hopStretchY: CGFloat = 1.14
+
 
     /// A drop from Astra down to Terra.
     static let fallDuration: TimeInterval = 0.72
@@ -1769,6 +1798,25 @@ enum GameRules {
 
     static let polarisSpinPeriod: TimeInterval = -6.5
 
+    /// How the star floats: how far it bobs, how long a bob takes, and how much
+    /// it swells over what period.
+    ///
+    /// Named here rather than inside the view that draws it, because `HoverStyle`
+    /// hands the same motion to anything that asks for it — see `BoardLayer`.
+    /// How far the charged fish sits above where the still one rests, in art
+    /// pixels.
+    static let piscesFishLift: CGFloat = 4
+
+    /// How wide the star's orbit is, against how tall.
+    ///
+    /// Wider than it is high: the board is seen at an angle, so a circle drawn
+    /// square reads as a tall ellipse leaning away from you.
+    static let polarisBobRadius: CGFloat = 7
+    static let polarisBobRise: CGFloat = 5
+    static let polarisBobPeriod: TimeInterval = 2.6
+    static let polarisBreathPeriod: TimeInterval = 4.1
+    static let polarisBreathSwell: CGFloat = 0.06
+
     /// How strongly the coin's highlights bloom. Below 1 the glow is thinner
     /// than the mask it is drawn from.
     static let pentacleGlowIntensity: Double = 0.26
@@ -1906,6 +1954,19 @@ enum GameRules {
     /// simply not individually sparkled — nobody counts motes on forty-nine
     /// squares, and the whole-board change is legible on its own.
     static let healSparkleMaxTiles = 14
+
+    /// How many squares of one sweep play their growth bloom.
+    ///
+    /// Fewer than the shimmer's, because a bloom is a bigger strip and a sweep
+    /// can touch every square on the board at once. See the note in
+    /// `GameSession` on why one per tile does not merely look busy.
+    static let growthBloomMaxTiles = 8
+
+    /// The most effect strips allowed on screen at once.
+    ///
+    /// A backstop rather than a budget: nothing in the game should ever reach
+    /// it, and anything that does is a fan-out somebody did not mean to write.
+    static let effectBurstCeiling = 24
 
     // ──────────────────────────────────────────────────────────────────────
     // MARK: - Pisces' water
@@ -2159,6 +2220,15 @@ enum GameRules {
     /// spends that margin rather than leaving it as a gap.
     static let boardForeshortenScale: CGFloat = 1.25
 
+    /// How big a thing standing on the far and near rows is drawn.
+    ///
+    /// The middle row is exactly one — it is the row the art was drawn at — and
+    /// the two ends are a quarter either side of it. Every row between is the
+    /// straight line through them, so the numbers are chosen at the extremes
+    /// and derived everywhere else. See `PixelArtMetrics.depthScale(row:)`.
+    static let depthScaleFar: CGFloat = 0.75
+    static let depthScaleNear: CGFloat = 1.25
+
     /// How hard depth bites on Astra — a magnitude on the shrink itself, where
     /// `1` is the true camera. See `PixelArtMetrics.projected(_:)`.
     ///
@@ -2345,7 +2415,7 @@ enum GameRules {
     static let shedSkinFloatPeriod: TimeInterval = 2.8
 
     /// How long the strike is on screen, out and back.
-    static let stingDuration: TimeInterval = 0.34
+    static let stingDuration: TimeInterval = 1.3
 
     /// How solid the lance is. Low: it is a phantasm, and the board it crosses
     /// has to stay readable underneath it.
@@ -2641,7 +2711,7 @@ enum GameRules {
     /// rigid motion rather than as something swimming.
     static let piscesFishOrbit: CGFloat = 3
     static let piscesFishOrbitPeriod: TimeInterval = 3.2
-    static let piscesFishSpinPeriod: TimeInterval = 2.6
+    static let piscesFishSpinPeriod: TimeInterval = 2.1
 
 
     /// Where the fish sits against the body, in art pixels.
@@ -3484,6 +3554,499 @@ enum GameRules {
     static let flopPancakeY: CGFloat = 0.3
     static let flopDuration: TimeInterval = 0.78
 
+    /// The Bastion's aura: how long it holds each element's colour, how heavy
+    /// its edge is in art pixels, and how much of the square it fills.
+    static let bastionColourHold: TimeInterval = 0.5
+    static let bastionEdge: CGFloat = 1.5
+    static let bastionFill: Double = 0.2
+
+    /// How much of a tile the Miasma's sigil covers.
+    /// How long one breath of a Stubborn Statue cloud takes, in seconds.
+    static let statueCloudPeriod: TimeInterval = 3.4
+
+    /// How faint and how bright that breath gets.
+    static let statueCloudFaintest: Double = 0.01
+
+    static let statueCloudBrightest: Double = 0.66
+
+    /// How long the piece takes to resolve out of white at the start of a run.
+    ///
+    /// Half a second, which is where this lands in most games: long enough to
+    /// read as an arrival, short enough that it is over before the player has
+    /// decided which way to go.
+    static let spawnWashDuration: TimeInterval = 0.5
+
+    /// How big the shattering plate is drawn for each of the two coins that
+    /// break ground. A bump and a hole should not look the same size.
+    static let tremorBurstScale: CGFloat = 1
+
+    static let shakedownBurstScale: CGFloat = 1.35
+
+    /// How far an effect's bloom reaches, in art pixels, and how hard it burns.
+    /// Used by the flourishes that ask for one — see `EffectBurst.glows`.
+    static let burstGlow: CGFloat = 5
+
+    static let burstGlowStrength: Double = 1
+
+    /// How many sigils the Miasma may have out at once.
+    static let miasmaMarkLimit = 2
+
+    /// How far a Miasma sigil's bloom reaches, in art pixels, and how hard it
+    /// burns.
+    static let miasmaMarkGlow: CGFloat = 4
+
+    static let miasmaMarkGlowStrength: Double = 1.2
+
+    /// How long one full turn of a Miasma sigil takes, in seconds.
+    static let miasmaMarkPeriod: TimeInterval = 9
+
+    static let miasmaMarkSize: CGFloat = 1.05
+
+    /// A Polarity Prong: how tall it stands against a tile, how much of that
+    /// the drawn crystal takes, and how it lights.
+    ///
+    /// The art is 48 by 96 — a tall shard — so height is the number that
+    /// matters and the width follows it.
+    static let prongHeight: CGFloat = 2
+    static let prongScale: CGFloat = 1
+    /// How far below its square's middle a shard is planted, in art pixels.
+    ///
+    /// It is standing *in* a hole it punched, not resting on the surface, so
+    /// its base belongs under the ground line rather than on it.
+    static let prongDrop: CGFloat = 4
+
+    static let prongGlow: CGFloat = 3
+
+    /// How bright a crystal pixel has to be before it blooms.
+    ///
+    /// **Below `glowLuminanceThreshold`, because the crystals are dark art.**
+    /// Measured off `Crystals.png`, as the share of each shard's opaque pixels
+    /// that a threshold lets glow:
+    ///
+    /// | threshold | fire | air | earth | water |
+    /// |---|---|---|---|---|
+    /// | 0.45 (the default) | **0%** | 14% | 55% | 46% |
+    /// | 0.40 | 14% | 46% | 55% | 55% |
+    /// | 0.30 | 55% | 86% | 86% | 55% |
+    ///
+    /// At the default the fire shard has no glow at all — its brightest pixel
+    /// is 0.44 — so the bloom was working on three crystals out of four and
+    /// looked like it was working on none. This is the highest number at which
+    /// every element lights up; lower it to bloom more of each crystal's body
+    /// rather than only its highlights.
+    static let prongGlowThreshold: Double = 0.40
+    static let prongLitGlow: Double = 1
+    static let prongDimGlow: Double = 0.25
+
+    /// How much colour a dormant shard keeps.
+    static let prongDimColour: Double = 0.55
+
+    /// How long the live shard takes to brighten when the pole changes.
+    ///
+    /// Long enough to read as one shard handing off to another rather than as
+    /// two independent things blinking.
+    static let prongLightFade = 0.25
+
+    /// Cuts a plain circle out of the board dim instead of the objects.
+    ///
+    /// Debug only, and off. See the comment where it is used: it exists to say
+    /// whether a reverse mask cuts here at all, which is the one thing that
+    /// separates a broken construction from mask-hostile content.
+    static let debugDimHoleProbe = false
+
+    /// How far the scrim behind a full-screen overlay covers the board.
+    ///
+    /// One number for the pause menu, the piece picker and the Pentacle card,
+    /// which were three copies of the same literal. Measured at the old 0.55 it
+    /// took 49% of the board's brightness; asked for half, it is half.
+    static let overlayDim = 0.5
+
+    /// Where each of Virgo's gems sits when she is not facing the viewer, in
+    /// art pixels from where the drawing puts it.
+    ///
+    /// South is not here: those gems were placed when they were drawn and the
+    /// sheet already agrees with them. These two arrangements are new, and the
+    /// numbers are whatever looks right — see `VirgoGemTuning` for the bench
+    /// that finds them.
+    static let virgoGemWestBack = CGSize(width: -3, height: -1)
+    static let virgoGemWestFront = CGSize(width: 2, height: 2)
+    static let virgoGemWestMiddle = CGSize(width: -1, height: 3)
+
+    /// Facing away: one x for the pair, taken negative on her left.
+    static let virgoGemNorthPair = CGSize(width: 0, height: 1)
+    static let virgoGemNorthMiddle = CGSize(width: 0, height: -2)
+
+    /// How small the middle gem gets at the far side of its circuit, side-on.
+    ///
+    /// Half, and full size where it started — the two ends of the ring.
+    static let virgoGemOrbitFar: CGFloat = 0.5
+
+    /// How far that circuit carries it up and down, in art pixels.
+    static let virgoGemOrbitRise: CGFloat = 5
+
+    /// How far the middle gem rises through its circuit, in art pixels.
+    ///
+    /// Shorter than the pair's: it orbits her head rather than swinging from
+    /// it, and at the pair's amplitude it climbed clear of her.
+    static let virgoGemMiddleRise: CGFloat = 3
+
+    /// How far the pair rises when she is facing away, in art pixels.
+    ///
+    /// Tighter than side-on, where the circuit is seen edge-on and has room to
+    /// be a circuit. From behind it is a small oval either side of her head.
+    static let virgoGemNorthRise: CGFloat = 2
+
+    /// How far the front gem swings side-on, in art pixels — and it is two
+    /// numbers, because the circuit is not symmetric to look at.
+    ///
+    /// Forward is how far it may come toward the viewer, which is settled.
+    /// Backward is how far it goes round behind her, which needs the room: a
+    /// gem that goes as far back as it comes forward never looks like it left.
+    static let virgoGemFrontDepthSwing: CGFloat = 2
+
+    static let virgoGemBackDepthSwing: CGFloat = 5
+
+    /// How wide the pair swings when she is facing away, in art pixels.
+    ///
+    /// Its own, smaller number: at the front view's width the pair swung out to
+    /// the north-west and north-east corners of the tile, which is further than
+    /// any of her other angles ever reach.
+    static let virgoGemNorthSwingX: CGFloat = 2
+
+    // MARK: Scorpio's tail
+
+    /// How far apart the links sit, in tiles.
+    static let stingLinkSpacing: CGFloat = 0.6
+
+    /// How far a link wanders off the line, in art pixels.
+    ///
+    /// The chain is meant to read as loose rather than as a ruler. Zero is a
+    /// straight line of beads.
+    static let stingLinkWiggle: CGFloat = 2
+
+    /// How long one wander takes, in seconds.
+    static let stingWigglePeriod: TimeInterval = 0.9
+
+    /// How far the whole tail rides above the square it is swung from, in art
+    /// pixels. It comes off his back, not off the ground.
+    static let stingLift: CGFloat = 8
+
+    /// How far the tail is flattened when it is thrown away from the camera.
+    ///
+    /// The board's own perspective would do this for free if the tail were
+    /// sheared into it, and it is not — it is an upright thing standing on a
+    /// square, like the piece. So going north it is squashed by hand.
+    static let stingAwaySquash: CGFloat = 0.75
+
+    /// Bloom around the tail, in art pixels, and how hard it burns.
+    static let stingGlow: CGFloat = 3
+    static let stingGlowStrength: Double = 1
+
+    /// How much Pisces' fish flattens when he is seen from the side.
+    static let piscesFishSideSquash: CGFloat = 0.85
+
+    /// What the Zodaemonite Skull leaves Scorpio's meter at.
+    ///
+    /// Full, where everyone else is emptied: the ore is his own element, and a
+    /// coin that reverses for exactly one sign is worth the special case.
+    static let zodaemoniteScorpioCharge = 10
+
+    /// What counts as a common Pentacle, in authored percent.
+    ///
+    /// Used only by `PickupSpawnRule.common`, which is a testing filter — the
+    /// game itself has no notion of tiers any more, only percentages.
+    static let commonPickupChance = 10
+
+    /// How long the shards take to fall, and how far above the board they
+    /// start, in tiles.
+    ///
+    /// Slow enough to be watched: this is four squares of the board being taken
+    /// away, and it should happen *to* the player rather than be discovered.
+    static let prongFallDuration: TimeInterval = 0.65
+    static let prongFallHeight: CGFloat = 7
+
+    /// How often the live pole throws a ring, and how far it reaches.
+    static let prongPulsePeriod: TimeInterval = 1.4
+
+    /// How much board one ring is drawn across, in tiles, and how far through
+    /// that it reaches.
+    ///
+    /// **Most of the board.** A pull that reaches three squares is a pull that
+    /// cannot touch you from the far pole — the ring has to arrive at the piece
+    /// for the piece to believe it is being pulled.
+    static let prongPulseSpan: CGFloat = 9
+    static let prongPulseReach: CGFloat = 0.5
+
+    /// How long the turn counter's numeral takes to leave the line, and how
+    /// long it takes to come back down.
+    ///
+    /// Up quicker than down: a jump is thrown and a landing is fallen into, and
+    /// equal halves read as a hover. In stepped mode the two are simply how
+    /// long the raised state is held.
+    static let turnBumpRise: TimeInterval = 0.02
+    static let turnBumpFall: TimeInterval = 0.025
+
+    /// How long the turn counter's numerals take to slide out of sight, and to
+    /// come back wearing the new number.
+    ///
+    /// Out faster than back: the change is hidden on the way out and shown on
+    /// the way in, so the half worth watching is the returning one.
+    static let turnSlideOut: TimeInterval = 0.02
+    static let turnSlideBack: TimeInterval = 0.03
+
+    /// The flicker: how many times the changed numeral disappears, and over
+    /// how long.
+    ///
+    /// **Held longer than the rest.** Everything else on this counter was cut
+    /// to a third to keep up with fast movement, and the flicker cannot be: the
+    /// eye has to catch the number being *absent*, and at six blinks a fifth of
+    /// a second that stops happening and it reads as a flash.
+    static let turnFlickerBlinks = 3
+    static let turnFlickerDuration: TimeInterval = 0.2
+
+    /// The energy feed: how long the light takes to run out along the plate,
+    /// and how long the colours take to cool back down afterwards.
+    /// Slow on purpose. The feed is three things happening in order — the
+    /// label catching, the plate lighting from the left, each numeral heating
+    /// as the front reaches it — and at a fifth of a second they all landed on
+    /// the same frame and read as one flat colour change.
+    static let turnEnergyRun: TimeInterval = 0.17
+    static let turnEnergyCool: TimeInterval = 0.2
+
+    /// The charge: how long each of its three stages holds, how far above the
+    /// line the new numeral starts, and the landing squash.
+    ///
+    /// Slower than the drawn turn on purpose — that one is a mechanism keeping
+    /// up with the board, this one is a small piece of theatre and reads as
+    /// nothing at all when it is rushed.
+    ///
+    /// The drop is deliberately short. Falling a whole cell reads as the
+    /// numeral being dropped *in* from somewhere else; a few pixels reads as it
+    /// settling into a place it already belonged.
+    static let turnChargeStage: TimeInterval = 0.13
+    static let turnChargeDrop: CGFloat = 10
+
+    /// Wider and shorter as it lands, then back — see Mega Man arriving.
+    static let turnChargeSquashX: CGFloat = 1.25
+    static let turnChargeSquashY: CGFloat = 0.75
+    static let turnChargeSquash: TimeInterval = 0.12
+
+    // MARK: - Grass
+
+    /// How many specks of bare ground a patch of dirt holds, and how far from
+    /// the tile's edge they may sit.
+    ///
+    /// One art pixel each — the smallest mark the board can make. Anything
+    /// larger stops reading as ground showing through and starts reading as a
+    /// blotch painted on top.
+    /// How many clumps of bare ground a patch holds, how many pixels each
+    /// clump grows to, and how far from the tile's edge they may sit.
+    ///
+    /// Small on purpose — four or five pixels is a scuff, and anything larger
+    /// stops reading as ground wearing through and starts reading as a hole in
+    /// the grass.
+    /// How often a square shows bare ground at all — one in this many.
+    static let dirtOneTileIn = 5
+
+    /// How big the two clumps on a square that does are, in pixels: one large,
+    /// one smaller beside it.
+    /// Measured off the drawn tile rather than guessed: its dirt is one clump
+    /// of twenty-six pixels, one of six, and a couple of single specks — a
+    /// third of a tile in all, dominated by one shape.
+    static let dirtClumpSmallest = 5
+    static let dirtClumpLargest = 26
+    static let dirtInset = 2
+
+    /// How much of a blank tile the dirt splotches cover.
+    ///
+    /// The shader repaints one art pixel at a time, so this is not the size of
+    /// a splotch but how many of them there are — and at better than half the
+    /// tile they merge into each other and read as one big patch of dirt with
+    /// grass on it rather than as ground showing through.
+    static let grassDirtCoverage: Double = 0.18
+
+    /// How many blades stand on one tile, and how tall the tallest may be in
+    /// art pixels.
+    ///
+    /// Sparse on purpose: the blades are meant to read as *some grass here*
+    /// rather than as a lawn, and a full tile of them turns the board into
+    /// texture the eye has to see past.
+    /// How many tufts stand on a tile, how many blades share a root, and how
+    /// far from that root they scatter in art pixels.
+    ///
+    /// **The clump count is the number that matters** and is stated first: it
+    /// is how many separate places on the square have grass growing out of
+    /// them. It used to be a consequence of dividing a blade count by a clump
+    /// size, so asking for more clumps got answered by more blades in the same
+    /// few spots — the tufts got denser and taller and no more numerous.
+    /// How far along the green ramp each shade of tile sits.
+    ///
+    /// Zero is the ramp as drawn — dark at the root, bright at the tip. A light
+    /// tile leans up it and a dark tile down, so each keeps a little of the
+    /// other's greens instead of owning a set of its own.
+    static let grassLightBias: Double = 0.15
+    static let grassDarkBias: Double = -0.15
+
+    static let grassClumpsPerTile = 14
+    static let grassBladesPerClump = 3
+    static let grassClumpSpread = 2
+    static let grassBladeTallest = 5
+
+    /// How far a blade's tip leans at the far end of a sway, in art pixels, and
+    /// how much later each column starts its own — so a patch ripples across
+    /// rather than leaning as one board.
+    /// How long one sway takes, there and back.
+    /// How many positions one sway is drawn at.
+    ///
+    /// The grass is the most expensive thing on the board — a Canvas of blades
+    /// per square — and it is also the slowest-moving, so it is the one thing
+    /// that gains most from being drawn at less than the frame rate and loses
+    /// least. Twelve steps a turn is smooth at this speed; raise it if the sway
+    /// ever reads as stepping.
+    static let grassSwaySteps: Double = 12
+
+    static let grassSwayPeriod: TimeInterval = 3.5
+
+    static let grassSwayReach: CGFloat = 0.6
+    static let grassSwayStagger: Double = 0.04
+
+    /// Where the ridge behind Terra's board sits, as a share of the square.
+    ///
+    /// A knob because it is a composition decision — how much land shows above
+    /// the board — rather than anything the geometry can work out.
+    /// Where the two ridges sit, in art pixels from the top of the square.
+    static let terraBackdropDrop: CGFloat = 3
+    static let terraMidgroundDrop: CGFloat = 40
+
+    /// The rocks flanking the board: how far each pair is pushed in from the
+    /// screen's edges and how far down it sits, in art pixels.
+    ///
+    /// Two pairs at different spreads and heights — one pair frames the board,
+    /// two make a gorge.
+    static let terraRocksNearSpread: CGFloat = -16
+    static let terraRocksNearY: CGFloat = 59
+    static let terraRocksFarSpread: CGFloat = -2
+    static let terraRocksFarY: CGFloat = 32
+
+    /// How far Terra's scenery travels to clear the board's edges, in art
+    /// pixels, and how long it takes.
+    ///
+    /// Far enough to be gone rather than merely faint: a transparent rock still
+    /// over the square she might blow off is still a thing the player has to
+    /// see past.
+    static let terraSceneryRetreat: CGFloat = 60
+    static let terraSceneryRetreatTime: TimeInterval = 0.45
+
+    /// How deep the ground under Terra's board goes, in art pixels from the
+    /// bottom of the square.
+    static let terraFloorDepth: CGFloat = 20
+
+    /// How solid the front rock is while the piece is standing behind it, and
+    /// how long it takes to get there.
+    ///
+    /// It is the one piece of scenery that can hide the game: the front row is
+    /// a square you can be standing on. Fading rather than vanishing keeps it
+    /// a foreground — you can see through it to yourself, and it is still in
+    /// front of you.
+    static let terraForegroundFaded: Double = 0.5
+    static let terraForegroundFade: TimeInterval = 0.25
+
+    /// How big the far pair is against the near one.
+    ///
+    /// Smaller because it is further away — the same drawing at two sizes and
+    /// two heights is what turns a frame into a distance.
+    static let terraRocksFarScale: CGFloat = 0.75
+
+    /// How heavily the plane badge's art is washed down behind its name, and
+    /// how far apart the letters sit.
+    static let planeBadgeScale: CGFloat = 1
+    /// How far down the plaque sits, in art pixels.
+    static let planeBadgeDrop: CGFloat = 4
+    static let planeBadgeWash: Double = 0.4
+
+    /// How thick the plaque's drawn border is, in art pixels — the wash is
+    /// inset by exactly this so the frame keeps its colour.
+    static let planeBadgeBorder: CGFloat = 3
+
+    /// And how far in from the top and bottom.
+    ///
+    /// Deeper than the sides, because the plaque is centred inside two cells
+    /// and does not fill them — the frame's own thickness is only part of what
+    /// sits above and below the panel.
+    /// **Eight above, nine below.** The plaque is not symmetric: at nine both
+    /// ways the wash cleared the middle panel's top row of pixels and left a
+    /// bright line across it.
+    static let planeBadgeBorderTop: CGFloat = 8
+
+    static let planeBadgeBorderBottom: CGFloat = 9
+
+    /// How far the name's shadow sits behind it, in art pixels. One, hard.
+    static let planeBadgeShadow: CGFloat = 1
+    static let planeBadgeTracking: CGFloat = 4
+
+    /// How far the cap is shoved aside as the numeral turns, in art pixels.
+    static let turnCapShove: CGFloat = 2
+
+    /// How far the word is knocked down when a numeral lands, in art pixels.
+    static let turnLabelDip: CGFloat = 2
+
+    /// How far left the word goes for each pixel it goes down.
+    ///
+    /// One means a true diagonal. The dip is the number that matters; this is
+    /// only the angle it is knocked at.
+    static let turnLabelKnockSkew: CGFloat = 1
+
+    /// How long a charged numeral stays lit after it lands, and how long the
+    /// light takes to leave.
+    ///
+    /// The hold is what separates *delivered* from *flashed*: without it the
+    /// colour is gone on the same frame the face returns, and the eye reads a
+    /// glitch rather than an arrival.
+    static let turnChargeHold: TimeInterval = 0.04
+    static let turnChargeCool: TimeInterval = 0.1
+
+    /// The hand-drawn turn-over: how many frames the sheet holds, and how long
+    /// they take to play.
+    ///
+    /// **Every timing on this counter carries the 3x the bench settled on**,
+    /// baked in rather than left as a multiplier.
+    ///
+    /// The counter has to keep up with the *board*, and the move delay came
+    /// down — a flourish that is still playing when the next turn lands is a
+    /// flourish that never finishes. Anything slower than this fell behind
+    /// fast movement. The knob still exists and starts at 1, so it measures
+    /// against the pace that was chosen rather than against an old one.
+    ///
+    /// Nine, at row nine of the master sheet — see `SpriteAtlas.TurnRow.roll`.
+    static let turnFlipFrames = 9
+    static let turnFlipDuration: TimeInterval = 0.08
+
+    /// How long one numeral takes to turn over, and how much perspective the
+    /// turn is drawn with.
+    ///
+    /// **Zero, for now.** With perspective the near edge fans out and the
+    /// numeral reads as a card being tilted toward you; without it the turn is
+    /// a straight vertical squash, which for eight-pixel-tall art is closer to
+    /// how a drawn flip would look anyway.
+    static let turnRollDuration: TimeInterval = 0.07
+    static let turnRollPerspective: CGFloat = 0
+
+    /// How much of the run is spent on the label before the front sets off.
+    ///
+    /// The energy arrives at the word first and *then* travels, which is the
+    /// order that makes it read as being fed from somewhere rather than as the
+    /// whole counter changing at once.
+    static let turnEnergyLabelLead: Double = 0.2
+
+    /// What a pull from a pole of your own element pays.
+    static let prongMatchCharge = 1
+
+    /// How many turns the Polarity Prongs pull for before they shatter.
+    static let prongMoves = 10
+
+    /// What the dregs of a Bastion pay when the island is on the other plane.
+    static let bastionConsolationCharge = 1
+
     /// What one hydroponic growth costs, in pips.
     ///
     /// The bull is an earth sign drinking from Astral water, and it charges
@@ -3556,7 +4119,16 @@ enum GameRules {
     /// At an eighth of a second the two hops overlapped so heavily that they
     /// read as one animation with a soft edge. The gap wants to be visible: Leo
     /// lands, and *then* the phantom goes.
-    static let retinueBeat: TimeInterval = 0.14
+    /// **A share of the hop, not a fixed gap.**
+    ///
+    /// It was an eighth of a second, chosen when a hop lasted longer than that.
+    /// The hop is faster now, so a fixed beat put each phantom's jump *after*
+    /// the lion had finished his — a chain lagging behind rather than a retinue
+    /// following. Stated against the pose's own clock so the two cannot drift
+    /// apart again when the pacing is retuned.
+    static var retinueBeat: TimeInterval {
+        hopDuration * hopPoseStretch * 0.5
+    }
 
     /// The shadow under a phantom, and how far below it sits.
     /// How far a shadowed figure is lifted back up after being multiplied down.

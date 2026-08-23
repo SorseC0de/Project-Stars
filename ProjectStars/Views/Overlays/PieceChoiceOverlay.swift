@@ -26,7 +26,7 @@ struct PieceChoiceOverlay: View {
 
     var body: some View {
         ZStack {
-            Palette.background.opacity(0.55)
+            Palette.background.opacity(GameRules.overlayDim)
                 .ignoresSafeArea()
 
             VStack(spacing: 10) {

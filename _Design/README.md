@@ -18,6 +18,7 @@ nobody can find is a design document that gets contradicted.
 | `forced-risk-should-not-be-punished` | The board must not require a risk and then charge for taking it. |
 | `zodiaction-charge-balance` | Why there is no manual charge. |
 | `palette-swaps-are-ramp-mappings` | Swaps are ramp mappings, not colour picks. |
+| `project-stars-pickups-backlog` | The five designed-but-unbuilt Pentacles, with their summaries and rules. |
 
 ### Reworks
 

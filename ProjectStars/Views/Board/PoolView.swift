@@ -24,6 +24,9 @@ import SwiftUI
 /// highlights drift, slowly, off the same wall clock as every other ambient
 /// effect here.
 struct PoolView: View {
+    @Environment(\.planeIsAsleep) private var planeIsAsleep
+
+
 
     /// Size of a board cell, in points.
     let size: CGFloat
@@ -33,7 +36,10 @@ struct PoolView: View {
     var clock: (TimeInterval) -> TimeInterval = { $0 }
 
     var body: some View {
-        TimelineView(.animation) { timeline in
+        TimelineView(.animation(paused: planeIsAsleep)) { timeline in
+            #if DEBUG
+            let _ = RenderTally.tick("Pool")
+            #endif
             let now = clock(timeline.date.timeIntervalSinceReferenceDate)
 
             ZStack {

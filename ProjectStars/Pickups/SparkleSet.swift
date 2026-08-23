@@ -37,6 +37,14 @@ struct SparkleSet: Equatable, Codable {
     /// nothing, and walking onto it anyway is the gamble the ability offers.
     var overBrokenGround: Bool = false
 
+    /// The square a Stardar has promised, if one is shining.
+    ///
+    /// Chosen when the phase begins rather than when it resolves, so the marker
+    /// can be drawn on it for the whole time the player is deciding — which is
+    /// the entire point of the coin. See
+    /// `_Design/project-stars-pickups-backlog.md`.
+    var marked: GridPoint?
+
     func contains(_ point: GridPoint) -> Bool {
         points.contains(point)
     }

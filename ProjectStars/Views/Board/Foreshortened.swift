@@ -127,8 +127,27 @@ extension PixelArtMetrics {
                 x: mid + (framed.x - mid) * spacing.width,
                 y: mid + (framed.y - mid) * spacing.height
             ),
-            zoom * near
+            depthScale(row: point.y)
         )
+    }
+
+    /// How big something standing on `row` is drawn.
+    ///
+    /// **Stated, not derived.** It used to fall out of the projection as
+    /// `zoom * near`, which gave 0.88 at the back, 1.02 in the middle and 1.21
+    /// at the front — numbers nobody chose, none of them round, and the middle
+    /// row not even at its own size. Depth you can *see* is a design decision,
+    /// so it is three numbers: three quarters at the back, one in the middle,
+    /// a quarter more at the front, and a straight line between.
+    ///
+    /// The projection still owns **position** — where a square lands and how
+    /// its neighbours space out has to agree with the ground, which is drawn in
+    /// bands and must tile. Only the size of what stands on it is stated here.
+    func depthScale(row: Int, gridSize: Int = GameRules.gridSize) -> CGFloat {
+        let last = CGFloat(max(gridSize - 1, 1))
+        let t = CGFloat(min(max(row, 0), gridSize - 1)) / last
+        return GameRules.depthScaleFar
+            + (GameRules.depthScaleNear - GameRules.depthScaleFar) * t
     }
 }
 

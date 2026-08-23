@@ -107,6 +107,17 @@ struct CancerSeafoamScuttle: ZodiacPassive {
     /// Same rule as the fish — `WearCause.water` — so a crab crossing a meadow
     /// leaves it better than it found it while the ground below still pays.
     func modifyWear(_ proposal: WearProposal, context: PassiveContext) -> WearProposal {
+        // **Only when the water is doing the moving, and a slide is what that
+        // means.**
+        //
+        // `travelsTheGround` also covers a charge and being blown, neither of
+        // which is water — so a water sign shoved by the wind was still sparing
+        // the grass. The three abilities this is for are the scuttle, the surf
+        // and the Brook, and all three are slides. An ordinary hop is the animal
+        // landing with its whole weight, and that wears cover like anyone
+        // else's.
+        guard proposal.moveType == .slide else { return proposal }
+
         var wet = proposal
         wet.caused(by: .water)
         return wet

@@ -71,7 +71,9 @@ half4 elementalBurst(
     float2 center,
     float radius,
     float t,
-    float element
+    float element,
+    half4 pulseNear,
+    half4 pulseFar
 ) {
     float2 delta = position - center;
     float distance = length(delta) / max(radius, 1.0);
@@ -125,6 +127,21 @@ half4 elementalBurst(
         }
         intensity = pulse * 0.7;
         tint = mix(float3(1.0, 0.30, 0.22), float3(1.0, 0.72, 0.45), saturate(distance));
+
+    } else if (kind == 5) {
+        // Polarity pulse — the same rings, in a colour the caller chooses.
+        //
+        // The shape is the statement: something at the centre is pulling, and
+        // this is how far it reaches. What is doing the pulling changes, so the
+        // colour comes in from outside rather than being written here. Leo's
+        // branch above stays its own copy — his red is his.
+        float pulse = 0.0;
+        for (int i = 0; i < 3; ++i) {
+            float offset = float(i) * 0.16;
+            pulse += wavefront(distance, front - offset, 0.10);
+        }
+        intensity = pulse * 0.7;
+        tint = mix(float3(pulseNear.rgb), float3(pulseFar.rgb), saturate(distance));
 
     } else if (kind == 2) {
         // Air — thin streaks spiralling out, thinning as they widen.

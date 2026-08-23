@@ -37,7 +37,10 @@ import SwiftUI
 /// is that they are drawn in **row order**, so a cloud always sits in front of
 /// the one behind it, and that no two are the same size or in the same place for
 /// long.
-struct CloudSpriteField: View {
+struct CloudSpriteField: View, Equatable {
+    @Environment(\.planeIsAsleep) private var planeIsAsleep
+
+
 
     let board: Board
     let metrics: PixelArtMetrics
@@ -108,11 +111,42 @@ struct CloudSpriteField: View {
     var separationX: CGFloat = GameRules.cloudSpacingX
     var separationY: CGFloat = GameRules.cloudSpacingY
 
+    /// **Compared on its values, ignoring its clock.**
+    ///
+    /// The field is the most expensive thing on Astra — forty-nine clusters in
+    /// one `Canvas` — and it is throttled to `cloudFrameRate` internally, which
+    /// governs its *own* timeline and nothing else. What was redrawing it sixty
+    /// times a second was the parent: `clock` is a closure, a closure is never
+    /// equal to itself, so SwiftUI could not tell the view was unchanged and
+    /// rebuilt it on every session update. During a move the session updates
+    /// constantly, which is exactly when the board felt worst and exactly why
+    /// it was Astra and every sign rather than any one of them.
+    ///
+    /// Everything that really decides what is drawn is a value and is compared
+    /// here. The clock is a pure function of a timestamp; two of them differ in
+    /// identity and never in what they answer.
+    static func == (lhs: CloudSpriteField, rhs: CloudSpriteField) -> Bool {
+        lhs.board == rhs.board
+            && lhs.metrics == rhs.metrics
+            && lhs.flashing == rhs.flashing
+            && lhs.raised == rhs.raised
+            && lhs.mending == rhs.mending
+            && lhs.occupied == rhs.occupied
+            && lhs.wake == rhs.wake
+            && lhs.bounce == rhs.bounce
+            && lhs.emphasis == rhs.emphasis
+            && lhs.zoom == rhs.zoom
+            && lhs.lift == rhs.lift
+    }
+
     var body: some View {
         // Forty-nine clusters, each a sprite with its own wander and breath —
         // the most expensive still thing on the board, and none of it moves
         // fast enough to need a frame a frame.
-        TimelineView(.animation(minimumInterval: 1 / GameRules.cloudFrameRate)) { timeline in
+        TimelineView(.animation(minimumInterval: 1 / GameRules.cloudFrameRate, paused: planeIsAsleep)) { timeline in
+            #if DEBUG
+            let _ = RenderTally.tick("CloudSpriteField")
+            #endif
             let now = clock(timeline.date.timeIntervalSinceReferenceDate)
 
             // Padded well past the board on every side.

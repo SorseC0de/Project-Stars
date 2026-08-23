@@ -103,6 +103,13 @@ struct SignState: Equatable {
     struct ShedSkin: Equatable {
         var point: GridPoint
         var plane: Plane
+
+        /// Which way he was looking when he shed it.
+        ///
+        /// A husk is the shape he left behind, so it has to be the drawing he
+        /// was wearing — south for everything was fine while south was the only
+        /// drawing there was.
+        var facing: SwipeDirection = .down
     }
 
     // MARK: Retinue
@@ -209,19 +216,78 @@ struct SignState: Equatable {
     ///
     /// The colour is stored rather than derived so the second coin can be drawn
     /// as the *other* one, which is the whole tell that they are a pair.
-    var miasmaMark: GridPoint?
-    var miasmaPlane: Plane?
-    var miasmaIsWarm = false
+    /// The Miasma's sigils, at most two.
+    ///
+    /// **Two marks, and no automatic warp.** The second coin used to snatch you
+    /// to the first the instant it opened, which is a coin that plays itself.
+    /// Now each one marks a square and the pair is a doorway: walk onto either
+    /// end and it puts you out at the other, so with both on the same plane the
+    /// question is which one you want to walk to.
+    var miasmaMarks: [MiasmaMark] = []
+
+    /// One sigil.
+    struct MiasmaMark: Equatable {
+        var point: GridPoint
+        var plane: Plane
+
+        /// Which of the two colours it wears. See `BoardView.sigil(at:on:)`.
+        var isWarm: Bool
+    }
 
     /// True once a Stardar has promised the next reveal.
     var stardarPending = false
 
+    /// The Polarity Prongs standing in the board, while they last.
+    var prongs: Prongs?
+
+    /// Four shards, one pull a turn, and which pole is doing the pulling.
+    ///
+    /// The active pole is decided **a turn ahead of when it acts**, because the
+    /// whole idea is that the forced move is visible before it happens. A pull
+    /// you could not see coming would be the board taking a turn from you; one
+    /// you can see is a turn you get to plan around.
+    struct Prongs: Equatable {
+        var plane: Plane
+        var movesRemaining: Int
+        var active: SwipeDirection
+
+        /// The four shards: where each stands and what it is made of.
+        ///
+        /// Kept here rather than recomputed wherever they need drawing, because
+        /// half of it is rolled. The squares are always the four edge midpoints
+        /// — the arrangement is the coin's signature — but which element stands
+        /// on which is dealt fresh every time, so the pull you are about to take
+        /// and the charge it pays are never the same two facts twice.
+        var poles: [Pole]
+
+        /// True until the turn after they land.
+        ///
+        /// The shards arrive *on* a move, and pulling on that same move reads
+        /// as being punished for picking the coin up. They come down, and from
+        /// the next move onward they pull.
+        var isArriving = true
+
+        /// One shard: which way it pulls, where it stands, what it is made of.
+        struct Pole: Equatable {
+            var direction: SwipeDirection
+            var point: GridPoint
+
+            /// Dealt at random, and the shard's colour follows from it.
+            ///
+            /// Not `direction.pullElement`: that made north always the same
+            /// crystal, so the board taught you one arrangement and then never
+            /// changed it. It is also what the matching pole pays charge on, so
+            /// rolling it is a rules change and not only a repaint.
+            var element: ZodiacElement
+        }
+    }
+
     var astralEssenceMoves = 0
-    var umbralEssenceMoves = 0
+    var unknownEssenceMoves = 0
 
     /// Charge per step from the Essences, `+1`, `-1`, or `0` for none.
     var essenceCharge: Int {
-        (astralEssenceMoves > 0 ? 1 : 0) - (umbralEssenceMoves > 0 ? 1 : 0)
+        (astralEssenceMoves > 0 ? 1 : 0) - (unknownEssenceMoves > 0 ? 1 : 0)
     }
 
     /// Committed moves left of Aquarius' Gone With the Gale. `0` when it is not
@@ -497,7 +563,7 @@ struct SignState: Equatable {
         starMoves = max(starMoves - 1, 0)
         galeMoves = max(galeMoves - 1, 0)
         astralEssenceMoves = max(astralEssenceMoves - 1, 0)
-        umbralEssenceMoves = max(umbralEssenceMoves - 1, 0)
+        unknownEssenceMoves = max(unknownEssenceMoves - 1, 0)
 
         if var planted = arrow {
             planted.movesRemaining -= 1
@@ -587,11 +653,10 @@ struct SignState: Equatable {
         copy.bastion = bastion
         copy.bastionPlane = bastionPlane
         copy.hasSprite = hasSprite
-        copy.miasmaMark = miasmaMark
-        copy.miasmaPlane = miasmaPlane
-        copy.miasmaIsWarm = miasmaIsWarm
+        copy.prongs = prongs
+        copy.miasmaMarks = miasmaMarks
         copy.stardarPending = stardarPending
-        copy.umbralEssenceMoves = umbralEssenceMoves
+        copy.unknownEssenceMoves = unknownEssenceMoves
         copy.galeMoves = galeMoves
         copy.arrow = arrow
         // **The skin does not survive the swap.**

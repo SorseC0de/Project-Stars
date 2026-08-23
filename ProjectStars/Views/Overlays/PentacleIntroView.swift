@@ -40,7 +40,7 @@ struct PentacleIntroView: View {
 
         ZStack {
             // Dim, not opaque: the board reads through it.
-            Palette.background.opacity(0.55)
+            Palette.background.opacity(GameRules.overlayDim)
                 .ignoresSafeArea()
 
             strip(effect: effect)

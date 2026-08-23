@@ -64,6 +64,14 @@ extension ZodiacCatalog {
 ///   change.
 struct TaurusHooves: ZodiacPassive {
 
+    /// Always, on both planes.
+    ///
+    /// The hooves are what she *is* — every step she takes is the passive
+    /// happening — so the mark is lit for as long as she is on the board. A
+    /// mark that lit only while a foot was actually landing would be off almost
+    /// all the time and blink on every move.
+    func isLit(in context: PassiveContext) -> Bool { true }
+
     let displayName = "Heavy / Hydroponic Hooves"
     let icon: String? = "taurus_heavy_hooves"
 
@@ -142,7 +150,9 @@ struct TaurusHooves: ZodiacPassive {
         let drank = drink(from: events, context: context)
         guard drank.isEmpty else { return drank }
 
-        guard let landing = Self.arrivalOnTerra(in: events) else { return [] }
+        guard let landing = Self.arrivalOnTerra(in: events, context: context) else {
+            return []
+        }
 
         return GroundWave(
             origin: landing,
@@ -158,16 +168,27 @@ struct TaurusHooves: ZodiacPassive {
     }
 
     /// Where she just set foot on Terra, if this move is an arrival.
-    private static func arrivalOnTerra(in events: [GameEvent]) -> GridPoint? {
+    private static func arrivalOnTerra(
+        in events: [GameEvent],
+        context: PassiveContext
+    ) -> GridPoint? {
         for event in events {
             switch event {
             case let .pieceFell(_, to, at) where to == .terra:
                 return at
-            // Off the island and onto the ground. `nexysPoint` is where the
-            // island always stands, so leaving that square for another one on
-            // Terra is the step this waits for.
+            // Off the island and onto the ground.
+            //
+            // **The island, not the square it stands on.** Leaving the centre
+            // was the whole test, and the centre of Terra is a chasm whenever
+            // the island is on Astra — so anything that lets a piece stand on
+            // holes let her step off that hole and spread grass as though she
+            // had just ridden down. Asking where the island actually is costs
+            // one more clause and cannot be fooled.
             case let .pieceMoved(from, to, _, toPlane, _, _, _)
-                where toPlane == .terra && from == GameRules.nexysPoint && to != from:
+                where toPlane == .terra
+                    && from == GameRules.nexysPoint
+                    && context.nexysPlane == .terra
+                    && to != from:
                 return to
             default:
                 continue
@@ -203,7 +224,14 @@ struct TaureanTear: ZodiacPassive {
 
     let icon: String? = "taurus_tear"
     let displayName = "Taurean Tear"
-    let summary = "Astra & Terra: an Astral Tear leaves grass growing where it mended."
+    let summary = "Terra: an Astral Tear leaves grass growing where it mended."
+
+    /// **Nothing grows in the sky.** Grass is a Terra ability, so the mark for
+    /// it goes out with the ground it needs — a passive advertised on a plane
+    /// where it cannot fire teaches the wrong rule every time it is read.
+    func icon(in context: PassiveContext) -> String? {
+        context.plane == .terra ? icon : nil
+    }
 
     /// **Grass, not a third tile.**
     ///
@@ -226,7 +254,9 @@ struct TaureanTear: ZodiacPassive {
             // Where the coin was taken, which is the square the Tear is
             // guaranteed to have mended. The other one it picks is random and
             // is not hers to decorate.
-            guard context.currentBoard.contains(point),
+            // Terra only: grass is ground, and Astra has none to grow it in.
+            guard plane == .terra,
+                  context.currentBoard.contains(point),
                   !context.currentBoard[point].health.isHole,
                   context.currentBoard[point].cover == nil
             else { return [] }
@@ -306,6 +336,16 @@ struct TaurusFloweringFlop: Zodiaction {
         guard let below = context.boardBelow else { return [] }
         let point = context.piecePoint
 
+        // **The island stops her.** She lands on it — she is standing on it —
+        // and a flop is a landing, not a hole. Sending the island down with her
+        // was answering the wrong question: nothing should be falling through
+        // the one square that is solid on every plane it is on.
+        // Nothing grows up here, so there is nothing to do but not fall — see
+        // `TaureanTear.icon(in:)` for why grass is Terra's alone.
+        if point == GameRules.nexysPoint, context.nexysPlane == .astra {
+            return []
+        }
+
         var events: [GameEvent] = [
             .pieceFell(from: .astra, to: .terra, at: point)
         ]
@@ -315,8 +355,14 @@ struct TaurusFloweringFlop: Zodiaction {
             events.append(.planeRestored(plane: .astra))
         }
 
-        // Nothing below to mend and nothing to stand on: the flop is fatal.
-        guard below[point].kind == .normal else {
+        // Nothing to stand on: the flop is fatal.
+        //
+        // **Solid, not `.normal`.** The island is solid ground and is not a
+        // normal tile, so testing the kind killed her for landing on it — she
+        // flopped straight through the Nexys and out of the world. What matters
+        // is whether the square below holds weight, which is the question
+        // `isSolid` answers for every kind there is.
+        guard below[point].isSolid else {
             events.append(.gameOver(reason: .fellThroughTerra))
             return events
         }

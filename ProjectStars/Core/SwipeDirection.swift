@@ -42,6 +42,21 @@ enum SwipeDirection: String, CaseIterable, Identifiable {
     /// buttons for.
     static let cardinals: [SwipeDirection] = [.up, .down, .left, .right]
 
+    /// The element a Polarity Prong standing at this pole is made of.
+    ///
+    /// North is air and south is earth — the sky above, the ground below — and
+    /// the two water-and-fire sides fall out of that. Stated once here so the
+    /// shard, its glow and the charge it pays all agree.
+    var pullElement: ZodiacElement {
+        switch self {
+        case .up: .air
+        case .down: .earth
+        case .left: .water
+        case .right: .fire
+        default: .air
+        }
+    }
+
     /// The four in between.
     static let diagonals: [SwipeDirection] = [.upLeft, .upRight, .downLeft, .downRight]
 
@@ -49,6 +64,37 @@ enum SwipeDirection: String, CaseIterable, Identifiable {
     var isCardinal: Bool { Self.cardinals.contains(self) }
 
     /// The board offset a single step in this direction corresponds to.
+    /// Which way the piece ends up looking after moving `self` while facing
+    /// `current`.
+    ///
+    /// **Four drawings, eight directions.** A diagonal keeps the facing you
+    /// already had when it is one of the two ways that diagonal goes — walk
+    /// south-west facing south and you are still facing south. When it is not,
+    /// the facing you had points backwards along one axis, so the answer is the
+    /// diagonal's other half: facing west and moving north-east leaves you
+    /// facing north, not east.
+    ///
+    /// A cardinal is simply itself. This is how a game with four-way art has
+    /// always handled eight-way movement, and it is a fact about facing rather
+    /// than about drawing, which is why it lives here and not in `PieceView`.
+    func facing(from current: SwipeDirection) -> SwipeDirection {
+        guard let halves else { return self }
+        if current == halves.vertical || current == halves.horizontal { return current }
+        // Turning away from one axis leaves the other one to face along.
+        return current == halves.vertical.opposite ? halves.horizontal : halves.vertical
+    }
+
+    /// A diagonal's two cardinal halves, or `nil` when this is already one.
+    private var halves: (vertical: SwipeDirection, horizontal: SwipeDirection)? {
+        switch self {
+        case .upLeft: (.up, .left)
+        case .upRight: (.up, .right)
+        case .downLeft: (.down, .left)
+        case .downRight: (.down, .right)
+        default: nil
+        }
+    }
+
     var unitOffset: GridOffset {
         switch self {
         case .up: .up

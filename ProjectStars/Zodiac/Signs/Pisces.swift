@@ -167,6 +167,14 @@ struct PiscesStarstreamSurfer: ZodiacPassive {
 /// actually costs — which is the shape the rest of the sign already has.
 struct PiscesGaiaGeyser: ZodiacPassive {
 
+    /// Lit for the whole time he is down there.
+    ///
+    /// The spill is one moment; what it *does* — no charge to be had on Terra —
+    /// lasts as long as he stands on it, and that is the thing the mark is
+    /// telling you about. Lighting it on the spill alone would light it once,
+    /// for a frame, and never again while the rule it names was in force.
+    func isLit(in context: PassiveContext) -> Bool { context.plane == .terra }
+
     let displayName = "Delta Distillation"
     let icon: String? = "pisces_distillation"
     let summary = "Draw Astral Energy from the surrounding plane. Your current ZC, however, is spilled upon landing on Terra, and Distillation requires greater effort there than on Astra."
@@ -224,6 +232,10 @@ struct PiscesGaiaGeyser: ZodiacPassive {
 /// closer to crossing the board again.
 struct PiscesAridAquanaut: ZodiacPassive {
 
+    /// Same span as Distillation, and for the same reason: dry ground is the
+    /// condition, not an event on it.
+    func isLit(in context: PassiveContext) -> Bool { context.plane == .terra }
+
     let displayName = "Arid Aquanaut"
     let icon: String? = "pisces_aquanaut"
 
@@ -263,6 +275,17 @@ struct PiscesAridAquanaut: ZodiacPassive {
     /// tile underneath still takes what his weight deals; what changes is that
     /// grass survives him and flowers where he has been.
     func modifyWear(_ proposal: WearProposal, context: PassiveContext) -> WearProposal {
+        // **Only when the water is doing the moving, and a slide is what that
+        // means.**
+        //
+        // `travelsTheGround` also covers a charge and being blown, neither of
+        // which is water — so a water sign shoved by the wind was still sparing
+        // the grass. The three abilities this is for are the scuttle, the surf
+        // and the Brook, and all three are slides. An ordinary hop is the animal
+        // landing with its whole weight, and that wears cover like anyone
+        // else's.
+        guard proposal.moveType == .slide else { return proposal }
+
         var wet = proposal
         wet.caused(by: .water)
         return wet

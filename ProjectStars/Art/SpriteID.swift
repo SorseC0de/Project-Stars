@@ -71,17 +71,38 @@ enum GeminiHalf: String, Hashable, CaseIterable, Codable, Sendable {
 /// `outer` is a single drawing used twice — once as it is and once mirrored, so
 /// the pair sits either side of her. `middle` draws in front of both.
 enum VirgoGem: String, Hashable, CaseIterable, Codable, Sendable {
-    case outer
-    case middle
+    /// The middle gem of the south-facing set.
+    case south
+
+    /// The side gem of the south-facing set, mirrored for the other side.
+    case southWest
+
+    /// The middle gem seen from the side — it sits furthest out.
+    case west
+
+    /// The middle gem of the north-facing set.
+    case north
+
+    /// The side gem seen from behind, mirrored for the other side. Also the
+    /// back gem of the side-facing set.
+    case northWest
 }
 
 /// Which pair of Libra's arms is being drawn.
 ///
 /// Two drawings rather than four: north is south seen from behind and the
 /// left arm is the right one flipped, so the sheet carries one of each axis.
-enum LibraArmSet: String, Hashable {
+enum SpriteAxis: String, Hashable {
     case northSouth
     case eastWest
+
+    /// The axis a facing lies on.
+    ///
+    /// Two drawings cover four directions everywhere this is used: north is
+    /// south seen from behind, and east is west mirrored.
+    init(facing: SwipeDirection) {
+        self = facing == .left || facing == .right ? .eastWest : .northSouth
+    }
 }
 
 enum CursorTint: String, CaseIterable, Hashable {
@@ -122,7 +143,7 @@ enum SpriteID: Hashable {
 
     /// One of Libra's arms. The sheet holds the north-facing and east-facing
     /// versions; the other two are those flipped — see `LibraPieceView`.
-    case libraArm(LibraArmSet)
+    case libraArm(SpriteAxis)
 
     /// The pans hanging off an arm. Three frames, looped — the lit version,
     /// worn only at a full meter.
@@ -146,7 +167,15 @@ enum SpriteID: Hashable {
     /// Its own cell for the same reason Libra's arms are: a part that has to
     /// move independently cannot be baked into the figure, or the figure has to
     /// be redrawn for every position it might be in.
-    case sagittariusArrowRest
+    case sagittariusArrowRest(SpriteAxis)
+
+    /// The barb at the end of Scorpio's Zodiaction tail.
+    ///
+    /// Three drawings for four ways, like a piece: east is west mirrored.
+    case scorpioStinger(SwipeDirection)
+
+    /// One segment of that tail's shaft, repeated to make its length.
+    case scorpioTailLink
 
     /// One of Gemini's two halves. See `GeminiHalf`.
     case geminiHalf(GeminiHalf)
@@ -156,7 +185,13 @@ enum SpriteID: Hashable {
     /// The only sign drawn from more than one angle, because the claw swings
     /// sideways and stops where you tap, so it is genuinely looked at from all
     /// four. East is west mirrored — three drawings, four facings.
-    case cancerFacing(SwipeDirection)
+    /// A sign seen from one side.
+    ///
+    /// **The standard, not a Cancer exception.** Every sign is drawn facing
+    /// three ways now — left, up, down — with the fourth mirrored from the
+    /// left, so which way the piece is looking is a question the sheet answers
+    /// rather than one the code ignores.
+    case pieceFacing(Zodiac, SwipeDirection)
 
     /// One of Virgo's floating gems. See `VirgoGem`.
     case virgoGem(VirgoGem)
@@ -259,6 +294,24 @@ enum SpriteID: Hashable {
     /// One numeral of the turn counter, `0` through `9`.
     case digit(Int)
 
+    /// One frame of the hand-drawn turn-over, 0 through 8.
+    ///
+    /// The counter can roll a numeral with a `rotation3DEffect`, and this is the
+    /// drawn answer to the same question — nine frames of the wheel actually
+    /// turning, with the weight and the squash decided by hand rather than by a
+    /// transform. See `TurnFlourish.flip`.
+    case turnRoll(Int)
+
+    /// A Polarity Prong's crystal, by the element of the pole it stands at.
+    case polarityProng(ZodiacElement)
+
+    /// Terra's scenery: the ridge behind the board, and the rock in front of
+    /// it. See `TerraSceneryView`.
+    case terraScenery(TerraScenery)
+
+    /// The drawn plaque behind a plane's name — seven cells of sky or hill.
+    case planeBadge(Plane)
+
     /// The counter's furniture: its label, the three pieces of the plate the
     /// numbers sit on, and the piece that closes off the end.
     ///
@@ -286,6 +339,14 @@ enum SpriteID: Hashable {
         switch self {
         case let .tileFace(plane, shade, popped):
             "tile_\(plane.rawValue)_\(shade.assetSuffix)\(popped ? "_popped" : "")"
+        case let .polarityProng(element):
+            "prong_\(element.rawValue)"
+        case let .terraScenery(part):
+            "terra_\(part.rawValue)"
+        case let .planeBadge(plane):
+            "plane_badge_\(plane.rawValue)"
+        case let .turnRoll(frame):
+            "turn_roll_\(frame)"
         case let .digit(value):
             "digit_\(value)"
         case .turnLabel:
@@ -306,8 +367,12 @@ enum SpriteID: Hashable {
             "libra_arm_\(set.rawValue)"
         case .libraScales:
             "libra_scales"
-        case .sagittariusArrowRest:
-            "sagittarius_arrow_rest"
+        case let .sagittariusArrowRest(axis):
+            "sagittarius_arrow_rest_\(axis.rawValue)"
+        case let .scorpioStinger(facing):
+            "scorpio_stinger_\(facing.rawValue)"
+        case .scorpioTailLink:
+            "scorpio_tail_link"
         case .piscesFish:
             "pisces_fish"
         case .piscesFishCharged:
@@ -316,8 +381,8 @@ enum SpriteID: Hashable {
             "libra_scales_plain"
         case let .geminiHalf(half):
             "gemini_\(half.rawValue)"
-        case let .cancerFacing(facing):
-            "cancer_\(facing.rawValue)"
+        case let .pieceFacing(zodiac, facing):
+            "\(zodiac.rawValue)_\(facing.rawValue)"
         case let .virgoGem(gem):
             "virgo_gem_\(gem.rawValue)"
         case let .umbraFloor(tone):
@@ -418,6 +483,11 @@ extension SpriteID {
         }
 
         ids += Zodiac.allCases.map { SpriteID.piece($0) }
+        // Every facing, so a missing drawing shows up in the coverage report
+        // rather than the first time somebody walks that way.
+        ids += Zodiac.allCases.flatMap { sign in
+            [SwipeDirection.up, .down, .left, .right].map { SpriteID.pieceFacing(sign, $0) }
+        }
         ids += [PentacleAppearance.standard, .shadow, .radiant].map { SpriteID.pentacle($0) }
         ids += PickupID.allCases.map { SpriteID.pentacleFace($0) }
         ids += CursorTint.allCases.flatMap { tint in

@@ -38,6 +38,9 @@ import SwiftUI
 /// reads as an intention. It sits a little short of the next square's centre so
 /// it cannot be mistaken for something standing on that square.
 struct FacingArrowView: View {
+    @Environment(\.planeIsAsleep) private var planeIsAsleep
+
+
 
     let facing: SwipeDirection
 
@@ -78,7 +81,10 @@ struct FacingArrowView: View {
     var yScale: CGFloat = 1
 
     var body: some View {
-        TimelineView(.animation) { timeline in
+        TimelineView(.animation(paused: planeIsAsleep)) { timeline in
+            #if DEBUG
+            let _ = RenderTally.tick("FacingArrow")
+            #endif
             let out = nudge(at: clock(timeline.date.timeIntervalSinceReferenceDate))
 
             PixelSprite(id: .directionArrow(facing)) {

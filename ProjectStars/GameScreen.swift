@@ -167,32 +167,49 @@ struct GameScreen: View {
         }
         .overlay(alignment: .bottomLeading) {
             #if DEBUG
-            // Over the panel rather than the board: it is a bench control, and
-            // the thing it is adjusting is what must stay unobstructed.
-            VStack(alignment: .leading, spacing: 6) {
-                TurnCounterTunerControls()
-                RiftPreviewControls()
-            }
-            .padding(.leading, 8)
-            .padding(.bottom, 8)
+            // **Both benches parked.** The counter is placed and the rift is
+            // waiting for Gemini, so neither is being tuned — and a bench left
+            // on screen after the tuning is done is just something covering the
+            // panel. Uncomment the stack to bring either back; both control
+            // types and every value they drive are untouched.
+            //
+            // Both benches are parked: the counter is placed and the rift is
+            // waiting for Gemini. `TurnCounterTunerControls` and
+            // `RiftPreviewControls` are intact — this is the mount.
+            //
+            // The layer switchboard is *not* parked, because what it is for is
+            // not finished: it takes the board apart one layer at a time while
+            // the frame counter is running. See `LayerBench`.
+            LayerBenchControls(session: session)
+                .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .topLeading)
+                .padding(.leading, 6)
+                .padding(.top, 40)
             #endif
         }
-        .overlay(alignment: .top) {
+        .overlay(alignment: .topTrailing) {
             #if DEBUG
             // Over everything, including the pause and game-over sheets: the
             // frames that matter most are the ones being dropped while
             // something is covering the board.
             //
-            // Centred, because the top left is the turn counter's corner now.
+            // Down the right edge rather than centred: the rate is one line but
+            // the rebuild counts under it are a column as long as there are
+            // clocks running, and a column has to hang off an edge to be read.
+            // The top left is the turn counter's corner.
             FrameRateView()
                 .padding(.top, 8)
+                .padding(.trailing, 6)
             #endif
         }
         // Every ambient animation below this reads it, `PixelSprite` included —
         // which is how the whole board stops at once rather than view by view as
         // somebody remembers each one.
         .environment(\.ambientClock, session.ambientClock(at:))
-        .background { keyboardCommands }
+        .background {
+            // See `LayerBench.keyboard` — the one part of this screen that only
+            // exists where the lag does.
+            if LayerBench.shared.keyboard { keyboardCommands }
+        }
         .animation(.easeInOut(duration: 0.3), value: session.phase)
         .animation(.easeInOut(duration: 0.25), value: session.pentacleIntro)
         .animation(.easeInOut(duration: 0.2), value: session.isPaused)
@@ -238,12 +255,39 @@ struct GameScreen: View {
         }
     }
 
+    /// How deep the ground under Terra's board is drawn, in points.
+    private func terraFloor(side: CGFloat) -> CGFloat {
+        let pixel = side / (7 * CGFloat(GameRules.tilePixelSize))
+        #if DEBUG
+        return TerraSceneryTuning.shared.floorDepth * pixel
+        #else
+        return GameRules.terraFloorDepth * pixel
+        #endif
+    }
+
+    /// True while nothing may stand over the board's edges.
+    ///
+    /// **Asked of the piece, not of the run.** Aquarius is the only sign that
+    /// can leave the board — and die doing it — but you can *become* her mid
+    /// run through Forced Fate, an Alignment or one of Leo's phantoms, so the
+    /// question is who is on the board right now.
+    private var edgesMustBeClear: Bool {
+        session.engine.floatsOverBoardEdge
+    }
+
     /// One plane's square: its sky, and its board.
     ///
     /// The sky belongs to the plane rather than to the screen, which is what
     /// lets the two be stacked at all — Astra's stars and Terra's daylight are
     /// as much a part of where you are as the ground is.
     private func planeSquare(_ plane: Plane, side: CGFloat) -> some View {
+        planeContents(plane, side: side)
+            // Everything inside stops asking for frames while this plane is the
+            // one off screen. See `EnvironmentValues.planeIsAsleep`.
+            .environment(\.planeIsAsleep, session.planeIsAsleep(plane))
+    }
+
+    private func planeContents(_ plane: Plane, side: CGFloat) -> some View {
         ZStack {
             // The sky fills the whole square, not just the grid — the
             // letterboxing either side of a 7x7 board at whole-pixel scale is
@@ -257,7 +301,57 @@ struct GameScreen: View {
                     .frame(width: side, height: side)
             }
 
+            // The land behind the board — over the sky, under everything else.
+            //
+            // **Two ridges, both behind.** The second is the same drawing drawn
+            // again over the first and still under the board: two rows of hills
+            // at different heights read as distance, where one reads as a wall.
+            if plane == .terra, LayerBench.shared.scenery {
+                TerraSceneryView(part: .backdrop, side: side, isRetreated: edgesMustBeClear)
+                TerraSceneryView(part: .midground, side: side, isRetreated: edgesMustBeClear)
+            }
+
             BoardView(session: session, plane: plane, availableSide: side)
+
+            // **The ground under the board.**
+            //
+            // Terra's board floats over the sky, which is right for Astra and
+            // wrong for a place made of earth: below the front row you could
+            // see straight through the world. A flat fill closes it, in front
+            // of the board so nothing on the board is behind it, and behind the
+            // rocks so they still read as sitting on it.
+            if plane == .terra, LayerBench.shared.scenery {
+                Rectangle()
+                    .fill(Palette.steel)
+                    // Straight off, rather than retreating: it is a fill, and a
+                    // fill has nowhere to go.
+                    .opacity(edgesMustBeClear ? 0 : 1)
+                    .frame(height: terraFloor(side: side))
+                    .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .bottom)
+                    .allowsHitTesting(false)
+            }
+
+            // The flanking rocks: in front of the board, behind the near rock.
+            if plane == .terra, LayerBench.shared.scenery {
+                TerraMidRocks(set: 1, side: side, isRetreated: edgesMustBeClear)
+                TerraMidRocks(set: 0, side: side, isRetreated: edgesMustBeClear)
+            }
+
+            // And the rock in front of it, over **everything**: it is nearer
+            // the camera than the board is, so the front row passing behind it
+            // is the whole reason it exists.
+            if plane == .terra, LayerBench.shared.scenery {
+                TerraSceneryView(
+                    part: .foreground,
+                    side: side,
+                    // Only the front row is behind it, and only on this plane.
+                    isHiding: session.visiblePlane == .terra
+                        && session.engine.piece.plane == .terra
+                        && session.engine.piece.point.y
+                            == session.engine.currentBoard.size - 1,
+                    isRetreated: edgesMustBeClear
+                )
+            }
         }
         .frame(width: side, height: side)
     }
@@ -274,7 +368,7 @@ struct GameScreen: View {
     /// - **R** restarts the run with the same sign.
     /// - **N** sends the Nexys to the other plane (debug builds only).
     /// - **1** fills the Zodiaction meter (debug builds only).
-    /// - **X** fills *and* pops it, skipping the hold (debug builds only).
+    /// - **X** fills *and* pops it, skipping the hold (debug builds only).s1
     /// - **L** makes the *next* Pentacle an Astral Bolt (debug builds only).
     /// - **P** makes the *next* Pentacle a Polaris (debug builds only).
     /// - **+ / -** move the meter a pip either way (debug builds only).
@@ -336,8 +430,14 @@ struct GameScreen: View {
             Button("Roll ten thousand coins") { session.debugRollDistribution() }
                 .keyboardShortcut("7", modifiers: [])
 
+            // Two puffs, front row and back row, at once — see
+            // `GameSession.debugCompareDepth`.
+            Button("Compare depth") { session.debugCompareDepth() }
+                .keyboardShortcut("8", modifiers: [])
+
             Button("Arm a snipe") { session.debugArmSnipe() }
                 .keyboardShortcut("6", modifiers: [])
+
 
             Button("Play the flourish") {
                 session.playEffect(

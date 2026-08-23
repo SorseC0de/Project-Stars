@@ -78,10 +78,19 @@ struct HopPose: Equatable {
     private static func leapStops(_ weight: Weight) -> [Stop] {
         [
             Stop(t: 0.00, scaleX: 1, scaleY: 1, lift: 0),
-            Stop(t: 0.10, scaleX: GameRules.leapSquashX, scaleY: GameRules.leapSquashY, lift: 0),
-            Stop(t: 0.45, scaleX: weight.rise, scaleY: weight.rise, lift: weight.height),
-            Stop(t: 0.62, scaleX: weight.rise, scaleY: weight.rise, lift: weight.height * 0.92),
-            Stop(t: 0.80, scaleX: weight.pancakeX, scaleY: weight.pancakeY, lift: 0),
+            // The crouch it pushes off from — a hop's, since it is the same
+            // gathering of weight before the same kind of shove.
+            Stop(t: 0.10, scaleX: GameRules.hopCrouchX, scaleY: GameRules.hopCrouchY,
+                 lift: 0),
+            // Swelling as it climbs — this is a leap, not a step.
+            Stop(t: 0.34, scaleX: weight.rise, scaleY: weight.rise,
+                 lift: weight.height * 0.82),
+            Stop(t: 0.48, scaleX: weight.rise, scaleY: weight.rise, lift: weight.height),
+            Stop(t: 0.70, scaleX: 1, scaleY: 1, lift: weight.height * 0.4),
+            // **The landing is the point of the whole thing** — twice as wide
+            // as it is anything else, and held a beat rather than passed
+            // through on the way back to rest.
+            Stop(t: 0.84, scaleX: weight.pancakeX, scaleY: weight.pancakeY, lift: 0),
             Stop(t: 0.92, scaleX: weight.pancakeX, scaleY: weight.pancakeY, lift: 0),
             Stop(t: 1.00, scaleX: 1, scaleY: 1, lift: 0),
         ]
@@ -106,12 +115,26 @@ struct HopPose: Equatable {
     private static var stops: [Stop] {
         [
             Stop(t: 0.00, scaleX: 1, scaleY: 1, lift: 0),
-            Stop(t: 0.16, scaleX: GameRules.hopSquashX, scaleY: GameRules.hopSquashY, lift: 0),
-            Stop(t: 0.42, scaleX: GameRules.hopStretchX, scaleY: GameRules.hopStretchY,
+            // **The pancake, and it is held.**
+            //
+            // Reached early and kept flat for a fifth of the hop rather than
+            // passed through on the way up. A crouch that is only a keyframe is
+            // two frames at this speed, which the eye reads as the piece
+            // flickering rather than as it gathering itself.
+            Stop(t: 0.10, scaleX: GameRules.hopCrouchX, scaleY: GameRules.hopCrouchY,
+                 lift: 0),
+            Stop(t: 0.30, scaleX: GameRules.hopCrouchX, scaleY: GameRules.hopCrouchY,
+                 lift: 0),
+            // Off the ground and thinning, most of the height bought at once —
+            // which is what the crouch was for.
+            Stop(t: 0.46, scaleX: GameRules.hopStretchX, scaleY: GameRules.hopStretchY,
+                 lift: GameRules.hopArcHeight * 0.86),
+            Stop(t: 0.58, scaleX: GameRules.hopStretchX, scaleY: GameRules.hopStretchY,
                  lift: GameRules.hopArcHeight),
-            Stop(t: 0.68, scaleX: GameRules.hopStretchX, scaleY: GameRules.hopStretchY,
-                 lift: GameRules.hopArcHeight * 0.5),
-            Stop(t: 0.86, scaleX: GameRules.hopSquashX, scaleY: GameRules.hopSquashY, lift: 0),
+            Stop(t: 0.78, scaleX: GameRules.hopStretchX, scaleY: GameRules.hopStretchY,
+                 lift: GameRules.hopArcHeight * 0.44),
+            Stop(t: 0.91, scaleX: GameRules.hopSquashX, scaleY: GameRules.hopSquashY,
+                 lift: 0),
             Stop(t: 1.00, scaleX: 1, scaleY: 1, lift: 0),
         ]
     }

@@ -36,6 +36,9 @@ import SwiftUI
 /// eyes would seethe; hashing means they hold still between look-steps, and two
 /// holes on the same board blink out of step with each other for free.
 struct UmbraEyesView: View {
+    @Environment(\.planeIsAsleep) private var planeIsAsleep
+
+
 
     /// The square this hole is, which seeds the pattern. Two holes never share
     /// a rhythm.
@@ -66,7 +69,10 @@ struct UmbraEyesView: View {
     @Environment(\.ambientClock) private var ambientClock
 
     var body: some View {
-        TimelineView(.animation) { timeline in
+        TimelineView(.animation(paused: planeIsAsleep)) { timeline in
+            #if DEBUG
+            let _ = RenderTally.tick("UmbraEyes")
+            #endif
             let now = ambientClock(timeline.date.timeIntervalSinceReferenceDate)
             let look = gaze(at: now)
 

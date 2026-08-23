@@ -32,6 +32,9 @@ import SwiftUI
 /// and shrinks with the glass reads as being magnified by it, which is what
 /// looking through a real bubble does.
 struct TrappedBubbleView<Prize: View>: View {
+    @Environment(\.planeIsAsleep) private var planeIsAsleep
+
+
 
     /// Size of a board cell, in points.
     let tileSize: CGFloat
@@ -50,7 +53,10 @@ struct TrappedBubbleView<Prize: View>: View {
     @Environment(\.ambientClock) private var ambientClock
 
     var body: some View {
-        TimelineView(.animation) { timeline in
+        TimelineView(.animation(paused: planeIsAsleep)) { timeline in
+            #if DEBUG
+            let _ = RenderTally.tick("TrappedBubble")
+            #endif
             let now = ambientClock(timeline.date.timeIntervalSinceReferenceDate)
 
             // Never touching the tile. The float runs between two heights

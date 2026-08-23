@@ -193,7 +193,21 @@ enum PanelStyle {
 
     /// The box one arrow is drawn in. Square: the silhouette turns inside it
     /// rather than the box turning with it.
+    /// How long a passive mark takes to light or go out.
+    ///
+    /// Slow enough that a state which changes twice in quick succession reads
+    /// as one movement rather than as a blink.
+    static let passiveMarkFade: Double = 0.25
+
     static let padArrowSize: CGFloat = 96
+
+    /// How much smaller each arrow is drawn once the corners are out.
+    ///
+    /// Eight arrows in the space four were laid out for run into each other at
+    /// full size. Applied to the whole set rather than to the diagonals alone —
+    /// a pad where the corners are visibly smaller than the cardinals reads as
+    /// the corners mattering less, and they are the same move.
+    static let padDiagonalShrink: CGFloat = 0.76
 
     /// How thick each plate is — how far its dark side shows below the top face.
     ///
@@ -489,21 +503,35 @@ struct ControlPanelView: View {
                         // not exist. These are a statement of what the sign
                         // *is* — the same category as the name above them.
                         HStack(spacing: PanelStyle.passiveMarkSpacing) {
-                            ForEach(
-                                Array(
-                                    session.zodiac.passives
-                                        .compactMap { $0.icon(in: session.engine.passiveSnapshot) }
-                                        .enumerated()
-                                ),
-                                id: \.offset
-                            ) { _, mark in
-                                Image(mark)
+                            let snapshot = session.engine.passiveSnapshot
+                            let marks = session.zodiac.passives
+                                .compactMap { passive -> (mark: String, lit: Bool)? in
+                                    guard let mark = passive.icon(in: snapshot) else {
+                                        return nil
+                                    }
+                                    return (mark, passive.isLit(in: snapshot))
+                                }
+
+                            ForEach(Array(marks.enumerated()), id: \.offset) { _, entry in
+                                Image(entry.mark)
                                     .renderingMode(.template)
                                     .resizable()
                                     .scaledToFit()
                                     .frame(width: PanelStyle.passiveMarkSize,
                                            height: PanelStyle.passiveMarkSize)
-                                    .foregroundStyle(Palette.textSecondary)
+                                    // Lit in the sign's own element, dim
+                                    // otherwise. See `ZodiacPassive.isLit(in:)`
+                                    // for why this is a span rather than a
+                                    // flash.
+                                    .foregroundStyle(
+                                        entry.lit
+                                            ? ElementFX.ramp(for: session.zodiac.element).bright
+                                            : Palette.textSecondary
+                                    )
+                                    .animation(
+                                        .easeInOut(duration: PanelStyle.passiveMarkFade),
+                                        value: entry.lit
+                                    )
                             }
                         }
                         .padding(.horizontal)
@@ -595,7 +623,12 @@ private struct PanelFrontView: View {
                         liveReach = $1
                         session.preview(direction: $0, reach: $1)
                     },
-                    onStepForward: { session.stepForward() }
+                    onStepForward: {
+                        // A tap is a stick input like any other, and was the
+                        // only one landing without the knock.
+                        Haptics.step()
+                        session.stepForward()
+                    }
                 )
             }
 
@@ -780,10 +813,16 @@ private struct PanelFrontView: View {
             }
             .padding(.vertical, 6)
         }
+        // **Choosing the coin is the whole action.**
+        //
+        // It overwrites whatever Pentacle is already out, so the way to test one
+        // is to pick it and walk into it. Naming a square first was a second
+        // answer to a question that has an obvious default — the coin you can
+        // already see.
         .onChange(of: spawning) { _, chosen in
-            // Choosing what does not place it. The board comes up next, and the
-            // square is the second half of the answer.
-            session.debugSpawning = chosen
+            guard let chosen else { return }
+            session.debugBecome(chosen)
+            spawning = nil
         }
     }
     #endif
@@ -1554,16 +1593,21 @@ struct DirectionPad: View {
         // The horizontal pair sit level with the middle of the vertical pair
         // rather than in a row with south. Laying them over the column is what
         // achieves that without opening the gap between north and south.
-        ZStack {
+        // Everything shrinks together once there are eight of them.
+        let box = session.movesDiagonally
+            ? PanelStyle.padArrowSize * PanelStyle.padDiagonalShrink
+            : PanelStyle.padArrowSize
+
+        return ZStack {
             VStack(spacing: PanelStyle.padGapVertical) {
-                PadArrow(session: session, direction: .up)
-                PadArrow(session: session, direction: .down)
+                PadArrow(session: session, direction: .up, box: box)
+                PadArrow(session: session, direction: .down, box: box)
             }
 
             HStack(spacing: PanelStyle.padGapHorizontal) {
-                PadArrow(session: session, direction: .left)
-                Color.clear.frame(width: PanelStyle.padArrowSize, height: 1)
-                PadArrow(session: session, direction: .right)
+                PadArrow(session: session, direction: .left, box: box)
+                Color.clear.frame(width: box, height: 1)
+                PadArrow(session: session, direction: .right, box: box)
             }
 
             // **The corners, for whoever has them.**
@@ -1580,14 +1624,14 @@ struct DirectionPad: View {
             if session.movesDiagonally {
                 VStack(spacing: PanelStyle.padGapVertical) {
                     HStack(spacing: PanelStyle.padGapHorizontal) {
-                        PadArrow(session: session, direction: .upLeft)
-                        Color.clear.frame(width: PanelStyle.padArrowSize, height: 1)
-                        PadArrow(session: session, direction: .upRight)
+                        PadArrow(session: session, direction: .upLeft, box: box)
+                        Color.clear.frame(width: box, height: 1)
+                        PadArrow(session: session, direction: .upRight, box: box)
                     }
                     HStack(spacing: PanelStyle.padGapHorizontal) {
-                        PadArrow(session: session, direction: .downLeft)
-                        Color.clear.frame(width: PanelStyle.padArrowSize, height: 1)
-                        PadArrow(session: session, direction: .downRight)
+                        PadArrow(session: session, direction: .downLeft, box: box)
+                        Color.clear.frame(width: box, height: 1)
+                        PadArrow(session: session, direction: .downRight, box: box)
                     }
                 }
             }
@@ -1607,12 +1651,16 @@ private struct PadArrow: View {
     let session: GameSession
     let direction: SwipeDirection
 
+    /// The square this arrow is drawn in. Smaller once the corners are out —
+    /// see `PanelStyle.padDiagonalShrink`.
+    var box: CGFloat = PanelStyle.padArrowSize
+
     @State private var isPressed = false
 
     var body: some View {
         let special = session.specialReach(for: direction)
 
-        DirectionArrow(direction: direction, hasSpecial: special != nil)
+        DirectionArrow(direction: direction, hasSpecial: special != nil, box: box)
             // Pushed down rather than dimmed.
             //
             // These had no press state at all. What looked like one was the

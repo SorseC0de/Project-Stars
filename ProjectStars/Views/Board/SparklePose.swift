@@ -21,6 +21,9 @@ import SwiftUI
 /// that these are *separate* possibilities. Primes as multipliers, so the
 /// periods drift apart rather than lining back up every few seconds.
 struct SparklePose: ViewModifier {
+    @Environment(\.planeIsAsleep) private var planeIsAsleep
+
+
 
     /// Which sparkle of the set this is.
     let index: Int
@@ -29,7 +32,10 @@ struct SparklePose: ViewModifier {
     let clock: (TimeInterval) -> TimeInterval
 
     func body(content: Content) -> some View {
-        TimelineView(.animation) { timeline in
+        TimelineView(.animation(paused: planeIsAsleep)) { timeline in
+            #if DEBUG
+            let _ = RenderTally.tick("SparklePose")
+            #endif
             let now = clock(timeline.date.timeIntervalSinceReferenceDate)
             let seed = Double(index)
 

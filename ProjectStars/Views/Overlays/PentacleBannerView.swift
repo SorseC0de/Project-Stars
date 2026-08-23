@@ -42,6 +42,11 @@ struct PentacleBannerView: View {
                     Text(effect.displayName.uppercased())
                         .font(.system(size: 11, weight: .heavy, design: .monospaced))
                         .foregroundStyle(Palette.textPrimary)
+                        // A name is a name: it shrinks rather than wrapping,
+                        // because the second line pushes the summary out of a
+                        // banner sized for one.
+                        .lineLimit(1)
+                        .minimumScaleFactor(0.6)
 
                     Text(effect.rarity.displayName.uppercased())
                         .font(.system(size: 7, weight: .heavy, design: .monospaced))

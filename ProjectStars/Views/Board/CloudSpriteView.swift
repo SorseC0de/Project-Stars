@@ -21,6 +21,9 @@ import SwiftUI
 /// same clock — so the lifted cloud belongs to the sky it came out of rather
 /// than looking like a different object placed on top of it.
 struct CloudSpriteView: View {
+    @Environment(\.planeIsAsleep) private var planeIsAsleep
+
+
 
     let point: GridPoint
     let health: TileHealth
@@ -46,7 +49,10 @@ struct CloudSpriteView: View {
     var glows: Bool = false
 
     var body: some View {
-        TimelineView(.animation) { timeline in
+        TimelineView(.animation(paused: planeIsAsleep)) { timeline in
+            #if DEBUG
+            let _ = RenderTally.tick("CloudSprite")
+            #endif
             let now = clock(timeline.date.timeIntervalSinceReferenceDate)
             let wall = timeline.date.timeIntervalSinceReferenceDate
             let motion = CloudMotion(

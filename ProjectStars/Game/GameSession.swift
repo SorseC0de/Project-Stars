@@ -504,6 +504,18 @@ final class GameSession {
         }
     }
 
+    /// Which way the piece is looking, as drawn.
+    ///
+    /// **A move turns the figure as it leaves, not as it lands.** The engine
+    /// only records the new facing once the move resolves, so reading that
+    /// straight had the piece travel the whole way still facing where it came
+    /// from and snap round on arrival — the turn arriving last is what made it
+    /// look like an afterthought.
+    var visibleFacing: SwipeDirection {
+        guard let movement else { return engine.piece.facing }
+        return movement.direction.facing(from: engine.piece.facing)
+    }
+
     /// Starts the clock for a movement of `style`.
     func beginMovement(_ style: MoveType, direction: SwipeDirection, duration: TimeInterval) {
         movement = Movement(
@@ -516,6 +528,17 @@ final class GameSession {
 
     /// And stops it.
     func endMovement() { movement = nil }
+
+    /// When the run began, for the arrival wash. `nil` once it has faded.
+    private(set) var spawnedAt: Date?
+
+    /// How white the piece still is, `1`…`0`, as it resolves out of the spawn.
+    var spawnWash: Double {
+        guard let spawnedAt else { return 0 }
+        let elapsed = Date().timeIntervalSince(spawnedAt)
+        guard elapsed < GameRules.spawnWashDuration else { return 0 }
+        return 1 - elapsed / GameRules.spawnWashDuration
+    }
 
     private(set) var leapStartedAt: Date?
 
@@ -701,6 +724,13 @@ final class GameSession {
     ///
     /// Cleared at the end of the plan that raised it — see `replay`.
     private(set) var isHoldingBoard = false
+
+    /// When the Polarity Prongs began falling, or `nil` when none are.
+    ///
+    /// Drives the descent in `BoardView.prong`: the shards start high and
+    /// arrive over `GameRules.prongFallDuration`, with the board held still
+    /// underneath them.
+    private(set) var prongsFalling: Date?
 
     /// Whether the board is dimmed, for any reason at all.
     ///
@@ -900,6 +930,13 @@ final class GameSession {
         elementalBurst = nil
         sparkleDispersals = []
         effectBursts = []
+
+        // **After the reset, not before it.** This used to be queued up with
+        // the rest of the state and then cleared two lines later by the very
+        // wipe that empties the board of last run's effects — so the entrance
+        // was played and thrown away every time.
+        spawnedAt = .now
+        playEffect(.spawn, at: engine.piece.point, on: engine.piece.plane, glows: true)
         healSparkles = []
         nexysCarryingPiece = false
         coinFlight = nil
@@ -1200,6 +1237,28 @@ final class GameSession {
     ///
     /// Only the *next* one, and it does not disturb the coin already on the
     /// board — take that one, and the set that replaces it is the Bolt.
+    #if DEBUG
+    /// Covers the visible board outright. See `GameEngine.debugCoverEverything`.
+    func debugCoverBoard() {
+        engine.debugCoverEverything(on: visiblePlane)
+        publish()
+    }
+
+    /// Covers the plane that is **not** on screen.
+    ///
+    /// The one test that separates the two remaining explanations for the
+    /// Hydroponic tank. Covered ground costs frames even with nothing drawing
+    /// it, which leaves either something rendering that should not be, or
+    /// something reading the board that has nothing to do with rendering. Cover
+    /// the far plane and the first explanation is gone: nothing up there is on
+    /// screen, so nothing up there can be drawn. If the frame rate falls anyway,
+    /// it was never about the picture.
+    func debugCoverFarBoard() {
+        engine.debugCoverEverything(on: visiblePlane.opposite)
+        publish()
+    }
+    #endif
+
     func debugStageLightning() {
         engine.debugNextPickup = .astralBolt
     }
@@ -1235,6 +1294,18 @@ final class GameSession {
         }
     }
 
+    /// Throws one puff on the far row and one on the near row, together.
+    ///
+    /// A measuring stick rather than a fix: the two are the same event at the
+    /// two extremes of depth, so whatever the board is doing to scale — or not
+    /// doing — is visible in one glance instead of being argued about.
+    func debugCompareDepth() {
+        let plane = engine.piece.plane
+        let last = engine.currentBoard.size - 1
+        kickUpDust(at: GridPoint(3, 0), on: plane, magnitude: 1)
+        kickUpDust(at: GridPoint(3, last), on: plane, magnitude: 1)
+    }
+
     func debugStagePolaris() {
         engine.debugNextPickup = .polaris
     }
@@ -1249,6 +1320,13 @@ final class GameSession {
     func debugSpawn(_ id: PickupID, at point: GridPoint) {
         debugSpawning = nil
         run(engine.debugPlacePickup(id, at: point))
+    }
+
+    /// Turns the coin already on the board into `id`. Debug builds only.
+    ///
+    /// One tap instead of two — see `GameEngine.debugReplacePickup`.
+    func debugBecome(_ id: PickupID) {
+        run(engine.debugReplacePickup(id))
     }
 
     /// Sends the Nexys to the other plane. Debug builds only.
@@ -1407,8 +1485,37 @@ final class GameSession {
     /// meant the long one is exactly the mistake the drag exists to avoid.
     func stepForward() {
         if dismissIntroIfShowing() { return }
-        guard acceptsInput else { return }
-        submit(engine.piece.facing, reach: 0)
+
+        // **Not `acceptsInput`, which threw the tap away.**
+        //
+        // A turn is longer than the hop inside it, and `submit` exists to
+        // *remember* an input that lands during that tail rather than lose it.
+        // Guarding here on `acceptsInput` — false for the whole tail — meant the
+        // tap never reached the part that remembers it, so a player tapping at a
+        // comfortable pace had every second tap silently dropped while the very
+        // same input arriving as a swipe or a key was kept and replayed.
+        //
+        // That read as the stick being laggy, and it was not: it was the tap
+        // being the one input in the game without a memory. `submit` still holds
+        // every real gate — pause, splash, parked Pentacle — so letting the
+        // resolving tail through only reaches the buffer.
+        guard acceptsInput || phase == .resolvingMove else { return }
+
+        // **Already in the piece's own terms, so it must not be turned around.**
+        //
+        // `submit` reverses what the player *asks for*, which is right for a
+        // direction pressed on the pad and wrong for this one: "forward" is
+        // read off the piece's facing, and the facing is already where it is
+        // really pointing. Reversed, the tap sent Aquarius the opposite way,
+        // his facing followed the move, and the next tap sent him back — a
+        // stick tap shuffled him between two squares for ever.
+        //
+        // Handed the raw direction that will survive the flip, so one owner
+        // still does the reversing.
+        let forward = engine.controlsAreReversed
+            ? engine.piece.facing.opposite
+            : engine.piece.facing
+        submit(forward, reach: 0)
     }
 
     /// Pops the current sign's Zodiaction, if it is charged.
@@ -1696,13 +1803,32 @@ final class GameSession {
             engine.apply(event)
 
         case let .groundSwept(plane, _, cover):
-            for (point, grown) in cover {
+            // **A few blooms, not one per square.**
+            //
+            // Hydroponic Hooves greens the whole board, and every square that
+            // grew was playing its own strip — forty-nine `EffectSpriteView`s,
+            // each a `TimelineView(.animation)`, all asking for a frame sixty
+            // times a second. That is enough to saturate the main thread, and a
+            // saturated main thread is where it gets nasty: the tasks that
+            // remove finished bursts are queued on that same thread, so they do
+            // not get to run, so the timelines are never taken down, so the
+            // thread stays saturated. The board never comes back.
+            //
+            // The same cap the mending shimmer already takes, for the same
+            // reason — see `GameRules.healSparkleMaxTiles`. A sweep reads as a
+            // sweep from a handful of blooms; what it cannot survive is one per
+            // tile.
+            for (point, grown) in cover.prefix(GameRules.growthBloomMaxTiles) {
                 growthPlayed(at: point, on: plane, becoming: grown)
             }
             withAnimation(.easeOut(duration: GameRules.groundWaveRingBeat * 1.6)) {
                 engine.apply(event)
             }
-            await sleep(event.displayDuration)
+            // **As long as the ring takes to arrive, not as long as it takes to
+            // start.** The sleep was the beat while the animation ran nearly
+            // twice that, so control came back with the last rings still
+            // growing in behind her.
+            await sleep(event.displayDuration * 1.6)
 
         case let .shadowSpawned(point, plane, _):
             playEffect(.astralBloom, at: point, on: plane)
@@ -1828,12 +1954,35 @@ final class GameSession {
             // Sparks, but no banner and no dust: nothing landed here, and
             // nothing was gained. The coin simply went down with the tile.
             collectBurst = ElementalBurst(kind: .element(.air), center: point, plane: plane, start: .now)
+
+            // The flourish every coin gets, whatever it turns out to be — one
+            // of two takes, chosen on a coin flip. See `EffectSprite.sparkleBurst`.
+            playEffect(.sparkleBurst, at: point, on: plane, glows: true)
             clearCollectBurstLater()
 
             withAnimation(.easeOut(duration: event.displayDuration)) {
                 engine.apply(event)
             }
             await sleep(event.displayDuration)
+
+        // The shards arriving: hold the board still until they land.
+        //
+        // Four squares are about to become holes, and that should be something
+        // the player watches happen rather than finds afterwards.
+        case let .signStateChanged(state)
+            where state.prongs != nil && engine.signState.prongs == nil:
+            engine.apply(event)
+            isHoldingBoard = true
+            prongsFalling = .now
+            pauseAmbient(at: Date.now.timeIntervalSinceReferenceDate)
+            Haptics.longer()
+
+            await sleep(GameRules.prongFallDuration)
+
+            prongsFalling = nil
+            isHoldingBoard = false
+            resumeAmbient(at: Date.now.timeIntervalSinceReferenceDate)
+            shake(for: GameRules.arrowLandShake)
 
         case let .signStateChanged(state)
             where state.shedSkin != nil && engine.signState.shedSkin == nil:
@@ -1952,8 +2101,19 @@ final class GameSession {
             // shake that could not tell them apart would leave the summaries as
             // the only difference between them.
             switch id {
-            case .trivialTremor: pendingTremor = GameRules.tremorShake
-            case .seismicShakedown: pendingTremor = GameRules.shakedownShake
+            case .trivialTremor:
+                pendingTremor = GameRules.tremorShake
+                // The same plate shattering, sized to the coin that broke it.
+                playEffect(
+                    .plateBurst, at: point, on: plane,
+                    scale: GameRules.tremorBurstScale
+                )
+            case .seismicShakedown:
+                pendingTremor = GameRules.shakedownShake
+                playEffect(
+                    .plateBurst, at: point, on: plane,
+                    scale: GameRules.shakedownBurstScale
+                )
             default: break
             }
 
@@ -2114,11 +2274,17 @@ final class GameSession {
             // number gave him a silent hunt — no flash, no absorb, nothing to
             // say a Pentacle had paid out. `firesAtEmpty` is what the rest of
             // the engine asks; this asks the same thing.
-            let towardFiring = zodiac.zodiaction.firesAtEmpty
-                ? to < engine.zodiactionMeter
-                : to > engine.zodiactionMeter
+            // **Any movement at all.**
+            //
+            // This asked which way the meter was going and showed nothing when
+            // it went the other way, which left Aquarius silent for half of what
+            // happens to him: he earns by spending, so a coin that *raises* his
+            // number is still a coin that paid out. The size of the change is
+            // the whole question — the direction is the sign's business, not the
+            // effect's.
+            let paidOut = abs(to - engine.zodiactionMeter) > 0
 
-            if towardFiring {
+            if paidOut, LayerBench.shared.chargeEffects {
                 flashCharge()
                 if let drawn = EffectSprite.chargeGain(for: zodiac) {
                     playEffect(drawn, at: engine.piece.point, on: engine.piece.plane)
@@ -2331,6 +2497,15 @@ final class GameSession {
             // collection burst on it and two flourishes in one place read as one
             // messy flourish.
             playEffect(.bonus, at: point, on: plane)
+            // And a firework over the head that earned it — thrown on the
+            // piece rather than on the square, for the same reason the banner
+            // above is: the square already has the coin's own burst.
+            playEffect(
+                .fireworkFast,
+                at: engine.piece.point,
+                on: plane,
+                glows: true
+            )
             engine.apply(event)
             await sleep(event.displayDuration)
 
@@ -2982,7 +3157,19 @@ final class GameSession {
 
     /// Answers the outstanding Pentacle question and lets the move finish.
     func resolvePickupChoice(_ result: PickupChoiceResult) {
-        guard pendingPickupChoice != nil else { return }
+        guard let pending = pendingPickupChoice else { return }
+
+        // The goat's shop closing on a purchase: the coin goes off where he is
+        // standing. Only the shop — a tile choice is a destination, not a bang.
+        if pending.kind == .shop {
+            playEffect(
+                .coinExplosion,
+                at: engine.piece.point,
+                on: engine.piece.plane,
+                glows: true
+            )
+        }
+
         pendingPickupChoice = nil
         targetAim = nil
         resumeAmbient(at: Date.now.timeIntervalSinceReferenceDate)
@@ -3455,6 +3642,9 @@ struct EffectBurst: Identifiable, Equatable {
     /// True to draw this copy mirrored.
     var mirrored = false
 
+    /// True to bloom this copy, for the flourishes that are made of light.
+    var glows = false
+
     /// Entries to exchange, for a strip drawn in colours other than the ones
     /// wanted.
     ///
@@ -3489,7 +3679,8 @@ extension GameSession {
         swaps: [PaletteSwap] = [],
         scale: CGFloat = 1,
         angle: Double = 0,
-        mirrored: Bool = false
+        mirrored: Bool = false,
+        glows: Bool = false
     ) {
         let burst = EffectBurst(
             effect: effect,
@@ -3499,10 +3690,21 @@ extension GameSession {
             scale: scale,
             angle: angle,
             mirrored: mirrored,
+            glows: glows,
             swaps: swaps,
             tint: tint
         )
         effectBursts.append(burst)
+
+        // **A ceiling, so no single event can bury the frame.**
+        //
+        // Each burst is a timeline of its own, and they are taken down by tasks
+        // that need the main thread — which is exactly what is missing once
+        // enough of them are running. The oldest go first: a burst that has
+        // been on screen longest is the one nearest finishing anyway.
+        if effectBursts.count > GameRules.effectBurstCeiling {
+            effectBursts.removeFirst(effectBursts.count - GameRules.effectBurstCeiling)
+        }
 
         Task { [weak self] in
             try? await Task.sleep(
@@ -3599,6 +3801,15 @@ extension GameSession {
 
     /// The board being rendered in the top half of the screen.
     var visibleBoard: Board { engine[visiblePlane] }
+
+    /// Whether `plane` is off screen and can stop asking for frames.
+    ///
+    /// See `EnvironmentValues.planeIsAsleep` for what this is for. Both planes
+    /// are mounted at once, so the one not being looked at is a full board's
+    /// worth of animation running behind a clip.
+    func planeIsAsleep(_ plane: Plane) -> Bool {
+        plane != visiblePlane && !isFalling
+    }
 
     /// Every square the piece could move to this turn, and the swipe that gets
     /// it there.

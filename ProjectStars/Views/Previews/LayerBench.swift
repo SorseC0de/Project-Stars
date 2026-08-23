@@ -1,0 +1,240 @@
+//
+//  LayerBench.swift
+//  Project Stars
+//
+//  A switchboard for finding what is costing the frame rate.
+//
+
+import SwiftUI
+
+/// Which of the board's layers are drawn, so one can be taken away and the
+/// frame counter asked what changed.
+///
+/// ## Why this exists rather than a set of experiments in the source
+///
+/// Turning a layer off, rebuilding, relaunching and reading the counter takes
+/// minutes per question, and the answer is only worth having if the machine
+/// underneath is steady. It is not: the same build measured on the simulator
+/// gave 120 and 60 on two runs with nothing changed in between, which is enough
+/// drift to make every single-sample A/B meaningless — a layer removed can
+/// read *slower* than the same board with it.
+///
+/// A switch that flips at runtime removes the rebuild, the relaunch and the
+/// drift all at once: the same board, the same second, one layer at a time.
+/// Flip one, watch the counter, flip it back.
+@Observable
+final class LayerBench {
+
+    static let shared = LayerBench()
+
+    private init() {}
+
+    // **Switches in a debug build, constants in a shipped one.**
+    //
+    // The gates around the board read these either way, so they have to exist
+    // in both — but nothing should be able to turn a layer of the game off in
+    // somebody's hands. As `let`s the optimiser folds every branch away and the
+    // shipped board is the board with everything in it.
+    #if DEBUG
+
+    /// The land behind and in front of Terra — ridges, flanking rocks, the
+    /// near rock, and the fill under the board. Terra only.
+    var scenery = true
+
+    /// The side of every tile, drawn under the bands. Terra only, 49 of them
+    /// plus the front row's, each placed on its own.
+    var tileEdges = true
+
+    /// The ground itself, a row at a time. Turning this off drops the piece,
+    /// so read the counter before it lands.
+    var ground = true
+
+    /// Astra's cloud field: 49 clusters in one `Canvas`.
+    var clouds = true
+
+    /// The glow phase's shimmer, one per candidate square.
+    var sparkles = true
+
+    /// The screen-wide fracture shader wrapped around the whole board.
+    var fracture = true
+
+    // ── For the Leo question ──────────────────────────────────────────
+    //
+    // He moves slower than everyone else and the frame rate is not the reason,
+    // so it is a *duration* somewhere. These are the two things he does that
+    // nobody else does on an ordinary step.
+
+    /// The coin drifting toward him. Emits `pickupMoved`, which the session
+    /// sleeps a hop's worth for — on a quarter of his steps down here.
+    var magneticMane = true
+
+    /// The flash and the absorb played whenever the meter moves. He gains on
+    /// every landing, so he plays them on every landing.
+    var chargeEffects = true
+
+    // ── For the Hydroponic tank ───────────────────────────────────────
+    //
+    // Three suspects, three switches: the sweep's machinery, the state it
+    // leaves behind, and the art that state is drawn with. `cover board` makes
+    // the state without the sweep; the style cycles what a covered square is
+    // drawn as, so the same state can be tested with three different pictures.
+
+    /// Whether the hardware-keyboard shortcuts are mounted at all.
+    ///
+    /// Twenty-eight zero-sized buttons, each registering a system key command,
+    /// live in the board's background so a keyboard can drive the game. They
+    /// draw nothing and they are never rebuilt — but they are the one part of
+    /// this screen that exists **only in the simulator**, because that is the
+    /// only place with a keyboard attached. Which makes them the first thing to
+    /// take away when the simulator is slow and the device is not.
+    ///
+    /// Turning this off takes WASD and the debug keys with it; the on-screen
+    /// controls still work.
+    var keyboard = true
+
+    /// What a covered square is drawn as.
+    var coverStyle: CoverStyle = .art
+
+    /// Whether a covered square is entered into the object list at all.
+    ///
+    /// Covering the board is the only thing that makes `grassRow` objects
+    /// exist, and they are the only thing on Terra that reads `cover` every
+    /// frame. This takes them out without taking the cover out.
+    var grassObjects = true
+
+    enum CoverStyle: String, CaseIterable {
+        /// Nothing at all — the control.
+        case none
+
+        /// The tile-cover sprite, as shipped.
+        case art
+
+        /// The Miasma's sigil — a different sprite, same everything else.
+        case sigil
+
+        /// No sprite at all: a flat fill, which asks nothing of the atlas.
+        case rectangle
+
+        /// Nothing drawn. The state is still there; the picture is not — which
+        /// is the only way to tell the cost of *having* cover from the cost of
+        /// *painting* it.
+        case hidden
+
+        var next: CoverStyle {
+            let all = Self.allCases
+            let i = all.firstIndex(of: self) ?? 0
+            return all[(i + 1) % all.count]
+        }
+    }
+
+    #else
+
+    let scenery = true
+    let tileEdges = true
+    let ground = true
+    let clouds = true
+    let sparkles = true
+    let fracture = true
+    let magneticMane = true
+    let chargeEffects = true
+    let keyboard = true
+    let coverStyle: CoverStyle = .art
+    let grassObjects = true
+
+    enum CoverStyle { case art }
+
+    #endif
+}
+
+#if DEBUG
+
+/// The switchboard itself, mounted over the panel in debug builds.
+struct LayerBenchControls: View {
+
+    @Bindable var bench = LayerBench.shared
+
+    /// The session, for the actions that change the board rather than the view.
+    let session: GameSession
+
+    @State private var isOpen = false
+
+    var body: some View {
+        VStack(alignment: .leading, spacing: 0) {
+            Button {
+                isOpen.toggle()
+            } label: {
+                Text(isOpen ? "layers ▾" : "layers ▸")
+                    .font(.system(size: 11, weight: .bold, design: .monospaced))
+                    .foregroundStyle(Palette.textPrimary)
+                    .padding(.horizontal, 8)
+                    .padding(.vertical, 4)
+                    .background(Palette.background.opacity(0.85))
+            }
+            .buttonStyle(.plain)
+
+            if isOpen {
+                VStack(alignment: .leading, spacing: 2) {
+                    toggle("scenery", $bench.scenery)
+                    toggle("tile edges", $bench.tileEdges)
+                    toggle("ground", $bench.ground)
+                    toggle("clouds", $bench.clouds)
+                    toggle("sparkles", $bench.sparkles)
+                    toggle("fracture", $bench.fracture)
+                    Divider().frame(width: 90)
+                    toggle("leo: mane", $bench.magneticMane)
+                    toggle("leo: charge fx", $bench.chargeEffects)
+                    Divider().frame(width: 90)
+
+                    Button {
+                        session.debugCoverBoard()
+                    } label: {
+                        Text("▸ cover board")
+                            .font(.system(size: 11, weight: .medium, design: .monospaced))
+                            .foregroundStyle(Palette.sky)
+                    }
+                    .buttonStyle(.plain)
+
+                    Button {
+                        session.debugCoverFarBoard()
+                    } label: {
+                        Text("▸ cover far plane")
+                            .font(.system(size: 11, weight: .medium, design: .monospaced))
+                            .foregroundStyle(Palette.sky)
+                    }
+                    .buttonStyle(.plain)
+
+                    toggle("keyboard", $bench.keyboard)
+
+                    toggle("grass objects", $bench.grassObjects)
+
+                    Button {
+                        bench.coverStyle = bench.coverStyle.next
+                    } label: {
+                        Text("cover: \(bench.coverStyle.rawValue)")
+                            .font(.system(size: 11, weight: .medium, design: .monospaced))
+                            .foregroundStyle(Palette.lime)
+                    }
+                    .buttonStyle(.plain)
+                }
+                .padding(8)
+                .background(Palette.background.opacity(0.85))
+            }
+        }
+    }
+
+    private func toggle(_ name: String, _ value: Binding<Bool>) -> some View {
+        Button {
+            value.wrappedValue.toggle()
+        } label: {
+            HStack(spacing: 6) {
+                Text(value.wrappedValue ? "◉" : "○")
+                Text(name)
+            }
+            .font(.system(size: 11, weight: .medium, design: .monospaced))
+            .foregroundStyle(value.wrappedValue ? Palette.lime : Palette.textSecondary)
+        }
+        .buttonStyle(.plain)
+    }
+}
+
+#endif

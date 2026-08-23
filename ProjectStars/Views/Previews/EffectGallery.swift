@@ -242,6 +242,13 @@ private extension EffectSprite {
     /// Readable name for the picker.
     var previewName: String {
         switch self {
+        case .plateBurst: "Ground — plate burst"
+        case .coinExplosion: "Capricorn — coin explosion"
+        case .fireworkFast: "Snipe — firework (fast)"
+        case .fireworkSlow: "Virgo — firework (slow)"
+        case .sparkleBurstTwo: "Pentacle — gather (v2)"
+        case .sparkleBurstThree: "Pentacle — gather (v3)"
+        case .spawn: "Run start — spawn"
         case .droplet: "Astral Tear — droplet"
         case .geminiRiftOne: "Gemini — rift (v1)"
         case .geminiRiftTwo: "Gemini — rift (v2)"

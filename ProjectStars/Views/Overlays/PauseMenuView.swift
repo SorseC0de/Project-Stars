@@ -23,7 +23,7 @@ struct PauseMenuView: View {
 
     var body: some View {
         ZStack {
-            Palette.background.opacity(0.55)
+            Palette.background.opacity(GameRules.overlayDim)
                 .ignoresSafeArea()
                 // Tapping the dimmed area resumes, which is the fastest way out
                 // of a menu opened by accident.
