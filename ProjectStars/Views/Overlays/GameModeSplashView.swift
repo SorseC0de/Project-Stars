@@ -368,14 +368,69 @@ enum ModeCardStyle {
     static let warpShortest: Double = 0.18
     static let warpSlowest: Double = 0.35
 
-    /// How faint the dimmest streak is, and how thick a wormhole streak is at
-    /// the rim.
+    /// How faint the dimmest streak is.
     static let warpFaintest: Double = 0.15
-    static let warpThickness: CGFloat = 1.5
 
-    /// Twice the height of a line, because a capsule at a line's width is a
-    /// line with rounded ends.
-    static let sideThickness: CGFloat = 3
+    /// How thick a capsule is at the rim.
+    static var thickness: CGFloat {
+        #if DEBUG
+        CGFloat(ModeCardTuning.shared.thickness)
+        #else
+        CGFloat(defaultThickness)
+        #endif
+    }
+
+    /// The hole at the middle of the tunnel, as a share of the reach.
+    ///
+    /// Streaks begin here rather than at a point. Everything converging on one
+    /// pixel reads as an explosion; a small clear eye with the light starting
+    /// around it reads as distance.
+    static var core: Double {
+        #if DEBUG
+        ModeCardTuning.shared.core
+        #else
+        defaultCore
+        #endif
+    }
+
+    /// How many of the tunnel's marks are stars rather than streaks.
+    static var stars: Double {
+        #if DEBUG
+        ModeCardTuning.shared.stars
+        #else
+        defaultStars
+        #endif
+    }
+
+    /// How the tunnel is laid over the bars.
+    static var blend: BlendMode {
+        #if DEBUG
+        ModeCardTuning.shared.blend
+        #else
+        defaultBlend
+        #endif
+    }
+
+    static let defaultThickness: Double = 3
+    static let defaultCore: Double = 0.03
+    static let defaultStars: Double = 0.28
+    static let defaultBlend: BlendMode = .plusLighter
+
+    /// How bright each colour is against the others, evened out.
+    ///
+    /// **The counts were right and the picture was gold.** Four streaks in blue
+    /// to one in gold is the mix that was asked for, but the light a streak
+    /// adds is the light of *its colour* — and gold and white carry far more of
+    /// it than blue and magenta do, so a tenth of the streaks were throwing a
+    /// third of the brightness. These pull each colour back to the weight its
+    /// share was supposed to give it.
+    static func gain(of colour: Color) -> Double {
+        switch colour {
+        case Palette.white: 0.44
+        case Palette.gold: 0.60
+        default: 1
+        }
+    }
 
     // ── The wormhole ──────────────────────────────────────────────────
 
@@ -398,7 +453,7 @@ enum ModeCardStyle {
     /// corner exactly, the tunnel fills its middle and leaves the ends of the
     /// bars empty. The bars are also wider than the screen, and this is
     /// measured against the screen.
-    static let wormholeReach: CGFloat = 2.2
+    static let wormholeReach: CGFloat = 3.0
 
     /// How fast the tunnel runs, and how much slower the slowest streak is.
     static let wormholeSpeed: Double = 0.42
@@ -413,6 +468,11 @@ enum ModeCardStyle {
 
     /// How thin a streak is at the centre, as a share of its width at the rim.
     static let wormholeThinnest: Double = 0.25
+
+    /// How big a star is against the capsule width it replaces, and how far a
+    /// twinkle's spikes reach past its body.
+    static let starSize: CGFloat = 0.9
+    static let sparkleReach: CGFloat = 2.4
 
     /// How much of a streak's life is spent fading in, and out.
     static let wormholeDawn: Double = 0.18
@@ -506,16 +566,9 @@ enum ModeCardStyle {
         #endif
     }
 
-    /// The length that was tuned, and a tenth of the whole bar on top of it.
-    ///
-    /// Written as the sum rather than the total so both halves stay legible:
-    /// the number that was arrived at by looking, and the widening asked for
-    /// afterwards. Outward, like the knob — see `length`.
-    static let defaultLength: Double = tunedLength + (barAspect + tunedLength) * 0.10
-
-    private static let tunedLength: Double = 2.0
-    static let defaultSpread: Double = -0.30
-    static let defaultFadeFrom: Double = 0.25
+    static let defaultLength: Double = 2.22
+    static let defaultSpread: Double = -0.20
+    static let defaultFadeFrom: Double = 0.30
     static let defaultFadeTo: Double = 0.50
 
     /// How far each bar settles past centre, into the other's side.
@@ -568,21 +621,9 @@ enum ModeCardStyle {
     // a duration for that would be a duration for how long somebody takes to
     // decide.
 
-    static var arrival: Double {
-        #if DEBUG
-        ModeCardTuning.shared.arrival
-        #else
-        defaultArrival
-        #endif
-    }
+    static var arrival: Double { defaultArrival }
 
-    static var departure: Double {
-        #if DEBUG
-        ModeCardTuning.shared.departure
-        #else
-        defaultDeparture
-        #endif
-    }
+    static var departure: Double { defaultDeparture }
 
     static let defaultArrival: Double = 0.30
     static let defaultDeparture: Double = 0.30
@@ -593,32 +634,14 @@ enum ModeCardStyle {
     // them there, without either being re-timed to suit the other.
 
     /// How long after the bars start moving the words begin.
-    static var textDelay: Double {
-        #if DEBUG
-        ModeCardTuning.shared.textDelay
-        #else
-        defaultTextDelay
-        #endif
-    }
+    static var textDelay: Double { defaultTextDelay }
 
     /// The spring's period — smaller is snappier.
-    static var textResponse: Double {
-        #if DEBUG
-        ModeCardTuning.shared.textResponse
-        #else
-        defaultTextResponse
-        #endif
-    }
+    static var textResponse: Double { defaultTextResponse }
 
     /// How much it overshoots. Below 1 springs past and settles back; at 1 it
     /// arrives without any overshoot at all.
-    static var textBounce: Double {
-        #if DEBUG
-        ModeCardTuning.shared.textBounce
-        #else
-        defaultTextBounce
-        #endif
-    }
+    static var textBounce: Double { defaultTextBounce }
 
     static let defaultTextDelay: Double = 0.15
     static let defaultTextResponse: Double = 0.35
@@ -657,6 +680,30 @@ private func streakColour(_ roll: Double) -> Color {
     }
 }
 
+/// A four-pointed twinkle: four spikes with the waist pulled in to the centre.
+///
+/// Not a five-pointed star. A star drawn with five straight points is a sheriff
+/// or a rating; the shape a light makes when it flares is four spikes on the
+/// axes with concave sides between them, and it is the concavity that does it —
+/// the same four points joined by straight lines is a diamond.
+private func sparkle(at centre: CGPoint, reach: CGFloat) -> Path {
+    var path = Path()
+    let points = [
+        CGPoint(x: centre.x, y: centre.y - reach),
+        CGPoint(x: centre.x + reach, y: centre.y),
+        CGPoint(x: centre.x, y: centre.y + reach),
+        CGPoint(x: centre.x - reach, y: centre.y),
+    ]
+
+    path.move(to: points[0])
+    for next in points.dropFirst() + [points[0]] {
+        // Both control points at the middle, which is what pinches the waist.
+        path.addQuadCurve(to: next, control: centre)
+    }
+    path.closeSubpath()
+    return path
+}
+
 /// Seen from behind the ship: streaks flying outward from a vanishing point.
 ///
 /// ## What makes it read as depth rather than as a firework
@@ -679,6 +726,9 @@ private struct WormholeField: View {
         TimelineView(.animation) { timeline in
             Canvas { context, size in
                 guard ModeCardStyle.warp > 0 else { return }
+                // Between the marks themselves. How the tunnel as a whole
+                // meets the bars is the picker's business — see the modifier
+                // on this view.
                 context.blendMode = .plusLighter
 
                 let now = timeline.date.timeIntervalSinceReferenceDate
@@ -698,40 +748,72 @@ private struct WormholeField: View {
                     let phase = turn - turn.rounded(.down)
 
                     // Out faster than time goes.
-                    let head = reach * pow(phase, ModeCardStyle.wormholeCurve)
-                    let tail = max(0, head - reach * ModeCardStyle.wormholeStretch * phase)
+                    // Out of the eye rather than out of a point.
+                    let eye = reach * ModeCardStyle.core
+                    let head = eye + (reach - eye) * pow(phase, ModeCardStyle.wormholeCurve)
+                    let tail = max(eye, head - reach * ModeCardStyle.wormholeStretch * phase)
 
                     let direction = CGPoint(x: cos(angle), y: sin(angle))
-                    var path = Path()
-                    path.move(to: CGPoint(
-                        x: centre.x + direction.x * tail,
-                        y: centre.y + direction.y * tail
-                    ))
-                    path.addLine(to: CGPoint(
-                        x: centre.x + direction.x * head,
-                        y: centre.y + direction.y * head
-                    ))
+                    let width = ModeCardStyle.thickness
+                        * (ModeCardStyle.wormholeThinnest + phase)
 
-                    // In from nothing, out before it stops — a streak that
-                    // appears or vanishes at full brightness is a streak you
+                    // In from nothing, out before it stops — a mark that
+                    // appears or vanishes at full brightness is a mark you
                     // notice being drawn.
                     let entering = min(1, phase / ModeCardStyle.wormholeDawn)
                     let leaving = min(1, (1 - phase) / ModeCardStyle.wormholeDusk)
+                    let colour = streakColour(scatter(index, 5))
                     let glow = ModeCardStyle.warp * entering * leaving
                         * (ModeCardStyle.warpFaintest + scatter(index, 4))
+                        * ModeCardStyle.gain(of: colour)
 
-                    context.stroke(
-                        path,
-                        with: .color(streakColour(scatter(index, 5)).opacity(glow)),
-                        style: StrokeStyle(
-                            lineWidth: ModeCardStyle.warpThickness
-                                * (ModeCardStyle.wormholeThinnest + phase),
-                            lineCap: .round
+                    let shading = GraphicsContext.Shading.color(colour.opacity(glow))
+
+                    // Some of the tunnel is stars rather than streaks: they sit
+                    // where they are instead of stretching, which is what tells
+                    // you the streaks are moving.
+                    let roll = scatter(index, 6)
+                    if roll < ModeCardStyle.stars {
+                        let at = CGPoint(
+                            x: centre.x + direction.x * head,
+                            y: centre.y + direction.y * head
                         )
-                    )
+                        let size = width * ModeCardStyle.starSize
+
+                        // Half of them round, half of them twinkling.
+                        if roll < ModeCardStyle.stars / 2 {
+                            context.fill(
+                                Path(ellipseIn: CGRect(
+                                    x: at.x - size, y: at.y - size,
+                                    width: size * 2, height: size * 2
+                                )),
+                                with: shading
+                            )
+                        } else {
+                            context.fill(sparkle(at: at, reach: size * ModeCardStyle.sparkleReach),
+                                         with: shading)
+                        }
+                    } else {
+                        var path = Path()
+                        path.move(to: CGPoint(
+                            x: centre.x + direction.x * tail,
+                            y: centre.y + direction.y * tail
+                        ))
+                        path.addLine(to: CGPoint(
+                            x: centre.x + direction.x * head,
+                            y: centre.y + direction.y * head
+                        ))
+
+                        context.stroke(
+                            path,
+                            with: shading,
+                            style: StrokeStyle(lineWidth: width, lineCap: .round)
+                        )
+                    }
                 }
             }
         }
+        .blendMode(ModeCardStyle.blend)
         .allowsHitTesting(false)
     }
 }
@@ -753,6 +835,9 @@ private struct SideStreaks: View {
         TimelineView(.animation) { timeline in
             Canvas { context, size in
                 guard ModeCardStyle.warp > 0 else { return }
+                // Between the marks themselves. How the tunnel as a whole
+                // meets the bars is the picker's business — see the modifier
+                // on this view.
                 context.blendMode = .plusLighter
 
                 let now = timeline.date.timeIntervalSinceReferenceDate
@@ -782,21 +867,24 @@ private struct SideStreaks: View {
                     let y = scatter(index, 1) * half + (isUpper ? 0 : half)
                     let streak = CGRect(
                         x: x,
-                        y: y - ModeCardStyle.sideThickness / 2,
+                        y: y - ModeCardStyle.thickness / 2,
                         width: length,
-                        height: ModeCardStyle.sideThickness
+                        height: ModeCardStyle.thickness
                     )
 
+                    let colour = streakColour(scatter(index, 5))
                     let glow = ModeCardStyle.warp
                         * (ModeCardStyle.warpFaintest + scatter(index, 4))
+                        * ModeCardStyle.gain(of: colour)
 
                     context.fill(
                         Capsule().path(in: streak),
-                        with: .color(streakColour(scatter(index, 5)).opacity(glow))
+                        with: .color(colour.opacity(glow))
                     )
                 }
             }
         }
+        .blendMode(ModeCardStyle.blend)
         .allowsHitTesting(false)
     }
 }

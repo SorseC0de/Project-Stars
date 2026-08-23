@@ -52,25 +52,37 @@ final class ModeCardTuning {
         didSet { ModeCardTuning.remember("warp", warp) }
     }
 
-    /// The bars: in, and out. There is nothing between them to time — the card
-    /// is held until Start is pressed.
-    var arrival: Double = ModeCardTuning.remembered("arrival", ModeCardStyle.defaultArrival) {
-        didSet { ModeCardTuning.remember("arrival", arrival) }
-    }
-    var departure: Double = ModeCardTuning.remembered("departure", ModeCardStyle.defaultDeparture) {
-        didSet { ModeCardTuning.remember("departure", departure) }
+    /// How thick a capsule is at the rim.
+    var thickness: Double = ModeCardTuning.remembered("thickness", ModeCardStyle.defaultThickness) {
+        didSet { ModeCardTuning.remember("thickness", thickness) }
     }
 
-    /// The words, timed on their own.
-    var textDelay: Double = ModeCardTuning.remembered("textDelay", ModeCardStyle.defaultTextDelay) {
-        didSet { ModeCardTuning.remember("textDelay", textDelay) }
+    /// The clear eye at the middle of the tunnel.
+    var core: Double = ModeCardTuning.remembered("core", ModeCardStyle.defaultCore) {
+        didSet { ModeCardTuning.remember("core", core) }
     }
-    var textResponse: Double = ModeCardTuning.remembered("textResponse", ModeCardStyle.defaultTextResponse) {
-        didSet { ModeCardTuning.remember("textResponse", textResponse) }
+
+    /// How many of the tunnel's marks are stars rather than streaks.
+    var stars: Double = ModeCardTuning.remembered("stars", ModeCardStyle.defaultStars) {
+        didSet { ModeCardTuning.remember("stars", stars) }
     }
-    var textBounce: Double = ModeCardTuning.remembered("textBounce", ModeCardStyle.defaultTextBounce) {
-        didSet { ModeCardTuning.remember("textBounce", textBounce) }
+
+    /// How the tunnel is laid over the bars.
+    ///
+    /// Kept as a place in `BlendMode.pickable` rather than as the mode itself:
+    /// `BlendMode` is not something that can be written to `UserDefaults`, and
+    /// its place in that list is stable in a way a raw value would not be.
+    var blendIndex: Int = Int(ModeCardTuning.remembered("blendIndex", ModeCardTuning.defaultBlendIndex)) {
+        didSet { ModeCardTuning.remember("blendIndex", Double(blendIndex)) }
     }
+
+    var blend: BlendMode {
+        BlendMode.pickable[min(max(blendIndex, 0), BlendMode.pickable.count - 1)]
+    }
+
+    static let defaultBlendIndex = Double(
+        BlendMode.pickable.firstIndex(of: ModeCardStyle.defaultBlend) ?? 0
+    )
 
     // ── Kept between builds ───────────────────────────────────────────
     //
@@ -87,7 +99,7 @@ final class ModeCardTuning {
     /// the old number reads back as that number, and the value written in the
     /// source is never seen again on any machine that has tuned it once. On a
     /// bump every knob is forgotten, so the shipped values are what comes up.
-    private static let vintage = 3
+    private static let vintage = 4
 
     private static func checkVintage() {
         let store = UserDefaults.standard
@@ -125,16 +137,15 @@ final class ModeCardTuning {
         fadeTo = ModeCardStyle.defaultFadeTo
         warp = ModeCardStyle.defaultWarp
         sideOn = false
-        arrival = ModeCardStyle.defaultArrival
-        departure = ModeCardStyle.defaultDeparture
-        textDelay = ModeCardStyle.defaultTextDelay
-        textResponse = ModeCardStyle.defaultTextResponse
-        textBounce = ModeCardStyle.defaultTextBounce
+        thickness = ModeCardStyle.defaultThickness
+        core = ModeCardStyle.defaultCore
+        stars = ModeCardStyle.defaultStars
+        blendIndex = Int(ModeCardTuning.defaultBlendIndex)
     }
 
     private static let names = [
         "length", "spread", "fadeFrom", "fadeTo", "warp", "sideOn",
-        "arrival", "departure", "textDelay", "textResponse", "textBounce",
+        "thickness", "core", "stars", "blendIndex",
     ]
 
     func dump() {
@@ -143,9 +154,8 @@ final class ModeCardTuning {
         print(String(format: "  spread   %.2f bars", spread))
         print(String(format: "  fade     %.2f → %.2f of length", fadeFrom, fadeTo))
         print(String(format: "  warp     %.2f  %@", warp, sideOn ? "side-on" : "wormhole"))
-        print(String(format: "  bars     in %.2f  out %.2f", arrival, departure))
-        print(String(format: "  words    delay %.2f  spring %.2f  bounce %.2f",
-                     textDelay, textResponse, textBounce))
+        print(String(format: "  tunnel   thick %.1f  eye %.2f  stars %.2f  %@",
+                     thickness, core, stars, String(describing: blend)))
     }
 }
 
@@ -179,14 +189,17 @@ struct ModeCardControls: View {
                 tuning.sideOn.toggle()
             }
 
-            group("bars")
-            row("in", value: $tuning.arrival, in: 0.05...1.5, step: 0.01)
-            row("out", value: $tuning.departure, in: 0.05...1.5, step: 0.01)
+            row("thick", value: $tuning.thickness, in: 0.5...12, step: 0.1)
+            row("eye", value: $tuning.core, in: 0...0.4, step: 0.005)
+            row("stars", value: $tuning.stars, in: 0...1, step: 0.01)
 
-            group("words")
-            row("delay", value: $tuning.textDelay, in: 0...1.5, step: 0.01)
-            row("spring", value: $tuning.textResponse, in: 0.05...1.2, step: 0.01)
-            row("bounce", value: $tuning.textBounce, in: 0.2...1, step: 0.01)
+            Picker("blend", selection: $tuning.blendIndex) {
+                ForEach(Array(BlendMode.pickable.enumerated()), id: \.offset) { index, mode in
+                    Text(String(describing: mode)).tag(index)
+                }
+            }
+            .pickerStyle(.menu)
+            .tint(Palette.white)
         }
         .font(.system(size: 10, weight: .semibold, design: .monospaced))
         .foregroundStyle(Palette.stone)
