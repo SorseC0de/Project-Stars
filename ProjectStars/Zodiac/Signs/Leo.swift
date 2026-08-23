@@ -96,10 +96,6 @@ struct LeoMagneticMane: ZodiacPassive {
     let summary = "Astra & Terra: a chance each step that the Pentacle drifts a square toward you."
 
     func magneticPullChance(context: PassiveContext) -> Double {
-        // Off at the bench while the lion's step is being timed. See
-        // `LayerBench.magneticMane`.
-        guard LayerBench.shared.magneticMane else { return 0 }
-
         return switch context.plane {
         case .astra: GameRules.magneticManeChanceAstra
         case .terra: GameRules.magneticManeChanceTerra

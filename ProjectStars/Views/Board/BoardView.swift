@@ -2108,7 +2108,7 @@ struct BoardView: View {
         // Terra only: cover exists on Astra — Stubborn Statue lays it there —
         // but nothing grows out of a cloud, so there is nothing to draw and no
         // reason to pay for looking.
-        if plane == .terra, LayerBench.shared.grassObjects {
+        if plane == .terra {
             let grassed = sown.allPoints.filter {
                 sown[$0].cover == .grass || sown[$0].cover == .tuft
             }
@@ -3471,9 +3471,6 @@ struct BandRow: View, Equatable {
         Canvas { context, _ in
             #if DEBUG
             RenderTally.tick("cover")
-            // See `LayerBench.CoverStyle` — the switch that separates having
-            // cover from drawing it.
-            guard LayerBench.shared.coverStyle != .hidden else { return }
             #endif
 
             var resolved: [SpriteID: GraphicsContext.ResolvedImage] = [:]

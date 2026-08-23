@@ -515,20 +515,6 @@ struct GameEngine {
     /// whole design and completely impractical to test against.
     var debugNextPickup: PickupID?
 
-    #if DEBUG
-    /// Covers every ordinary square, with no wave and no events.
-    ///
-    /// The isolation for the Hydroponic tank: the sweep and the state it leaves
-    /// behind are two different suspects, and this produces the second without
-    /// any of the first — no rings, no blooms, no timers, no replay.
-    mutating func debugCoverEverything(on plane: Plane) {
-        for point in self[plane].allPoints
-        where self[plane][point].kind == .normal && !self[plane][point].health.isHole {
-            self[plane][point].cover = .grass
-        }
-    }
-    #endif
-
     /// Puts the next reveal on the square the move is heading for, so the
     /// Shine-snipe can be produced on demand.
     ///

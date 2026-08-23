@@ -56,15 +56,24 @@ struct GameModeSplashView: View {
             let bar = ModeCardStyle.bar(across: width)
 
             ZStack {
-                // The upper bar, and the mode's name across it.
-                slat(bar: bar, travel: travel(.upper, width: width, bar: bar))
-                    .overlay { title(on: bar) }
+                slat(.upper, bar: bar, width: width)
                     .offset(y: -bar.height / 2)
 
-                // The lower bar, carrying the line underneath.
-                slat(bar: bar, travel: travel(.lower, width: width, bar: bar))
-                    .overlay { blurb(on: bar) }
+                slat(.lower, bar: bar, width: width)
                     .offset(y: bar.height / 2)
+
+                // **Both words over both bars.**
+                //
+                // Carried by the bar each sits on, the name went under the lower
+                // bar the moment that bar arrived — the card is two overlapping
+                // shapes, and anything belonging to the one behind is behind
+                // them both. The words are the message; nothing in the card
+                // should ever be in front of them.
+                title(on: bar)
+                    .offset(y: -bar.height / 2 + ModeCardStyle.titleDrop * bar.height)
+
+                blurb(on: bar)
+                    .offset(y: bar.height / 2 + ModeCardStyle.blurbDrop * bar.height)
             }
             .frame(width: width, height: geometry.size.height)
         }
@@ -74,14 +83,30 @@ struct GameModeSplashView: View {
 
     // MARK: - The bars
 
-    private enum Slat { case upper, lower }
+    /// Which of the two, and with it which way it travels and which end fades.
+    enum Slat {
+        case upper, lower
+
+        /// The upper bar comes from the trailing edge and keeps going leading;
+        /// the lower one does the opposite. Every asymmetry in the card is this
+        /// one number, so the two can never disagree about which way is out.
+        var heading: CGFloat { self == .upper ? -1 : 1 }
+    }
 
     /// One bar, at its current place along its own line of travel.
-    private func slat(bar: ModeCardStyle.Bar, travel: CGFloat) -> some View {
+    ///
+    /// It fades out at its **outer** edge — leading for the upper bar, trailing
+    /// for the lower — so the card has no hard end where it runs off toward the
+    /// screen's edge, while the inner ends stay solid and hold the Z.
+    private func slat(_ slat: Slat, bar: ModeCardStyle.Bar, width: CGFloat) -> some View {
         Parallelogram(lean: ModeCardStyle.lean)
-            .fill(ModeCardStyle.face)
+            .fill(ModeCardStyle.taper(towards: slat))
             .frame(width: bar.width, height: bar.height)
-            .offset(x: travel)
+            // **Outward only.** Widening a centred bar moves both ends, and the
+            // inner end is the one holding the seam — so the extra length is
+            // pushed entirely out toward the edge the bar fades into.
+            .offset(x: travel(slat, width: width, bar: bar)
+                + slat.heading * ModeCardStyle.spread * bar.height / 2)
     }
 
     /// How far this bar is from centre right now.
@@ -90,12 +115,12 @@ struct GameModeSplashView: View {
     /// same movement mirrored — anything that made them separate journeys would
     /// need keeping in agreement, and they are only ever a Z when they agree.
     private func travel(_ slat: Slat, width: CGFloat, bar: ModeCardStyle.Bar) -> CGFloat {
-        let away = ModeCardStyle.entrance * width
+        // Half a screen plus the whole bar, so however far it has been widened
+        // it still waits and leaves completely out of sight.
+        let away = width / 2 + bar.width + ModeCardStyle.spread * bar.height
         let settled = ModeCardStyle.overshoot * bar.height
 
-        // The upper bar comes from the trailing edge and keeps going leading;
-        // the lower one does the opposite.
-        let heading: CGFloat = slat == .upper ? -1 : 1
+        let heading = slat.heading
 
         return switch stage {
         case .offstage: -heading * away
@@ -122,8 +147,12 @@ struct GameModeSplashView: View {
             .lineLimit(1)
             .minimumScaleFactor(ModeCardStyle.textSqueeze)
             .frame(maxWidth: ModeCardStyle.textWidth * bar.height)
-            .offset(y: ModeCardStyle.titleDrop * bar.height)
+            .scaleEffect(said)
             .opacity(said)
+            // Its own spring, not the bars' easing. The words do not travel
+            // with the card — they arrive on it — so they get a curve that
+            // overshoots and settles rather than one built for a slide.
+            .animation(ModeCardStyle.pop, value: said)
     }
 
     /// The one-line description, under the name on the lower bar.
@@ -134,8 +163,12 @@ struct GameModeSplashView: View {
             .lineLimit(1)
             .minimumScaleFactor(ModeCardStyle.textSqueeze)
             .frame(maxWidth: ModeCardStyle.textWidth * bar.height)
-            .offset(y: ModeCardStyle.blurbDrop * bar.height)
+            .scaleEffect(said)
             .opacity(said)
+            // Its own spring, not the bars' easing. The words do not travel
+            // with the card — they arrive on it — so they get a curve that
+            // overshoots and settles rather than one built for a slide.
+            .animation(ModeCardStyle.pop, value: said)
     }
 
     /// Whether the words are showing.
@@ -194,10 +227,42 @@ struct Parallelogram: Shape {
 /// slant is set by its own height, so every part of it has to scale together or
 /// the Z stops meeting. Tied to height instead, the same card would be a stripe
 /// on a short screen and a slab on a tall one.
+@MainActor
 enum ModeCardStyle {
 
     /// The face of both bars.
-    static let face = Palette.coolBlack
+    ///
+    /// **Not from the palette.** The card is a systems-level thing rather than
+    /// part of the world, so it does not answer to the world's colours — and
+    /// the palette's near-blacks are close enough to Astra's night sky that the
+    /// bars sank into it.
+    static let face = Color.black
+
+    /// One bar's fill: solid at its inner end, gone at its outer one.
+    ///
+    /// **Three stops and no more** — the two ends and the place the colours
+    /// meet. A gradient with spare stops in it is a gradient nobody can tune,
+    /// because moving the one that matters no longer moves the edge.
+    static func taper(towards slat: GameModeSplashView.Slat) -> LinearGradient {
+        let meet = fade
+
+        let stops = [
+            Gradient.Stop(color: .clear, location: 0),
+            Gradient.Stop(color: face, location: meet),
+            Gradient.Stop(color: face, location: 1),
+        ]
+
+        // Drawn from the fading end inward, so `fade` always reads as "how far
+        // in from the outer edge", whichever bar is asking.
+        return LinearGradient(
+            gradient: Gradient(stops: stops),
+            startPoint: slat == .upper ? .leading : .trailing,
+            endPoint: slat == .upper ? .trailing : .leading
+        )
+    }
+
+    /// The curve the words arrive on.
+    static let pop = Animation.spring(response: 0.34, dampingFraction: 0.52)
 
     /// The words on them.
     static let ink = Palette.textPrimary
@@ -233,11 +298,30 @@ enum ModeCardStyle {
     /// How much longer than it is thick a bar is, straight off the sequence.
     private static let barAspect: CGFloat = 5.18
 
-    /// How far off centre a bar waits, and how far past it leaves.
+    /// Extra length on each bar, in bar-thicknesses, all of it added outward.
     ///
-    /// Comfortably more than half a screen plus half a bar, so a slow device
-    /// showing the first frame late still shows it empty.
-    static let entrance: CGFloat = 1
+    /// Reaches toward the screen's edges rather than growing the card from its
+    /// middle: the inner ends make the Z and must not move.
+    static var spread: CGFloat {
+        #if DEBUG
+        ModeCardTuning.shared.spread
+        #else
+        defaultSpread
+        #endif
+    }
+
+    /// How far in from a bar's outer edge the fade finishes, as a share of its
+    /// length. `0` is no fade at all; `0.5` fades across half the bar.
+    static var fade: CGFloat {
+        #if DEBUG
+        ModeCardTuning.shared.fade
+        #else
+        defaultFade
+        #endif
+    }
+
+    static let defaultSpread: CGFloat = 0
+    static let defaultFade: CGFloat = 0.2
 
     /// How far each bar settles past centre, into the other's side.
     ///
@@ -285,7 +369,7 @@ enum ModeCardStyle {
     /// How long the bars take to arrive, how long they are read, and how long
     /// they take to leave.
     static let arrival: Double = 0.42
-    static let hold: Double = 1.35
+    static let hold: Double = 1.9
     static let departure: Double = 0.42
 
     /// The whole card, start to finish.

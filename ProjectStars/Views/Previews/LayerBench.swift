@@ -58,75 +58,6 @@ final class LayerBench {
     /// The screen-wide fracture shader wrapped around the whole board.
     var fracture = true
 
-    // ── For the Leo question ──────────────────────────────────────────
-    //
-    // He moves slower than everyone else and the frame rate is not the reason,
-    // so it is a *duration* somewhere. These are the two things he does that
-    // nobody else does on an ordinary step.
-
-    /// The coin drifting toward him. Emits `pickupMoved`, which the session
-    /// sleeps a hop's worth for — on a quarter of his steps down here.
-    var magneticMane = true
-
-    /// The flash and the absorb played whenever the meter moves. He gains on
-    /// every landing, so he plays them on every landing.
-    var chargeEffects = true
-
-    // ── For the Hydroponic tank ───────────────────────────────────────
-    //
-    // Three suspects, three switches: the sweep's machinery, the state it
-    // leaves behind, and the art that state is drawn with. `cover board` makes
-    // the state without the sweep; the style cycles what a covered square is
-    // drawn as, so the same state can be tested with three different pictures.
-
-    /// Whether the hardware-keyboard shortcuts are mounted at all.
-    ///
-    /// Twenty-eight zero-sized buttons, each registering a system key command,
-    /// live in the board's background so a keyboard can drive the game. They
-    /// draw nothing and they are never rebuilt — but they are the one part of
-    /// this screen that exists **only in the simulator**, because that is the
-    /// only place with a keyboard attached. Which makes them the first thing to
-    /// take away when the simulator is slow and the device is not.
-    ///
-    /// Turning this off takes WASD and the debug keys with it; the on-screen
-    /// controls still work.
-    var keyboard = true
-
-    /// What a covered square is drawn as.
-    var coverStyle: CoverStyle = .art
-
-    /// Whether a covered square is entered into the object list at all.
-    ///
-    /// Covering the board is the only thing that makes `grassRow` objects
-    /// exist, and they are the only thing on Terra that reads `cover` every
-    /// frame. This takes them out without taking the cover out.
-    var grassObjects = true
-
-    enum CoverStyle: String, CaseIterable {
-        /// Nothing at all — the control.
-        case none
-
-        /// The tile-cover sprite, as shipped.
-        case art
-
-        /// The Miasma's sigil — a different sprite, same everything else.
-        case sigil
-
-        /// No sprite at all: a flat fill, which asks nothing of the atlas.
-        case rectangle
-
-        /// Nothing drawn. The state is still there; the picture is not — which
-        /// is the only way to tell the cost of *having* cover from the cost of
-        /// *painting* it.
-        case hidden
-
-        var next: CoverStyle {
-            let all = Self.allCases
-            let i = all.firstIndex(of: self) ?? 0
-            return all[(i + 1) % all.count]
-        }
-    }
-
     #else
 
     let scenery = true
@@ -135,13 +66,6 @@ final class LayerBench {
     let clouds = true
     let sparkles = true
     let fracture = true
-    let magneticMane = true
-    let chargeEffects = true
-    let keyboard = true
-    let coverStyle: CoverStyle = .art
-    let grassObjects = true
-
-    enum CoverStyle { case art }
 
     #endif
 }
@@ -181,40 +105,10 @@ struct LayerBenchControls: View {
                     toggle("sparkles", $bench.sparkles)
                     toggle("fracture", $bench.fracture)
                     Divider().frame(width: 90)
-                    toggle("leo: mane", $bench.magneticMane)
-                    toggle("leo: charge fx", $bench.chargeEffects)
-                    Divider().frame(width: 90)
 
-                    Button {
-                        session.debugCoverBoard()
-                    } label: {
-                        Text("▸ cover board")
-                            .font(.system(size: 11, weight: .medium, design: .monospaced))
-                            .foregroundStyle(Palette.sky)
-                    }
-                    .buttonStyle(.plain)
-
-                    Button {
-                        session.debugCoverFarBoard()
-                    } label: {
-                        Text("▸ cover far plane")
-                            .font(.system(size: 11, weight: .medium, design: .monospaced))
-                            .foregroundStyle(Palette.sky)
-                    }
-                    .buttonStyle(.plain)
-
-                    toggle("keyboard", $bench.keyboard)
-
-                    toggle("grass objects", $bench.grassObjects)
-
-                    Button {
-                        bench.coverStyle = bench.coverStyle.next
-                    } label: {
-                        Text("cover: \(bench.coverStyle.rawValue)")
-                            .font(.system(size: 11, weight: .medium, design: .monospaced))
-                            .foregroundStyle(Palette.lime)
-                    }
-                    .buttonStyle(.plain)
+                    // The card's two shape knobs, and the button that puts it
+                    // back on screen to look at them.
+                    ModeCardControls { session.modeCard = session.mode }
                 }
                 .padding(8)
                 .background(Palette.background.opacity(0.85))

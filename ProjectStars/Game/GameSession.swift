@@ -1259,25 +1259,6 @@ final class GameSession {
     /// Only the *next* one, and it does not disturb the coin already on the
     /// board — take that one, and the set that replaces it is the Bolt.
     #if DEBUG
-    /// Covers the visible board outright. See `GameEngine.debugCoverEverything`.
-    func debugCoverBoard() {
-        engine.debugCoverEverything(on: visiblePlane)
-        publish()
-    }
-
-    /// Covers the plane that is **not** on screen.
-    ///
-    /// The one test that separates the two remaining explanations for the
-    /// Hydroponic tank. Covered ground costs frames even with nothing drawing
-    /// it, which leaves either something rendering that should not be, or
-    /// something reading the board that has nothing to do with rendering. Cover
-    /// the far plane and the first explanation is gone: nothing up there is on
-    /// screen, so nothing up there can be drawn. If the frame rate falls anyway,
-    /// it was never about the picture.
-    func debugCoverFarBoard() {
-        engine.debugCoverEverything(on: visiblePlane.opposite)
-        publish()
-    }
     #endif
 
     func debugStageLightning() {
@@ -2305,7 +2286,7 @@ final class GameSession {
             // effect's.
             let paidOut = abs(to - engine.zodiactionMeter) > 0
 
-            if paidOut, LayerBench.shared.chargeEffects {
+            if paidOut {
                 flashCharge()
                 if let drawn = EffectSprite.chargeGain(for: zodiac) {
                     playEffect(drawn, at: engine.piece.point, on: engine.piece.plane)

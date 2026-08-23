@@ -217,11 +217,7 @@ struct GameScreen: View {
         // which is how the whole board stops at once rather than view by view as
         // somebody remembers each one.
         .environment(\.ambientClock, session.ambientClock(at:))
-        .background {
-            // See `LayerBench.keyboard` — the one part of this screen that only
-            // exists where the lag does.
-            if LayerBench.shared.keyboard { keyboardCommands }
-        }
+        .background { keyboardCommands }
         .animation(.easeInOut(duration: 0.3), value: session.phase)
         .animation(.easeInOut(duration: 0.25), value: session.pentacleIntro)
         .animation(.easeInOut(duration: 0.2), value: session.isPaused)
