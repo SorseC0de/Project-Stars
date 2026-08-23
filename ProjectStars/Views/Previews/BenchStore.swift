@@ -58,6 +58,15 @@ struct BenchStore {
         set(name, value ? 1 : 0)
     }
 
+    func words(_ name: String, _ fallback: String) -> String {
+        checkVintage()
+        return UserDefaults.standard.string(forKey: prefix + name) ?? fallback
+    }
+
+    func set(_ name: String, _ value: String) {
+        UserDefaults.standard.set(value, forKey: prefix + name)
+    }
+
     /// Forgets everything, so the next read takes the shipped default.
     func forget() {
         let store = UserDefaults.standard

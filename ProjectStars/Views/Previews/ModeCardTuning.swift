@@ -21,6 +21,35 @@ final class ModeCardTuning {
 
     static let shared = ModeCardTuning()
 
+    /// The card's own size and place: how tall and how long against how far it
+    /// flies, and how far below the turn counter it sits.
+    var height: Double = ModeCardTuning.remembered("height", PromptStyle.defaultHeight) {
+        didSet { ModeCardTuning.remember("height", height) }
+    }
+    var length: Double = ModeCardTuning.remembered("length", PromptStyle.defaultLength) {
+        didSet { ModeCardTuning.remember("length", length) }
+    }
+    var drop: Double = ModeCardTuning.remembered("drop", PromptStyle.defaultDrop) {
+        didSet { ModeCardTuning.remember("drop", drop) }
+    }
+
+    /// The word over it.
+    var labelSize: Double = ModeCardTuning.remembered("labelSize", PromptStyle.defaultLabelSize) {
+        didSet { ModeCardTuning.remember("labelSize", labelSize) }
+    }
+    var labelStretch: Double = ModeCardTuning.remembered("labelStretch", PromptStyle.defaultLabelStretch) {
+        didSet { ModeCardTuning.remember("labelStretch", labelStretch) }
+    }
+    var labelX: Double = ModeCardTuning.remembered("labelX", PromptStyle.defaultLabelX) {
+        didSet { ModeCardTuning.remember("labelX", labelX) }
+    }
+
+    /// What the sample button announces — a real passive name is a different
+    /// length from "Sample Text", and length is the whole question here.
+    var sampleText: String = ModeCardTuning.store.words("sampleText", "Magnetic Mane") {
+        didSet { ModeCardTuning.store.set("sampleText", sampleText) }
+    }
+
     /// How bright the prompt's streaks are.
     var warp: Double = ModeCardTuning.remembered("warp", PromptStyle.defaultWarp) {
         didSet { ModeCardTuning.remember("warp", warp) }
@@ -46,6 +75,9 @@ final class ModeCardTuning {
 
     func dump() {
         print("── passive prompt ──")
+        print(String(format: "  card     y %.0f  high %.2f  long %.2f", drop, height, length))
+        print(String(format: "  word     font %.1f  wide %.2f  x %.0f",
+                     labelSize, labelStretch, labelX))
         print(String(format: "  warp     %.2f", warp))
         print(String(format: "  thick    %.2f", thickness))
         print(String(format: "  streak   len %.2f  spd %.2f", streakLength, streakSpeed))
@@ -61,13 +93,20 @@ final class ModeCardTuning {
 
     static let prefix = "modeCard."
 
+    /// The shared store, for the knobs that are not numbers.
+    nonisolated static let store = BenchStore(
+        prefix: prefix,
+        vintage: vintage,
+        names: names
+    )
+
     /// Bumped whenever a shipped default changes.
     ///
     /// Stored values otherwise win over new defaults for ever: a knob tuned to
     /// the old number reads back as that number, and the value written in the
     /// source is never seen again on any machine that has tuned it once. On a
     /// bump every knob is forgotten, so the shipped values are what comes up.
-    private static let vintage = 7
+    private static let vintage = 8
 
     private static func checkVintage() {
         let store = UserDefaults.standard
@@ -104,10 +143,19 @@ final class ModeCardTuning {
         streakLength = PromptStyle.defaultStreakLength
         streakSpeed = PromptStyle.defaultStreakSpeed
         wordsRideOut = true
+        height = PromptStyle.defaultHeight
+        length = PromptStyle.defaultLength
+        drop = PromptStyle.defaultDrop
+        labelSize = PromptStyle.defaultLabelSize
+        labelStretch = PromptStyle.defaultLabelStretch
+        labelX = PromptStyle.defaultLabelX
+        sampleText = "Magnetic Mane"
     }
 
     static let names = [
         "warp", "thickness", "streakLength", "streakSpeed", "wordsRideOut",
+        "height", "length", "drop", "labelSize", "labelStretch", "labelX",
+        "sampleText",
     ]
 
 }
@@ -128,6 +176,17 @@ struct ModeCardControls: View {
                 Button("print") { tuning.dump() }
                 Button("reset") { tuning.reset() }
             }
+
+            TextField("name", text: $tuning.sampleText)
+                .textFieldStyle(.roundedBorder)
+                .frame(width: 180)
+
+            row("y", value: $tuning.drop, in: -60...160, step: 1)
+            row("high", value: $tuning.height, in: 0.05...1.2, step: 0.01)
+            row("long", value: $tuning.length, in: 0.1...2.5, step: 0.01)
+            row("font", value: $tuning.labelSize, in: 5...40, step: 0.5)
+            row("wide", value: $tuning.labelStretch, in: 0.4...2.5, step: 0.01)
+            row("text x", value: $tuning.labelX, in: -40...200, step: 1)
 
             row("warp", value: $tuning.warp, in: 0...1, step: 0.01)
             row("thick", value: $tuning.thickness, in: 0.5...12, step: 0.1)

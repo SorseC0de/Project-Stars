@@ -127,7 +127,7 @@ struct GameScreen: View {
                         }
                     }
                     .padding(.leading, 10)
-                    .padding(.top, counterSpan.height + 10 + PanelStyle.rowSpacing)
+                    .padding(.top, counterSpan.height + 10 + PromptStyle.drop)
                     .frame(width: side, height: side, alignment: .topLeading)
 
                     // What you just opened, on every pickup rather than only the

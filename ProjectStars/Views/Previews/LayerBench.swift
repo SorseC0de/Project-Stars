@@ -103,7 +103,7 @@ struct LayerBenchControls: View {
                 ModeCardControls {
                     // The same door a real passive uses, so pressing it twice
                     // exercises the stacking rather than a shortcut around it.
-                    session.announce(passive: "Sample Text")
+                    session.announce(passive: ModeCardTuning.shared.sampleText)
                 }
                     .padding(8)
                     .background(Palette.background.opacity(0.85))

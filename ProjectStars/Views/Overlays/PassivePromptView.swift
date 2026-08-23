@@ -75,27 +75,32 @@ struct PassivePromptView: View {
     var body: some View {
         let size = PromptStyle.size(reaching: reach)
 
-        shape(size)
-            .frame(width: size.width, height: size.height)
-            .scaleEffect(stage == .shrinking ? 0 : 1, anchor: .center)
-            .opacity(opacity)
-            .offset(x: offset(size))
-            .frame(maxWidth: .infinity, alignment: .leading)
-            .allowsHitTesting(false)
-            .task { await arrive() }
-            .task(id: prompt.isShrinking) {
-                guard prompt.isShrinking, stage != .leaving else { return }
-                await shrink()
-            }
+        // **Leading-aligned, and wider than the card when the word needs it.**
+        //
+        // The word sits over the card rather than inside it, so a long name
+        // grows the frame instead of being squeezed into a shape that was not
+        // drawn for it. Aligned to the leading edge, all of that growth happens
+        // on the trailing side and the card itself does not move.
+        ZStack(alignment: .leading) {
+            face
+                .overlay { streaks }
+                .frame(width: size.width, height: size.height)
+
+            word
+        }
+        .scaleEffect(stage == .shrinking ? 0 : 1, anchor: .center)
+        .opacity(opacity)
+        .offset(x: offset(size))
+        .frame(maxWidth: .infinity, alignment: .leading)
+        .allowsHitTesting(false)
+        .task { await arrive() }
+        .task(id: prompt.isShrinking) {
+            guard prompt.isShrinking, stage != .leaving else { return }
+            await shrink()
+        }
     }
 
     // MARK: - The shape
-
-    private func shape(_ size: CGSize) -> some View {
-        face
-            .overlay { streaks }
-            .overlay { word(size) }
-    }
 
     private var face: some View {
         Parallelogram(lean: ModeCardStyle.lean).fill(PromptStyle.taper)
@@ -106,18 +111,21 @@ struct PassivePromptView: View {
         SideStreaks().mask { face }
     }
 
-    private func word(_ size: CGSize) -> some View {
+    /// The passive's name, over the card.
+    ///
+    /// Stretched horizontally only. A name is a word rather than a picture, and
+    /// squashing it in both directions to make it fit makes it *smaller* where
+    /// what is wanted is *narrower* — so the vertical scale is pinned at one and
+    /// only the width gives.
+    private var word: some View {
         Text(prompt.name.uppercased())
-            .font(.system(
-                size: size.height * PromptStyle.labelSize,
-                weight: .heavy,
-                design: .rounded
-            ))
-            .tracking(size.height * PromptStyle.labelTracking)
+            .font(.system(size: PromptStyle.labelSize, weight: .heavy, design: .rounded))
+            .tracking(PromptStyle.labelTracking)
             .foregroundStyle(ModeCardStyle.ink)
             .lineLimit(1)
-            .minimumScaleFactor(PromptStyle.labelSqueeze)
-            .padding(.horizontal, size.height * ModeCardStyle.lean)
+            .fixedSize()
+            .scaleEffect(x: PromptStyle.labelStretch, y: 1, anchor: .leading)
+            .offset(x: PromptStyle.labelX)
             .opacity(wordOpacity)
     }
 
@@ -188,15 +196,38 @@ struct PassivePromptView: View {
 @MainActor
 enum PromptStyle {
 
-    /// How tall it is against how far it flies.
-    static let heightOfReach: CGFloat = 0.34
+    /// How tall it is and how long, against how far it flies.
+    static var height: CGFloat {
+        #if DEBUG
+        CGFloat(ModeCardTuning.shared.height)
+        #else
+        CGFloat(defaultHeight)
+        #endif
+    }
+    static var length: CGFloat {
+        #if DEBUG
+        CGFloat(ModeCardTuning.shared.length)
+        #else
+        CGFloat(defaultLength)
+        #endif
+    }
 
-    /// How much of its length is the flat part, before the slant.
-    static let widthOfReach: CGFloat = 0.96
+    /// How far below the turn counter it sits, in points.
+    static var drop: CGFloat {
+        #if DEBUG
+        CGFloat(ModeCardTuning.shared.drop)
+        #else
+        CGFloat(defaultDrop)
+        #endif
+    }
 
     static func size(reaching reach: CGFloat) -> CGSize {
-        CGSize(width: reach * widthOfReach, height: reach * heightOfReach)
+        CGSize(width: reach * length, height: reach * height)
     }
+
+    static let defaultHeight: Double = 0.34
+    static let defaultLength: Double = 0.96
+    static let defaultDrop: Double = 12
 
     /// Solid at the front, gone at the tail — the mother shape's taper, on the
     /// end that trails as it flies out.
@@ -213,10 +244,33 @@ enum PromptStyle {
         )
     }
 
-    /// The word inside it.
-    static let labelSize: CGFloat = 0.36
-    static let labelTracking: CGFloat = 0.02
-    static let labelSqueeze: CGFloat = 0.5
+    /// The word over it: how big, how wide, and where it starts.
+    static var labelSize: CGFloat {
+        #if DEBUG
+        CGFloat(ModeCardTuning.shared.labelSize)
+        #else
+        CGFloat(defaultLabelSize)
+        #endif
+    }
+    static var labelStretch: CGFloat {
+        #if DEBUG
+        CGFloat(ModeCardTuning.shared.labelStretch)
+        #else
+        CGFloat(defaultLabelStretch)
+        #endif
+    }
+    static var labelX: CGFloat {
+        #if DEBUG
+        CGFloat(ModeCardTuning.shared.labelX)
+        #else
+        CGFloat(defaultLabelX)
+        #endif
+    }
+
+    static let labelTracking: CGFloat = 0.5
+    static let defaultLabelSize: Double = 13
+    static let defaultLabelStretch: Double = 1
+    static let defaultLabelX: Double = 14
 
     /// In, read, out — and the third way out, when something newer arrives.
     static let arrival: Double = 0.28
