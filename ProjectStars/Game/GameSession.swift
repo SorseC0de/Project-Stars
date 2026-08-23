@@ -279,6 +279,13 @@ final class GameSession {
     /// What game this run is. See `GameMode`.
     var mode: GameMode = .survival
 
+    /// True once the card's bars have finished arriving.
+    ///
+    /// The panel waits for it before anything on it starts moving. Two things
+    /// animating at once on two screens is two things asking to be looked at,
+    /// and the card is the one with something to say.
+    var modeCardHasLanded = false
+
     /// True once Start has been pressed and the card is on its way out.
     ///
     /// Separate from clearing `modeCard`, because the bars have to be told to
@@ -922,6 +929,7 @@ final class GameSession {
         // thing a player saw on every run except their first.
         modeCard = mode
         modeCardIsLeaving = false
+        modeCardHasLanded = false
     }
 
     /// Abandons the current run and starts a new one.
@@ -934,6 +942,7 @@ final class GameSession {
         // a fresh board is being put together.
         modeCard = mode
         modeCardIsLeaving = false
+        modeCardHasLanded = false
 
         let sign = zodiac ?? startingZodiac
         startingZodiac = sign

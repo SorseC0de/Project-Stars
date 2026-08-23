@@ -42,6 +42,11 @@ final class ModeCardTuning {
         didSet { ModeCardTuning.remember("fadeTo", fadeTo) }
     }
 
+    /// How bright the warp streaks running through the bars are.
+    var warp: Double = ModeCardTuning.remembered("warp", ModeCardStyle.defaultWarp) {
+        didSet { ModeCardTuning.remember("warp", warp) }
+    }
+
     /// The bars: in, and out. There is nothing between them to time — the card
     /// is held until Start is pressed.
     var arrival: Double = ModeCardTuning.remembered("arrival", ModeCardStyle.defaultArrival) {
@@ -71,7 +76,23 @@ final class ModeCardTuning {
 
     private static let prefix = "modeCard."
 
+    /// Bumped whenever a shipped default changes.
+    ///
+    /// Stored values otherwise win over new defaults for ever: a knob tuned to
+    /// the old number reads back as that number, and the value written in the
+    /// source is never seen again on any machine that has tuned it once. On a
+    /// bump every knob is forgotten, so the shipped values are what comes up.
+    private static let vintage = 2
+
+    private static func checkVintage() {
+        let store = UserDefaults.standard
+        guard store.integer(forKey: prefix + "vintage") != vintage else { return }
+        for name in names { store.removeObject(forKey: prefix + name) }
+        store.set(vintage, forKey: prefix + "vintage")
+    }
+
     private static func remembered(_ name: String, _ fallback: Double) -> Double {
+        checkVintage()
         let store = UserDefaults.standard
         // `double(forKey:)` answers 0 for a key it has never seen, which is a
         // real value for most of these — so absence has to be asked about
@@ -93,6 +114,7 @@ final class ModeCardTuning {
         spread = ModeCardStyle.defaultSpread
         fadeFrom = ModeCardStyle.defaultFadeFrom
         fadeTo = ModeCardStyle.defaultFadeTo
+        warp = ModeCardStyle.defaultWarp
         arrival = ModeCardStyle.defaultArrival
         departure = ModeCardStyle.defaultDeparture
         textDelay = ModeCardStyle.defaultTextDelay
@@ -101,7 +123,7 @@ final class ModeCardTuning {
     }
 
     private static let names = [
-        "length", "spread", "fadeFrom", "fadeTo",
+        "length", "spread", "fadeFrom", "fadeTo", "warp",
         "arrival", "departure", "textDelay", "textResponse", "textBounce",
     ]
 
@@ -110,6 +132,7 @@ final class ModeCardTuning {
         print(String(format: "  length   %.2f bars", length))
         print(String(format: "  spread   %.2f bars", spread))
         print(String(format: "  fade     %.2f → %.2f of length", fadeFrom, fadeTo))
+        print(String(format: "  warp     %.2f", warp))
         print(String(format: "  bars     in %.2f  out %.2f", arrival, departure))
         print(String(format: "  words    delay %.2f  spring %.2f  bounce %.2f",
                      textDelay, textResponse, textBounce))
@@ -140,6 +163,7 @@ struct ModeCardControls: View {
             row("spread", value: $tuning.spread, in: -6...6, step: 0.1)
             row("fade a", value: $tuning.fadeFrom, in: 0...0.9, step: 0.01)
             row("fade b", value: $tuning.fadeTo, in: 0...0.9, step: 0.01)
+            row("warp", value: $tuning.warp, in: 0...1, step: 0.01)
 
             group("bars")
             row("in", value: $tuning.arrival, in: 0.05...1.5, step: 0.01)

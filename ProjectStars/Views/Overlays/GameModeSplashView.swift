@@ -33,6 +33,9 @@ struct GameModeSplashView: View {
     /// Raised when the player presses Start. The bars leave on it.
     let isLeaving: Bool
 
+    /// Told once the bars have stopped, so the panel knows it may move.
+    let onLanded: () -> Void
+
     /// Called once the bars are gone. The card removes itself.
     let onFinished: () -> Void
 
@@ -81,7 +84,7 @@ struct GameModeSplashView: View {
             .frame(width: width, height: geometry.size.height)
         }
         .allowsHitTesting(false)
-        .onAppear { arrive() }
+        .task { await arrive() }
         .task(id: isLeaving) {
             guard isLeaving else { return }
             await leave()
@@ -94,10 +97,22 @@ struct GameModeSplashView: View {
     enum Slat {
         case upper, lower
 
-        /// The upper bar comes from the trailing edge and keeps going leading;
-        /// the lower one does the opposite. Every asymmetry in the card is this
-        /// one number, so the two can never disagree about which way is out.
-        var heading: CGFloat { self == .upper ? -1 : 1 }
+        /// Which way the bar is going: the upper one leading to trailing, the
+        /// lower one the other way.
+        var heading: CGFloat { self == .upper ? 1 : -1 }
+
+        /// Which side of the card the bar belongs to.
+        ///
+        /// **Not the same question as `heading`, though it was.** One sign used
+        /// to answer both, which is why reversing the travel also mirrored where
+        /// the bars sat, which end their length was added to, and which end
+        /// faded — four changes from one, when only the first was wanted.
+        ///
+        /// A bar now enters from the side it leans away from, drifts to rest
+        /// just past centre, and carries on out the far side. It passes
+        /// *through* the card rather than arriving at it, and the composition
+        /// it passes through is the one that was drawn.
+        var outward: CGFloat { self == .upper ? -1 : 1 }
     }
 
     /// One bar, at its current place along its own line of travel.
@@ -109,6 +124,18 @@ struct GameModeSplashView: View {
         Parallelogram(lean: ModeCardStyle.lean)
             .fill(ModeCardStyle.taper(towards: slat))
             .frame(width: bar.width, height: bar.height)
+            // Streaks running the way the bar is headed, cut to the bar's own
+            // shape *and* its own fade — masked by the same tapered fill, so
+            // they thin out at the tip exactly as the bar does rather than
+            // stopping at a hard edge inside it.
+            .overlay {
+                WarpStreaks(slat: slat, bar: bar)
+                    .mask {
+                        Parallelogram(lean: ModeCardStyle.lean)
+                            .fill(ModeCardStyle.taper(towards: slat))
+                            .frame(width: bar.width, height: bar.height)
+                    }
+            }
             // **Two different moves, both outward.**
             //
             // `length` has already gone into `bar.width`, and a frame grows from
@@ -120,7 +147,7 @@ struct GameModeSplashView: View {
             // along their own headings, which is a different picture from either
             // of them being longer.
             .offset(x: travel(slat, width: width, bar: bar)
-                + slat.heading * (ModeCardStyle.length + ModeCardStyle.spread)
+                + slat.outward * (ModeCardStyle.length + ModeCardStyle.spread)
                 * bar.height / 2)
     }
 
@@ -135,12 +162,12 @@ struct GameModeSplashView: View {
         let away = width / 2 + bar.width + ModeCardStyle.spread * bar.height
         let settled = ModeCardStyle.overshoot * bar.height
 
-        let heading = slat.heading
-
         return switch stage {
-        case .offstage: -heading * away
-        case .gathered: heading * settled
-        case .parted: heading * away
+        // Where it comes from and where it goes: the line of travel.
+        case .offstage: -slat.heading * away
+        case .parted: slat.heading * away
+        // Where it rests: its own side of the card.
+        case .gathered: slat.outward * settled
         }
     }
 
@@ -200,8 +227,10 @@ struct GameModeSplashView: View {
     /// The card used to time its own exit. It does not any more: it is the thing
     /// a run opens with, and a run opens when the player says so — see
     /// `isLeaving`, which the Start button raises.
-    private func arrive() {
+    private func arrive() async {
         withAnimation(.easeOut(duration: ModeCardStyle.arrival)) { stage = .gathered }
+        await sleep(ModeCardStyle.arrival)
+        onLanded()
     }
 
     /// Leaves, and reports that it has gone.
@@ -292,6 +321,35 @@ enum ModeCardStyle {
         )
     }
 
+    // ── The streaks ───────────────────────────────────────────────────
+
+    /// How bright the warp streaks are. Zero turns them off entirely.
+    static var warp: Double {
+        #if DEBUG
+        ModeCardTuning.shared.warp
+        #else
+        defaultWarp
+        #endif
+    }
+
+    static let defaultWarp: Double = 0.22
+
+    /// How many streaks are in flight at once.
+    static let warpCount = 34
+
+    /// A streak's length and speed, as shares of the bar's own length — and how
+    /// short and slow the meekest of them is allowed to be, as a share of the
+    /// longest and fastest. A spread is what makes a field read as depth; all
+    /// one length and one speed reads as a moving pattern.
+    static let warpLength: CGFloat = 0.30
+    static let warpSpeed: CGFloat = 0.55
+    static let warpShortest: Double = 0.18
+    static let warpSlowest: Double = 0.35
+
+    /// How faint the dimmest streak is, and how thick any of them are.
+    static let warpFaintest: Double = 0.15
+    static let warpThickness: CGFloat = 1.5
+
     /// The curve the words arrive on, and leave on.
     ///
     /// Built from its own three knobs rather than shared with the bars: the
@@ -311,7 +369,7 @@ enum ModeCardStyle {
     /// One bar's size for a given screen width.
     static func bar(across width: CGFloat) -> Bar {
         let height = barHeight * width
-        return Bar(width: height * (barAspect + length), height: height)
+        return Bar(width: height * (CGFloat(barAspect) + length), height: height)
     }
 
     struct Bar {
@@ -334,7 +392,7 @@ enum ModeCardStyle {
     private static let barHeight: CGFloat = 0.175
 
     /// How much longer than it is thick a bar is, straight off the sequence.
-    private static let barAspect: CGFloat = 5.18
+    private static let barAspect: Double = 5.18
 
     /// How much longer each bar is, in bar-thicknesses. Negative shortens it.
     ///
@@ -380,7 +438,14 @@ enum ModeCardStyle {
         #endif
     }
 
-    static let defaultLength: Double = 2.0
+    /// The length that was tuned, and a tenth of the whole bar on top of it.
+    ///
+    /// Written as the sum rather than the total so both halves stay legible:
+    /// the number that was arrived at by looking, and the widening asked for
+    /// afterwards. Outward, like the knob — see `length`.
+    static let defaultLength: Double = tunedLength + (barAspect + tunedLength) * 0.10
+
+    private static let tunedLength: Double = 2.0
     static let defaultSpread: Double = -0.30
     static let defaultFadeFrom: Double = 0.25
     static let defaultFadeTo: Double = 0.50
@@ -490,4 +555,88 @@ enum ModeCardStyle {
     static let defaultTextDelay: Double = 0.15
     static let defaultTextResponse: Double = 0.35
     static let defaultTextBounce: Double = 0.50
+}
+
+// MARK: - The streaks
+
+/// Light drawn past the bar in the direction it is travelling.
+///
+/// The look is the one every ship jumping to lightspeed has: thin streaks,
+/// stretched along the direction of travel, at a spread of lengths, speeds and
+/// brightnesses so the field reads as depth rather than as a moving pattern.
+///
+/// ## Why one canvas rather than a view per streak
+///
+/// Forty views each asking for a frame is forty timelines, which is the cost
+/// that took a week out of this project to find. A `Canvas` has no children: it
+/// is one view, one clock, and forty draw calls that never touch the view tree.
+///
+/// ## Why the randomness is arithmetic
+///
+/// Each streak's lane, length and speed come from a hash of its own index, so
+/// they are scattered but *fixed* — the field looks the same every time the
+/// card is shown, and nothing has to be stored between frames to keep it
+/// stable. A real random number generator would need seeding, keeping and
+/// restoring, and would make every showing subtly different for no gain.
+private struct WarpStreaks: View {
+
+    let slat: GameModeSplashView.Slat
+    let bar: ModeCardStyle.Bar
+
+    var body: some View {
+        TimelineView(.animation) { timeline in
+            Canvas { context, size in
+                guard ModeCardStyle.warp > 0 else { return }
+
+                context.blendMode = .plusLighter
+                let now = timeline.date.timeIntervalSinceReferenceDate
+
+                for index in 0..<ModeCardStyle.warpCount {
+                    let lane = scatter(index, 1)
+                    let span = scatter(index, 2)
+                    let pace = scatter(index, 3)
+                    let glow = scatter(index, 4)
+
+                    let length = size.width * ModeCardStyle.warpLength
+                        * (ModeCardStyle.warpShortest + span)
+                    let speed = size.width * ModeCardStyle.warpSpeed
+                        * (ModeCardStyle.warpSlowest + pace)
+
+                    // Wrapped over the bar's width plus one streak, so a streak
+                    // leaves one end and returns at the other with no moment
+                    // where it is half-drawn at both.
+                    let run = size.width + length
+                    let travelled = (now * speed + Double(index) * 97).truncatingRemainder(
+                        dividingBy: run
+                    )
+                    // With the bar, not against it.
+                    let x = slat.heading < 0 ? size.width - travelled : travelled - length
+
+                    let y = lane * size.height
+                    let streak = CGRect(
+                        x: x, y: y - ModeCardStyle.warpThickness / 2,
+                        width: length, height: ModeCardStyle.warpThickness
+                    )
+
+                    context.fill(
+                        Capsule().path(in: streak),
+                        with: .color(
+                            .white.opacity(ModeCardStyle.warp * (ModeCardStyle.warpFaintest + glow))
+                        )
+                    )
+                }
+            }
+        }
+        .allowsHitTesting(false)
+    }
+
+    /// A fixed number in `0..<1` for this streak and this question.
+    ///
+    /// The usual trick: take something irrational-looking, multiply, and keep
+    /// the fraction. It is not a good random number and does not need to be —
+    /// it needs to be *scattered* and *the same every time*.
+    private func scatter(_ index: Int, _ question: Int) -> Double {
+        let n = sin(Double(index) * 12.9898 + Double(question) * 78.233) * 43758.5453
+        return n - n.rounded(.down)
+    }
 }

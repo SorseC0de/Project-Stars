@@ -147,8 +147,10 @@ struct GameScreen: View {
                     if let mode = session.modeCard {
                         GameModeSplashView(
                     mode: mode,
-                    isLeaving: session.modeCardIsLeaving
-                ) { session.modeCardFinished() }
+                    isLeaving: session.modeCardIsLeaving,
+                    onLanded: { session.modeCardHasLanded = true },
+                    onFinished: { session.modeCardFinished() }
+                )
                     }
                 }
 

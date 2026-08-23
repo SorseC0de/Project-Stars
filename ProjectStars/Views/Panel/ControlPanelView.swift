@@ -622,7 +622,10 @@ struct ControlPanelView: View {
         // A fresh run puts the start screen back up, and it lives on the odd
         // side — so the panel turns to meet it rather than appearing mirrored.
         .onChange(of: session.isAwaitingStart) { _, awaiting in
-            if awaiting, turns.isMultiple(of: 2) { turn() }
+            // Straightened rather than turned. The card is coming in over the
+            // board at this moment, and a panel flipping underneath it is the
+            // distraction this whole screen is arranged to avoid.
+            if awaiting, turns.isMultiple(of: 2) { turns += 1 }
         }
     }
 
@@ -2494,6 +2497,7 @@ private struct PanelStartView: View {
     /// than a clock this view has to be woken up by.
     @State private var isSwelling = false
 
+
     var body: some View {
         VStack(spacing: PanelStyle.rowSpacing) {
             // Sits where the scroll and pause do on the front, and takes
@@ -2513,6 +2517,10 @@ private struct PanelStartView: View {
                 wideButton("BACK", tint: Palette.red, action: onQuit)
                 Spacer(minLength: 0)
             }
+            // **Lifted, not padded.** A bottom padding would make the stack
+            // taller and push everything above it up; an offset moves the
+            // button and nothing else, which is the whole request.
+            .offset(y: -PanelStyle.chromeButtonHeight)
         }
         .padding(.horizontal, PanelStyle.padding)
         .padding(.top, PanelStyle.padding)
@@ -2527,7 +2535,9 @@ private struct PanelStartView: View {
             Text("START")
                 .font(.system(size: PanelStyle.startLabelSize, weight: .black, design: .rounded))
                 .tracking(PanelStyle.signNameTracking)
-                .foregroundStyle(Palette.warmBlack)
+                // Warms with the glow rather than on a clock of its own, so the
+                // word is brightest at the moment the button is.
+                .foregroundStyle(isSwelling ? Palette.gold : Palette.warmBlack)
         }
         .frame(height: PanelStyle.zodiactionButtonHeight)
         .containerRelativeFrame(.horizontal) { width, _ in
@@ -2541,7 +2551,14 @@ private struct PanelStartView: View {
             .easeInOut(duration: PanelStyle.startGlowPeriod).repeatForever(autoreverses: true),
             value: isSwelling
         )
-        .onAppear { isSwelling = true }
+        // **Nothing on this panel moves until the card has stopped.**
+        //
+        // The card is on the upper screen saying what the run is; a glow
+        // breathing on the lower one at the same time is a second thing asking
+        // to be looked at, and the card is the one with something to say.
+        .onChange(of: session.modeCardHasLanded, initial: true) { _, landed in
+            isSwelling = landed
+        }
     }
 
     /// A word on a button two chrome-buttons wide.
