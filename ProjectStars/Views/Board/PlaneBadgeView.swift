@@ -7,30 +7,88 @@
 
 import SwiftUI
 
-/// A pill naming the plane, in that plane's own colour.
+/// The plane's name, on its own drawn plaque.
 ///
-/// Lives on the board rather than in the panel. It describes what is being
-/// looked at, not what can be pressed — and the panel's top row is a row of
-/// controls plus the sign's name, which a third label was crowding out.
-///
-/// The colour is the information; the word only confirms it.
+/// The plaque is art now rather than a tinted capsule — Astra's is a night sky
+/// with stars in it, Terra's a hill under cloud. Both are busy, which is a
+/// problem for a label: white text over a starfield is white text with holes in
+/// it. A flat `midnight` wash between the two fixes that without flattening the
+/// drawing, and it is deliberately weak enough that the art still reads through.
+/// Everything both copies of the name share, so the shadow cannot drift away
+/// from the letters it is under.
+private struct BadgeLabel: ViewModifier {
+    func body(content: Content) -> some View {
+        content
+            .font(.system(size: 12, weight: .heavy, design: .monospaced))
+            .lineLimit(1)
+            .fixedSize(horizontal: true, vertical: false)
+            .tracking(GameRules.planeBadgeTracking)
+    }
+}
+
 struct PlaneBadgeView: View {
 
     let plane: Plane
 
+    /// How big the plaque is, in cells: seven across, two down.
+    ///
+    /// The art is centred inside those two rows, so the frame has to be the
+    /// full two — cropping it to one cuts the top off the drawing.
+    private static let cells = CGSize(width: 7, height: 2)
+
+    /// Point size of one art pixel here.
+    ///
+    /// **Chrome, not board art.** The board draws at three or four points a
+    /// pixel because it is the thing being looked at; this is a caption in the
+    /// corner, and at the board's scale a seven-cell plaque is a third of the
+    /// screen wide. One and a half puts it at the size the capsule it replaced
+    /// used to be.
+    var scale: CGFloat = GameRules.planeBadgeScale
+
     var body: some View {
-        Text(plane.displayName.uppercased())
-            .font(.system(size: 12, weight: .heavy, design: .monospaced))
-            .lineLimit(1)
-            .fixedSize(horizontal: true, vertical: false)
-            .tracking(2)
-            .foregroundStyle(Palette.textPrimary)
-            .padding(.horizontal, 10)
-            .padding(.vertical, 5)
-            // Fill and nothing else. The outline was a hairline drawn at screen
-            // resolution over art that is drawn at whole pixels, so it read as
-            // a different material from everything else on the board.
-            .background(Capsule().fill(Palette.planeTint(plane)))
+        PixelSprite(id: .planeBadge(plane)) { EmptyView() }
+            .frame(
+                width: CGFloat(GameRules.tilePixelSize) * Self.cells.width * scale,
+                height: CGFloat(GameRules.tilePixelSize) * Self.cells.height * scale
+            )
+            .overlay {
+                // **A rectangle, because the field genuinely is one.**
+                //
+                // The plaque is a drawn border around a flat panel, and it is
+                // only the panel that should dim — washing the border too took
+                // the colour out of the frame. Inset by its thickness, so the
+                // border keeps its own colour and the name still has something
+                // dark to sit on.
+                //
+                // Worth being explicit, since a rectangle was the *wrong*
+                // answer here an hour ago: it was wrong when it stood in for
+                // the badge's whole silhouette, and it is right now because the
+                // region being described is a rectangle. The shape of the
+                // solution has to match the shape of the thing.
+                Rectangle()
+                    .fill(Palette.midnight)
+                    .opacity(GameRules.planeBadgeWash)
+                    .padding(.horizontal, GameRules.planeBadgeBorder * scale)
+                    .padding(.top, GameRules.planeBadgeBorderTop * scale)
+                    .padding(.bottom, GameRules.planeBadgeBorderBottom * scale)
+
+                // A hard pixel shadow, one art pixel down and right.
+                //
+                // No blur and no softening: this is pixel art, and a blurred
+                // drop shadow is the one thing that reads as belonging to a
+                // different medium than everything around it.
+                Text(plane.displayName.uppercased())
+                    .foregroundStyle(Palette.coolBlack)
+                    .offset(
+                        x: GameRules.planeBadgeShadow * scale,
+                        y: GameRules.planeBadgeShadow * scale
+                    )
+                    .modifier(BadgeLabel())
+
+                Text(plane.displayName.uppercased())
+                    .foregroundStyle(Palette.textPrimary)
+                    .modifier(BadgeLabel())
+            }
             .animation(.easeInOut(duration: 0.25), value: plane)
             .allowsHitTesting(false)
     }

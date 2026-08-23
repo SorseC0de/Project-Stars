@@ -57,11 +57,21 @@ struct BuffsView: View {
             ))
         }
 
-        if state.umbralEssenceMoves > 0 {
+        if state.unknownEssenceMoves > 0 {
             out.append((
                 "essence",
                 Palette.lavender,
-                state.umbralEssenceMoves
+                state.unknownEssenceMoves
+            ))
+        }
+
+        // The fairy, which has no clock — see the note on this view about
+        // buffs that end on a condition rather than on a count.
+        if state.hasSprite {
+            out.append((
+                "curly_wing",
+                ElementFX.ramp(for: .air).bright,
+                nil
             ))
         }
 

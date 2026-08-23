@@ -23,9 +23,28 @@ struct Board: Codable, Equatable {
     /// The Nexys and its chasm are *not* placed here — `GameEngine` owns which
     /// plane the island is on and stamps it in, because that is a property of
     /// the pair of boards rather than of either one alone.
-    init(size: Int = GameRules.gridSize) {
+    /// - Parameter seed: Fixes the straws each square draws, for a test that
+    ///   needs the same ground twice. Left out, every board is dealt fresh.
+    init(size: Int = GameRules.gridSize, seed: UInt64? = nil) {
         self.size = size
-        self.tiles = Array(repeating: Tile(), count: size * size)
+
+        // **Every square draws a straw as the board is built.**
+        //
+        // It decides which patch of dirt shows through anything that grows
+        // there. Dealt here rather than hashed from the coordinates, because
+        // coordinates never change: a square would then wear the same dirt for
+        // the whole run however many times it was cleared and regrown.
+        // **A different deal every run.**
+        //
+        // This was seeded off the board's *size*, which is the same number
+        // every time — so every run dealt the identical straws and the same
+        // columns wore the same dirt, restart after restart. The straws decide
+        // nothing but how the ground looks, so they come from outside the
+        // game's own seeded generator and are free to be genuinely random.
+        var straws = SeededRandom(seed: seed ?? UInt64.random(in: .min ... .max))
+        self.tiles = (0..<(size * size)).map { _ in
+            Tile(seed: UInt8(truncatingIfNeeded: straws.next()))
+        }
     }
 
     // MARK: - Access
@@ -251,10 +270,19 @@ extension Board {
         var remaining = stages
 
         if cause.sparesCover {
-            // Water feeds what it runs over. The ground below still takes what
-            // the effect deals — this is about the cover, not about mercy.
-            let fed = GroundCover.watered(tile.cover, at: point, seed: seed)
-            if fed != tile.cover { outcome.cover = .became(fed) }
+            // **Spared, not fed.** Water leaves what is growing exactly as it
+            // was: the ground below still takes the damage, and the cover is
+            // neither spent nor improved.
+            //
+            // It used to *upgrade* here, which read well for a Brook washing
+            // over a tile and was catastrophic for a water sign simply walking:
+            // Cancer and Pisces mark their footfalls `.water`, so every step
+            // planted grass on bare ground and turned grass to flowers. They
+            // were growing Taurus' entire kit for free, all run, by moving.
+            //
+            // Feeding is something a water *event* does — the Brook, a
+            // droplet, a bubble — and each of those says so itself through
+            // `GameEngine.waterFalls(at:on:)`. Walking is not an event.
         } else if let cover = tile.cover {
             if cause.burnsCover {
                 // Fire goes through **both** levels and still deals in full:

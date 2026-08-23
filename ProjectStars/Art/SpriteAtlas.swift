@@ -175,6 +175,18 @@ enum SpriteAtlas {
     /// - Note: Signs are exempt. They start at column zero and the insert went
     ///   in beside them, so their own coordinates never moved.
     private static let sheetShiftX = 6
+    /// **Zero, and rows are absolute again.**
+    ///
+    /// Four rows went in above everything on 2026-08-20 to make room for the
+    /// signs facing all four ways. Carrying that as a shift would have meant
+    /// half the file speaking the old sheet's numbering and half the new one —
+    /// every row written from here on is read straight off the sheet, so the
+    /// move is baked into the numbers instead and this is back to a clean base
+    /// for the next one.
+    ///
+    /// It also has to stay off anything that is not the master sheet: it was
+    /// being added to the Pentacle sheet, which is one row tall, and sent the
+    /// coin clean off it — the drawn fallback appearing was the only sign.
     private static let sheetShiftY = 0
 
     /// Column of each tile face variant, before `sheetShiftX`.
@@ -193,16 +205,26 @@ enum SpriteAtlas {
 
     /// The two rows the turn counter was drawn into, in raw sheet cells.
     private enum TurnRow {
-        static let digits = 10
-        static let furniture = 11
+        /// The hand-drawn turn-over: nine frames of a numeral rolling.
+        static let roll = 13
+        static let digits = 14
+        static let furniture = 15
     }
 
     /// Where the ground cover sits, in raw sheet cells.
     private enum GrassRow {
-        static let light = 6
-        static let dark = 7
-        static let grass = 3
-        static let tuft = 4
+        static let light = 10
+        static let dark = 11
+        /// The first drawn grass, kept: it is a finished tile with its own dirt
+        /// in it, and worth having beside the generated one.
+        static let drawn = 3
+
+        /// **The blank.** What used to be the second drawn grass — sampling the
+        /// sheet, it is two colours and no detail, where its neighbour has six.
+        /// This is the tile the generator works on: dirt specked onto it and
+        /// blades standing above it.
+        static let blank = 4
+
         static let flowers = 5
     }
 
@@ -211,7 +233,7 @@ enum SpriteAtlas {
     /// Only Terra has one. Astra's squares are clusters of cloud drawn by
     /// `CloudTileView`, so there is nothing here to point at — which is also why
     /// the warmer orange set further down the sheet is currently unused.
-    private static let terraTileRow = 4
+    private static let terraTileRow = 8
 
     /// Every sprite that comes from the sheet.
     static let slices: [SpriteID: SpriteSlice] = {
@@ -251,6 +273,48 @@ enum SpriteAtlas {
         for value in 0...9 {
             map[.digit(value)] = .cells(column: value, row: TurnRow.digits)
         }
+        for frame in 0...8 {
+            map[.turnRoll(frame)] = .cells(column: frame, row: TurnRow.roll)
+        }
+        // The four crystals, on their own sheet: 48 by 96 each, in the order
+        // they were drawn — fire, air, earth, water.
+        for (index, element) in [
+            ZodiacElement.fire, .air, .earth, .water,
+        ].enumerated() {
+            map[.polarityProng(element)] = SpriteSlice(
+                sheet: "crystal_poles",
+                x: index * 48, y: 0,
+                width: 48, height: 96
+            )
+        }
+
+        // Terra's scenery, on its own sheet: seven cells across, the ridge on
+        // the top three rows and the rock on the bottom two.
+        map[.terraScenery(.backdrop)] = .cells(
+            sheet: "Terra_Scenery", column: 0, row: 0, width: 7, height: 3
+        )
+        map[.terraScenery(.midground)] = .cells(
+            sheet: "Terra_Scenery", column: 0, row: 0, width: 7, height: 3
+        )
+        map[.terraScenery(.midLeft)] = .cells(
+            sheet: "Terra_Scenery", column: 0, row: 3, width: 2, height: 2
+        )
+        map[.terraScenery(.midRight)] = .cells(
+            sheet: "Terra_Scenery", column: 5, row: 3, width: 2, height: 2
+        )
+        map[.terraScenery(.foreground)] = .cells(
+            sheet: "Terra_Scenery", column: 0, row: 5, width: 7, height: 2
+        )
+
+        // **Seven cells across and two down.** They are centred inside that
+        // pair of rows, which is why reading them as one row tall clipped the
+        // plaque itself rather than anything drawn in it.
+        map[.planeBadge(.astra)] = .cells(
+            column: 10, row: TurnRow.digits, width: 7, height: 2
+        )
+        map[.planeBadge(.terra)] = .cells(
+            column: 18, row: TurnRow.digits, width: 7, height: 2
+        )
         map[.turnLabel] = .cells(column: 0, row: TurnRow.furniture, width: 2)
         map[.turnCap] = .cells(column: 2, row: TurnRow.furniture)
         map[.turnPlateLeft] = .cells(column: 3, row: TurnRow.furniture)
@@ -268,8 +332,11 @@ enum SpriteAtlas {
             (Palette.TileShade.light, GrassRow.light),
             (Palette.TileShade.dark, GrassRow.dark),
         ] {
-            map[.tileCover(shade, .grass)] = .cells(column: GrassRow.grass, row: coverRow)
-            map[.tileCover(shade, .tuft)] = .cells(column: GrassRow.tuft, row: coverRow)
+            // Both levels of ordinary cover are generated now — the variety
+            // that grass and tuft used to carry between them comes from the
+            // straw each square draws. See `DirtPatterns`.
+            map[.tileCover(shade, .grass)] = .cells(column: GrassRow.blank, row: coverRow)
+            map[.tileCover(shade, .tuft)] = .cells(column: GrassRow.blank, row: coverRow)
             map[.tileCover(shade, .flowers)] = .cells(column: GrassRow.flowers, row: coverRow)
         }
 
@@ -293,85 +360,119 @@ enum SpriteAtlas {
         // ── Nexys ────────────────────────────────────────────────────────
         // 48x48. Its middle cell is the tile it stands on; the overhang is the
         // island's rim and the greenery spilling off it.
-        map[.nexys] = .cells(column: 12 + sheetShiftX, row: 2 + sheetShiftY, width: 3, height: 3)
+        map[.nexys] = .cells(column: 12 + sheetShiftX, row: 6, width: 3, height: 3)
 
         // ── Pieces ───────────────────────────────────────────────────────
         // 16x32 — a piece is twice a tile's height.
         //
-        // All twelve are drawn, and they sit in **zodiac order** from the left
-        // edge — which is why everything else on the sheet is shifted by
-        // `sheetShiftX`. The block is not contiguous by sign: Gemini takes three
-        // columns for its whole and its two halves, Cancer takes three for its
-        // facings, and column 11 is a guide for drawing Libra rather than a
-        // sprite.
+        // **One column per sign, in astrological order from the left edge**,
+        // and three facings stacked down it: left on rows 1-2, up on 3-4, down
+        // on 5-6. East is west mirrored, so four directions cost three
+        // drawings. This replaced a block that was contiguous by nothing —
+        // Gemini took three columns, Cancer took three for the only facings
+        // that existed, and a drawing guide sat in the middle of it.
         let column: [Zodiac: Int] = [
-            .aries: 0,
-            .taurus: 1,
-            // 2 gold half, 3 whole, 4 silver half
-            .gemini: 3,
-            // 5 south, 6 north, 7 west — see `cancerFacing`
-            .cancer: 5,
-            .leo: 8,
-            .virgo: 9,
-            .libra: 10,
-            // 11 is Libra's drawing guide, not a sprite
-            .scorpio: 12,
-            .sagittarius: 13,
-            .capricorn: 14,
-            .aquarius: 15,
-            .pisces: 16,
+            .aries: 0, .taurus: 1, .gemini: 2, .cancer: 3,
+            .leo: 4, .virgo: 5, .libra: 6, .scorpio: 7,
+            .sagittarius: 8, .capricorn: 9, .aquarius: 10, .pisces: 11,
         ]
-        for sign in Zodiac.allCases {
-            map[.piece(sign)] = .cells(column: column[sign] ?? 0, row: 1 + sheetShiftY, height: 2)
+
+        /// Which row a facing's drawing starts on.
+        func facingRow(_ facing: SwipeDirection) -> Int {
+            switch facing {
+            case .left, .right: 1
+            case .up: 3
+            // Diagonals never reach here: a diagonal move resolves to one of
+            // the cardinals before the piece's facing is set. See
+            // `SwipeDirection.facing(from:)`. Front view if one ever does.
+            default: 5
+            }
         }
 
-        // Pisces is **one cell**. Everyone else is a two-cell bust; his body was
-        // redrawn short and his top half became a separate sprite, so mapping
-        // him like the rest stretched a one-cell drawing over two.
-        map[.piece(.pisces)] = .cells(column: 16, row: 2 + sheetShiftY)
+        for sign in Zodiac.allCases {
+            let col = column[sign] ?? 0
+
+            // **Pisces is one cell**, on the *bottom* cell of his block so his
+            // feet line up with everyone else's. His body was redrawn short and
+            // his top half became a separate sprite.
+            let short = sign == .pisces
+
+            for facing in SwipeDirection.cardinals {
+                map[.pieceFacing(sign, facing)] = .cells(
+                    column: col,
+                    row: facingRow(facing) + (short ? 1 : 0),
+                    height: short ? 1 : 2
+                )
+            }
+
+            // The plain `.piece` is the south-facing drawing — it is what the
+            // sign picker, the storm and every other still of a Zodea use.
+            map[.piece(sign)] = .cells(
+                column: col,
+                row: facingRow(.down) + (short ? 1 : 0),
+                height: short ? 1 : 2
+            )
+        }
+
+        // ── Gemini keeps one face ────────────────────────────────────────
+        //
+        // **Deliberately no facings.** Two figures that each turn to face four
+        // ways is two sets of drawings to keep straight while the player is
+        // already keeping two twins straight — the halves read more clearly
+        // when they always look the same way. So Gemini's column spends its
+        // three slots on the halves instead: silver where left would be, gold
+        // where up would be, and the whole pair facing south.
+        map[.geminiHalf(.silver)] = .cells(column: 2, row: 1, height: 2)
+        map[.geminiHalf(.gold)] = .cells(column: 2, row: 3, height: 2)
+        for facing in SwipeDirection.cardinals {
+            map[.pieceFacing(.gemini, facing)] = .cells(column: 2, row: 5, height: 2)
+        }
 
         // ── Pisces, in two halves ────────────────────────────────────────
         //
-        // The composite above is still what is drawn nearly always — rows 1 and
-        // 2 together are the fish and the body as authored. These two are for
-        // the one case where the halves come apart.
-        map[.piscesFish] = .cells(column: 16, row: 1 + sheetShiftY)
-        map[.piscesFishCharged] = .cells(column: 16, row: 0 + sheetShiftY)
-
-        // ── Cancer's four facings ────────────────────────────────────────
-        // Three drawings, four directions: east is west mirrored, which is what
-        // `SpriteID.cancerFacing` asks for and `PixelSprite` flips. The claw
-        // swings sideways and stops where you tap, so unlike every other sign
-        // it is seen from all four sides — see the Cancer rework.
-        map[.cancerFacing(.down)] = .cells(column: 5, row: 1 + sheetShiftY, height: 2)
-        map[.cancerFacing(.up)] = .cells(column: 6, row: 1 + sheetShiftY, height: 2)
-        map[.cancerFacing(.left)] = .cells(column: 7, row: 1 + sheetShiftY, height: 2)
-        map[.cancerFacing(.right)] = .cells(column: 7, row: 1 + sheetShiftY, height: 2)
+        // The composite above is what is drawn nearly always. These two are for
+        // the one case where the halves come apart — with the accessories now,
+        // since that is what they are.
+        map[.piscesFish] = .cells(column: 13, row: 4)
+        map[.piscesFishCharged] = .cells(column: 14, row: 4)
 
         // ── Virgo's floating gems ────────────────────────────────────────
-        // Drawn one cell above and one below her, and aligned to her upper tile
-        // so they need no offset of their own. The outer gem is one drawing used
-        // twice, the second mirrored; the middle one draws in front of both.
-        map[.virgoGem(.outer)] = .cells(column: 9, row: 0 + sheetShiftY)
-        map[.virgoGem(.middle)] = .cells(column: 9, row: 3 + sheetShiftY)
+        //
+        // Five drawings for three facings. South and north each use a middle
+        // gem and one side gem mirrored into a pair; the side-on view needs
+        // three distinct gems because there is no symmetry left to exploit —
+        // one behind her, one out in front, and the middle further out than
+        // either. Which drawing goes where is `PieceView.gemCast`.
+        map[.virgoGem(.south)] = .cells(column: 13, row: 0)
+        map[.virgoGem(.southWest)] = .cells(column: 14, row: 0)
+        map[.virgoGem(.west)] = .cells(column: 15, row: 0)
+        map[.virgoGem(.north)] = .cells(column: 16, row: 0)
+        map[.virgoGem(.northWest)] = .cells(column: 17, row: 0)
 
-        // ── Libra's loose parts ──────────────────────────────────────────
-        // The scales are carried, not worn: two arms and two pans that sit at
-        // their own depths around the body. See `LibraPieceView`.
-        // Directly under Libra's own cell, and the one to its right.
-        // Above Capricorn's column, right of Libra's four scales. Authored to
-        // sit over the archer's upper tile with no offset of its own.
-        map[.sagittariusArrowRest] = .cells(column: 14, row: 0 + sheetShiftY)
+        // The archer's nocked arrow, one drawing per axis — the same two-way
+        // split Libra's arms take, and for the same reason: north is south seen
+        // from behind, and east is west mirrored.
+        // ── Scorpio's tail ───────────────────────────────────────────────
+        //
+        // A stinger per way of pointing and one link repeated behind it. East
+        // is west mirrored, the same three-for-four the pieces take.
+        map[.scorpioStinger(.left)] = .cells(column: 13, row: 5)
+        map[.scorpioStinger(.right)] = .cells(column: 13, row: 5)
+        map[.scorpioStinger(.down)] = .cells(column: 14, row: 5)
+        map[.scorpioStinger(.up)] = .cells(column: 15, row: 5)
+        map[.scorpioTailLink] = .cells(column: 16, row: 5)
 
-        map[.libraArm(.northSouth)] = .cells(column: 10, row: 3 + sheetShiftY)
-        map[.libraArm(.eastWest)] = .cells(column: 11, row: 3 + sheetShiftY)
+        map[.sagittariusArrowRest(.northSouth)] = .cells(column: 13, row: 3)
+        map[.sagittariusArrowRest(.eastWest)] = .cells(column: 14, row: 3)
+
+        map[.libraArm(.northSouth)] = .cells(column: 13, row: 2)
+        map[.libraArm(.eastWest)] = .cells(column: 14, row: 2)
         // Gemini's halves, either side of the whole.
         //
         // Their own drawings rather than a recolour: Soul Split leaves one
         // behind and takes the other, and two figures that are the same sprite
         // in two tints are one figure the player has to keep track of twice.
-        map[.geminiHalf(.gold)] = .cells(column: 2, row: 1 + sheetShiftY, height: 2)
-        map[.geminiHalf(.silver)] = .cells(column: 4, row: 1 + sheetShiftY, height: 2)
+
 
         // The plain scales, drawn once rather than computed.
         //
@@ -380,12 +481,12 @@ enum SpriteAtlas {
         // frame — a shader and a frame lock to arrive at a drawing that now
         // simply exists.
         // Straight above Libra: the dull pan, then the three lit frames.
-        map[.libraScalesPlain] = .cells(column: 10, row: 0 + sheetShiftY)
+        map[.libraScalesPlain] = .cells(column: 13, row: 1)
 
         map[.libraScales] = SpriteSlice(
             sheet: masterSheet,
-            x: 11 * GameRules.tilePixelSize,
-            y: 0,
+            x: 14 * GameRules.tilePixelSize,
+            y: 1 * GameRules.tilePixelSize,
             width: GameRules.tilePixelSize,
             height: GameRules.tilePixelSize,
             frames: 3,
@@ -401,20 +502,20 @@ enum SpriteAtlas {
         //
         // Wired ahead of the plane itself: the art exists, and an atlas entry
         // costs nothing until something asks for it. See the Umbra design note.
-        map[.umbraFloor(.light)] = .cells(column: 0 + sheetShiftX, row: 5 + sheetShiftY)
-        map[.umbraFloor(.dark)] = .cells(column: 1 + sheetShiftX, row: 5 + sheetShiftY)
-        map[.umbraEdge(.light)] = .cells(column: 0 + sheetShiftX, row: 6 + sheetShiftY)
-        map[.umbraEdge(.dark)] = .cells(column: 1 + sheetShiftX, row: 6 + sheetShiftY)
+        map[.umbraFloor(.light)] = .cells(column: 0 + sheetShiftX, row: 9)
+        map[.umbraFloor(.dark)] = .cells(column: 1 + sheetShiftX, row: 9)
+        map[.umbraEdge(.light)] = .cells(column: 0 + sheetShiftX, row: 10)
+        map[.umbraEdge(.dark)] = .cells(column: 1 + sheetShiftX, row: 10)
 
-        map[.umbraDecor(0)] = .cells(column: 1 + sheetShiftX, row: 3 + sheetShiftY)
-        map[.umbraDecor(1)] = .cells(column: 1 + sheetShiftX, row: 4 + sheetShiftY)
-        map[.umbraDecorRare] = .cells(column: 2 + sheetShiftX, row: 3 + sheetShiftY)
+        map[.umbraDecor(0)] = .cells(column: 1 + sheetShiftX, row: 7)
+        map[.umbraDecor(1)] = .cells(column: 1 + sheetShiftX, row: 8)
+        map[.umbraDecorRare] = .cells(column: 2 + sheetShiftX, row: 7)
 
         // Two cells tall, like a piece — it stands on the board rather than
         // lying in it.
-        map[.umbraRock] = .cells(column: 0 + sheetShiftX, row: 3 + sheetShiftY, height: 2)
+        map[.umbraRock] = .cells(column: 0 + sheetShiftX, row: 7, height: 2)
 
-        map[.astraHole] = .cells(column: 0 + sheetShiftX, row: 8 + sheetShiftY)
+        map[.astraHole] = .cells(column: 0 + sheetShiftX, row: 12)
 
         // The coin a piece carries over its head.
         map[.carriedCoin] = .cells(column: TileColumn.hole + 2, row: terraTileRow)
@@ -428,7 +529,7 @@ enum SpriteAtlas {
         // two can never fall out of step when the coin is redrawn.
         map[.pentacle(.shadow)] = .cells(
             sheet: pentacleSheet,
-            column: 0, row: 0 + sheetShiftY,
+            column: 0, row: 0,
             width: 3, height: 3,
             frames: 8,
             frameDuration: GameRules.pentacleRate.frameDuration
@@ -436,18 +537,18 @@ enum SpriteAtlas {
 
         // Polaris: a single 16x16 star on the master sheet. No frames of its
         // own — all of its motion is applied by the view.
-        map[.pentacle(.radiant)] = .cells(column: 12 + sheetShiftX, row: 5 + sheetShiftY)
+        map[.pentacle(.radiant)] = .cells(column: 12 + sheetShiftX, row: 9)
 
         // The cell to its left: the same fragment, cold.
-        map[.pentacle(.dormant)] = .cells(column: 11 + sheetShiftX, row: 5 + sheetShiftY)
+        map[.pentacle(.dormant)] = .cells(column: 11 + sheetShiftX, row: 9)
 
         // An ordinary coin, not spinning — (17, 6) on the sheet, a row below
         // the two Polaris cells rather than beside them.
-        map[.pentacle(.still)] = .cells(column: 11 + sheetShiftX, row: 6 + sheetShiftY)
+        map[.pentacle(.still)] = .cells(column: 11 + sheetShiftX, row: 10)
 
         map[.pentacle(.standard)] = .cells(
             sheet: pentacleSheet,
-            column: 0, row: 0 + sheetShiftY,
+            column: 0, row: 0,
             width: 3, height: 3,
             frames: 8,
             frameDuration: GameRules.pentacleRate.frameDuration
@@ -464,7 +565,7 @@ enum SpriteAtlas {
         for plane in Plane.allCases {
             map[.smoke(plane)] = .cells(
                 sheet: smokeSheet(for: plane),
-                column: 0, row: 0 + sheetShiftY,
+                column: 0, row: 0,
                 width: 2, height: 2,
                 frames: GameRules.smokeFrameCount,
                 frameDuration: GameRules.smokeRate.frameDuration
@@ -516,12 +617,12 @@ enum SpriteAtlas {
                 map[.cursorCorner(tint, corner)] = SpriteSlice(
                     sheet: masterSheet,
                     x: column * GameRules.tilePixelSize + origin.x,
-                    y: 8 * GameRules.tilePixelSize + origin.y,
+                    y: 12 * GameRules.tilePixelSize + origin.y,
                     width: 8, height: 8
                 )
             }
         }
-        map[.cursorWarning] = .cells(column: 1 + sheetShiftX, row: 8 + sheetShiftY)
+        map[.cursorWarning] = .cells(column: 1 + sheetShiftX, row: 12)
 
         // ── Direction arrows ─────────────────────────────────────────────
         // Row 9, in the order they sit on the sheet.
@@ -534,8 +635,8 @@ enum SpriteAtlas {
         let specialOffset = 4
 
         for (direction, column) in arrowColumn {
-            map[.directionArrow(direction)] = .cells(column: column, row: 9 + sheetShiftY)
-            map[.specialArrow(direction)] = .cells(column: column + specialOffset, row: 9 + sheetShiftY)
+            map[.directionArrow(direction)] = .cells(column: column, row: 13)
+            map[.specialArrow(direction)] = .cells(column: column + specialOffset, row: 13)
         }
 
         return map

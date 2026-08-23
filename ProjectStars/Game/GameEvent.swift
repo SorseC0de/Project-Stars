@@ -52,12 +52,18 @@ enum WearCause: String, Equatable, Hashable, Codable {
 
     /// Whether this leaves ground cover standing.
     ///
-    /// **Water does.** Grass is not worn away by being rained on, so anything
-    /// wet damages the ground underneath and leaves what is growing on it
-    /// exactly as it was. It is the mirror of fire, which takes the cover and
-    /// deals its damage in full — and between them they say the rule out loud:
-    /// cover stops *impacts*, not weather.
-    var sparesCover: Bool { self == .water }
+    /// **Nothing does any more.** Water used to: the idea was that grass is not
+    /// worn away by being rained on, so a wet move damaged the ground and left
+    /// what was growing on it untouched. In play that meant the two signs whose
+    /// movement *is* water could cross a meadow all run without marking it,
+    /// which reads as the grass being scenery rather than as cover doing a job.
+    ///
+    /// Feeding cover is still a water thing — a Brook, a droplet, a bubble —
+    /// but that arrives through `GameEngine.waterFalls(at:on:)` and is an
+    /// event, not a footfall. Kept as a property rather than deleted because
+    /// the question is a real one and the next thing to ask it may answer
+    /// differently.
+    var sparesCover: Bool { false }
 
     /// Whether this burns ground cover off rather than being absorbed by it.
     ///

@@ -33,6 +33,28 @@ enum EffectSprite: String, CaseIterable, Hashable {
 
     // MARK: Fire
 
+    // MARK: The 2026-08-21 set
+
+    /// A plate of ground shattering. Tremor takes it small, Shakedown large.
+    case plateBurst
+
+    /// Capricorn's Zodiaction: the coin going off. 31 frames.
+    case coinExplosion
+
+    /// A quick firework, thrown over the piece on a shine-snipe. 15 frames.
+    case fireworkFast
+
+    /// A slow one, recoloured for Virgo's victory lap. 27 frames.
+    case fireworkSlow
+
+    /// Two takes on a coin being gathered, chosen between on a coin flip so the
+    /// same pickup does not play the same flourish twice running.
+    case sparkleBurstTwo
+    case sparkleBurstThree
+
+    /// The piece arriving at the start of a run. 12 frames.
+    case spawn
+
     /// Aries' Zodiaction: the trail it leaves on each burning tile. 8 frames.
     case ariesZodiaction
 
@@ -172,6 +194,8 @@ enum EffectSprite: String, CaseIterable, Hashable {
     /// The strips that belong to no element, and so live in `Astral/`.
     private static let astral: Set<EffectSprite> = [
         .lightningMisc, .glowPhase, .sparkles, .absorb, .bonus,
+        .plateBurst, .coinExplosion, .fireworkFast, .fireworkSlow,
+        .sparkleBurstTwo, .sparkleBurstThree, .spawn,
     ]
 
     /// The asset-catalog folder this strip lives in.
@@ -196,7 +220,9 @@ enum EffectSprite: String, CaseIterable, Hashable {
             .air
         case .cancerScuttle:
             .water
-        case .lightningMisc, .glowPhase, .sparkles, .absorb, .bonus:
+        case .lightningMisc, .glowPhase, .sparkles, .absorb, .bonus,
+             .plateBurst, .coinExplosion, .fireworkFast, .fireworkSlow,
+             .sparkleBurstTwo, .sparkleBurstThree, .spawn:
             .air  // Unreachable: `element` short-circuits these to nil.
         case .astralBloom:
             .earth
@@ -211,6 +237,13 @@ enum EffectSprite: String, CaseIterable, Hashable {
     /// The image set's name inside its element folder.
     var file: String {
         switch self {
+        case .plateBurst: "plate_burst"
+        case .coinExplosion: "coin_explosion"
+        case .fireworkFast: "firework_fast"
+        case .fireworkSlow: "firework_slow"
+        case .sparkleBurstTwo: "sparkle_burst_two"
+        case .sparkleBurstThree: "sparkle_burst_three"
+        case .spawn: "spawn"
         case .ariesZodiaction: "aries_zaction"
         case .ariesActivation: "aries_zaction2"
         case .astralBlaze: "astralblaze"
@@ -266,6 +299,10 @@ enum EffectSprite: String, CaseIterable, Hashable {
     /// rather than everything being forced onto one grid it was never drawn on.
     var frameSize: CGSize {
         switch self {
+        case .plateBurst: CGSize(width: 144, height: 144)
+        case .coinExplosion, .spawn: CGSize(width: 128, height: 128)
+        case .fireworkFast, .fireworkSlow: CGSize(width: 96, height: 96)
+        case .sparkleBurstTwo, .sparkleBurstThree: CGSize(width: 64, height: 64)
         case .explosion, .sagittariusArrow: CGSize(width: 96, height: 96)
         case .waterSplash: CGSize(width: 48, height: 48)
         // Wide rather than square: the flourish spans four tiles so it can be
@@ -316,6 +353,9 @@ enum EffectSprite: String, CaseIterable, Hashable {
     var anchor: EffectAnchor {
         switch self {
         case .bonus: .standing
+        // The arrival is a thing happening *on* the square, so its bottom edge
+        // belongs on the square. Centred, half of it was under the floor.
+        case .spawn: .standing
         default: .centred
         }
     }
@@ -358,6 +398,11 @@ enum EffectSprite: String, CaseIterable, Hashable {
     /// How many frames the strip holds.
     var frames: Int {
         switch self {
+        case .sparkleBurstThree: 14
+        case .fireworkFast, .plateBurst: 15
+        case .sparkleBurstTwo: 17
+        case .fireworkSlow: 27
+        case .coinExplosion, .spawn: 12
         case .ariesZodiaction, .sagittariusJump: 8
         case .fireMisc, .leoZodiactionSummon: 9
         case .astralBlaze, .waterSplash,
@@ -380,6 +425,14 @@ enum EffectSprite: String, CaseIterable, Hashable {
         case .geminiRiftOne, .geminiRiftTwo: 60
         case .bonus: 44
         }
+    }
+
+    /// One of the two gather flourishes, at random.
+    ///
+    /// A coin flip rather than an alternation: the same coin taken twice in a
+    /// row should not be able to teach you which one comes next.
+    static var sparkleBurst: EffectSprite {
+        Bool.random() ? .sparkleBurstTwo : .sparkleBurstThree
     }
 
     /// The rate it plays at.
@@ -450,6 +503,13 @@ enum EffectSprite: String, CaseIterable, Hashable {
     ///   wants lifting further than seems right.
     var groundLift: CGFloat {
         switch self {
+        // The new set, all thrown around the piece or the coin rather than at
+        // anybody's feet. The fireworks go over the head that earned them.
+        case .fireworkFast, .fireworkSlow: CGFloat(GameRules.tilePixelSize) * 1.5
+        case .sparkleBurstTwo, .sparkleBurstThree, .coinExplosion, .spawn: 8
+        // Ground shattering is the one thing here that really is at the floor.
+        case .plateBurst: 0
+
         case .ariesZodiaction, .astralBlaze, .sagittariusJump: 8
         // Bursts around the piece rather than at its feet.
         case .ariesActivation: 8

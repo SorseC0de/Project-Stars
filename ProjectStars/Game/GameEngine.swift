@@ -323,9 +323,10 @@ struct GameEngine {
             }
 
             guard !changes.isEmpty else { continue }
-            guard let allowed = sheltered(
+            let allowedEvents = shelteredEvents(
                 .tilesWorn(plane: piece.plane, changes: changes, cause: proposal.cause)
-            ) else { continue }
+            )
+            guard let allowed = allowedEvents.first else { continue }
 
             // Applied as we go, so the next phantom reads a board this one has
             // already broken — two of them on the same square must cost that
@@ -513,6 +514,20 @@ struct GameEngine {
     /// builds only — the Astral Bolt is one draw in four hundred, which is the
     /// whole design and completely impractical to test against.
     var debugNextPickup: PickupID?
+
+    #if DEBUG
+    /// Covers every ordinary square, with no wave and no events.
+    ///
+    /// The isolation for the Hydroponic tank: the sweep and the state it leaves
+    /// behind are two different suspects, and this produces the second without
+    /// any of the first — no rings, no blooms, no timers, no replay.
+    mutating func debugCoverEverything(on plane: Plane) {
+        for point in self[plane].allPoints
+        where self[plane][point].kind == .normal && !self[plane][point].health.isHole {
+            self[plane][point].cover = .grass
+        }
+    }
+    #endif
 
     /// Puts the next reveal on the square the move is heading for, so the
     /// Shine-snipe can be produced on demand.
@@ -768,6 +783,7 @@ struct GameEngine {
             piecePoint: openingPoint,
             weighting: openingWeighting,
             mirrorChance: mirrorChance,
+            stardarPending: signState.stardarPending,
             using: &rng
         ).map({ staged($0) }) {
             apply(opening)
@@ -1013,7 +1029,7 @@ struct GameEngine {
             // A coin dragged onto the square the piece is standing on has
             // arrived, and arriving is collecting. Checked after the pull rather
             // than only on landing, because on this turn the *coin* did the
-            // moving — Leo's Magnetic Mane and its sun both do exactly that.
+            // moving — Leo's Magnetic Mane does exactly that.
             if !pulled.isEmpty {
                 let gathered = sim.resolvePickupCollection()
                 events += gathered.events
@@ -1036,6 +1052,10 @@ struct GameEngine {
 
             // 5. Keep a Pentacle reachable. See `ensurePentacleAvailable`.
             events += sim.ensurePentacleAvailable(previousPlane: startingPlane, after: events)
+
+            // The poles take their turn last, after the board has settled: the
+            // pull is the *consequence* of the move, not part of it.
+            events += sim.planProngPull()
         }
 
         // 5a-i. A borrowed move spends the phantom that lent it.
@@ -1083,7 +1103,7 @@ struct GameEngine {
         //     amended, so a reaction cannot retrigger itself.
         let reactions = sim.activePassives.amend(events, context: sim.passiveContext)
         for reaction in reactions {
-            if let allowed = sim.sheltered(reaction) { commit(allowed) }
+            for allowed in sim.shelteredEvents(reaction) { commit(allowed) }
         }
 
         // 6. Fold the move into the sign's memory: advance the direction
@@ -1220,9 +1240,10 @@ struct GameEngine {
 
         let context = sim.passiveContext
         for event in follower.zodiaction.activate(context: context, generator: &sim.rng) {
-            guard let allowed = sim.sheltered(event) else { continue }
-            commit(allowed)
-            for sweep in sim.gatherIfCrossed(allowed) { commit(sweep) }
+            for allowed in sim.shelteredEvents(event) {
+                commit(allowed)
+                for sweep in sim.gatherIfCrossed(allowed) { commit(sweep) }
+            }
         }
 
         events += sim.openCarriedPickups()
@@ -1240,7 +1261,7 @@ struct GameEngine {
 
         let reactions = sim.activePassives.amend(events, context: sim.passiveContext)
         for reaction in reactions {
-            if let allowed = sim.sheltered(reaction) { commit(allowed) }
+            for allowed in sim.shelteredEvents(reaction) { commit(allowed) }
         }
 
         if sim.actionWasATurn(from: startedAt) {
@@ -1552,9 +1573,10 @@ struct GameEngine {
         let startedAt = (point: sim.piece.point, plane: sim.piece.plane)
 
         for event in SagittariusAstralArrow.recall(arrow, context: sim.passiveContext) {
-            guard let allowed = sim.sheltered(event) else { continue }
-            commit(allowed)
-            for sweep in sim.gatherIfCrossed(allowed) { commit(sweep) }
+            for allowed in sim.shelteredEvents(event) {
+                commit(allowed)
+                for sweep in sim.gatherIfCrossed(allowed) { commit(sweep) }
+            }
         }
 
         events += sim.openCarriedPickups()
@@ -1743,6 +1765,38 @@ struct GameEngine {
         [.pickupRevealed(id: id, plane: piece.plane, point: point)]
     }
 
+    /// Replaces whatever Pentacle is on the board with `id`, where it stands.
+    ///
+    /// **The fast version of the spawner.** Naming a square meant choosing one
+    /// before every test, when what is actually wanted is nearly always "make
+    /// the coin I can already see be *this* coin, so I can walk into it".
+    ///
+    /// Falls back to placing beside the piece when there is no coin out, so the
+    /// button always does something rather than silently doing nothing on the
+    /// turns between hunts.
+    func debugReplacePickup(_ id: PickupID) -> [GameEvent] {
+        if let existing = revealedPentacles.first(where: { $0.plane == piece.plane }) {
+            return [
+                .pickupDestroyed(
+                    id: existing.id, plane: existing.plane, point: existing.point
+                ),
+                .pickupRevealed(id: id, plane: existing.plane, point: existing.point),
+            ]
+        }
+
+        // Nothing out: put it on the nearest square that can hold it.
+        let candidates = currentBoard.allPoints.filter {
+            $0 != piece.point
+                && currentBoard[$0].kind == .normal
+                && !currentBoard[$0].health.isHole
+        }
+        let nearest = candidates.min {
+            $0.manhattanDistance(to: piece.point) < $1.manhattanDistance(to: piece.point)
+        }
+        guard let point = nearest else { return [] }
+        return [.pickupRevealed(id: id, plane: piece.plane, point: point)]
+    }
+
     mutating func planNexysShift() -> [GameEvent] {
         guard !isGameOver else { return [] }
 
@@ -1814,9 +1868,10 @@ struct GameEngine {
             context: zodiactionContext,
             generator: &sim.rng
         ) {
-            guard let allowed = sim.sheltered(event) else { continue }
-            commit(allowed)
-            for sweep in sim.gatherIfCrossed(allowed) { commit(sweep) }
+            for allowed in sim.shelteredEvents(event) {
+                commit(allowed)
+                for sweep in sim.gatherIfCrossed(allowed) { commit(sweep) }
+            }
         }
 
         // A Zodiaction that carried the piece across coins opens them here, for
@@ -1872,7 +1927,7 @@ struct GameEngine {
         // listening.
         let reactions = sim.activePassives.amend(events, context: sim.passiveContext)
         for reaction in reactions {
-            if let allowed = sim.sheltered(reaction) { commit(allowed) }
+            for allowed in sim.shelteredEvents(reaction) { commit(allowed) }
         }
 
         // Everything below happens *because a turn happened*, so it is asked
@@ -1985,6 +2040,14 @@ struct GameEngine {
         }
 
         let path = movement.path(from: piece.point, direction: direction, option: option)
+
+        // **A shard is a thing standing there, not a hole to fall into.**
+        //
+        // The four squares the Polarity Prongs break stay occupied for as long
+        // as the shards are in them, so they are as unenterable as the Nexys.
+        // Tested across the whole path rather than the landing square, so a
+        // slide stops at a shard instead of passing through one.
+        if path.contains(where: { isProngSquare($0) }) { return nil }
 
         // **The ring outside the board is a legal square, for whoever can use
         // it.**
@@ -2263,6 +2326,12 @@ struct GameEngine {
         }
     }
 
+    /// True when one of the Polarity Prongs' shards is standing on `point`.
+    func isProngSquare(_ point: GridPoint) -> Bool {
+        guard let prongs = signState.prongs, prongs.plane == piece.plane else { return false }
+        return prongs.poles.contains { $0.point == point }
+    }
+
     /// The square a swipe would end on, or `nil` if it has nowhere to go.
     func destination(for direction: SwipeDirection, reach: Int = 0) -> GridPoint? {
         resolvedMove(for: direction, reach: reach)?.destination
@@ -2404,6 +2473,9 @@ struct GameEngine {
     /// Whether the piece could stand on this square despite it being open.
     private func wouldSurvive(_ point: GridPoint) -> Bool {
         if signState.walksOnAir { return true }
+        // A held Sprite is a hole you can stand on, and the cursor has to say so
+        // — a square the board will let you survive must not be drawn as fatal.
+        if signState.hasSprite { return true }
         // A hole is ground for anything that floats over it — which is what
         // keeps the cursor white inside the board while the ring outside it
         // stays red. Those are the two things the cursor has to tell apart for
@@ -2463,7 +2535,15 @@ struct GameEngine {
             debugSnipesNext = false
         }
         #endif
-        guard let point = steered ?? usable.randomElement(using: &rng) else { return [] }
+        // **The Stardar's square, if one is shining.**
+        //
+        // Ahead of the steer and the roll both: the marker is a promise made
+        // last turn and shown on the board since, and anything that overrode it
+        // would be the game breaking its own word in front of the player.
+        let promised = signState.stardarPending ? sparkles.marked : nil
+
+        guard let point = promised ?? steered ?? usable.randomElement(using: &rng)
+        else { return [] }
 
         // **Did the coin land on the square being walked to?**
         //
@@ -2611,10 +2691,16 @@ struct GameEngine {
         sniped: Bool = false
     ) -> PickupID? {
         #if DEBUG
-        if let forced = debugNextPickup {
-            debugNextPickup = nil
-            return forced
-        }
+        // **Read, not consumed.**
+        //
+        // Every move is planned on a copy of the engine and only the *events*
+        // are applied to the real one, so clearing the flag here cleared it on
+        // the copy and threw the copy away. The staged coin then came back on
+        // every draw for the rest of the run — which is exactly what a restart
+        // appeared to fix, because a restart builds an engine that never had
+        // the flag set. It is cleared where it is really spent: on applying the
+        // reveal that carries it.
+        if let forced = debugNextPickup { return forced }
         #endif
 
         // **Virgo's ring pays for a guess, not for a walk.**
@@ -2631,6 +2717,15 @@ struct GameEngine {
         // Every pink coin was a Victorylap.
         if sparkles?.pattern == .ring, sniped {
             return .virgoVictorylap
+        }
+
+        // A Stardar promised this reveal. The promise is kept by the *reveal
+        // point* rather than here — see `stardarSquare` — so all this has to do
+        // is let the promise expire once it is paid.
+        if signState.stardarPending, sparkles != nil {
+            var state = signState
+            state.stardarPending = false
+            signState = state
         }
 
         // The star's own square, and only a third of the time even then.
@@ -2817,9 +2912,11 @@ struct GameEngine {
         // several moments and the answer must not change between them.
         moveDamageMod = damageMod
         moveDamageMoment = damagesOn ?? type.wear
+        moveTravelType = type
         defer {
             moveDamageMod = 1
             moveDamageMoment = nil
+            moveTravelType = .hop
         }
         let style = type
         let arrivalPlane = toPlane ?? piece.plane
@@ -3034,6 +3131,33 @@ struct GameEngine {
                 return result
             }
 
+            // 0b. **A sigil under your feet is a doorway.**
+            //
+            //     Walk onto either end of a pair and it puts you out at the
+            //     other. Both are spent by the trip — a doorway that stayed
+            //     open would be a free shuttle rather than a coin — and a lone
+            //     sigil does nothing at all, because it has nowhere to lead
+            //     until its partner is found.
+            if signState.miasmaMarks.count >= GameRules.miasmaMarkLimit,
+               let entered = signState.miasmaMarks.firstIndex(
+                   where: { $0.point == point && $0.plane == plane }
+               ) {
+                let exit = signState.miasmaMarks[(entered + 1) % signState.miasmaMarks.count]
+                var state = signState
+                state.miasmaMarks = []
+                commit(.signStateChanged(state))
+                commit(
+                    .pieceMoved(
+                        from: point,
+                        to: exit.point,
+                        fromPlane: plane,
+                        toPlane: exit.plane,
+                        type: .teleport
+                    )
+                )
+                continue
+            }
+
             // 1. Wear the tile the piece is on. Skipped for tiles that are
             //    already open, for the Nexys, and when a passive or the
             //    free-fall rule says this landing is weightless.
@@ -3149,11 +3273,24 @@ struct GameEngine {
             // 3. Can the piece stand on what is left? A tile it just broke
             //    cannot hold it.
             let remaining = self[plane][point]
-            let hovers = activePassives.preventsFall(
+            var hovers = activePassives.preventsFall(
                 from: plane,
                 at: point,
                 context: passiveContext
             )
+
+            // **The fairy takes the first hole you would have gone down.**
+            //
+            // Spent here rather than at the moment it was picked up, because it
+            // has no clock — it waits for however many turns it takes. Checked
+            // after the passives so a sign that floats anyway never wastes it.
+            if !hovers, !remaining.isSolid, signState.hasSprite {
+                hovers = true
+                var state = signState
+                state.hasSprite = false
+                commit(.signStateChanged(state))
+            }
+
             if hovers, !remaining.isSolid {
                 if let spent = activePassives
                     .stateAfterPreventingFall(context: passiveContext),
@@ -3498,14 +3635,103 @@ struct GameEngine {
     /// dragged over a hole is dealt with by `ensurePentacleAvailable`, which
     /// already destroys any coin left standing on nothing and starts a fresh
     /// glow phase; special-casing it here would be a second copy of that rule.
+    /// The Polarity Prongs dragging the piece toward the pole that was lit.
+    ///
+    /// **The pole that acts is the one the player has been looking at**, and
+    /// the next one is rolled immediately after, so the board always shows the
+    /// pull you are about to take rather than the one you just did. Four turns,
+    /// then the shards shatter — the holes they punched stay, which is the
+    /// price of having taken the coin.
+    ///
+    /// No lockout on the roll. The same pole may come up all four times, and a
+    /// run of one direction is a real outcome rather than a fault.
+    mutating func planProngPull() -> [GameEvent] {
+        guard var prongs = signState.prongs, prongs.plane == piece.plane else { return [] }
+
+        var events: [GameEvent] = []
+
+        // **They land on this move and pull from the next.**
+        //
+        // The shards arrive as the consequence of a move — the same move that
+        // opened the coin — so pulling on it too made picking the Pentacle up
+        // cost you a square before anything about it was visible. The board is
+        // held still while they come down; this is the same beat, in the rules
+        // rather than in the animation.
+        if prongs.isArriving {
+            prongs.isArriving = false
+            var state = signState
+            state.prongs = prongs
+            let landed = GameEvent.signStateChanged(state)
+            apply(landed)
+            return [landed]
+        }
+
+        // Pulled one square, if there is board that way and ground to hold it.
+        let landing = piece.point.offset(by: prongs.active.unitOffset)
+        if currentBoard.contains(landing) {
+            let carried = GameEvent.pieceMoved(
+                from: piece.point,
+                to: landing,
+                fromPlane: piece.plane,
+                toPlane: piece.plane,
+                type: .blown
+            )
+            events.append(carried)
+            apply(carried)
+
+            // A pole of your own element pays for the trouble.
+            //
+            // The shard's element, not the direction's — they are dealt fresh
+            // every time the coin is taken, so which way pays is part of what
+            // you have to read off the board rather than something you learn
+            // once.
+            let pulling = prongs.poles.first { $0.direction == prongs.active }
+            if pulling?.element == piece.zodiac.element {
+                let paid = meter(afterGaining: GameRules.prongMatchCharge)
+                if paid != zodiactionMeter {
+                    let gained = GameEvent.zodiactionMeterChanged(to: paid)
+                    events.append(gained)
+                    apply(gained)
+                }
+            }
+
+            events += settle(arrivedByFalling: false).events
+        }
+
+        prongs.movesRemaining -= 1
+
+        var state = signState
+        if prongs.movesRemaining <= 0 {
+            // Shattered. The holes are not repaired by their going.
+            state.prongs = nil
+        } else {
+            prongs.active = SwipeDirection.cardinals.randomElement(using: &rng) ?? prongs.active
+            state.prongs = prongs
+        }
+
+        let changed = GameEvent.signStateChanged(state)
+        events.append(changed)
+        apply(changed)
+        return events
+    }
+
     mutating func planPickupPull() -> [GameEvent] {
-        // The piece wins where both would act. A sun on the far side of the
-        // board must never tug a coin away from a lion the coin was just drawn
-        // to — the reward for having a sun out is the extra square below, not a
-        // contest.
+        // **One puller.**
+        //
+        // The sun used to drag coins on its own, from back when the magnetism
+        // belonged to the Aten rather than to the mane. When it moved to the
+        // mane the old path was left standing, so a lion with a sun out pulled
+        // twice over — once on the mane's roll and once unconditionally, every
+        // move, whatever the mane's odds were. Turning the mane off did not
+        // stop it, which is how it was found.
+        //
+        // What the sun is worth is stated in one place now:
+        // `GameRules.magneticManeStepsWithSun`, an extra square on the mane's
+        // own pull. It costs a `pickupMoved` per move to be wrong about this —
+        // and that event is animated, which is why the lion moved slower than
+        // everyone else exactly while his sun was burning.
         if let current = planCurrentDraw() { return current }
-        if let magnetic = planMagneticPull() { return magnetic }
-        return planSunPull()
+        return planMagneticPull() ?? []
     }
 
     /// Leo's Magnetic Mane: the coin drifts toward the *piece*.
@@ -3589,11 +3815,6 @@ struct GameEngine {
         return pullCoins(toward: piece.point, on: piece.plane, steps: steps)
     }
 
-    /// Leo's sun: the coin drifts toward the Aten.
-    private mutating func planSunPull() -> [GameEvent] {
-        guard let sun = signState.sun else { return [] }
-        return pullCoins(toward: sun.point, on: sun.plane, steps: GameRules.sunPullPerMove)
-    }
 
     /// Walks every coin on `plane` some squares closer to `target`.
     ///
@@ -3668,8 +3889,57 @@ struct GameEngine {
     /// Zodiaction, and a passive reacting to the move. Filtering at each of
     /// those four handoffs means a Pentacle written next year is covered without
     /// knowing sanctuaries exist.
+    /// Whether the Bastion's aura would take this blow, and the state that
+    /// remains once it has.
+    ///
+    /// **Spent by the hit it stops, whatever the hit was worth.** Unlike ground
+    /// cover, which soaks one stage and steps down, and unlike a Sanctuary,
+    /// which refuses everything for a number of moves, this is one tile and one
+    /// blow of any size — see `_Design/project-stars-pickups-backlog.md`.
+    ///
+    /// Returned rather than applied so the caller can commit the state change
+    /// alongside the damage it filtered; `plan` works on a copy of the engine
+    /// and only events travel back out of it.
+    private func bastionAbsorbing(
+        _ changes: [GridPoint: TileHealth],
+        on plane: Plane
+    ) -> GameEvent? {
+        guard let tile = signState.bastion,
+              signState.bastionPlane == plane,
+              let proposed = changes[tile],
+              proposed != self[plane][tile].health
+        else { return nil }
+
+        var state = signState
+        state.bastion = nil
+        state.bastionPlane = nil
+        return .signStateChanged(state)
+    }
+
+    /// The event as it survives shelter, plus any shield spent stopping it.
+    ///
+    /// Callers commit the whole array in order — the damage first where it
+    /// survived, then the state change — so the aura is seen to be used rather
+    /// than simply vanishing between moves.
+    func shelteredEvents(_ event: GameEvent) -> [GameEvent] {
+        var spent: GameEvent?
+        switch event {
+        case let .tilesWorn(plane, changes, _),
+             let .tilesWornOnExit(plane, changes, _),
+             let .tilesChanged(plane, changes):
+            spent = bastionAbsorbing(changes, on: plane)
+        default:
+            break
+        }
+
+        return [sheltered(event), spent].compactMap { $0 }
+    }
+
     func sheltered(_ event: GameEvent) -> GameEvent? {
-        guard signState.sanctuary != nil || signState.arrow != nil else { return event }
+        guard signState.sanctuary != nil
+                || signState.arrow != nil
+                || signState.bastion != nil
+        else { return event }
 
         switch event {
         // The cause is carried across. Rebuilding the event without it silently
@@ -3710,6 +3980,11 @@ struct GameEngine {
             // a sanctuary does. Whatever state it was stuck in is the state it
             // stays in until the arrow is pulled.
             if let arrow = signState.arrow, arrow.plane == plane, arrow.point == point {
+                return false
+            }
+
+            // The Bastion's one tile, which refuses this blow outright.
+            if signState.bastion == point, signState.bastionPlane == plane {
                 return false
             }
 
@@ -3754,6 +4029,7 @@ struct GameEngine {
         )
         var seeded = proposal
         seeded.cause = cause
+        seeded.moveType = moveTravelType
         // What the move itself asked for, before any passive is consulted: a
         // caller that said `damageMod: 0` wants a move that costs the ground
         // nothing, and a passive that would have deepened it has nothing to
@@ -3863,11 +4139,11 @@ struct GameEngine {
         guard !changes.isEmpty else { return result }
         // Same rule as everywhere else: a sanctuary refuses the damage, and the
         // event never claims it happened.
-        guard let allowed = sheltered(onExit
+        let survived = shelteredEvents(onExit
             ? .tilesWornOnExit(plane: plane, changes: changes, cause: final.cause)
             : .tilesWorn(plane: plane, changes: changes, cause: final.cause))
-        else { return result }
-        commit(allowed)
+        guard !survived.isEmpty else { return result }
+        for event in survived { commit(event) }
 
         return result
     }
@@ -3897,6 +4173,12 @@ struct GameEngine {
     /// for the length of one move because the wear is charged at two different
     /// moments and both have to be answering the same question.
     private var moveDamageMod: Int = 1
+
+    /// How the move being resolved is travelling, for passives that care.
+    ///
+    /// The water signs read it: being carried along the ground is water doing
+    /// the work, and a hop is not.
+    private var moveTravelType: MoveType = .hop
     private var moveDamageMoment: MoveMoment?
 
     private mutating func departCurrentTile(
@@ -4123,9 +4405,10 @@ struct GameEngine {
         }
 
         for event in plan {
-            guard let allowed = sheltered(event) else { continue }
-            commit(allowed)
-            for sweep in gatherIfCrossed(allowed) { commit(sweep) }
+            for allowed in shelteredEvents(event) {
+                commit(allowed)
+                for sweep in gatherIfCrossed(allowed) { commit(sweep) }
+            }
         }
 
         // Whatever was swept up on the way opens now that the piece has landed.
@@ -4276,7 +4559,7 @@ struct GameEngine {
             let passiveContext = sim.passiveContext
             let answer = zodiac.passives.resolveChoice(result, context: passiveContext)
             for event in answer {
-                if let allowed = sim.sheltered(event) { commit(allowed) }
+                for allowed in sim.shelteredEvents(event) { commit(allowed) }
             }
             if !answer.isEmpty, !sim.isGameOver {
                 events += sim.settle(arrivedByFalling: false, wearsOnArrival: false).events
@@ -4292,7 +4575,7 @@ struct GameEngine {
                 context: context,
                 generator: &sim.rng
             ) {
-                if let allowed = sim.sheltered(event) { commit(allowed) }
+                for allowed in sim.shelteredEvents(event) { commit(allowed) }
             }
             if !sim.isGameOver {
                 events += sim.settle(arrivedByFalling: false, wearsOnArrival: false).events
@@ -4440,6 +4723,7 @@ struct GameEngine {
             piecePoint: point,
             weighting: weighting,
             mirrorChance: mirrorChance,
+            stardarPending: signState.stardarPending,
             using: &rng
         ).map({ staged($0) }) else { return events }
 
@@ -4455,6 +4739,7 @@ struct GameEngine {
         piecePoint: GridPoint,
         weighting: (PickupID, Int) -> Int,
         mirrorChance: Double,
+        stardarPending: Bool,
         using generator: inout SeededRandom
     ) -> GameEvent? {
         guard let spawned = SparkleSet.spawn(
@@ -4469,6 +4754,16 @@ struct GameEngine {
         if mirrorChance > 0 {
             let roll = Double(generator.next() % 10_000) / 10_000
             if roll < mirrorChance { set = spawned.mirrored(on: board) }
+        }
+
+        // **A Stardar shines on the winner from the moment the phase opens.**
+        //
+        // Decided here, with the phase, rather than when it resolves — the coin
+        // promised you would be able to *see* which sparkle is worth taking,
+        // and a promise settled at the last instant is not visible at all. The
+        // reveal reads this back and hands the Pentacle to the marked square.
+        if stardarPending {
+            set.marked = set.points.randomElement(using: &generator)
         }
 
         return .sparklesSpawned(set: set)
@@ -4781,6 +5076,12 @@ struct GameEngine {
             break // Presentation only.
 
         case let .pickupRevealed(id, plane, point, _, asCloud):
+            #if DEBUG
+            // A staged coin is spent by the reveal that carries it, and only on
+            // the engine that really reveals it. See `drawPickup(at:on:)`.
+            if debugNextPickup == id { debugNextPickup = nil }
+            #endif
+
             // The sparkle phase ends here: the shimmer goes out as the pickup
             // appears.
             pickupSerial += 1
@@ -4820,11 +5121,13 @@ struct GameEngine {
                 signState.sun?.plane = piece.plane
             }
 
-            piece.facing = direction
+            // A diagonal does not turn you to face diagonally — see
+            // `SwipeDirection.facing(from:)`.
+            piece.facing = direction.facing(from: piece.facing)
             moveCount += 1
 
         case let .pieceTurned(direction):
-            piece.facing = direction
+            piece.facing = direction.facing(from: piece.facing)
 
         case let .pieceSlid(from, to, _):
             // A slide restarts the queue rather than filling it.
@@ -4865,7 +5168,9 @@ struct GameEngine {
 
         case let .tileCoverChanged(plane, point, cover, _):
             guard self[plane].contains(point) else { break }
-            self[plane][point].cover = cover
+            // Through `covered(by:)`, so a square that loses its cover draws a
+            // fresh straw for the next thing that grows on it.
+            self[plane][point] = self[plane][point].covered(by: cover)
 
         case .groundWaveBegan:
             break
@@ -4876,7 +5181,7 @@ struct GameEngine {
                 self[plane][point] = self[plane][point].settled()
             }
             for (point, value) in cover where self[plane].contains(point) {
-                self[plane][point].cover = value
+                self[plane][point] = self[plane][point].covered(by: value)
             }
 
         case let .pieceMoved(_, to, fromPlane, toPlane, type, _, _):

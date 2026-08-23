@@ -371,8 +371,9 @@ struct AquariusEolianEjection: ZodiacPassive {
     let displayName = "Eolian Ejection"
 
     /// Only while it can actually fire — see `ZodiacPassive.icon(in:)`.
+    /// Shown only while it could actually fire — see `survivesFatalFall`.
     func icon(in context: PassiveContext) -> String? {
-        context.zodiactionMeter >= context.zodiactionMeterMax ? icon : nil
+        context.zodiactionMeter <= 0 ? icon : nil
     }
     let summary = "Terra: falling with a full storm spends it to throw you back up to Astra."
 
@@ -385,13 +386,17 @@ struct AquariusEolianEjection: ZodiacPassive {
         // rather than an ending, and there is nothing above Astra to eject to.
         guard plane == .terra else { return nil }
 
-        // **Phase zero, and only phase zero.**
+        // **A wound storm, and nothing less.**
         //
-        // The wind she leaves on is the *transformation* — the burst of
-        // becoming the storm — so she has to not be one yet. Stored max is a
-        // meter with nothing in it for the sign that fires at empty, which is
-        // exactly the state she lands on Terra in. See `AquariusCrazyCurrent`.
-        guard context.zodiactionMeter >= context.zodiactionMeterMax else { return nil }
+        // Zero is a full meter for the sign that fires at empty, so this is the
+        // one moment she has something to spend — and spending it is what the
+        // save costs.
+        //
+        // It read `>= max` before, which is a meter with *nothing* in it, and
+        // is exactly the state arriving on Terra leaves her in — so every fall
+        // was survived and she could not die at all. See the arrival brace in
+        // `AquariusWackyWhirlwind`.
+        guard context.zodiactionMeter <= 0 else { return nil }
 
         // Away from the way she came, and back the other way if that is off the
         // board — the same rule the fish surfaces by.
@@ -405,10 +410,17 @@ struct AquariusEolianEjection: ZodiacPassive {
         var events: [GameEvent] = []
         if heading != context.facing { events.append(.pieceTurned(to: heading)) }
 
-        // She becomes the storm on the way out — the meter goes to zero, which
-        // is a full one for her, and the phases arriving all at once *is* the
-        // transformation. Nothing else is drawn for it.
-        events.append(.zodiactionMeterChanged(to: 0))
+        // **Spent, not filled.**
+        //
+        // Zero is a *full* storm for the sign that fires at empty, so setting
+        // it to zero handed the save back for free — she was ejected to Astra
+        // still holding everything she was supposed to have paid. What spending
+        // looks like for her is the meter at its maximum, which is the empty
+        // end of her backwards bar.
+        //
+        // The summary has said "spends it" the whole time; only the arithmetic
+        // disagreed.
+        events.append(.zodiactionMeterChanged(to: context.zodiactionMeterMax))
 
         // Out through the cloud, which does not survive being come through.
         if surface != GameRules.nexysPoint {

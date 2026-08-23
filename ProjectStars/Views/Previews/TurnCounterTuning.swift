@@ -71,12 +71,47 @@ final class TurnCounterTuning {
     var selected: Piece = .whole
     var isShown = true
 
-    /// Air between one numeral and the next, in art pixels.
+    // MARK: - The bump
+    //
+    // The placement is settled and baked into `TurnCounterView.Place`, so the
+    // per-piece knobs are gone. What is being tuned now is the reaction.
+
+    /// **How the jump plays.** Stepped is two held states, the way the rest of
+    /// the game's pixel animation behaves; sliding interpolates between them.
+    var isStepped = false
+
+    /// How far the changing numeral leaps, in art pixels. Vertical only — a
+    /// number that also moved sideways would read as being knocked rather than
+    /// as counting.
+    var numberJump: CGFloat = 2
+
+    /// A shared vertical nudge for the numerals **and** the cap, in art pixels.
     ///
-    /// Its own control rather than a piece offset: it applies *between* the
-    /// digits rather than to any one of them, and it is the number most likely
-    /// to want judging by eye against a real turn count.
-    var digitGap: CGFloat = 0
+    /// The one placement knob kept: those two sit on a line together, and
+    /// moving them as a pair is a different question from where either sits
+    /// relative to the plate. Added on top of the baked `Place` values — hand
+    /// me a number and it gets folded into those.
+    /// Zero: everything it found is baked into `TurnCounterView.Place`.
+    var baseY: CGFloat = 0
+
+    /// How fast whatever is playing runs, as a multiple of its shipped timing.
+    ///
+    /// Below one is slower. Applied to every flourish at once rather than per
+    /// style — the question being asked is "is this the right *pace*", and
+    /// answering it separately five times is five chances to settle on five
+    /// different answers to the same question.
+    var speed: CGFloat = 1
+
+    /// Which reaction plays when the number changes.
+    var flourish: TurnFlourish = TurnCounterView.shippedFlourish
+
+    /// How many numerals are shown. The layout is supposed to follow this
+    /// rather than assume three — this is how that gets proved.
+    var leastDigits: Int = TurnCounterView.shippedLeastDigits
+
+    /// How far the cap is shoved, in art pixels. Horizontal only, for the same
+    /// reason in reverse: it is being pushed out of the number's way.
+    var capJump: CGFloat = 2
 
     subscript(piece: Piece) -> Adjust {
         get { pieces[piece] ?? Adjust() }
@@ -86,15 +121,19 @@ final class TurnCounterTuning {
     /// The current arrangement, in a form that can be pasted into the view.
     func dump() {
         print("── turn counter ──")
-        print("  digit gap  \(Int(digitGap))px")
-        for piece in Piece.allCases {
+        for piece in Piece.allCases where self[piece] != Adjust() {
             let a = self[piece]
-            guard a != Adjust() else { continue }
             print(String(
-                format: "  %-11@ scale %d   x %+.0fpx   y %+.0fpx",
-                piece.rawValue as NSString, a.scale, a.x, a.y
+                format: "  %-11@ x %+.0f   y %+.0f",
+                piece.rawValue as NSString, a.x, a.y
             ))
         }
+        print("  style       \(flourish.title)")
+        print("  speed       \(String(format: "%.2f", speed))x")
+        print("  mode        \(isStepped ? "stepped" : "slide")")
+        print("  base Y      \(Int(baseY))px")
+        print("  number jump \(Int(numberJump))px")
+        print("  cap jump    \(Int(capJump))px")
     }
 }
 
@@ -109,15 +148,36 @@ struct TurnCounterTunerControls: View {
     private let reach: CGFloat = 160
 
     var body: some View {
-        VStack(alignment: .leading, spacing: 6) {
-            HStack(spacing: 4) {
+        VStack(alignment: .leading, spacing: 5) {
+            HStack(spacing: 6) {
                 Toggle("turn", isOn: $tuning.isShown)
                     .toggleStyle(.button)
+
+                Button(tuning.isStepped ? "stepped" : "slide") {
+                    tuning.isStepped.toggle()
+                }
+                .padding(.horizontal, 6)
+                .padding(.vertical, 2)
+                .background(Palette.gold, in: RoundedRectangle(cornerRadius: 4))
+                .foregroundStyle(Palette.coolBlack)
+
+                Button(tuning.flourish.title) {
+                    let all = TurnFlourish.allCases
+                    let next = (all.firstIndex(of: tuning.flourish) ?? 0) + 1
+                    tuning.flourish = all[next % all.count]
+                }
+                .padding(.horizontal, 6)
+                .padding(.vertical, 2)
+                .background(Palette.lime, in: RoundedRectangle(cornerRadius: 4))
+                .foregroundStyle(Palette.coolBlack)
+
                 Button("print") { tuning.dump() }
                 Button("reset") { tuning[tuning.selected] = .init() }
             }
 
-            // Which piece the controls below are pointed at.
+            // Which piece the x/y below are pointed at. Applied on top of the
+            // baked `Place` values, so a number read off here is added to what
+            // is written in `TurnCounterView`.
             HStack(spacing: 3) {
                 ForEach(TurnCounterTuning.Piece.allCases) { piece in
                     Button(piece.title) { tuning.selected = piece }
@@ -133,25 +193,28 @@ struct TurnCounterTunerControls: View {
                 }
             }
 
-            row("scale", value: Binding(
-                get: { CGFloat(tuning[tuning.selected].scale) },
-                set: { tuning[tuning.selected].scale = max(Int($0.rounded()), 1) }
-            ), range: 1...8, step: 1)
-
-            row("x px", value: Binding(
+            row("x", value: Binding(
                 get: { tuning[tuning.selected].x },
                 set: { tuning[tuning.selected].x = $0.rounded() }
-            ), range: -reach...reach, step: 1)
+            ), range: -60...60, step: 1)
 
-            row("gap px", value: Binding(
-                get: { tuning.digitGap },
-                set: { tuning.digitGap = $0.rounded() }
-            ), range: -4...10, step: 1)
-
-            row("y px", value: Binding(
+            row("y", value: Binding(
                 get: { tuning[tuning.selected].y },
                 set: { tuning[tuning.selected].y = $0.rounded() }
-            ), range: -reach...reach, step: 1)
+            ), range: -30...30, step: 1)
+
+            // Halves, and far enough either side to find the edges of taste
+            // rather than the edges of the slider.
+            row("speed", value: $tuning.speed, range: 0.5...12, step: 0.5)
+
+            row("places", value: Binding(
+                get: { CGFloat(tuning.leastDigits) },
+                set: { tuning.leastDigits = max(Int($0.rounded()), 1) }
+            ), range: 1...6, step: 1)
+
+            row("base Y", value: $tuning.baseY, range: -12...12, step: 1)
+            row("num Y", value: $tuning.numberJump, range: 0...12, step: 1)
+            row("cap X", value: $tuning.capJump, range: 0...12, step: 1)
         }
         .font(.system(size: 10, weight: .semibold, design: .monospaced))
         .foregroundStyle(Palette.stone)

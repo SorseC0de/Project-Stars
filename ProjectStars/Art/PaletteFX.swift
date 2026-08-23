@@ -103,6 +103,24 @@ struct PaletteGlow<Content: View>: View {
 
     @ViewBuilder var content: () -> Content
 
+    /// How far past the content the bloom must be able to reach.
+    ///
+    /// **The whole of the clipping bug.** A blur spreads well beyond the thing
+    /// it blurs, and every rasteriser in the chain — `drawingGroup`, a mask, a
+    /// `colorEffect` — draws into the view's *layout bounds* and discards
+    /// everything outside them. On a sixteen-point sprite the glow was sliced
+    /// off square at the sprite's edge: Libra's scales lost theirs the moment
+    /// they swung past their own box, and anything orbiting went dark on the
+    /// way out.
+    ///
+    /// The blurred copy is given this much room before it is rasterised and has
+    /// it taken back afterwards, so the bloom overflows the way light does and
+    /// the layout never knows. Three times the widest spread, which is where a
+    /// Gaussian has nothing left to give.
+    private var reach: CGFloat {
+        radius * (1 + CGFloat(max(trail, 0)) * 0.9) * 3
+    }
+
     var body: some View {
         content()
             .overlay {
@@ -116,6 +134,7 @@ struct PaletteGlow<Content: View>: View {
                             .opacity(fade)
                     }
                 }
+                .padding(reach)
                 // Rendered once, offscreen, as a single texture.
                 //
                 // This is what was halving the frame rate wherever a glow was on
@@ -135,6 +154,10 @@ struct PaletteGlow<Content: View>: View {
                 // The blend has to stay outside the group so the finished bloom
                 // still adds to the board behind it.
                 .drawingGroup()
+                // And the room handed back, so the glow costs the layout
+                // nothing while the bloom overflows the content's box the way
+                // light actually does.
+                .padding(-reach)
                 // Recoloured after flattening, so the tint lands on the halo as
                 // one shape rather than on each copy in the stack — eight
                 // overlapping layers tinted individually go uneven wherever they
@@ -157,7 +180,9 @@ struct PaletteGlow<Content: View>: View {
                                         .opacity(intensity / Double(step + 1))
                                 }
                             }
+                            .padding(reach)
                         }
+                        .padding(-reach)
                     }
                 }
                 .compositingGroup(tint != nil)
@@ -230,5 +255,89 @@ private extension View {
     @ViewBuilder
     func compositingGroup(_ when: Bool) -> some View {
         if when { compositingGroup() } else { self }
+    }
+}
+
+// MARK: - Animatable palette swaps
+
+/// A list of numbers SwiftUI can interpolate.
+///
+/// Needed because a palette swap is a *set of colours*, and SwiftUI will only
+/// tween something that is `VectorArithmetic`. Without this a swap can only
+/// switch — which is why the turn counter's charge originally drove its colours
+/// off a `TimelineView` and blended them by hand. That worked and was a
+/// band-aid: it put colour interpolation inside one view instead of inside the
+/// thing that does colour.
+struct AnimatableVector: VectorArithmetic {
+
+    var values: [Double]
+
+    static var zero: AnimatableVector { AnimatableVector(values: []) }
+
+    static func + (lhs: AnimatableVector, rhs: AnimatableVector) -> AnimatableVector {
+        paired(lhs, rhs, +)
+    }
+
+    static func - (lhs: AnimatableVector, rhs: AnimatableVector) -> AnimatableVector {
+        paired(lhs, rhs, -)
+    }
+
+    /// Element-wise, over the longer of the two — a swap set that grows or
+    /// shrinks mid-animation still interpolates rather than snapping.
+    private static func paired(
+        _ lhs: AnimatableVector,
+        _ rhs: AnimatableVector,
+        _ combine: (Double, Double) -> Double
+    ) -> AnimatableVector {
+        let count = max(lhs.values.count, rhs.values.count)
+        return AnimatableVector(values: (0..<count).map { index in
+            combine(
+                index < lhs.values.count ? lhs.values[index] : 0,
+                index < rhs.values.count ? rhs.values[index] : 0
+            )
+        })
+    }
+
+    mutating func scale(by rhs: Double) {
+        values = values.map { $0 * rhs }
+    }
+
+    var magnitudeSquared: Double {
+        values.reduce(0) { $0 + $1 * $1 }
+    }
+}
+
+/// A palette swap whose colours can be animated between.
+///
+/// The shader already takes its colours as a flat array of floats; this makes
+/// that array the modifier's `animatableData`, so `withAnimation` interpolates
+/// every channel of every swap for free. Any view can now change palette
+/// *gradually* — the counter's charge, a sign heating up, a tile cooling.
+struct AnimatablePaletteSwap: ViewModifier, Animatable {
+
+    var animatableData: AnimatableVector
+
+    init(_ swaps: [PaletteSwap]) {
+        animatableData = AnimatableVector(
+            values: swaps.flatMap { swap in
+                (swap.from.shaderComponents + swap.to.shaderComponents).map(Double.init)
+            }
+        )
+    }
+
+    func body(content: Content) -> some View {
+        content.colorEffect(
+            ShaderLibrary.paletteSwap(
+                .floatArray(animatableData.values.map(Float.init))
+            )
+        )
+    }
+}
+
+extension View {
+    /// Swaps palette entries, interpolating when the set changes inside a
+    /// `withAnimation`.
+    func animatedPaletteSwap(_ swaps: [PaletteSwap]) -> some View {
+        modifier(AnimatablePaletteSwap(swaps))
     }
 }

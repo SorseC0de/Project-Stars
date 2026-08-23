@@ -54,6 +54,13 @@ struct AfterimageView: View {
     let scale: CGFloat
 
     /// How far back in the trail this copy is. `0` is the square just left.
+    /// Which way the figure is looking.
+    ///
+    /// Passed rather than defaulted: `PieceView` starts at `.up`, so every
+    /// ghost of every sign was the north drawing regardless of which way the
+    /// piece it is a record of was facing.
+    var facing: SwipeDirection = .down
+
     let step: Int
 
     /// How far through its life this ghost is, `0` fresh to `1` gone.
@@ -81,6 +88,7 @@ struct AfterimageView: View {
             isCharged: isCharged,
             // A ghost is a mark, not a thing standing on the square.
             showsShadow: false,
+            facing: facing,
             stormPhase: stormPhase
         )
         .frame(width: tileSize, height: tileSize * 2)

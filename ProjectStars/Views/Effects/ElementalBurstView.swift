@@ -26,11 +26,34 @@ enum BurstKind: Equatable {
     case element(ZodiacElement)
     case magneticPulse
 
+    /// The same rings in an element's own colours — the Polarity Prongs.
+    ///
+    /// Not `element(_:)`: each element's own burst is a different *picture*
+    /// (fire licks, air spirals, earth blooms), and what a shard throws is a
+    /// pull, whatever it is made of. The shape says pull; the colour says which
+    /// crystal is doing the pulling.
+    case polarityPulse(ZodiacElement)
+
     /// The branch this takes inside `elementalBurst`.
     var shaderIndex: Int {
         switch self {
         case let .element(element): element.shaderIndex
         case .magneticPulse: 4
+        case .polarityPulse: 5
+        }
+    }
+
+    /// The two colours the tinted branch mixes between, centre out.
+    ///
+    /// The element's own ramp, so a shard's rings and its glow are lit by one
+    /// set of numbers. Ignored by every branch that paints its own colours.
+    var pulseTint: (near: Color, far: Color) {
+        switch self {
+        case let .polarityPulse(element):
+            let ramp = ElementFX.ramp(for: element)
+            return (ramp.mid, ramp.bright)
+        default:
+            return (.white, .white)
         }
     }
 }
@@ -62,7 +85,9 @@ struct ElementalBurstView: View {
                         .float2(center),
                         .float(radius),
                         .float(progress),
-                        .float(Double(kind.shaderIndex))
+                        .float(Double(kind.shaderIndex)),
+                        .color(kind.pulseTint.near),
+                        .color(kind.pulseTint.far)
                     )
                 )
                 // Additive, so the burst reads as light thrown over the board

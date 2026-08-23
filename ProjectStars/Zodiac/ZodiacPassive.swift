@@ -449,6 +449,20 @@ protocol ZodiacPassive {
     /// mark at all: it teaches the wrong rule every time the player looks at it.
     func icon(in context: PassiveContext) -> String?
 
+    /// Whether the mark is **lit** — this passive is doing something right now.
+    ///
+    /// Lit is a *state*, not an event. A mark that lights on the frame a
+    /// passive fires and goes out again is a flicker, and a row of flickers is
+    /// unreadable — so each passive answers for the whole span it is in effect
+    /// rather than for the instant it acted. Heavy Hooves is lit whenever it
+    /// would wear the ground, which is always; the Aquanaut is lit for as long
+    /// as the fish is on Terra, spill or no spill; Shed Skin is lit until the
+    /// husk is spent rather than at the moment it is grown.
+    ///
+    /// Default `false`: a passive that has not thought about it says nothing,
+    /// which is the honest answer until somebody decides what its span is.
+    func isLit(in context: PassiveContext) -> Bool
+
     /// Whether a Pentacle is dragged a square toward the piece as it appears.
     ///
     /// Aquarius' current. Default: `false`.
@@ -514,6 +528,14 @@ struct WearProposal: Equatable {
     /// stage count and the identity cannot disagree.
     var cause: WearCause = .landing
 
+    /// How the piece arrived — a hop, a slide, a teleport.
+    ///
+    /// The water signs need it: gliding along the ground is the water carrying
+    /// them and leaves what is growing alone, while an ordinary hop lands with
+    /// their whole weight on it. Without this they could only say "always wet",
+    /// which grew grass for free on every step they took.
+    var moveType: MoveType = .hop
+
     /// Attributes this damage to `cause`, taking its stage count with it.
     ///
     /// The count is the cause's own, resolved for the plane the damage is
@@ -550,6 +572,7 @@ extension ZodiacPassive {
     func resistsBeingMoved(context: PassiveContext) -> Bool { false }
     func tramplesPickups(context: PassiveContext) -> Bool { false }
     func reversesCharge(context: PassiveContext) -> Bool { false }
+    func isLit(in context: PassiveContext) -> Bool { false }
     func reversesControls(context: PassiveContext) -> Bool { false }
     func walksOnHoles(context: PassiveContext) -> Bool { false }
     func mayLeaveTheBoard(context: PassiveContext) -> Bool { false }

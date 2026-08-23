@@ -43,26 +43,68 @@ struct StingLanceView: View {
             if extended > 0 {
                 let length = tileSize * CGFloat(reach) * extended
                 let span = tileSize * CGFloat(reach) * 2
+                let step = direction.unitOffset
 
-                // Drawn inside a square box centred on the piece, so the
-                // rotation turns the lance *about its base* rather than about
-                // the middle of its own shaft. Offsetting first and rotating
-                // afterwards swings the whole thing around the board instead.
+                // **A chain, not a shaft.**
+                //
+                // The links are drawn apart from each other and read as one
+                // tail anyway — the Chain Chomp trick. Each sits at its own
+                // share of the current length, so the whole thing grows out of
+                // the piece rather than stretching.
+                PaletteGlow(
+                    radius: GameRules.stingGlow * (tileSize / CGFloat(GameRules.tilePixelSize)),
+                    intensity: GameRules.stingGlowStrength
+                ) {
                 ZStack {
-                    Lance(headLength: tileSize * 0.7)
-                        .fill(Palette.sky)
-                        .frame(width: tileSize * 0.52, height: length)
-                        // Grows out of the piece's end, so the shaft reads as
-                        // being pushed rather than as stretching.
-                        .offset(y: -length / 2)
+                    ForEach(0..<linkCount(for: length), id: \.self) { link in
+                        let along = CGFloat(link + 1) / CGFloat(linkCount(for: length) + 1)
+                        let wander = wiggle(link, at: elapsed)
+
+                        PixelSprite(id: .scorpioTailLink) { Color.clear }
+                            .frame(width: tileSize, height: tileSize)
+                            .offset(
+                                x: CGFloat(step.dx) * length * along + wander.width,
+                                y: CGFloat(step.dy) * length * along + wander.height
+                            )
+                    }
+
+                    PixelSprite(id: .scorpioStinger(direction)) { Color.clear }
+                        .frame(width: tileSize, height: tileSize)
+                        // East is west mirrored — three drawings, four ways.
+                        .scaleEffect(x: direction == .right ? -1 : 1, y: 1)
+                        .offset(x: CGFloat(step.dx) * length, y: CGFloat(step.dy) * length)
                 }
                 .frame(width: span, height: span)
-                .rotationEffect(.degrees(turn))
+                }
+                // Added to the board rather than filtered through it. Soft
+                // light was the wrong read entirely: over ground this dark it
+                // took the tail down to almost nothing.
                 .opacity(GameRules.stingOpacity)
                 .blendMode(.plusLighter)
             }
         }
         .allowsHitTesting(false)
+    }
+
+    /// How many links fill the current length.
+    ///
+    /// From the length rather than from `reach`, so the chain gains segments as
+    /// it extends instead of squeezing a fixed count into a growing gap.
+    private func linkCount(for length: CGFloat) -> Int {
+        max(Int((length / (tileSize * GameRules.stingLinkSpacing)).rounded()) - 1, 0)
+    }
+
+    /// How far this link has wandered off the line, in points.
+    ///
+    /// Deterministic in the link and the clock: the tail should look loose and
+    /// alive, not different every frame for no reason.
+    private func wiggle(_ link: Int, at elapsed: TimeInterval) -> CGSize {
+        let amount = GameRules.stingLinkWiggle * (tileSize / CGFloat(GameRules.tilePixelSize))
+        let tick = elapsed / GameRules.stingWigglePeriod
+        return CGSize(
+            width: GameRules.jitter(tick + Double(link), salt: 11) * amount,
+            height: GameRules.jitter(tick + Double(link), salt: 23) * amount
+        )
     }
 
     /// How much of the reach is currently drawn, `0`…`1`.
@@ -80,46 +122,4 @@ struct StingLanceView: View {
             : CGFloat(1 - (progress - out) / (1 - out))
     }
 
-    /// Rotation from the drawn orientation, which points north.
-    private var turn: Double {
-        switch direction {
-        case .up: 0
-        case .upRight: 45
-        case .right: 90
-        case .downRight: 135
-        case .down: 180
-        case .downLeft: 225
-        case .left: 270
-        case .upLeft: 315
-        }
-    }
-
-    /// A shaft with a triangular head, drawn pointing up.
-    private struct Lance: Shape {
-
-        /// How much of the total length the head takes.
-        let headLength: CGFloat
-
-        func path(in rect: CGRect) -> Path {
-            var path = Path()
-            let head = min(headLength, rect.height)
-            let shaftTop = rect.minY + head
-            let inset = rect.width * 0.22
-
-            // Shaft.
-            path.addRect(CGRect(
-                x: rect.minX + inset, y: shaftTop,
-                width: rect.width - inset * 2, height: rect.height - head
-            ))
-
-            // Head, spanning the full width so it reads as a point rather than
-            // as a slightly wider end to the shaft.
-            path.move(to: CGPoint(x: rect.midX, y: rect.minY))
-            path.addLine(to: CGPoint(x: rect.maxX, y: shaftTop))
-            path.addLine(to: CGPoint(x: rect.minX, y: shaftTop))
-            path.closeSubpath()
-
-            return path
-        }
-    }
 }

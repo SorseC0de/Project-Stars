@@ -29,6 +29,8 @@ struct TileView: View {
     /// variant. The lift itself is applied by `BoardView`.
     var isPopped: Bool = false
 
+
+
     /// True for one beat after this tile changes state, so it can flash.
     var isFlashing: Bool = false
 
@@ -55,6 +57,15 @@ struct TileView: View {
     /// The board sets this for Astra's ordinary squares, which are drawn in one
     /// canvas for the whole plane rather than one view each. Everything else —
     /// the raised square, the gallery, Terra — leaves it false and draws here.
+
+    /// A mark burnt into this square's cover, if something has left one.
+    ///
+    /// **Drawn with the tile**, which is what makes it a *cover*: it takes the
+    /// row's shear, its place on the board and its order in the stack from the
+    /// tile it belongs to, rather than being a layer of its own that has to be
+    /// kept in step. As a separate layer it drew over the player, because a
+    /// sibling with an explicit `zIndex` outranks every sibling without one.
+    var sigil: Color?
     var drawnByField: Bool = false
 
     var body: some View {
@@ -85,8 +96,14 @@ struct TileView: View {
                 Color.clear
             } else
             if drawnByField, plane == .astra, tile.kind == .normal, !hasDrawnCloud {
-                // Already painted with the rest of the field.
+                // **Empty, except for what is painted *on* the square.**
+                //
+                // The cloud itself is drawn with the rest of the field, so this
+                // branch has no ground to lay down — but it returned bare
+                // `Color.clear` and took the Miasma's sigil down with it, which
+                // is why the mark existed up here and was never once visible.
                 Color.clear
+                    .overlay { sigilMark }
             } else if plane == .astra, tile.kind == .normal, !hasDrawnCloud {
                 // Astra has no tiles — see `CloudTileView`. Structural squares
                 // (the island and its chasm) still draw normally: those are not
@@ -162,11 +179,26 @@ struct TileView: View {
     /// clearest possible statement of what the cover was doing.
     ///
     /// It takes the tile's own shade, so the checkerboard carries through it.
+    /// What is growing here, as far as the ground is concerned.
+    ///
+    /// **Only the dirt.** The blades stand up out of the tile and so cannot be
+    /// drawn with it — anything on this layer is sheared into its row, which
+    /// would lay them flat. They are drawn with the objects instead; see
+    /// `GrassBlades` and `BoardView.grass(metrics:)`.
+    /// The cover a square is wearing is painted by its **row**, in one canvas —
+    /// see `BandRow.cover`. It was a child of this view, and forty-nine extra
+    /// children on a board that rebuilds every frame is a cost SwiftUI pays
+    /// whatever the child happens to draw.
+    private var groundCover: some View { EmptyView() }
+
+    /// The Miasma's mark, turning.
     @ViewBuilder
-    private var groundCover: some View {
-        if let cover = tile.cover {
-            PixelSprite(id: .tileCover(shade, cover)) { EmptyView() }
-        }
+    private var sigilMark: some View {
+        // The Miasma's sigil used to be drawn here, and a mark drawn inside an
+        // upright tile view is an upright mark: on Astra, where nothing shears
+        // it afterwards, it stood on the cloud like a signpost. It is a board
+        // object now, laid into the ground's own perspective by `OnBoard` —
+        // see `BoardObjectKind.sigil`.
     }
 
     private var face: some View {
@@ -243,5 +275,20 @@ struct TileEdgeView: View {
             Color.clear
         }
         .frame(width: size, height: size)
+    }
+}
+
+
+/// The bloom around a Miasma sigil.
+///
+/// Its own modifier so the mark can be built inside a `TimelineView` and lit
+/// outside it — a glow rebuilt every frame is a mask rebuilt every frame.
+struct SigilGlow: ViewModifier {
+    let radius: CGFloat
+
+    func body(content: Content) -> some View {
+        PaletteGlow(radius: radius, intensity: GameRules.miasmaMarkGlowStrength) {
+            content
+        }
     }
 }

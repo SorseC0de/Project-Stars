@@ -135,7 +135,19 @@ struct PlacedOnPlane: ViewModifier {
     let metrics: PixelArtMetrics
     let framing: (emphasis: CGFloat, zoom: CGFloat, lift: CGFloat, pivot: CGFloat, spacing: CGSize)
 
+    /// For content that has already placed itself absolutely — see
+    /// `OnBoard`, where a sheared Terra mark does exactly that.
+    var isDisabled = false
+
     func body(content: Content) -> some View {
+        if isDisabled {
+            content
+        } else {
+            placed(content)
+        }
+    }
+
+    private func placed(_ content: Content) -> AnyView {
         // Terra's ground is drawn in bands, so anything standing on it is
         // centred on the band rather than on where the square projects to. See
         // `BoardBand.drawnCentreY`.

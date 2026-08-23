@@ -51,19 +51,36 @@ struct PieceView: View {
     /// shadows would be a trail of things claiming to be standing there.
     var showsShadow = true
 
+    /// Which part of Libra's assembly this copy draws. See `LibraPieceView.Part`.
+    var part: LibraPieceView.Part = .whole
+
+    /// How white the figure still is as it arrives, `1`…`0`.
+    ///
+    /// A wash over the finished figure rather than a different drawing: the
+    /// piece resolves *into* itself, which is the entrance every game with a
+    /// spawn animation uses because it says "this is you" before it says
+    /// anything about which sign you are.
+    var spawnWash: Double = 0
+
     /// Which drawing this piece is right now.
+    /// True when this copy is the pan drawn a row ahead of her, which brings
+    /// none of the rest of the figure with it.
+    private var isFrontPanOnly: Bool { part == .frontPan }
+
     private var spriteID: SpriteID {
         if zodiac.hasOwnHalves, let twin { return .geminiHalf(twin) }
-        // Cancer is drawn from every side. Everyone else is one statue seen
-        // from the front, however it is facing.
-        if zodiac == .cancer { return .cancerFacing(facing) }
-        return .piece(zodiac)
+        // **Every sign is drawn from every side.** This used to be a Cancer
+        // exception with everyone else a statue seen from the front however it
+        // was facing. Gemini still is one — its column spends its slots on the
+        // halves, so all four of its facings point at the same drawing.
+        return .pieceFacing(zodiac, facing)
     }
 
     /// True when this drawing is the mirror of one on the sheet.
     ///
-    /// Cancer's east is its west flipped — three drawings covering four sides.
-    private var isMirrored: Bool { zodiac == .cancer && facing == .right }
+    /// East is west flipped — three drawings covering four sides, for everyone
+    /// except Gemini, whose one drawing faces south whichever way it walks.
+    private var isMirrored: Bool { zodiac != .gemini && facing == .right }
 
     /// The movement playing out, if any. See `GameSession.Movement`.
     var movement: GameSession.Movement?
@@ -194,6 +211,17 @@ struct PieceView: View {
             AquariusStormPiece(phase: stormPhase, film: stormFilm, tileSize: tileSize)
         } else {
             lit.colorFlash(ElementFX.ramp(for: zodiac.element).mid, amount: chargeFlash)
+                .colorFlash(Palette.white, amount: spawnWash)
+                // **Outside the material, on purpose.**
+                //
+                // Stone and moss are what the *figure* is made of. A gem is not
+                // — it is a cut stone floating near one, and Terra was growing
+                // moss on it because it happened to be drawn inside the view
+                // the moss pass covers. Out here it keeps its own colours on
+                // both planes, which is what a gem is for.
+                .background(alignment: .top) { virgoGems(behind: true) }
+                .overlay(alignment: .top) { virgoGems(behind: false) }
+                .overlay(alignment: .top) { sagittariusArrow }
         }
     }
 
@@ -417,6 +445,7 @@ struct PieceView: View {
             // so everything wrapped around a piece sprite still applies: the
             // gold swap, the charge glow, the hop's squash, the fall's spin.
             LibraPieceView(
+                part: part,
                 facing: facing,
                 tileSize: tileSize,
                 scale: scale,
@@ -463,8 +492,6 @@ struct PieceView: View {
             }
             // East is west, mirrored — see `isMirrored`.
             .scaleEffect(x: isMirrored ? -1 : 1, y: 1)
-            .overlay(alignment: .top) { virgoGems }
-            .overlay(alignment: .top) { sagittariusArrow }
             .overlay(alignment: .top) { leoEmbers }
             .overlay(alignment: .top) { piscesFish }
         }
@@ -499,24 +526,28 @@ struct PieceView: View {
     @ViewBuilder
     private var piscesFish: some View {
         if zodiac == .pisces {
-            TimelineView(.animation) { timeline in
-                let now = clock(timeline.date.timeIntervalSinceReferenceDate)
-
+            Group {
                 if isCharged {
-                    let orbit = now / GameRules.piscesFishOrbitPeriod * 2 * .pi
-                    let spin = now / GameRules.piscesFishSpinPeriod * 360
-
+                    // **The star's motion**, not a private one: bob, turn and
+                    // breathe together. It was three hand-written curves that
+                    // happened to describe the same idea Polaris already had a
+                    // name for — see `HoverStyle`.
                     PixelSprite(id: .piscesFishCharged) { Color.clear }
-                        .rotationEffect(.degrees(-spin))
+                        .rotationEffect(fishTurn)
+                        .scaleEffect(x: 1, y: fishSquash)
+                        .offset(y: fishSquashDrop)
+                        .modifier(Hovering(style: .star, clock: clock))
                         .offset(
-                            x: sin(orbit) * GameRules.piscesFishOrbit * scale,
-                            y: (cos(orbit) - 1) / 2 * GameRules.piscesFishOrbit * scale
-                                + GameRules.piscesFishDrop * scale
+                            y: (GameRules.piscesFishDrop - GameRules.piscesFishLift)
+                                * scale
                         )
                 } else {
                     // Still, and stone. The fish is part of him until the meter
                     // fills; only then does it come loose.
                     PixelSprite(id: .piscesFish) { Color.clear }
+                        .rotationEffect(fishTurn)
+                        .scaleEffect(x: 1, y: fishSquash)
+                        .offset(y: fishSquashDrop)
                         .offset(y: GameRules.piscesFishDrop * scale)
                 }
             }
@@ -547,7 +578,8 @@ struct PieceView: View {
                     ? (1 - cos(now / GameRules.sagittariusArrowPeriod * 2 * .pi)) / 2
                     : 0
 
-                PixelSprite(id: .sagittariusArrowRest) { Color.clear }
+                PixelSprite(id: .sagittariusArrowRest(SpriteAxis(facing: facing))) { Color.clear }
+                    .scaleEffect(x: facing == .right ? -1 : 1, y: 1)
                     // A smaller copy of itself, flattened to yellow, sitting
                     // inside the drawn one.
                     //
@@ -565,7 +597,8 @@ struct PieceView: View {
                     // rather than the thing casting it.
                     .overlay {
                         if isCharged {
-                            PixelSprite(id: .sagittariusArrowRest) { Color.clear }
+                            PixelSprite(id: .sagittariusArrowRest(SpriteAxis(facing: facing))) { Color.clear }
+                    .scaleEffect(x: facing == .right ? -1 : 1, y: 1)
                                 .scaleEffect(GameRules.sagittariusArrowCoreScale)
                                 .modifier(Flickering(now: now, scale: scale))
                                 .offset(y: GameRules.sagittariusArrowCoreDrop * scale)
@@ -668,7 +701,8 @@ struct PieceView: View {
                     + (1 - GameRules.emberSmallest)
                         * (GameRules.jitter(Double(ember), salt: 7) + 1) / 2)
 
-            PixelSprite(id: .sagittariusArrowRest) { Color.clear }
+            PixelSprite(id: .sagittariusArrowRest(SpriteAxis(facing: facing))) { Color.clear }
+                    .scaleEffect(x: facing == .right ? -1 : 1, y: 1)
                 .scaleEffect(size)
                 .modifier(
                     Flickering(
@@ -715,7 +749,12 @@ struct PieceView: View {
 
 
     @ViewBuilder
-    private var virgoGems: some View {
+    private func virgoGems(behind: Bool) -> some View {
+        virgoGemLayer(behind: behind)
+    }
+
+    @ViewBuilder
+    private func virgoGemLayer(behind: Bool) -> some View {
         if zodiac == .virgo {
             TimelineView(.animation) { timeline in
                 let now = clock(timeline.date.timeIntervalSinceReferenceDate)
@@ -728,20 +767,53 @@ struct PieceView: View {
                 let dip = (1 - cos(swing)) / 2
                 let across = sin(swing)
 
+                let cast = gemCast
+                // Falling and swelling together, so it reads as coming toward
+                // the viewer rather than sliding down.
+                let drop = (1 - cos(bob)) / 2
+
                 ZStack {
                     // The left gem runs anticlockwise, the right one clockwise,
                     // so the pair opens and closes together rather than sliding
-                    // across her in step.
-                    outerGem(across: -across, dip: dip)
-                    outerGem(across: across, dip: dip, mirrored: true)
-
-                    // Falling and swelling together, so it reads as coming
-                    // toward the viewer rather than sliding down.
-                    let drop = (1 - cos(bob)) / 2
-                    PixelSprite(id: .virgoGem(.middle)) { Color.clear }
-                        .scaleEffect(1 + drop * GameRules.virgoGemFloatGrowth)
-                        .offset(y: drop * GameRules.virgoGemFloat * scale)
+                    // across her in step. Side-on they are not a pair at all:
+                    // one is behind her and one in front, each its own drawing.
+                    if cast.backBehind == behind {
+                        outerGem(
+                            cast.back, across: -across, dip: dip, at: cast.backAt,
+                            // Half a turn apart, so one rises as the other
+                            // falls and the pair reads as a ring rather than as
+                            // two gems bobbing together.
+                            // Half a turn apart unless the cast asks for them
+                            // together — facing away, opposite phases read as
+                            // two gems arguing rather than as one ring.
+                            orbit: cast.pairOrbits
+                                ? swing + (cast.pairInPhase ? 0 : .pi)
+                                : nil,
+                            swingsWide: cast.pairSwingsWide,
+                            rise: cast.pairRise,
+                            swingX: cast.pairSwingX
+                        )
+                    }
+                    if cast.frontBehind == behind {
+                        outerGem(
+                            cast.front, across: across, dip: dip,
+                            mirrored: cast.frontIsMirrored, at: cast.frontAt,
+                            orbit: cast.pairOrbits ? swing : nil,
+                            swingsWide: cast.pairSwingsWide,
+                            rise: cast.pairRise,
+                            depthSwing: cast.frontDepthSwing,
+                            depthBack: cast.frontDepthBack,
+                            swingX: cast.pairSwingX
+                        )
+                    }
+                    if cast.middleBehind == behind {
+                        middleGem(cast, drop: drop, swing: swing)
+                    }
                 }
+                // The gems are overlaid after the figure is mirrored, so they
+                // have to take the flip themselves or her right-facing set
+                // would be her left-facing one.
+                .scaleEffect(x: isMirrored ? -1 : 1, y: 1)
             }
             .frame(width: tileSize, height: tileSize)
             .allowsHitTesting(false)
@@ -753,14 +825,231 @@ struct PieceView: View {
     /// Grows as it falls, like the middle one — the near half of the oval is
     /// the half closest to the viewer, so the swell is what makes the path read
     /// as a ring rather than as a slide left and right.
-    private func outerGem(across: Double, dip: Double, mirrored: Bool = false) -> some View {
-        PixelSprite(id: .virgoGem(.outer)) { Color.clear }
+    private func outerGem(
+        _ gem: VirgoGem,
+        across: Double,
+        dip: Double,
+        mirrored: Bool = false,
+        at place: CGSize = .zero,
+        orbit: Double? = nil,
+        swingsWide: Bool = false,
+        rise: CGFloat = GameRules.virgoGemOrbitRise,
+        depthSwing: CGFloat = 0,
+        depthBack: CGFloat = 0,
+        swingX: CGFloat = GameRules.virgoGemSwingX
+    ) -> some View {
+        // **A dip is not an orbit.** `(1 - cos) / 2` is never negative, so the
+        // pair only ever sagged below where it was drawn and never rose above
+        // it. Facing her, that reads as weight. Side-on, where the ring is seen
+        // edge-on, it has to go both ways — so there the height is a sine and
+        // the sideways swing is left out, since depth is doing that work.
+        let rise = orbit.map { -sin($0) * rise * scale }
+        let sideways = orbit == nil || swingsWide
+            ? across * swingX * scale
+            : 0
+
+        // Round the back of the circuit and out again, a quarter turn off the
+        // height — which is what makes a gem side-on read as going *behind* her
+        // rather than bobbing beside her.
+        // **Further back than forward, and still one curve.**
+        //
+        // The circuit is not symmetric to look at: it should go further round
+        // behind her than it comes toward the viewer. Swapping the amplitude at
+        // the halfway point does that arithmetically and *jerks* — the reach
+        // changes size the instant the gem crosses the middle. So the two ends
+        // are turned into a span and a centre instead, which reaches exactly as
+        // far each way and never steps.
+        //
+        // A gem with no depth at either end stays exactly where it was put.
+        let depth = orbit.map { turn -> CGFloat in
+            let span = (depthSwing + depthBack) / 2
+            let centre = (depthBack - depthSwing) / 2
+            return (-cos(turn) * span + centre) * scale
+        } ?? 0
+
+        return PixelSprite(id: .virgoGem(gem)) { Color.clear }
             .scaleEffect(x: mirrored ? -1 : 1, y: 1)
             .scaleEffect(1 + dip * GameRules.virgoGemFloatGrowth)
             .offset(
-                x: across * GameRules.virgoGemSwingX * scale,
-                y: dip * GameRules.virgoGemSwingY * scale
+                x: sideways + depth + place.width * scale,
+                y: (rise ?? dip * GameRules.virgoGemSwingY * scale) + place.height * scale
             )
+    }
+
+    /// The gem that floats on its own, in front of her or behind her head.
+    private func middleGem(_ cast: GemCast, drop: Double, swing: Double) -> some View {
+        // **Side-on it is going round her, not up and down.**
+        //
+        // A ring seen edge-on: it rises to the top of the circuit shrinking as
+        // it goes, is smallest at the far side halfway through, swells again on
+        // the way down, and is back to full size where it started. One cosine
+        // for the size and one sine for the height, a quarter turn apart, is
+        // the whole of it.
+        let orbits = cast.middleOrbits
+        let size = orbits
+            ? GameRules.virgoGemOrbitFar
+                + (1 - GameRules.virgoGemOrbitFar) * (1 + cos(swing)) / 2
+            : 1 + drop * GameRules.virgoGemFloatGrowth
+        let rise = orbits
+            ? -sin(swing) * GameRules.virgoGemMiddleRise * scale
+            : drop * GameRules.virgoGemFloat * scale
+
+        return PixelSprite(id: .virgoGem(cast.middle)) { Color.clear }
+            .scaleEffect(size)
+            .offset(
+                x: cast.middleAt.width * scale,
+                y: rise + cast.middleAt.height * scale
+            )
+    }
+
+
+
+    /// The gem places, from the bench while one is running.
+    private var westBack: CGSize { GameRules.virgoGemWestBack }
+
+    private var westFront: CGSize { GameRules.virgoGemWestFront }
+
+    private var westMiddle: CGSize { GameRules.virgoGemWestMiddle }
+
+    private var northPair: CGSize { GameRules.virgoGemNorthPair }
+
+    private var northMiddle: CGSize { GameRules.virgoGemNorthMiddle }
+
+    /// How much the fish flattens, seen from the side.
+    ///
+    /// Turned a quarter, the drawing's length runs up and down the screen —
+    /// which makes a fish that is as tall as it is long. Squashing it back
+    /// gives the side view the proportions the front one has.
+    private var fishSquash: CGFloat {
+        facing == .left || facing == .right ? GameRules.piscesFishSideSquash : 1
+    }
+
+    /// How far the squashed fish drops to keep its underside where it was.
+    ///
+    /// A scale about the centre takes half the lost height off each end, so the
+    /// bottom rises by half of it — pushing it back down by exactly that much
+    /// leaves the fish sitting where the unsquashed one sat.
+    private var fishSquashDrop: CGFloat {
+        (1 - fishSquash) * tileSize / 2
+    }
+
+    /// How far the fish is turned from the drawing, which faces south.
+    ///
+    /// Counter-clockwise, a quarter at a time: east a quarter, north a half,
+    /// west three quarters.
+    ///
+    /// Applied to the sprite rather than to the box it sits in — the box also
+    /// carries the drop that puts the fish on his body, and turning that swung
+    /// the fish around him instead of spinning it where it stood.
+    private var fishTurn: Angle {
+        switch facing {
+        case .right: .degrees(-90)
+        case .up: .degrees(-180)
+        case .left: .degrees(-270)
+        default: .zero
+        }
+    }
+
+    /// Which of the five gem drawings this facing uses, and how they sit.
+    ///
+    /// Five drawings, three arrangements. South and north are symmetrical, so
+    /// each spends one drawing on the pair and mirrors it. Side-on there is no
+    /// symmetry to spend: one gem is behind her, one is in front, and the
+    /// middle sits further out than either.
+    private struct GemCast {
+        /// The gem drawn first — her left, or the one behind her side-on.
+        let back: VirgoGem
+
+        /// Her right, or the one in front of her side-on.
+        let front: VirgoGem
+
+        /// Whether the front one is the back one flipped rather than its own
+        /// drawing.
+        let frontIsMirrored: Bool
+
+        let middle: VirgoGem
+
+        /// Where each gem sits, in art pixels from where it was drawn.
+        ///
+        /// Zero all round for south — those were placed when they were drawn.
+        /// The other two arrangements are found on the bench; see
+        /// `VirgoGemTuning`.
+        let backAt: CGSize
+        let frontAt: CGSize
+        let middleAt: CGSize
+
+        /// Which gems draw behind her rather than over her.
+        ///
+        /// Facing away they all do — every one of them is on the far side of
+        /// her head. Side-on only the back one does, which is what makes it the
+        /// back one.
+        let backBehind: Bool
+        let frontBehind: Bool
+        let middleBehind: Bool
+
+        /// Whether the middle gem swings round her on a ring seen edge-on,
+        /// growing and shrinking as it comes and goes.
+        let middleOrbits: Bool
+
+        /// Whether the pair rides a real circuit rather than the front view's
+        /// one-way sag, and whether that circuit keeps its sideways swing.
+        ///
+        /// Facing away it does, which makes a vertical oval. Side-on it does
+        /// not, because depth is already doing the sideways work.
+        let pairOrbits: Bool
+        let pairSwingsWide: Bool
+
+        /// Whether the pair runs together rather than half a turn apart.
+        var pairInPhase = false
+
+        /// How far the pair rises and falls, in art pixels.
+        var pairRise = GameRules.virgoGemOrbitRise
+
+        /// How far the front gem comes toward the viewer, in art pixels.
+        var frontDepthSwing: CGFloat = 0
+
+        /// How far it goes the other way, round behind her.
+        var frontDepthBack: CGFloat = 0
+
+        /// How wide the pair swings sideways, in art pixels.
+        var pairSwingX = GameRules.virgoGemSwingX
+    }
+
+    private var gemCast: GemCast {
+        switch facing {
+        case .up:
+            GemCast(
+                back: .northWest, front: .northWest, frontIsMirrored: true,
+                middle: .north,
+                backAt: CGSize(width: -northPair.width, height: northPair.height),
+                frontAt: northPair,
+                middleAt: northMiddle,
+                backBehind: true, frontBehind: true, middleBehind: true,
+                middleOrbits: false, pairOrbits: true, pairSwingsWide: true,
+                pairInPhase: true, pairRise: GameRules.virgoGemNorthRise,
+                pairSwingX: GameRules.virgoGemNorthSwingX
+            )
+        case .left, .right:
+            GemCast(
+                back: .northWest, front: .southWest, frontIsMirrored: false,
+                middle: .west,
+                backAt: westBack, frontAt: westFront, middleAt: westMiddle,
+                backBehind: true, frontBehind: false, middleBehind: false,
+                middleOrbits: true, pairOrbits: true, pairSwingsWide: false,
+                frontDepthSwing: GameRules.virgoGemFrontDepthSwing,
+                frontDepthBack: GameRules.virgoGemBackDepthSwing
+            )
+        // Facing the viewer. Diagonals do not reach here — a diagonal move
+        // resolves to a cardinal facing first, see `SwipeDirection.facing(from:)`.
+        default:
+            GemCast(
+                back: .southWest, front: .southWest, frontIsMirrored: true,
+                middle: .south,
+                backAt: .zero, frontAt: .zero, middleAt: .zero,
+                backBehind: false, frontBehind: false, middleBehind: false,
+                middleOrbits: false, pairOrbits: false, pairSwingsWide: false
+            )
+        }
     }
 
     private var gem: GemTones { .forElement(zodiac.element) }

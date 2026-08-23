@@ -34,6 +34,21 @@ import SwiftUI
 /// with its twin.
 struct LibraPieceView: View {
 
+    /// Which part of the assembly this copy draws.
+    ///
+    /// **The near pan sorts a row ahead of her.** In profile it hangs out over
+    /// the square in front, and drawn with the rest of her it was buried by
+    /// that square's tile the moment the board started drawing row by row. So
+    /// the pan is drawn twice over: once as nothing, here, and once as its own
+    /// board object one row nearer. Both copies are the same view with the same
+    /// inputs, so they cannot fall out of step.
+    enum Part {
+        case whole
+        case frontPan
+    }
+
+    var part: Part = .whole
+
     /// Which way she is facing.
     let facing: SwipeDirection
 
@@ -95,6 +110,21 @@ struct LibraPieceView: View {
             let breath = travel.lift == nil ? idle : 0
 
             ZStack {
+                // The forward copy carries the pan alone — everything else
+                // belongs on her own row.
+                if part == .frontPan {
+                    // **The same box she is drawn in, kept empty.**
+                    //
+                    // Every part of this assembly is placed by an offset from
+                    // the middle of a two-tile figure. Drawing the pan on its
+                    // own collapsed the stack to one tile, so those offsets
+                    // measured from a different centre and put the pan
+                    // somewhere off the square entirely.
+                    Color.clear
+                        .frame(width: tileSize, height: tileSize * 2)
+
+                    pans(side: .near, sway: carry + breath, swing: travel.swing)
+                } else {
                 // On the ground, under everything.
                 if isProfile {
                     panShadow(side: .far, sway: carry - breath, swing: travel.swing)
@@ -127,7 +157,11 @@ struct LibraPieceView: View {
                 // and decline its squash, which is a thing a body does and a
                 // dish on a string does not.
                 shaded(
-                    PixelSprite(id: .piece(.libra)) { Color.clear }
+                    // Her own facing, not the front view. She has her own
+                    // piece view for the arms and pans, and it was reaching for
+                    // `.piece` — the south drawing — while every other sign had
+                    // moved on to asking which way it was looking.
+                    PixelSprite(id: .pieceFacing(.libra, facing)) { Color.clear }
                         .frame(width: tileSize, height: tileSize * 2),
                     cells: 2
                 )
@@ -135,7 +169,12 @@ struct LibraPieceView: View {
 
                 // In front of the body.
                 if isProfile {
-                    limb(side: .near, sway: carry + breath, swing: travel.swing)
+                    // The arm stays with her; only the pan on the end of it
+                    // goes forward a row.
+                    arm(side: .near, sway: carry + breath)
+                    if part == .frontPan {
+                        pans(side: .near, sway: carry + breath, swing: travel.swing)
+                    }
                 } else {
                     // Both on the same beat, leaning apart.
                     //
@@ -145,6 +184,7 @@ struct LibraPieceView: View {
                     // which is the shape the sign is named for.
                     pans(side: .left, sway: carry - breath, swing: travel.swing)
                     pans(side: .right, sway: carry + breath, swing: travel.swing)
+                }
                 }
             }
         }
