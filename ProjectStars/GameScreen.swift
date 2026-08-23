@@ -136,6 +136,18 @@ struct GameScreen: View {
                 // square, and every past attempt to add something at this level
                 // with a frame threw those positions across the screen.
                 .overlay { edgeVignette(side: side) }
+                // **The upper square, not the screen.**
+                //
+                // The card announces the run, and the run is the board — centred
+                // over both squares it would sit half across the control panel,
+                // naming a mode over a row of buttons. An overlay for the same
+                // reason the vignette is one: it takes the playfield's bounds
+                // without being able to move anything laid out inside them.
+                .overlay {
+                    if let mode = session.modeCard {
+                        GameModeSplashView(mode: mode) { session.modeCardFinished() }
+                    }
+                }
 
                 // Lower square: information and the input zone.
                 ControlPanelView(session: session, side: side)
@@ -387,6 +399,11 @@ struct GameScreen: View {
 
             Button("Restart run") { session.restart() }
                 .keyboardShortcut("r", modifiers: [])
+
+            #if DEBUG
+            Button("Replay the mode card") { session.modeCard = session.mode }
+                .keyboardShortcut("m", modifiers: [])
+            #endif
 
             #if DEBUG
             Button("Shift Nexys") { session.debugShiftNexys() }

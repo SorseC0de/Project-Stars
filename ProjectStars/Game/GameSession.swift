@@ -276,6 +276,16 @@ final class GameSession {
     /// and fades on this.
     private(set) var isFalling = false
 
+    /// What game this run is. See `GameMode`.
+    var mode: GameMode = .survival
+
+    /// The mode being announced right now, or `nil` between runs.
+    ///
+    /// Holds the mode rather than a flag so the card can outlive a change of
+    /// mode mid-dismissal — it announces the run it opened, not whatever is
+    /// selected by the time it finishes leaving.
+    var modeCard: GameMode?
+
     /// Set while the Nexys island is travelling between planes.
     private(set) var isNexysShifting = false
 
@@ -895,12 +905,23 @@ final class GameSession {
         self.engine = GameEngine(zodiac: zodiac, seed: seed)
         self.codex = codex ?? .shared
         publish()
+
+        // The first run of the app opens the same way every later one does.
+        // `newGame` announces the mode, and the very first board never goes
+        // through it — it is built here — so the card would have been the one
+        // thing a player saw on every run except their first.
+        modeCard = mode
     }
 
     /// Abandons the current run and starts a new one.
     func newGame(zodiac: Zodiac? = nil, seed: UInt64? = nil) {
         replayTask?.cancel()
         replayTask = nil
+
+        // Every run opens by saying what it is. Set before the board is built
+        // rather than after, so the card is already up while the first frame of
+        // a fresh board is being put together.
+        modeCard = mode
 
         let sign = zodiac ?? startingZodiac
         startingZodiac = sign
@@ -3113,9 +3134,23 @@ final class GameSession {
     /// the opposite of what a splash is for.
     @discardableResult
     func dismissIntroIfShowing() -> Bool {
+        // The mode card first: it is the one that opens a run, so it is the one
+        // an impatient player reaches through. Same rule as the Pentacle's
+        // card — reaching for the controls is how a splash is put away, and the
+        // input is spent doing it.
+        if modeCard != nil {
+            modeCard = nil
+            return true
+        }
+
         guard pentacleIntro != nil else { return false }
         dismissPentacleIntro()
         return true
+    }
+
+    /// The card has finished leaving on its own.
+    func modeCardFinished() {
+        modeCard = nil
     }
 
     func dismissPentacleIntro() {
@@ -3802,6 +3837,7 @@ extension GameSession {
     /// The board being rendered in the top half of the screen.
     var visibleBoard: Board { engine[visiblePlane] }
 
+
     /// Whether `plane` is off screen and can stop asking for frames.
     ///
     /// See `EnvironmentValues.planeIsAsleep` for what this is for. Both planes
@@ -3923,7 +3959,8 @@ extension GameSession {
     }
 
     var acceptsInput: Bool {
-        phase == .awaitingInput && pentacleIntro == nil && pendingPickupChoice == nil && !isPaused
+        phase == .awaitingInput && pentacleIntro == nil && pendingPickupChoice == nil
+            && !isPaused && modeCard == nil
     }
 
     /// Whether a control should still *report* what the player did, even though
@@ -3937,7 +3974,7 @@ extension GameSession {
         // A question counts too: the stick and the pad steer the *aim* while one
         // is open, so they have to be live enough to report a direction even
         // though no move will be played.
-        acceptsInput || pentacleIntro != nil || isChoosingTile
+        acceptsInput || pentacleIntro != nil || isChoosingTile || modeCard != nil
     }
 
     /// True while the player is being asked to pick a square on the board.
