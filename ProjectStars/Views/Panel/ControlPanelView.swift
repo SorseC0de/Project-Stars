@@ -299,7 +299,7 @@ enum PanelStyle {
     /// The word on the way in, how far its shadow falls, and the words either
     /// side of it.
     static let startLabelSize: CGFloat = 30
-    static let startLabelShadow: CGFloat = 2
+    static let startLabelShadow: CGFloat = 4
     static let wideLabelSize: CGFloat = 15
 
     /// The full height of the Zodiaction row, which the lift panel sits above.
@@ -2552,10 +2552,17 @@ private struct PanelStartView: View {
                 // A drifting field of colour rather than a flat one, kept
                 // inside the button's own corners.
                 AnyView(
-                    SpectrumFace(isLive: session.modeCardHasLanded)
+                    SpectrumPane(isLive: session.modeCardHasLanded)
                         .clipShape(RoundedRectangle(cornerRadius: PanelStyle.buttonCorner))
                         .allowsHitTesting(false)
                 )
+
+                // The drifting blobs are parked — see `SpectrumFace`.
+                // AnyView(
+                //     SpectrumFace(isLive: session.modeCardHasLanded)
+                //         .clipShape(RoundedRectangle(cornerRadius: PanelStyle.buttonCorner))
+                //         .allowsHitTesting(false)
+                // )
             }
         )
         .frame(height: PanelStyle.zodiactionButtonHeight)
@@ -2632,8 +2639,12 @@ private enum Spectrum {
     static let bloomSpread: CGFloat = 5
     static let strength: Double = 0.85
 
-    /// The blobs on the face: how many, how big, how soft, and how far they
-    /// wander as a share of the button.
+    /// The glass, and the light behind it.
+    static let paneSoftness: CGFloat = 9
+    static let paneStrength: Double = 0.95
+
+    /// The blobs on the parked face: how many, how big, how soft, and how far
+    /// they wander as a share of the button.
     static let blobs = 9
     static let blobSoftness: CGFloat = 20
     static let blobDrift: CGFloat = 0.85
@@ -2708,7 +2719,63 @@ private struct SpectrumGlow: View {
     }
 }
 
+/// The face: the same spectrum, seen through frosted glass.
+///
+/// ## Why this and not the blobs
+///
+/// Because the blobs had to come back. Anything crossing a button has to
+/// return to where it started, and `autoreverses` is the only honest way to do
+/// that with a repeating animation — which means every blob spends half its
+/// life going the other way. No amount of staggering hides it: the whole field
+/// reverses, and a field that reverses is a field you can see turning round.
+///
+/// A rotation has no such problem. The same sweep that lights the halo turns
+/// behind the glass, in phase with it and at the same speed, so the button and
+/// the light around it are one object rather than two things that happen to
+/// share a palette. And it never comes back — it only ever goes round.
+///
+/// The material is asked for dark explicitly. It takes its cue from the
+/// environment otherwise, and this panel is dark whatever the phone is set to.
+private struct SpectrumPane: View {
+
+    let isLive: Bool
+
+    @State private var turned = false
+
+    var body: some View {
+        GeometryReader { geometry in
+            // Square and diagonal-wide, so no corner swings into view.
+            let side = hypot(geometry.size.width, geometry.size.height)
+
+            ZStack {
+                Rectangle()
+                    .fill(AngularGradient(colors: Spectrum.ring, center: .center))
+                    .frame(width: side, height: side)
+                    .rotationEffect(.degrees(turned ? 360 : 0))
+                    .blur(radius: Spectrum.paneSoftness)
+                    .opacity(isLive ? Spectrum.paneStrength : 0)
+                    .animation(
+                        .linear(duration: Spectrum.period).repeatForever(autoreverses: false),
+                        value: turned
+                    )
+
+                Rectangle()
+                    .fill(.ultraThinMaterial)
+                    .environment(\.colorScheme, .dark)
+            }
+            .frame(width: geometry.size.width, height: geometry.size.height)
+        }
+        .onChange(of: isLive, initial: true) { _, live in
+            if live { turned = true }
+        }
+    }
+}
+
 /// The face: soft blobs of colour drifting across each other.
+///
+/// **Parked.** Kept because the trick is a good one and something that is not a
+/// button will want it — a field where nothing has to return to its starting
+/// place. See `SpectrumPane` for why it could not stay here.
 ///
 /// ## Why blobs and a blur rather than a gradient
 ///
