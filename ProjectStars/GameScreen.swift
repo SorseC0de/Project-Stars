@@ -71,26 +71,31 @@ struct GameScreen: View {
         GeometryReader { proxy in
             let side = squareSide(in: proxy.size)
 
-            VStack(spacing: 0) {
-                // Upper square: the playfield.
-                ZStack {
-                    // **Both planes, actually stacked.**
-                    //
-                    // Astra above Terra, each in its own square, with the one
-                    // being stood on scrolled into frame. Nothing about this
-                    // changes what is seen today — the other plane is off screen
-                    // and clipped away — but it is the difference between a
-                    // transition that can travel between them and one that has
-                    // to hide a swap behind a curtain.
-                    VStack(spacing: 0) {
-                        planeSquare(.astra, side: side)
-                        planeSquare(.terra, side: side)
-                        //planeSquare(.umbra, side: side)
-                    }
-                    .offset(y: session.visiblePlane == .astra ? 0 : -side)
-                    .frame(width: side, height: side, alignment: .top)
-                    .clipped()
+            ZStack(alignment: .top) {
+                // **The world, drawn once, behind everything.**
+                //
+                // Nine squares in one column — see `World`. The window onto it
+                // is the whole screen rather than the playfield, because the
+                // lower square is behind the control panel and what is behind
+                // the panel is still being drawn: that is what lets a piece fall
+                // out of Terra into the underground without anything being
+                // moved to meet it.
+                ZStack(alignment: .top) {
+                    // Past both ends of the column, and the same colour the
+                    // column ends in. The camera overruns the world by a row at
+                    // the seam, and this is what it sees there — see
+                    // `World.wrapped(_:)`.
+                    Palette.coolBlack
 
+                    worldColumn(side: side)
+                        .offset(y: -CGFloat(session.cameraRow) * side)
+                }
+                .frame(width: side, height: side * 2, alignment: .top)
+                .clipped()
+
+                VStack(spacing: 0) {
+                // Upper square: everything the playfield is labelled with.
+                ZStack {
                     // Names what is being looked at, so it belongs with the
                     // thing being looked at rather than among the controls.
                     // The fragment you are carrying, immediately left of the
@@ -219,18 +224,40 @@ struct GameScreen: View {
                 .overlay {
                     if let mode = session.modeCard {
                         GameModeSplashView(
-                    title: mode.title,
-                    subtitle: mode.blurb,
-                    isLeaving: session.modeCardIsLeaving,
-                    onLanded: { session.modeCardHasLanded = true },
-                    onFinished: { session.modeCardFinished() }
-                )
+                            title: mode.title,
+                            subtitle: mode.blurb,
+                            isLeaving: session.modeCardIsLeaving,
+                            onLanded: { session.modeCardHasLanded = true },
+                            onFinished: { session.modeCardFinished() }
+                        )
+                    } else if session.phase == .gameOver {
+                        // **The same card, saying the opposite thing.** It opens
+                        // the run and it closes it, in the same place, so the two
+                        // read as one object rather than two that resemble each
+                        // other. It arrives and never leaves: `isLeaving` stays
+                        // low, so the bars settle into their Z and hold.
+                        GameModeSplashView(
+                            title: DeathStyle.title,
+                            subtitle: session.engine.gameOverReason?.displayText ?? "",
+                            ink: Palette.red,
+                            isLeaving: false,
+                            onLanded: {},
+                            onFinished: {}
+                        )
                     }
                 }
 
-                // Lower square: information and the input zone.
+                // Lower square: information and the input zone — and the lid
+                // over the underground.
+                //
+                // **It fades rather than moving.** The row below Terra is drawn
+                // whether or not anybody is looking at it, directly behind this,
+                // so a piece falling out of the world is already down there
+                // before the panel gets out of the way. Nothing is revealed;
+                // something stops being covered.
                 ControlPanelView(session: session, side: side, onQuit: onQuit)
                     .frame(width: side, height: side)
+                    .opacity(session.panelVeil)
                     .overlay(alignment: .bottomLeading) {
                         #if DEBUG
                         // **Both benches parked.** The counter is placed and the rift is
@@ -266,6 +293,7 @@ struct GameScreen: View {
                         }
                         #endif
                     }
+                }
             }
             .frame(width: proxy.size.width, height: proxy.size.height)
             
@@ -288,8 +316,6 @@ struct GameScreen: View {
                 }
             } else if session.isPaused {
                 PauseMenuView(session: session, onQuit: onQuit)
-            } else if session.phase == .gameOver {
-                DeathView(session: session)
             }
         }
         .overlay(alignment: .top) {
@@ -382,6 +408,47 @@ struct GameScreen: View {
     /// The sky belongs to the plane rather than to the screen, which is what
     /// lets the two be stacked at all — Astra's stars and Terra's daylight are
     /// as much a part of where you are as the ground is.
+    /// The world, top to bottom.
+    ///
+    /// Each place offset to its own row rather than stacked in a `VStack`, so a
+    /// row can be left out — the underground has no board and Umbra has no
+    /// anything yet — without everything below it sliding up to fill the gap.
+    /// The column's geometry lives in `World`, and this is the only place that
+    /// turns it into points.
+    private func worldColumn(side: CGFloat) -> some View {
+        ZStack(alignment: .top) {
+            WorldSky(
+                side: side,
+                camera: session.cameraRow,
+                clock: session.ambientClock(at:)
+            )
+
+            row(World.row(of: .astra), side: side) { planeSquare(.astra, side: side) }
+            row(World.row(of: .terra), side: side) { planeSquare(.terra, side: side) }
+            row(World.underground, side: side) { DeathView(session: session) }
+        }
+        .frame(width: side, height: side * CGFloat(World.rows), alignment: .top)
+    }
+
+    /// One square of the column, in its place.
+    ///
+    /// **Mounted whether or not it can be seen**, and asleep when it cannot —
+    /// see `GameSession.planeIsAsleep(_:)`. Unmounting would be cheaper to
+    /// describe and worse to play: a board rebuilt from nothing every time the
+    /// camera arrives is a board rebuilt at the exact moment the camera is
+    /// moving, which is the one moment there is no frame to spare. What cost
+    /// this project a week was a plane that kept *ticking* off screen, not one
+    /// that kept existing.
+    private func row<Content: View>(
+        _ index: Int,
+        side: CGFloat,
+        @ViewBuilder content: () -> Content
+    ) -> some View {
+        content()
+            .frame(width: side, height: side)
+            .offset(y: CGFloat(index) * side)
+    }
+
     private func planeSquare(_ plane: Plane, side: CGFloat) -> some View {
         planeContents(plane, side: side)
             // Everything inside stops asking for frames while this plane is the
@@ -391,12 +458,13 @@ struct GameScreen: View {
 
     private func planeContents(_ plane: Plane, side: CGFloat) -> some View {
         ZStack {
-            // The sky fills the whole square, not just the grid — the
-            // letterboxing either side of a 7x7 board at whole-pixel scale is
-            // part of the view, and should be sky rather than chrome.
-            SkyView(plane: plane, side: side, clock: session.ambientClock(at:))
+            // **No sky here.** It used to be one per plane, each the size of its
+            // own square and each ending at its own edge — which is precisely
+            // why nothing could ever be seen travelling between two of them. The
+            // sky is now the column's, drawn once behind all nine rows. See
+            // `WorldSky`.
 
-            // Underneath the sky, and underneath the board with it — so it
+            // Underneath the board — so it
             // shows through Astra's holes. See `GroundBelowView`.
             if plane == .astra {
                 GroundBelowView(side: side, metrics: PixelArtMetrics(availableSide: side))

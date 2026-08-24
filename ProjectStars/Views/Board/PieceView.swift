@@ -114,10 +114,6 @@ struct PieceView: View {
     /// spin reads as one continuous counter-clockwise turn.
     var spin: Double = 0
 
-    /// Vertical offset applied to the **sprite only**, for falling in from
-    /// off-screen. The shadow deliberately does not move with it.
-    var dropOffset: CGFloat = 0
-
     /// Size of the shadow relative to its resting size. Swells from small to
     /// full as a falling piece nears the ground.
     var shadowScale: CGFloat = 1
@@ -188,7 +184,6 @@ struct PieceView: View {
             // Spin and drop apply to the sprite alone, so the shadow stays put
             // on the square being fallen onto.
             .rotationEffect(.degrees(spin))
-            .offset(y: dropOffset)
         }
         .offset(y: carryOffset)
         // The drop: **down and out**, not smaller.
@@ -207,7 +202,10 @@ struct PieceView: View {
         // nearer the camera is painted after this one, so a piece travelling
         // down passes behind each in turn and is gone by the bottom of the
         // board without ever being made transparent. See `BoardObject.z`.
-        .offset(y: isFalling ? GameRules.fallDrop * scale : 0)
+        // **Not here any more.** A falling piece used to be shoved down its own
+        // square by a fixed distance while the boards were swapped behind it.
+        // It travels down the world column now, which is a real position rather
+        // than a shove — see `BoardView.fallOffset(metrics:)`.
         .allowsHitTesting(false)
     }
 

@@ -50,7 +50,14 @@ struct BoardView: View {
         #endif
         let metrics = PixelArtMetrics(availableSide: availableSide)
         let plane = shown
-        let board = session.visibleBoard
+        // **This square's board, not the one being looked at.**
+        //
+        // These were the same thing for as long as only one square could be
+        // seen at a time. They stopped being the same thing the moment two rows
+        // of the column were on screen together: a departing plane was drawing
+        // the destination's tiles, and nobody could tell because the clip that
+        // is now gone was hiding it.
+        let board = session.engine[plane]
 
         // The whole board seen through the tear, chrome excepted.
         //
@@ -832,7 +839,7 @@ struct BoardView: View {
 
     /// The plane's background, when there is art for it.
     ///
-    /// No fallback fill. `SkyView` is already behind the whole upper square —
+    /// No fallback fill. `WorldSky` is already behind the whole column —
     /// Astra's starfield, Terra's daylight — and a flat tinted rectangle here
     /// covered it up, boxing the cloud grid inside a square that should not be
     /// visible at all.
@@ -2478,7 +2485,13 @@ struct BoardView: View {
             // carrying somebody, when they are the same pose and stacking them
             // applies the journey twice.
             scale: session.nexysCarryingPiece ? travel.scale : ascent.scale * travel.scale,
-            lift: session.nexysCarryingPiece ? travel.lift : ascent.lift + travel.lift,
+            // Plus the ride, when it is carrying somebody between planes. The
+            // island and its passenger have to arrive together, and the one way
+            // to guarantee that is for both to read the same number — so the
+            // island takes exactly the offset the piece takes, out of exactly
+            // the same property. See `fallOffset(metrics:)`.
+            lift: (session.nexysCarryingPiece ? travel.lift : ascent.lift + travel.lift)
+                + (session.ascentRiseStartedAt != nil ? fallOffset(metrics: metrics) : 0),
             placement: placedOnPlaneModifier(GameRules.nexysPoint, metrics: metrics)
         )
     }
@@ -2517,12 +2530,14 @@ struct BoardView: View {
         part: LibraPieceView.Part = .whole,
         placedAt: GridPoint? = nil
     ) -> some View {
-        // Falls under gravity rather than at a constant rate: squaring the
-        // progress makes it accelerate into the ground.
-        let remaining = 1 - arrival * arrival
-        let dropOffset = -remaining * metrics.boardSize * GameRules.fallArrivalHeight
+        // **No drop offset any more.** The piece used to re-enter from above the
+        // top of its own square, which put it outside the window the square was
+        // clipped to — so for the first third of every arrival it was drawn
+        // nowhere at all, and the fall read as a piece blinking out and
+        // reappearing near the ground. It travels down the column now; see
+        // `fallOffset(metrics:)`.
 
-        // The shadow swells to meet it.
+        // The shadow still swells to meet it.
         var shadowScale = GameRules.fallArrivalShadowMin
             + (1 - GameRules.fallArrivalShadowMin) * arrival * arrival
 
@@ -2597,7 +2612,6 @@ struct BoardView: View {
                 : 0) + launchLift(metrics: metrics),
             pose: pose,
             spin: session.fallSpin,
-            dropOffset: dropOffset,
             shadowScale: shadowScale,
             chargeFlash: flash,
             starElement: starElement,
@@ -2650,6 +2664,18 @@ struct BoardView: View {
                                   clock: session.ambientClock(at:))
             }
         }
+        // **Down the column.**
+        //
+        // The one description of where the piece is in the world, as against
+        // where it is on its board. Both halves are rows: how far the camera has
+        // moved off this plane's row, and how far the piece has fallen past it.
+        //
+        // A plane change moves the first and leaves the second, which holds the
+        // piece still on screen while the world goes up past it. Falling out of
+        // the world moves the second and leaves the first, which drops the piece
+        // out of the frame it is standing in. The two never both move, and
+        // neither is a scale — a piece further down is not a piece further away.
+        .offset(y: fallOffset(metrics: metrics))
         // Island and passenger travel as one object during an ascent.
         .scaleEffect(ascent.scale)
         .offset(y: ascent.lift)
@@ -2665,6 +2691,15 @@ struct BoardView: View {
         .modifier(placedOnPlaneModifier(placedAt ?? session.engine.piece.point, metrics: metrics))
         }
         .frame(width: metrics.boardSize, height: metrics.boardSize)
+    }
+
+    /// Where the piece is in the world, relative to the square it is drawn in.
+    ///
+    /// In points, from two counts of rows — see `GameSession.cameraRow` and
+    /// `pieceDrop` for what each means and why they are separate.
+    private func fallOffset(metrics: PixelArtMetrics) -> CGFloat {
+        let home = Double(World.row(of: shown))
+        return CGFloat(session.cameraRow - home + session.pieceDrop) * availableSide
     }
 
     /// How far the cloud under the piece has wandered, and therefore how far
@@ -3149,14 +3184,16 @@ struct BoardView: View {
             return nexysTravelPose(at: date, metrics: metrics)
         }
 
-        if let rising = session.ascentRiseStartedAt {
-            let progress = date.timeIntervalSince(rising) / GameRules.ascentRiseDuration
-            return .rising(progress: min(max(progress, 0), 1), boardSize: metrics.boardSize)
-        }
-        if let growing = session.ascentGrowStartedAt {
-            let progress = date.timeIntervalSince(growing) / GameRules.ascentGrowDuration
-            return .risingIn(progress: progress, boardSize: metrics.boardSize)
-        }
+        // **Nothing for a climb.** Going up between planes used to be described
+        // here, as a lift off the top of one square and a drop into the next
+        // with the boards exchanged in between. The camera does that now, in one
+        // number, for the piece and the island together — see
+        // `GameSession.cameraRow`. A second description of the same journey
+        // would apply it twice.
+        //
+        // The island's *own* travel stays, above: that happens while the camera
+        // is still, so it is genuinely a different movement rather than another
+        // account of this one.
         return .rest
     }
 

@@ -73,20 +73,27 @@ struct AscentPose: Equatable {
         )
     }
 
-    /// Leaving a plane under its own power: shrinks toward the tile centre
-    /// while drifting the way it is headed.
+    /// Leaving a plane under its own power: travels off the bottom of the frame.
     ///
     /// Used when the island travels *without* a passenger — the Pentacle sends
-    /// it away rather than riding it — so it reads as the island departing
-    /// rather than as the world moving.
+    /// it away rather than riding it.
+    ///
+    /// **It used to shrink in place**, on the reasoning that the island is drawn
+    /// in front of the tiles so sliding it downward would read as moving across
+    /// the board rather than away from it. That reasoning belonged to a screen
+    /// where there was nothing below the board to move into. There is now: the
+    /// world is one column and under Terra is the underground, so going down
+    /// *is* the direction away, and a thing shrinking to nothing in mid-air is
+    /// the only part of the old transition that still said "this is a picture,
+    /// not a place".
+    ///
+    /// Accelerating, because it is falling.
     static func departing(progress: Double, boardSize: CGFloat, goingUp: Bool) -> AscentPose {
         let p = min(max(progress, 0), 1)
-        // No vertical drift. The island is drawn in front of the tiles, so
-        // sliding it downward reads as it moving *across* the board rather than
-        // away from it — shrinking in place is what says "leaving".
-        _ = goingUp
-        _ = boardSize
-        return AscentPose(lift: 0, scale: 1 - CGFloat(p))
+        // Far enough to be gone: past the bottom of its own square, whichever
+        // row it happens to be sitting in.
+        let travelled = CGFloat(p * p) * boardSize * GameRules.ascentRiseHeight
+        return AscentPose(lift: goingUp ? -travelled : travelled, scale: 1)
     }
 
     /// Arriving on Astra: swells from nothing at the centre of the tile.

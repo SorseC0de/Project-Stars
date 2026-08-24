@@ -235,6 +235,38 @@ final class GameSession {
     /// When the pair began swelling back in on Astra, or `nil`.
     private(set) var ascentGrowStartedAt: Date?
 
+    // MARK: - Where the camera is
+
+    /// Which row of the world the camera is looking at, from the top.
+    ///
+    /// Fractional while anything is travelling. The camera keeps the row being
+    /// stood on in the upper square, so standing still this is simply
+    /// `World.row(of:)` for the current plane — and a plane change is this
+    /// number going up rather than a board being swapped underneath a curtain.
+    ///
+    /// The piece is drawn against it too, at the same value in the same
+    /// transaction, so the two cannot drift: while it moves, the piece is
+    /// visually still and the world goes past it, which is what falling looks
+    /// like from inside.
+    private(set) var cameraRow: Double = Double(World.row(of: .astra))
+
+    /// How far the piece has fallen past its own plane's row.
+    ///
+    /// Zero almost always. It is what lets the piece move *without* the camera:
+    /// falling out of the world is the camera holding still on Terra while the
+    /// piece drops into the row underneath it, which is the row behind the
+    /// control panel. A plane change is the opposite — the camera moves and
+    /// this does not.
+    private(set) var pieceDrop: Double = 0
+
+    /// How solid the control panel is, `0`…`1`.
+    ///
+    /// Lowered only when there is something behind it worth seeing. The
+    /// underground is drawn under Terra whether or not anybody has died, and it
+    /// is directly behind the panel, so nothing is ever revealed here — the lid
+    /// just stops being opaque.
+    private(set) var panelVeil: Double = 1
+
     /// When the island began leaving a plane on its own, or `nil`.
     private(set) var nexysDepartStartedAt: Date?
 
@@ -979,6 +1011,9 @@ final class GameSession {
         fallArrivalStartedAt = nil
         ascentRiseStartedAt = nil
         ascentGrowStartedAt = nil
+        cameraRow = Double(World.row(of: engine.piece.plane))
+        pieceDrop = 0
+        panelVeil = 1
         nexysDepartStartedAt = nil
         nexysArriveStartedAt = nil
         lastCollectedPickup = nil
@@ -2309,7 +2344,13 @@ final class GameSession {
             // Half a fall would have it stop in mid-air first.
             await animateDescent(duration: GameRules.fallDuration)
             engine.apply(event)
+            spinForever()
             await sleep(event.displayDuration)
+
+            // And the lid comes back, now carrying the way out. The piece keeps
+            // turning behind it — it is still down there, and a run you can see
+            // the end of is a run you can see you are not in any more.
+            withAnimation(.easeInOut(duration: GameRules.fallDuration)) { panelVeil = 1 }
 
         case let .zodiactionMeterChanged(to):
             // Whether this is the change that arms the sign. Asked before and
@@ -2580,7 +2621,7 @@ final class GameSession {
     /// way onto its square. The cloud is pushed aside where it surfaces, which
     /// is the tell that something came *through* rather than appearing.
     private func animateRise(_ event: GameEvent, to plane: Plane) async {
-        await climb(event, arrivalDuration: GameRules.fallArrivalDuration) { [weak self] in
+        await climb(event, to: plane, arrivalDuration: GameRules.fallArrivalDuration) { [weak self] in
             guard let self else { return }
             // The sky comes apart where the fish broke through, at the square it
             // is arriving on rather than the one it left — that hole is below it
@@ -2608,6 +2649,7 @@ final class GameSession {
     ///   aside is only visible then.
     private func climb(
         _ event: GameEvent,
+        to destination: Plane,
         arrivalDuration: TimeInterval,
         onArrival: @escaping () -> Void
     ) async {
@@ -2620,24 +2662,26 @@ final class GameSession {
         // the top of the screen, and the plane it was standing on is replaced
         // while there is nothing of it on screen to see the replacement happen.
         // The slide is the transition. A flash over it is a second one.
+        // The fall run backwards, and the same one number doing it. See
+        // `animateFall` — going up is the camera walking to a lower row index
+        // instead of a higher one, and nothing else about it differs.
+        let travel = GameRules.ascentRiseDuration + arrivalDuration
+
         ascentRiseStartedAt = .now
-        await sleep(GameRules.ascentRiseDuration)
+        withAnimation(.linear(duration: travel)) {
+            cameraRow = Double(World.row(of: destination))
+        }
+        await sleep(travel)
 
         guard !Task.isCancelled else {
             ascentRiseStartedAt = nil
+            cameraRow = Double(World.row(of: engine.piece.plane))
             return
         }
 
         engine.apply(event)
         ascentRiseStartedAt = nil
         onArrival()
-
-        ascentGrowStartedAt = .now
-        fallArrivalStartedAt = .now
-        await sleep(arrivalDuration)
-
-        ascentGrowStartedAt = nil
-        fallArrivalStartedAt = nil
     }
 
     /// A move that is walked, hopped or run: the ordinary case.
@@ -2804,10 +2848,38 @@ final class GameSession {
     /// what happens next. Dropping to Terra and dropping out of the world
     /// entirely look identical while you are falling; they differ only in what
     /// is waiting underneath.
+    /// The turning that never stops, once the piece is at the bottom.
+    ///
+    /// A repeating animation rather than a clock this view has to be woken by:
+    /// the underground has nothing else moving in it, and the piece kept
+    /// spinning is the one thing saying the fall never ended.
+    private func spinForever() {
+        withAnimation(
+            .linear(duration: DeathStyle.spinPeriod).repeatForever(autoreverses: false)
+        ) {
+            fallSpin += DeathStyle.spinDirection * 360
+        }
+    }
+
+    /// Falling out of the world: through Terra, into what is under it.
+    ///
+    /// **The camera does not follow.** Everywhere else a fall moves the camera
+    /// and holds the piece still, because there is somewhere to arrive. There is
+    /// not, here — so the piece goes down and the frame stays where it is, which
+    /// is the difference between travelling and being dropped.
+    ///
+    /// It only has one row to fall, and that row is already on screen: the
+    /// underground sits directly under Terra, therefore directly behind the
+    /// control panel. So nothing is revealed. The lid over it just stops being
+    /// opaque while the piece arrives underneath.
     private func animateDescent(duration: TimeInterval) async {
         withAnimation(.easeIn(duration: duration)) {
             isFalling = true
+            pieceDrop = Double(World.underground - World.row(of: engine.piece.plane))
             fallSpin += tumble
+        }
+        withAnimation(.easeInOut(duration: duration * GameRules.panelLiftShare)) {
+            panelVeil = 0
         }
         await sleep(duration)
     }
@@ -2854,68 +2926,64 @@ final class GameSession {
     ///   the name of making it legible, slowing it down or sharpening it, works
     ///   directly against it.
     private func animateFall(_ event: GameEvent) async {
-        let departure = GameRules.fallDuration / 2
+        guard case let .pieceFell(from, to, at) = event else { return }
 
-        // A sign that means to be down there does not tumble on the way. The
-        // shrink stays — that is distance — and only the spin goes, since the
-        // spin is the part that says the piece has lost control of what is
-        // happening to it.
-        let controlled: Bool = {
-            guard case let .pieceFell(_, to, _) = event else { return false }
-            return engine.piece.zodiac.passives.fallIsControlled(
-                to: to, context: engine.passiveSnapshot
-            )
-        }()
-        // **One turn at one speed, ending upright.**
+        // **The whole fall, as one number going up.**
         //
-        // The whole spin is `fallSpinDegrees` — three turns, so the piece is
-        // the right way up at the instant it lands, which it always was. What
-        // it was not was *continuous*: half went on the way down under an ease
-        // and half on the way in under a linear, so the rate changed at the
-        // seam and the piece visibly hesitated half way through its own fall.
+        // It used to be two beats with the plane swap hidden between them: the
+        // piece span and shrank out of the hole, the boards were exchanged, and
+        // a second piece dropped in from above the frame. Everything difficult
+        // about it came from those being two separate journeys that had to be
+        // made to look like one — a spin split across the seam that changed rate
+        // half way, an arrival that started above the top of its own square and
+        // so was clipped out of existence for the first third of it.
         //
-        // Split by duration instead, so the angular speed is the same on both
-        // sides of the swap and the two halves read as one turn.
-        let arrival = GameRules.fallArrivalDuration
+        // There is one journey now. Astra and Terra are rows of one column three
+        // apart, and this walks the camera from one to the other. The piece is
+        // drawn against the same number in the same transaction, so it holds
+        // still on screen while the world goes up past it — which is what
+        // falling actually looks like — and at the end it is already standing
+        // exactly where the destination board expects it, because three rows
+        // down from its tile on Astra *is* its tile on Terra.
+        let travel = GameRules.fallDuration + GameRules.fallArrivalDuration
+
+        // A sign that means to be down there does not tumble on the way. Only
+        // the spin goes: the spin is the part that says the piece has lost
+        // control of what is happening to it.
+        let controlled = engine.piece.zodiac.passives.fallIsControlled(
+            to: to, context: engine.passiveSnapshot
+        )
+        // One turn at one speed, ending upright. `fallSpinDegrees` is three whole
+        // turns, so the piece is the right way up at the instant it lands — and
+        // now it is a single `withAnimation` rather than two, so there is no seam
+        // in the middle for the rate to change at.
         let whole = controlled ? 0 : GameRules.fallSpinDegrees * tumbleDirection
-        let descending = whole * (departure / (departure + arrival))
-        let landing = whole - descending
 
         // Going down through the sky pushes it aside. Only leaving Astra: a fall
         // out of Terra is a fall out of the world and there is no cloud there to
         // move.
-        if case let .pieceFell(from, _, at) = event, from == .astra {
-            disturbClouds(at: at)
-        }
+        if from == .astra { disturbClouds(at: at) }
 
-        // Spin and shrink together, and *animated* — incrementing the angle
-        // outside `withAnimation` snapped the sprite round instead of turning it.
-        withAnimation(.linear(duration: departure)) {
+        withAnimation(.linear(duration: travel)) {
             isFalling = true
-            fallSpin += descending
+            cameraRow = Double(World.row(of: to))
+            fallSpin += whole
         }
-        await sleep(departure)
+        await sleep(travel)
 
         guard !Task.isCancelled else {
             isFalling = false
+            cameraRow = Double(World.row(of: engine.piece.plane))
             return
         }
+
+        // **Applied at the end, not the middle.** The camera is already looking
+        // at the destination row and the piece is already drawn in it; this only
+        // changes which board is underneath, and the piece's offset falls to
+        // zero in the same instant because its plane is now the one the camera
+        // is on.
         engine.apply(event)
-
-        // Arrival. The piece is whole again the instant it re-enters — it is
-        // falling in, not fading in — so the flag is cleared without animation.
         isFalling = false
-        fallArrivalStartedAt = .now
-        withAnimation(.linear(duration: arrival)) {
-            fallSpin += landing
-        }
-        await sleep(GameRules.fallArrivalDuration)
-
-        guard !Task.isCancelled else {
-            fallArrivalStartedAt = nil
-            return
-        }
-        fallArrivalStartedAt = nil
         bounceSurface(at: engine.piece.point, on: engine.piece.plane)
 
         // **The energy arriving, in the sign's own colour.**
@@ -3092,7 +3160,7 @@ final class GameSession {
     /// Input is already locked for the duration — the whole replay runs in
     /// `resolvingMove`, and `acceptsInput` is false throughout.
     private func animateAscent(_ event: GameEvent) async {
-        await climb(event, arrivalDuration: GameRules.ascentGrowDuration) { [weak self] in
+        await climb(event, to: .astra, arrivalDuration: GameRules.ascentGrowDuration) { [weak self] in
             // Astra is on screen now, which is the only moment the sky being
             // shoved aside can actually be seen — see `animateNexysTravel`.
             self?.disturbClouds(at: GameRules.nexysPoint)
@@ -3941,7 +4009,15 @@ extension GameSession {
     /// are mounted at once, so the one not being looked at is a full board's
     /// worth of animation running behind a clip.
     func planeIsAsleep(_ plane: Plane) -> Bool {
-        plane != visiblePlane && !isFalling
+        // **Asked of the camera, not of the piece.**
+        //
+        // It used to be "any plane the piece is not standing on, unless it is
+        // falling" — which was two separate guesses at the one thing that
+        // actually matters, and both were wrong during any other kind of
+        // travel: an island crossing between planes on its own ran on a paused
+        // timeline and snapped instead of moving. The window onto the world is
+        // a fact, so ask it.
+        !World.isVisible(row: World.row(of: plane), from: cameraRow)
     }
 
     /// Every square the piece could move to this turn, and the swipe that gets
