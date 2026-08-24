@@ -100,7 +100,11 @@ struct GameModeRulesView: View {
                 // than one wearing down.
                 point: RulesStyle.samplePoint,
                 health: health,
-                metrics: PixelArtMetrics(availableSide: size * CGFloat(GameRules.gridSize))
+                metrics: PixelArtMetrics(availableSide: size * CGFloat(GameRules.gridSize)),
+                // Held still. This is an infographic — four stages of wear in a
+                // row — and a cloud that drifts costs frames to say nothing and
+                // can wander far enough to stop lining up with the other three.
+                isStill: true
             )
             .frame(width: size, height: size)
         }

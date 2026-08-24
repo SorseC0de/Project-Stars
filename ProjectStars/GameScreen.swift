@@ -273,6 +273,9 @@ struct GameScreen: View {
                         GameModeSplashView(
                             title: DeathStyle.title,
                             subtitle: session.engine.gameOverReason?.displayText ?? "",
+                            // The name is the announcement; the reason under it
+                            // is the explanation, and an explanation in alarm
+                            // red is a second alarm.
                             ink: Palette.red,
                             isLeaving: false,
                             onLanded: {},
@@ -305,19 +308,6 @@ struct GameScreen: View {
                             .padding(.leading, 6)
                             .padding(.top, 40)
 
-                        // **Only while the streaks are on screen.**
-                        //
-                        // A bench for a thing you cannot see is a bench you tune
-                        // blind, and this one sits over the panel — so it is
-                        // mounted with the screen it belongs to and goes away
-                        // with it.
-                        if session.phase == .gameOver {
-                            FallStreakControls()
-                                .frame(maxWidth: .infinity, maxHeight: .infinity,
-                                       alignment: .bottomLeading)
-                                .padding(.leading, 6)
-                                .padding(.bottom, 6)
-                        }
                         #endif
                     }
                 }
@@ -506,12 +496,17 @@ struct GameScreen: View {
             // sky is now the column's, drawn once behind all nine rows. See
             // `WorldSky`.
 
-            // Underneath the board — so it
-            // shows through Astra's holes. See `GroundBelowView`.
-            if plane == .astra {
-                GroundBelowView(side: side, metrics: PixelArtMetrics(availableSide: side))
-                    .frame(width: side, height: side)
-            }
+            // **No faux Terra under Astra.**
+            //
+            // There used to be a picture of Terra's horizon painted into the
+            // bottom of Astra's square, seen through its holes — a stand-in for
+            // a plane that was not really below it, because nothing was really
+            // below anything.
+            //
+            // Terra *is* below it now, three rows down the column, and the
+            // stand-in was drawn at the wrong scale to be it: a horizon on the
+            // near edge of a square you are looking down into does not sit where
+            // a whole board three rows further away would.
 
             // The land behind the board — over the sky, under everything else.
             //

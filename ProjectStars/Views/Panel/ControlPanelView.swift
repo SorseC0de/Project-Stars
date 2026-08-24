@@ -800,14 +800,6 @@ private struct PanelFrontView: View {
             //.padding(.bottom, PanelStyle.padding + safeArea)
             .padding(.bottom, PanelStyle.padding)
         }
-        .overlay(alignment: .topLeading) {
-            // North-west of the stick, where nothing else sits.
-            if session.showsVault {
-                VaultBadgeView(session: session)
-                    .padding(.leading, PanelStyle.padding)
-                    .padding(.top, PanelStyle.vaultBadgeTop)
-            }
-        }
         .overlay(alignment: .trailing) {
             controlSchemeButton
                 .padding()
@@ -2759,11 +2751,29 @@ private struct PanelRulesView: View {
 
     var body: some View {
         VStack(spacing: 0) {
+            // **Where RULES was.** The button that brought you here and the one
+            // that takes you back are the same button seen from two sides, so
+            // they get the same corner and the same size — a back button that
+            // moves is one the thumb has to go looking for.
+            HStack(spacing: PanelStyle.topRowSpacing) {
+                Spacer(minLength: 0)
+                CelButton(tint: Palette.red, action: onBack) {
+                    Text("BACK")
+                        .font(.system(size: PanelStyle.wideLabelSize,
+                                      weight: .heavy, design: .rounded))
+                        .tracking(PanelStyle.signNameTracking)
+                        .foregroundStyle(Palette.warmBlack)
+                }
+                .frame(width: PanelStyle.wideChromeWidth,
+                       height: PanelStyle.chromeButtonHeight)
+            }
+            .padding(.horizontal, PanelStyle.padding)
+            .padding(.top, PanelStyle.padding)
+
             Text(session.mode.title)
                 .font(.system(size: PanelStyle.signNameSize, weight: .black, design: .rounded))
                 .tracking(PanelStyle.signNameTracking)
                 .foregroundStyle(Palette.textPrimary)
-                .padding(.top, PanelStyle.padding)
 
             Text(session.mode.blurb)
                 .font(.system(size: PanelStyle.summarySize, weight: .medium))
@@ -2778,19 +2788,8 @@ private struct PanelRulesView: View {
 
             Spacer(minLength: 0)
 
-            HStack {
-                CelButton(tint: Palette.red, action: onBack) {
-                    Text("BACK")
-                        .font(.system(size: PanelStyle.chromeLabelSize,
-                                      weight: .heavy, design: .rounded))
-                }
-                .frame(width: PanelStyle.chromeButtonWidth,
-                       height: PanelStyle.chromeButtonHeight)
-
-                Spacer(minLength: 0)
-            }
-            .padding(.horizontal, PanelStyle.padding)
-            .padding(.bottom, PanelStyle.padding)
+            Spacer(minLength: 0)
+                .frame(height: PanelStyle.chromeButtonHeight)
         }
     }
 }

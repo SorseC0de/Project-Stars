@@ -34,10 +34,19 @@ struct GameModeSplashView: View {
     /// The line under it.
     let subtitle: String
 
-    /// The colour both are drawn in. Red says the run is over; white says it is
-    /// beginning. The card is the same card either way — a thing announcing
-    /// itself — and only its words change.
+    /// The colour the **name** is drawn in. Red says the run is over; white says
+    /// it is beginning. The card is the same card either way — a thing
+    /// announcing itself — and only its words change.
     var ink: Color = ModeCardStyle.ink
+
+    /// And the colour of the line under it, which stays the card's own.
+    ///
+    /// Separate from `ink` because the two lines are not saying the same thing.
+    /// The name is the announcement and takes the announcement's colour; the
+    /// subtitle is the explanation, and an explanation in alarm red reads as a
+    /// second alarm. On a game over that would be the reason you died shouting
+    /// as loudly as the fact that you did.
+    var subtitleInk: Color = ModeCardStyle.ink
 
     /// Raised when the player presses Start. The bars leave on it.
     let isLeaving: Bool
@@ -238,7 +247,7 @@ struct GameModeSplashView: View {
     private func blurb(on bar: ModeCardStyle.Bar) -> some View {
         Text(subtitle)
             .font(ModeCardStyle.blurbFont(ModeCardStyle.blurbSize * bar.height))
-            .foregroundStyle(ink)
+            .foregroundStyle(subtitleInk)
             .lineLimit(1)
             .minimumScaleFactor(ModeCardStyle.textSqueeze)
             .frame(maxWidth: ModeCardStyle.textWidth * bar.height)

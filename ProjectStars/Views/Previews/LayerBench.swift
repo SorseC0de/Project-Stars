@@ -101,7 +101,11 @@ struct LayerBenchControls: View {
             }
             .buttonStyle(.plain)
 
-            if isOpen { NexysControls() }
+            // The island is settled — its numbers are written down in
+            // `NexysStyle` and its bench is parked in `NexysTuning`, intact for
+            // whenever it is next opened up. What is being looked at now is the
+            // underground's streaks.
+            if isOpen { FallStreakControls() }
         }
     }
 }

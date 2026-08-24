@@ -1480,26 +1480,11 @@ final class GameSession {
         run(events)
     }
 
-    /// Whether the vault badge is shown at all, and whether it is lit.
-    ///
-    /// Shown for anyone who has the vault — which after Leo's rework can mean a
-    /// phantom archer, so it asks the whole company rather than the piece.
-    var showsVault: Bool {
-        engine.activePassives.contains { $0 is SagittariusVulcanVault }
-    }
 
     var canVault: Bool {
         acceptsInput && engine.longestReach(for: engine.piece.facing) > 0
     }
 
-    /// Takes the full-length vault, the way the piece is already looking.
-    func vaultForward() {
-        if dismissIntroIfShowing() { return }
-        guard canVault else { return }
-
-        Haptics.longer()
-        submit(engine.piece.facing, reach: engine.longestReach(for: engine.piece.facing))
-    }
 
     /// Presses the elevator. See `GameEngine.planNexysCall`.
     /// The fragment being carried, if one is. See `SignState.Polaris`.

@@ -2099,27 +2099,14 @@ enum GameRules {
     /// give the player something to put between themselves and Nilyth.
     static let umbraRockCount = 2
 
-    // ── The ground seen from Astra ────────────────────────────────────────
-    //
-    // See `BoardView.groundBelow(plane:metrics:)`.
-
-    /// How much of the sky's height the world below occupies, from the bottom.
-    static let groundBelowHeight: CGFloat = 0.25
-
-    /// How far past the bottom of the square the ground below is pushed.
+    /// How far down Astra's band a star has faded out entirely.
     ///
-    /// The keystone pulls its content toward the near edge, so the band ends
-    /// slightly short of the bottom and leaves a seam of sky under the world.
-    /// A floor has no far side from here — it runs off the bottom of the
-    /// screen — so overshooting costs nothing and closes it.
-    static let groundBelowOvershoot: CGFloat = 0.04
-
-    /// Where Astra's sky has finished turning from the dark of space into
-    /// Terra's daylight, measured down the upper square.
-    ///
-    /// Just above the top of the faux Terra below, so the light has arrived by
-    /// the time the ground does. Derived from `groundBelowHeight` rather than
-    /// written twice, so moving the horizon moves the gradient with it.
+    /// It used to be where Astra's own sky finished turning into daylight,
+    /// pinned just above the faux Terra painted into the bottom of the square.
+    /// Both of those are gone — the sky is one gradient the height of the world
+    /// now, and the real Terra is three rows below — so what is left of it is
+    /// the only thing still reading it: how deep into its band Astra's stars go.
+    /// See `WorldSky`.
     static var astraSkyFade: CGFloat { 2.25 }
 
     /// Where Astra's stars have finished fading out, down the upper square.
@@ -2139,10 +2126,6 @@ enum GameRules {
     static let astraSkyFadeWidth: CGFloat = 1.5
 
 
-    /// How far off each edge of the screen it is held, as a fraction of the
-    /// square. Run edge to edge it reads as a fitted carpet; inset, as a
-    /// landmass with sky either side.
-    static let groundBelowInset: CGFloat = 0.08
 
     /// How much narrower the far edge of a board is than its near one.
     ///
@@ -2368,14 +2351,7 @@ enum GameRules {
     /// drop that seats the figure. Measured on device — see `PieceView`.
     static let pieceShadowPerspectiveLift: CGFloat = 2
 
-    /// How far out of focus it is, in art pixels. Heavy on purpose: anything
-    /// legible enough to count squares on is something the player will try to
-    /// plan with.
-    static let groundBelowBlur: CGFloat = 1.2
 
-    /// How much night is laid over it. **Opaque** — the ground is solid, and
-    /// fading it let the stars shine through the world.
-    static let groundBelowShade: Double = 0.65
 
     // ── Nilyth's eyes, through the umbra hole ─────────────────────────────
     //

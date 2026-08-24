@@ -33,6 +33,14 @@ struct CloudSpriteView: View {
     /// `GameSession.ambientClock(at:)`.
     var clock: (TimeInterval) -> TimeInterval = { $0 }
 
+    /// Whether this cloud drifts and breathes at all.
+    ///
+    /// Off for the rules page, which is an infographic: a diagram of four
+    /// stages of wear, where the wear is the whole point. Motion there costs
+    /// frames to say nothing, and the wander can carry a sample far enough from
+    /// its square that the four stop lining up as a row.
+    var isStill = false
+
     /// A disturbance in the sky, if one is playing.
     var wake: CloudMotion.Wake?
 
@@ -49,7 +57,7 @@ struct CloudSpriteView: View {
     var glows: Bool = false
 
     var body: some View {
-        TimelineView(.animation(paused: planeIsAsleep)) { timeline in
+        TimelineView(.animation(paused: planeIsAsleep || isStill)) { timeline in
             #if DEBUG
             let _ = RenderTally.tick("CloudSprite")
             #endif
