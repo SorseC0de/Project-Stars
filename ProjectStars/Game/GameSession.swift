@@ -225,15 +225,10 @@ final class GameSession {
         let start: Date
     }
 
-    /// When the piece began falling in onto the lower plane, or `nil` when it is
-    /// not arriving. Drives the drop from off-screen and the growing shadow.
-    private(set) var fallArrivalStartedAt: Date?
 
     /// When the island began carrying the piece up out of Terra, or `nil`.
     private(set) var ascentRiseStartedAt: Date?
 
-    /// **Vestigial**, and nothing swells anywhere any more. See `cameraRow`.
-    private(set) var ascentGrowStartedAt: Date?
 
     // MARK: - Where the camera is
 
@@ -249,6 +244,13 @@ final class GameSession {
     /// visually still and the world goes past it, which is what falling looks
     /// like from inside.
     private(set) var cameraRow: Double = Double(World.row(of: .astra))
+
+    /// Whether the piece is falling back into the world on a seamless restart.
+    ///
+    /// A run that has begun, on a board that is ready, with a piece that is not
+    /// on it yet. Nothing else in the game is in that state — every other way in
+    /// waits behind a card — so it needs saying rather than deriving.
+    private(set) var isDropping = false
 
     /// Whether the island is travelling *with* the camera rather than standing
     /// still while the camera moves past it.
@@ -1022,10 +1024,12 @@ final class GameSession {
         fallSpin = 0
         smokeMagnitude = 1
         shakeStartedAt = nil
-        fallArrivalStartedAt = nil
         ascentRiseStartedAt = nil
-        ascentGrowStartedAt = nil
         cameraRow = Double(World.row(of: engine.piece.plane))
+        cameraFrom = nil
+        nexysRidesCamera = false
+        isDropping = false
+        isLaunching = false
         pieceDrop = 0
         panelVeil = 1
         nexysDepartStartedAt = nil
@@ -2379,6 +2383,13 @@ final class GameSession {
             // and the death screen comes up around it while it is on its way.
             // Half a fall would have it stop in mid-air first.
             await animateDescent(duration: GameRules.fallDuration)
+
+            // The only travel path that used to apply its event without asking
+            // whether it was still wanted — and the one where it matters most.
+            // A restart taken while the piece was still falling applied the old
+            // run's game over to the *new* engine, so the fresh run ended on the
+            // player's first move carrying the previous run's death text.
+            guard !Task.isCancelled else { return }
             engine.apply(event)
             spinForever()
             await sleep(event.displayDuration)
@@ -2888,10 +2899,16 @@ final class GameSession {
     /// the underground has nothing else moving in it, and the piece kept
     /// spinning is the one thing saying the fall never ended.
     private func spinForever() {
+        // The way *this* piece was already turning. `fallSpinDegrees` carries the
+        // house direction, `tumbleDirection` carries Gemini's silver twin turning
+        // against it — take one without the other and the twin reverses at the
+        // bottom of its own fall. And a sign that floats over holes was never
+        // tumbling, so it does not start now.
+        guard tumble != 0 else { return }
         withAnimation(
             .linear(duration: DeathStyle.spinPeriod).repeatForever(autoreverses: false)
         ) {
-            fallSpin += DeathStyle.spinDirection * 360
+            fallSpin += DeathStyle.spinDirection * tumbleDirection * 360
         }
     }
 
@@ -2907,9 +2924,15 @@ final class GameSession {
     /// control panel. So nothing is revealed. The lid over it just stops being
     /// opaque while the piece arrives underneath.
     private func animateDescent(duration: TimeInterval) async {
+        // Watched from the row above it, which is Terra's. A death anywhere else
+        // — blown off Astra, say — walks the camera there on the way, so the
+        // piece always ends up one row *below the frame* rather than four rows
+        // below a frame that stayed on Astra looking at empty sky.
+        let vantage = Double(World.underground - 1)
         withAnimation(.easeIn(duration: duration)) {
             isFalling = true
-            pieceDrop = Double(World.underground - World.row(of: engine.piece.plane))
+            cameraRow = vantage
+            pieceDrop = Double(World.underground) - Double(World.row(of: engine.piece.plane))
             fallSpin += tumble
         }
         withAnimation(.easeInOut(duration: duration * GameRules.panelLiftShare)) {
@@ -3135,6 +3158,10 @@ final class GameSession {
         return SwipeDirection.allCases.first { $0.unitOffset == step }
     }
 
+    /// - Note: A warp may cross planes — the Miasma sigil pair does. The camera
+    ///   is moved with it rather than walked, because a teleport *is* a cut: the
+    ///   piece is gone from one place and present at another, and dragging the
+    ///   view between them would be claiming a journey that did not happen.
     private func animateWarp(
         _ event: GameEvent,
         from origin: GridPoint,
@@ -3511,18 +3538,38 @@ extension GameSession {
             // what made that a fall rather than a journey. Going somewhere again
             // means going after it.
             let landed = self.cameraRow + self.pieceDrop
+            let fellFrom = self.engine.piece.point
             let catchUp = landed - self.cameraRow
             if catchUp > 0 {
+                self.cameraFrom = self.cameraRow
                 withAnimation(.linear(duration: catchUp * pace)) {
                     self.cameraRow = landed
                     self.pieceDrop = 0
                 }
                 await self.sleep(catchUp * pace)
+                self.cameraFrom = nil
             }
 
             // **2. A fresh world, built behind a piece that never stopped.**
             self.newGame(announced: false)
             self.cameraRow = landed
+
+            // Still falling, in every sense the rest of the game asks about.
+            // `newGame` clears this, which would have the piece stop being gold
+            // and grow a ground shadow — and then carry that shadow down five
+            // rows of empty sky.
+            self.isFalling = true
+
+            // And still not taking input. `newGame` sets the phase to awaiting
+            // input, which for the two seconds of this drop would let a swipe
+            // play a real move on the Astra board while the piece is in mid-air.
+            self.isDropping = true
+
+            // Seated where the old piece was, not where a new run starts. The
+            // vertical arithmetic already cancels; this is the other axis, and
+            // without it the piece jumps across the board to the Nexys' tile
+            // half way down its own fall.
+            self.engine.seatPiece(at: fellFrom)
 
             // The endless turn ends here: it said the fall had no bottom, and
             // this one has. Cleared without animation first, because a
@@ -3543,6 +3590,7 @@ extension GameSession {
             }
 
             // **3. Down to the seam.**
+            self.cameraFrom = self.cameraRow
             withAnimation(.linear(duration: (seam - landed) * pace)) {
                 self.cameraRow = seam
             }
@@ -3553,10 +3601,14 @@ extension GameSession {
 
             // **5. And down into Astra.**
             let toHome = home - self.cameraRow
+            self.cameraFrom = self.cameraRow
             withAnimation(.linear(duration: toHome * pace)) { self.cameraRow = home }
             await self.sleep(toHome * pace)
 
+            self.cameraFrom = nil
             self.cameraRow = home
+            self.isFalling = false
+            self.isDropping = false
             self.land()
         }
     }
@@ -4218,13 +4270,27 @@ extension GameSession {
 
     /// The revealed pickups on the visible plane. Usually one, occasionally two.
     var visiblePickups: [RevealedPickup] {
-        engine.revealedPickups.filter { $0.plane == visiblePlane }
+        pickups(on: visiblePlane)
+    }
+
+    /// The coins standing on a named plane.
+    ///
+    /// Asked by plane rather than by where the piece is, because both planes are
+    /// drawn now — a coin suppressed on the plane you are falling towards is a
+    /// coin that pops into being the instant you land on it.
+    func pickups(on plane: Plane) -> [RevealedPickup] {
+        engine.revealedPickups.filter { $0.plane == plane }
     }
 
     /// The popped-up squares, which are not always under a coin — see
     /// `GameEngine.raisedTiles`.
     var visibleRaisedTiles: [RevealedPickup] {
-        engine.raisedTiles.filter { $0.plane == visiblePlane }
+        raisedTiles(on: visiblePlane)
+    }
+
+    /// The popped-up squares on a named plane. See `pickups(on:)`.
+    func raisedTiles(on plane: Plane) -> [RevealedPickup] {
+        engine.raisedTiles.filter { $0.plane == plane }
     }
 
     /// Sagittarius' arrow, if it is standing on the plane being looked at.
@@ -4278,7 +4344,7 @@ extension GameSession {
 
     var acceptsInput: Bool {
         phase == .awaitingInput && pentacleIntro == nil && pendingPickupChoice == nil
-            && !isPaused && modeCard == nil
+            && !isPaused && modeCard == nil && !isDropping
     }
 
     /// Whether a control should still *report* what the player did, even though

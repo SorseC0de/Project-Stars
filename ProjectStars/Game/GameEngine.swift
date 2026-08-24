@@ -136,6 +136,18 @@ struct GameEngine {
     /// The player's piece.
     private(set) var piece: Piece
 
+    /// Puts the piece down somewhere without it having travelled there.
+    ///
+    /// For the seamless restart, and nothing else. A fresh run seats its piece
+    /// on the Nexys; a restart that is still falling needs it seated where the
+    /// *last* piece fell from instead, or it slides across the board half way
+    /// down its own drop. No event, because nothing happened — this is the new
+    /// run being lined up with a fall already in progress. See
+    /// `GameSession.restartRunSeamlessly`.
+    mutating func seatPiece(at point: GridPoint) {
+        piece.point = point
+    }
+
     /// The half of Gemini that is *not* taking this turn.
     ///
     /// ## Why this is not an array and an index

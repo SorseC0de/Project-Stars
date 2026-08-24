@@ -1618,9 +1618,6 @@ enum GameRules {
     static let fallArrivalDuration: TimeInterval = 0.42
 
 
-    /// How small the destination tile's shadow starts, before the piece nears
-    /// it. Growing this shadow is what telegraphs the incoming landing.
-    static let fallArrivalShadowMin: CGFloat = 0.15
 
     /// A teleport: the piece vanishing and reappearing elsewhere.
     static let teleportDuration: TimeInterval = 0.28

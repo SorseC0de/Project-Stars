@@ -676,7 +676,7 @@ struct BoardView: View {
     @ViewBuilder
     private func healFlashClouds(plane: Plane, metrics: PixelArtMetrics) -> some View {
         if plane == .astra, CloudSpriteField.hasArt {
-            let board = session.visibleBoard
+            let board = session.engine[plane]
             ForEach(Array(healFlashes.keys), id: \.self) { point in
                 if board.contains(point), board[point].kind == .normal,
                    !board[point].health.isHole {
@@ -710,7 +710,7 @@ struct BoardView: View {
     @ViewBuilder
     private func statueClouds(plane: Plane, metrics: PixelArtMetrics) -> some View {
         if plane == .astra, CloudSpriteField.hasArt {
-            let board = session.visibleBoard
+            let board = session.engine[plane]
             let covered = board.allPoints.filter {
                 board[$0].cover != nil && board[$0].kind == .normal
                     && !board[$0].health.isHole
@@ -932,8 +932,8 @@ struct BoardView: View {
         driftScale: CGFloat = 1
     ) -> CGSize {
         guard shown == .astra,
-              session.visibleBoard.contains(point),
-              session.visibleBoard[point].kind == .normal
+              session.engine[shown].contains(point),
+              session.engine[shown][point].kind == .normal
         else { return .zero }
 
         // Drift on the ambient clock, impacts on the wall clock — see
@@ -1221,7 +1221,7 @@ struct BoardView: View {
 
     /// The square the compass sits over: bottom-left of the board.
     private var compassCorner: GridPoint {
-        GridPoint(0, session.visibleBoard.size - 1)
+        GridPoint(0, session.engine[shown].size - 1)
     }
 
     /// Squares whose cloud must not be lapped over by its row neighbours.
@@ -1763,14 +1763,13 @@ struct BoardView: View {
                         ticking(metrics) { tick in
                             let bob = tick.bob
                             let pose = tick.pose
-                            let arrival = tick.arrival
                             let ascent = tick.ascent
                             let sway = tick.sway
                             let flash = tick.flash
                             let starElement = tick.starElement
                             piece(
                                 metrics: metrics, bob: bob, pose: pose,
-                                arrival: arrival, ascent: ascent, sway: sway,
+                                ascent: ascent, sway: sway,
                                 flash: flash, starElement: starElement,
                                 // **Sorted forward, drawn in place.**
                                 //
@@ -2057,7 +2056,6 @@ struct BoardView: View {
                         ticking(metrics) { tick in
                             let bob = tick.bob
                             let pose = tick.pose
-                            let arrival = tick.arrival
                             let ascent = tick.ascent
                             let sway = tick.sway
                             let flash = tick.flash
@@ -2070,7 +2068,6 @@ struct BoardView: View {
                                 metrics: metrics,
                                 bob: bob,
                                 pose: pose,
-                                arrival: arrival,
                                 ascent: ascent,
                                 sway: sway,
                                 flash: flash,
@@ -2154,6 +2151,46 @@ struct BoardView: View {
             }
         }
 
+        // **What the plane owns, before the piece is asked about at all.**
+        //
+        // These used to sit below the guard, which was harmless for as long as
+        // only one square could be seen. Now that the camera travels between
+        // them, a plane you are falling towards would scroll into view as bare
+        // ground and then have its island, its coins, its popped tiles and its
+        // grass all appear in the single frame you landed — the exact pop the
+        // column was built to get rid of.
+        let sown = session.engine[plane]
+
+        if plane == .terra {
+            let grassed = sown.allPoints.filter {
+                sown[$0].cover == .grass || sown[$0].cover == .tuft
+            }
+            objects += Set(grassed.map(\.y)).sorted().map { row in
+                BoardObject(kind: .grassRow, point: GridPoint(0, row), slot: row)
+            }
+        }
+
+        for raised in session.raisedTiles(on: plane) {
+            objects.append(BoardObject(kind: .raisedTile, point: raised.point, slot: raised.serial))
+        }
+        for pickup in session.pickups(on: plane) {
+            objects.append(BoardObject(
+                kind: .pentacle,
+                point: pickup.point,
+                slot: pickup.serial,
+                sweeping: session.isSliding
+            ))
+        }
+        if session.engine.nexysPlane == plane {
+            objects.append(BoardObject(kind: .nexys, point: GameRules.nexysPoint))
+
+            // The near corner of the drawn-in-perspective island, which stands
+            // in front of whoever is on it. Only that version has one.
+            if NexysStyle.foreshortened {
+                objects.append(BoardObject(kind: .nexysPillar, point: GameRules.nexysPoint))
+            }
+        }
+
         if session.engine.piece.plane == plane {
             objects.append(BoardObject(kind: .piece, point: session.engine.piece.point))
         }
@@ -2161,9 +2198,6 @@ struct BoardView: View {
         // it rather than appearing on whichever board is being drawn.
         guard session.engine.piece.plane == plane else { return objects }
 
-        // Every patch, so the sorter places each against the piece and the coins
-        // by its own row rather than as one block.
-        let sown = session.visibleBoard
         // **Every square that has ordinary cover**, not only the ones wearing
         // `.grass`. The two levels are the same thing to look at — the variety
         // comes from the straw each square drew — so a `.tuft` square was
@@ -2174,20 +2208,6 @@ struct BoardView: View {
         if let prongs = session.engine.signState.prongs, prongs.plane == plane {
             objects += prongs.poles.enumerated().map { index, pole in
                 BoardObject(kind: .prong, point: pole.point, slot: index)
-            }
-        }
-
-        // **One object per grassed row, not per grassed square.**
-        //
-        // Terra only: cover exists on Astra — Stubborn Statue lays it there —
-        // but nothing grows out of a cloud, so there is nothing to draw and no
-        // reason to pay for looking.
-        if plane == .terra {
-            let grassed = sown.allPoints.filter {
-                sown[$0].cover == .grass || sown[$0].cover == .tuft
-            }
-            objects += Set(grassed.map(\.y)).sorted().map { row in
-                BoardObject(kind: .grassRow, point: GridPoint(0, row), slot: row)
             }
         }
 
@@ -2230,26 +2250,6 @@ struct BoardView: View {
         // list. With two coins out, taking one renumbers the other — and a view
         // whose identity is reused for a different coin *travels* to it, which
         // is how a destroyed Pentacle appeared to fly to the next glow phase.
-        for raised in session.visibleRaisedTiles {
-            objects.append(BoardObject(kind: .raisedTile, point: raised.point, slot: raised.serial))
-        }
-        for pickup in session.visiblePickups {
-            objects.append(BoardObject(
-                kind: .pentacle,
-                point: pickup.point,
-                slot: pickup.serial,
-                sweeping: session.isSliding
-            ))
-        }
-        if session.engine.nexysPlane == plane {
-            objects.append(BoardObject(kind: .nexys, point: GameRules.nexysPoint))
-
-            // The near corner of the drawn-in-perspective island, which stands
-            // in front of whoever is on it. Only that version has one.
-            if NexysStyle.foreshortened {
-                objects.append(BoardObject(kind: .nexysPillar, point: GameRules.nexysPoint))
-            }
-        }
         return objects
     }
 
@@ -2259,7 +2259,7 @@ struct BoardView: View {
         plane: Plane,
         metrics: PixelArtMetrics
     ) -> some View {
-        let board = session.visibleBoard
+        let board = session.engine[plane]
 
         // Astra's raised square is already drawn — lifted and glowing — by
         // `CloudSpriteField`, which promotes it within its row. Drawing it again
@@ -2522,7 +2522,6 @@ struct BoardView: View {
         metrics: PixelArtMetrics,
         bob: CGFloat,
         pose: HopPose,
-        arrival: CGFloat,
         ascent: AscentPose,
         sway: CGSize,
         flash: Double,
@@ -2537,9 +2536,12 @@ struct BoardView: View {
         // reappearing near the ground. It travels down the column now; see
         // `fallOffset(metrics:)`.
 
-        // The shadow still swells to meet it.
-        var shadowScale = GameRules.fallArrivalShadowMin
-            + (1 - GameRules.fallArrivalShadowMin) * arrival * arrival
+        // **The shadow no longer swells.** It did that to telegraph where a
+        // piece falling in from above the frame was going to land, and nothing
+        // arrives from above the frame any more — the piece travels down the
+        // column in full view the whole way, which tells you the same thing
+        // better. What is left is the shadow at its resting size.
+        var shadowScale: CGFloat = 1
 
         // Standing on nothing: drift, and pull the shadow in. Only the star and
         // Scorpio's hover can be here at all, and both should look like it.
@@ -2580,7 +2582,7 @@ struct BoardView: View {
             isCharged: session.isZodiactionCharged || session.isManeBlazing,
             // Gold for the whole crossing, and the plane's own material the
             // instant it lands. See `PieceView.forcesGold`.
-            forcesGold: session.isFalling || session.fallArrivalStartedAt != nil,
+            forcesGold: session.isFalling,
             twin: session.engine.piece.twin,
             // The forward copy is a pan on a string; the shadow belongs to the
             // figure, which is drawing its own on its own square.
@@ -2719,7 +2721,7 @@ struct BoardView: View {
 
         // Cloud only: the island is carved rock and the chasm is nothing at all.
         guard plane == .astra,
-              session.visibleBoard[point].kind == .normal,
+              session.engine[plane][point].kind == .normal,
               !session.isFalling
         else { return .zero }
 
@@ -2925,7 +2927,7 @@ struct BoardView: View {
 
     /// Whether that square is open air.
     private func isHole(_ point: GridPoint) -> Bool {
-        let board = session.visibleBoard
+        let board = session.engine[shown]
         guard board.contains(point) else { return false }
         return board[point].health.isHole || board[point].kind == .chasm
     }
@@ -3050,7 +3052,6 @@ struct BoardView: View {
 
         let bob: CGFloat
         let pose: HopPose
-        let arrival: CGFloat
         let ascent: AscentPose
         let travel: AscentPose
         let sway: CGSize
@@ -3066,7 +3067,6 @@ struct BoardView: View {
         BoardTick(
             bob: nexysBob(at: date, metrics: metrics),
             pose: hopPose(at: date),
-            arrival: arrivalProgress(at: date),
             ascent: ascentPose(at: date, metrics: metrics),
             travel: nexysTravelPose(at: date, metrics: metrics),
             sway: cloudSway(at: date, metrics: metrics),
@@ -3160,13 +3160,6 @@ struct BoardView: View {
         return CGFloat(since / NexysStyle.rockHold)
     }
 
-    /// How far through an arrival the piece is, `0` at the top of its fall and
-    /// `1` on the ground. `1` whenever it is not arriving.
-    private func arrivalProgress(at date: Date) -> CGFloat {
-        guard let started = session.fallArrivalStartedAt else { return 1 }
-        let elapsed = date.timeIntervalSince(started) / GameRules.fallArrivalDuration
-        return CGFloat(min(max(elapsed, 0), 1))
-    }
 
     /// Where the ascent is up to, as a pure function of elapsed time.
     ///
