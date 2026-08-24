@@ -49,9 +49,19 @@ struct GemTones {
 
         case .fire:
             // Drawn as `darkRed` — index 27, fixed by the art — and *shown* as
-            // coffee at rest. Against the vines' green a dark red gem read as
-            // blood on the statue; coffee reads as a stone that is not lit.
-            GemTones(dim: Palette.darkRed, lit: Palette.red, resting: Palette.coffee)
+            // brown at rest.
+            //
+            // Two goes at this. Dark red is what the sheet contains, and against
+            // the vines' green it read as blood on the statue. Coffee fixed that
+            // and brought its own problem: it is dark enough that the gem stops
+            // reading as a *stone* against Terra's own browns and starts reading
+            // as a hole. `brown` is the same idea a step lighter — warm, clearly
+            // a solid thing, and still nowhere near the red it lights to.
+            //
+            // If it wants to be warmer still, `Palette.orange` is the next entry
+            // up this hue. It is a bright one, though, and the whole job of this
+            // colour is to look *unlit*.
+            GemTones(dim: Palette.darkRed, lit: Palette.red, resting: Palette.brown)
 
         case .earth:
             // `forest` is reserved for this and kept out of the moss, which uses

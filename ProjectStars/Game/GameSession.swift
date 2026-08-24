@@ -1709,6 +1709,20 @@ final class GameSession {
         defer { isCharging = false }
         defer { isSliding = false }
 
+        // **And the movement, which is a clock.**
+        //
+        // `beginMovement` was called by `animateStep` and by the slide, and
+        // ended by nobody — so `movement` outlived its own animation and went on
+        // reporting the direction of the last successful move for ever after.
+        //
+        // Invisible almost always, because `engine.apply` turns the piece to the
+        // same direction the stale movement claims. It surfaces the one time the
+        // facing changes *without* a move: Rebounding Ram, which turns the piece
+        // round off a wall it could not walk through. The cursor reads the
+        // model and flipped; the sprite and the arrow read `visibleFacing` and
+        // did not, so the ram faced one way and walked the other.
+        defer { endMovement() }
+
         // Per-move presentation bookkeeping, cleared before anything is drawn.
         crabWalkOrigin = nil
         pluming = nil

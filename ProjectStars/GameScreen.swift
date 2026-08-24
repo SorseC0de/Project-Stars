@@ -107,6 +107,40 @@ struct GameScreen: View {
                     // has a button for spending it, which says something
                     // different — that you may use it — and while the fragment
                     // is dormant only the first of those is.
+                    // **The direction guide, with the rest of the chrome.**
+                    //
+                    // It lived inside `BoardView`, which put it inside a plane's
+                    // square, which was wrong in three ways at once. It was
+                    // drawn under Terra's near scenery, because the floor fill
+                    // and the front rock are siblings declared after the board.
+                    // It was drawn *twice* whenever two rows were on screen. And
+                    // both copies rode the camera down the column, which is not
+                    // something a label on the world should do.
+                    //
+                    // It is a label. Labels live up here with the badges and the
+                    // turn counter. The inner frame re-establishes the board's
+                    // own bounds inside the square, which is what its corner
+                    // placement is measured against.
+                    CompassView(
+                        facing: session.visibleFacing,
+                        tileSize: PixelArtMetrics(availableSide: side).tileSize
+                    )
+                    .opacity(session.engine.piece.point == compassCorner
+                        ? GameRules.compassFaded
+                        : 1)
+                    .animation(.easeOut(duration: 0.2), value: session.engine.piece.point)
+                    .offset(
+                        x: PixelArtMetrics(availableSide: side).tileSize * GameRules.compassInset,
+                        y: -PixelArtMetrics(availableSide: side).tileSize * GameRules.compassInset
+                    )
+                    .allowsHitTesting(false)
+                    .frame(
+                        width: PixelArtMetrics(availableSide: side).boardSize,
+                        height: PixelArtMetrics(availableSide: side).boardSize,
+                        alignment: .bottomLeading
+                    )
+                    .frame(width: side, height: side)
+
                     HStack(spacing: 8) {
                         // Anything running on a clock, growing leftward so
                         // nothing already on screen moves when one starts.
@@ -667,6 +701,11 @@ struct GameScreen: View {
     }
 
     /// Edge length shared by both squares.
+    /// The square the compass sits over: bottom-left of the board.
+    private var compassCorner: GridPoint {
+        GridPoint(0, session.visibleBoard.size - 1)
+    }
+
     private func squareSide(in size: CGSize) -> CGFloat {
         max(min(size.width, size.height / 2), 1)
     }

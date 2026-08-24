@@ -95,15 +95,6 @@ struct BoardView: View {
             }
             }
         }
-        .overlay(alignment: .bottomLeading) {
-            // With the HUD, above everything on the board.
-            //
-            // It is a label on the world rather than a thing in it, so being
-            // overlapped by a piece standing in front of it read as a drawing
-            // mistake. Above and faded when the piece is under it says what is
-            // true: this is chrome, and it will move aside for you.
-            compass(metrics: metrics)
-        }
         .frame(width: metrics.boardSize, height: metrics.boardSize)
         // A heavy landing jolts the board. Only the upper square shakes — the
         // panel below is under the player's thumb, and shaking a control surface
@@ -1006,25 +997,6 @@ struct BoardView: View {
         }
     }
 
-    /// The direction guide, in the board's bottom-left corner.
-    private func compass(metrics: PixelArtMetrics) -> some View {
-        CompassView(facing: session.visibleFacing, tileSize: metrics.tileSize)
-            // Faded when the piece is standing under it.
-            //
-            // It only overlaps on one square, and the honest answer is neither
-            // to hide it nor to let it sit on top of the player: it is a label,
-            // so it gets out of the way of the thing it is labelling.
-            .opacity(session.engine.piece.point == compassCorner
-                ? GameRules.compassFaded
-                : 1)
-            .animation(.easeOut(duration: 0.2), value: session.engine.piece.point)
-            .offset(
-                x: metrics.tileSize * GameRules.compassInset,
-                y: -metrics.tileSize * GameRules.compassInset
-            )
-            .allowsHitTesting(false)
-    }
-
     /// How far in the camera leans, given where the piece is standing.
     ///
     /// The near row is the resting framing; every row further back pushes in a
@@ -1219,10 +1191,6 @@ struct BoardView: View {
                CGSize(width: 1, height: 1))
     }
 
-    /// The square the compass sits over: bottom-left of the board.
-    private var compassCorner: GridPoint {
-        GridPoint(0, session.engine[shown].size - 1)
-    }
 
     /// Squares whose cloud must not be lapped over by its row neighbours.
     ///

@@ -69,6 +69,26 @@ struct AriesSearingStride: ZodiacPassive {
     /// The visit's one free tile, spent on the first move made on a plane.
     static let freshTileKey = "aries.freshTile"
 
+    /// Lit while the stride is actually paying: the visit's free tile still in
+    /// hand, or a line long enough to be charging.
+    ///
+    /// Two spans rather than two flashes, by the rule in `ZodiacPassive.isLit`.
+    /// The grace is lit from arrival until the step that spends it, which is
+    /// exactly the window in which knowing you have it changes what you do; the
+    /// streak is lit for the moves `meterBonus` pays for, so the mark and the
+    /// pip arrive together rather than the mark trailing the meter.
+    func isLit(in context: PassiveContext) -> Bool {
+        // The free tile, unspent. The same flag `causesWear` reads below and
+        // the same one the engine checks before announcing the spare — one
+        // condition, three readers, so the mark cannot disagree with the rule.
+        if !context.signState.planeFlags.contains(Self.freshTileKey) { return true }
+
+        // Otherwise: the line is long enough to charge. Deliberately the exact
+        // test `meterBonus` makes.
+        guard context.signState.streakDirection != nil else { return false }
+        return context.signState.streakLength >= Self.requiredStreak
+    }
+
     let displayName = "Searing Stride"
     let icon: String? = "aries_stride"
     let summary = "Astra & Terra: +1 ZC for each consecutive move in the same direction after the second. The first tile you touch on a plane takes no damage, and Pentacles you charge through break for +2 ZC."
