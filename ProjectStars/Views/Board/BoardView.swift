@@ -1256,12 +1256,22 @@ struct BoardView: View {
                 CloudSpriteField(
                     board: board,
                     metrics: metrics,
-                    flashing: session.flashingTiles,
-                    raised: popped,
+                    flashing: session.flashingTiles.filter { $0.y == row },
+                    raised: popped.filter { $0.y == row },
                     // Whatever is being stood on or hovered over has to stay
                     // clear of its neighbours' overlap.
-                    mending: Set(healFlashes.keys),
-                    occupied: occupiedSquares(on: .astra, popped: popped),
+                    mending: Set(healFlashes.keys).filter { $0.y == row },
+                    // **This row's, not the board's.**
+                    //
+                    // A field only ever asks whether a point *on its own row* is
+                    // occupied — see the sort in `CloudSpriteField`. Handed the
+                    // whole board's set, all seven rows compared unequal every
+                    // time the piece moved anywhere, so a step sideways rebuilt
+                    // seven canvases of forty-nine clusters to change the order
+                    // of two of them. Narrowed, a lateral move dirties exactly
+                    // the row it happens on.
+                    occupied: occupiedSquares(on: .astra, popped: popped)
+                        .filter { $0.y == row },
                     clock: session.ambientClock(at:),
                     wake: cloudWake,
                     bounce: surfaceBounce,
