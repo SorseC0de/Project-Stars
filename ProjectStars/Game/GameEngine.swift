@@ -2552,6 +2552,20 @@ struct GameEngine {
         ) else { return [] }
 
         var events = [GameEvent.pickupRevealed(id: pickup, plane: sparkles.plane, point: point)]
+
+        // **Controlled Compensation, told only when it is the reason.**
+        //
+        // `steered == point` is true whenever her steering supplied the answer
+        // — but so is a Stardar mark that happens to agree with it, and the
+        // mark's promise takes priority over her aim. `promised == nil` is what
+        // rules that coincidence out.
+        if promised == nil, let steer = steered, steer == point {
+            let named = GameEvent.passiveFired(
+                name: VirgoControlledCompensation().displayName, refused: false
+            )
+            events.append(named)
+        }
+
         events += hydroponicSnipe(sniped: sniped, at: point, on: sparkles.plane)
         events += secondReveal(among: usable, excluding: point, on: sparkles.plane)
 
@@ -3216,6 +3230,21 @@ struct GameEngine {
                ),
                self[plane][point].health != .healthy {
                 commit(.tileHealed(plane: plane, point: point, to: .healthy))
+
+                // **Shared by two signs, so named by whoever is playing.**
+                //
+                // Virgo's Poised Plummet is certain; Sagittarius' Lucky Landing
+                // is a roll that only gets here when it hits. Either way, the
+                // mend just happened, which is what the aggregate `contains`
+                // above already established — this only has to say whose.
+                switch piece.zodiac {
+                case .virgo:
+                    commit(.passiveFired(name: VirgoPoisedPlummet().displayName, refused: false))
+                case .sagittarius:
+                    commit(.passiveFired(name: SagittariusLuckyLanding().displayName, refused: false))
+                default:
+                    break
+                }
             }
 
             // 2. Open any Pentacle on this square **before** asking whether the
@@ -4208,10 +4237,27 @@ struct GameEngine {
             on: self[plane][point], at: point, plane: plane, context: passiveContext
         ) else { return LandingResult() }
 
-        return applyWear(
+        // **Scrupulous Step's deferral, told at the square that was spared.**
+        //
+        // Read before `applyWear` mutates it: a tile that was already badly
+        // cracked when she stepped off it is the one square where "breaks as
+        // you leave it, never as you arrive" is a save rather than a
+        // description — anything healthier than that was never in danger of
+        // going on this move at all.
+        let sparedOnArrival = piece.zodiac == .virgo && self[plane][point].health == .badlyCracked
+
+        var result = applyWear(
             to: point, on: plane,
             arrivedByFalling: false, onExit: true, cause: cause
         )
+
+        if sparedOnArrival {
+            let named = GameEvent.passiveFired(name: VirgoScrupulousStep().displayName, refused: false)
+            apply(named)
+            result.events.append(named)
+        }
+
+        return result
     }
 
     /// Collects the revealed Pentacle if the piece came to rest on it.
