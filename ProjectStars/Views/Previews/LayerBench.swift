@@ -72,43 +72,19 @@ final class LayerBench {
 
 #if DEBUG
 
-/// The switchboard itself, mounted over the panel in debug builds.
+/// The switchboard's mount, with nothing on it.
+///
+/// **Parked, not deleted.** Every knob it carried has been settled and written
+/// down — the layer toggles, the mode card, the Start button, the passive
+/// prompt. What is worth keeping is the mount: somewhere already wired to the
+/// session and already in the right corner, so the next thing that needs
+/// looking at is a `VStack` away rather than a re-plumbing.
 struct LayerBenchControls: View {
 
-    @Bindable var bench = LayerBench.shared
-
-    /// The session, for the actions that change the board rather than the view.
     let session: GameSession
 
-    @State private var isOpen = false
-
     var body: some View {
-        VStack(alignment: .leading, spacing: 0) {
-            // Folded away by default. A bench is for the thing being tuned
-            // right now, and one left open covers the panel it is tuning
-            // against for everything that comes after.
-            Button {
-                isOpen.toggle()
-            } label: {
-                Text(isOpen ? "card ▾" : "card ▸")
-                    .font(.system(size: 11, weight: .bold, design: .monospaced))
-                    .foregroundStyle(Palette.textPrimary)
-                    .padding(.horizontal, 8)
-                    .padding(.vertical, 4)
-                    .background(Palette.background.opacity(0.85))
-            }
-            .buttonStyle(.plain)
-
-            if isOpen {
-                ModeCardControls {
-                    // The same door a real passive uses, so pressing it twice
-                    // exercises the stacking rather than a shortcut around it.
-                    session.announce(passive: ModeCardTuning.shared.sampleText)
-                }
-                    .padding(8)
-                    .background(Palette.background.opacity(0.85))
-            }
-        }
+        EmptyView()
     }
 }
 

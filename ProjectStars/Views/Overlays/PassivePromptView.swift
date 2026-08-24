@@ -234,28 +234,12 @@ enum PromptStyle {
     /// be interrupted looks like a mistake, and letting it run looks like two
     /// things having happened, which is what did.
     /// How long the slide in takes.
-    static var arrival: Double {
-        #if DEBUG
-        ModeCardTuning.shared.entry
-        #else
-        defaultArrival
-        #endif
-    }
-
-    static let defaultArrival: Double = 0.28
+    static let arrival: Double = 0.20
     static let hold: Double = 1.6
 
     /// How long the slide out takes — how *fast* it goes, not how long it is
     /// seen for. The fade decides that, and the two are separate on purpose.
-    static var departure: Double {
-        #if DEBUG
-        ModeCardTuning.shared.exit
-        #else
-        defaultDeparture
-        #endif
-    }
-
-    static let defaultDeparture: Double = 0.5
+    static let departure: Double = 0.40
 
     /// How much opacity the card loses per second on its way out.
     ///
@@ -268,14 +252,13 @@ enum PromptStyle {
     /// How much faster the word goes than the card, when it is not riding out.
     static let wordHaste: Double = 2.8
 
-    /// Whether the word leaves with the shape or goes first. The bench's A/B.
-    static var wordsRideOut: Bool {
-        #if DEBUG
-        ModeCardTuning.shared.wordsRideOut
-        #else
-        true
-        #endif
-    }
+    /// Whether the word leaves with the shape or goes first.
+    ///
+    /// It goes first. The word is the message and the shape is the envelope —
+    /// once the message has been read there is no reason to keep showing it,
+    /// and a name still legible halfway across the board is a name competing
+    /// with the move underneath it.
+    static let wordsRideOut = false
 
     // ── The streaks passing through it ────────────────────────────────
     //
