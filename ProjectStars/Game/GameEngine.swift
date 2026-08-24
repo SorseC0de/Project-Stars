@@ -1142,14 +1142,24 @@ struct GameEngine {
 
             // **The vault itself, not the charge it earns.**
             //
-            // A two-square hop reaching this branch has already cleared her
-            // `allows` check, which only ever passes a jump that crossed open
-            // ground — so any non-zero count here is a vault that actually
-            // happened, whoever is playing. Told before the streak below folds
-            // it away, so this is the one place that still knows the jump was
-            // singular rather than the Nth of a run.
-            if landing.holesJumped > 0 {
+            // Gated on Scorpio explicitly: this same hop branch is also where
+            // Sagittarius' two- and three-square shots and Capricorn's climb
+            // land, and a shot of hers clearing a hole would otherwise read as
+            // Void Culling firing for the wrong sign. Told before the streak
+            // below folds the count away, so this is the one place that still
+            // knows the jump was singular rather than the Nth of a run.
+            if sim.piece.zodiac == .scorpio, landing.holesJumped > 0 {
                 commit(.passiveFired(name: ScorpioVoidCulling().displayName, refused: false))
+            }
+
+            // **Capable Climber, told at her only hop.**
+            //
+            // The mountain pattern has exactly one jump — north, two squares —
+            // so reaching this branch as Capricorn already means the climb was
+            // taken. No cooldown to check: the passive's own doc says there is
+            // none.
+            if sim.piece.zodiac == .capricorn {
+                commit(.passiveFired(name: CapricornCapableClimber().displayName, refused: false))
             }
         } else {
             // Anything that is not a jump cleared nothing, whatever the landing
@@ -3363,6 +3373,9 @@ struct GameEngine {
                 at: point,
                 context: passiveContext
             )
+            // Captured before the fairy can flip it, so a save can still be
+            // told apart from a rescue further down.
+            let passiveCaught = hovers
 
             // **The fairy takes the first hole you would have gone down.**
             //
@@ -3393,6 +3406,19 @@ struct GameEngine {
                     at: point, on: plane, context: passiveContext
                 ) {
                     commit(event)
+                }
+
+                // **Heavenly Hooves, told at the save rather than at the facing.**
+                //
+                // `preventsFall` only says the goat is looking north; whether
+                // that mattered is whether there was a hole here to matter for,
+                // which this block already is. `passiveCaught` rather than
+                // `hovers` so a fairy's rescue on a move she was not facing
+                // north for is never mistaken for the hooves catching her.
+                if passiveCaught, piece.zodiac == .capricorn {
+                    commit(.passiveFired(
+                        name: CapricornHeavenlyHooves().displayName, refused: false
+                    ))
                 }
             }
 
@@ -4440,6 +4466,16 @@ struct GameEngine {
             state.purse.append(pickup.id)
             commit(.signStateChanged(state))
             commit(.pickupBanked(id: pickup.id, plane: pickup.plane, point: pickup.point))
+
+            // **The deliberate exception to the quiet rule.**
+            //
+            // Every other passive here speaks only when it bends something;
+            // this speaks on every single coin, because it is the only thing
+            // that explains why the coin did not do what a coin usually does.
+            // See the roll call.
+            commit(.passiveFired(
+                name: CapricornCelestialCommerce().displayName, refused: false
+            ))
             return (true, pickup.id, events)
         }
 
