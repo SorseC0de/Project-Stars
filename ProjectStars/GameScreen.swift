@@ -7,6 +7,25 @@
 
 import SwiftUI
 
+#if DEBUG
+// MARK: - The sign under the knife
+//
+// **Here, at the top of the screen it opens.** It used to live three thousand
+// lines into `GameRules`, between a fall distance and a smoke magnitude, which
+// is nowhere anybody looks — so every time the work moved to another sign,
+// finding this cost longer than changing it.
+//
+// Read by `RootView` to skip straight into a run and by
+// `PieceSelectionScreen` to open on the right sign; both go through
+// `GameRules.debugStartingSign`, which now forwards here.
+
+/// Whoever is being worked on. Point it at them, and move it when the work
+/// moves.
+///
+/// - TODO: **Debug only.** Never read in a shipped build.
+let debugStartingSign: Zodiac = .taurus
+#endif
+
 /// The whole game, laid out as two stacked squares.
 ///
 /// The square edge is `min(width, height / 2)`, so both halves stay square on

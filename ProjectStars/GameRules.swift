@@ -3080,9 +3080,21 @@ enum GameRules {
 
     /// The sign the picker opens on in debug builds.
     ///
-    /// - TODO: **Debug only.** Point this at whoever is being worked on, and
-    ///   move it when the work moves. Never read in a shipped build.
-    static let debugStartingSign: Zodiac = .taurus
+    /// **Declared at the top of `GameScreen`, not here.** This is the name
+    /// every caller already uses, so it stays as the door — but the value being
+    /// three thousand lines into this file, between a fall distance and a smoke
+    /// magnitude, is why changing it was a hunt every time. It is set where the
+    /// screen it opens is defined.
+    ///
+    /// Release keeps Aries: the only reader that matters in a shipped build is
+    /// the picker's initial selection, and nothing debug-only should decide it.
+    static var debugStartingSign: Zodiac {
+        #if DEBUG
+        ProjectStars.debugStartingSign
+        #else
+        .aries
+        #endif
+    }
 
     /// How hard a square smokes when its cover is burnt or worn off.
     ///

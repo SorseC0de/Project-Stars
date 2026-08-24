@@ -103,6 +103,9 @@ enum BoardObjectKind: String, Hashable, CaseIterable {
     /// The pillar under the foreshortened island's near corner.
     case nexysPillar
 
+    /// The part of the island that hangs over the row in front of it.
+    case nexysOverhang
+
     /// The cursor's two **lower** brackets, which pass in front.
     case cursorFront
 }
@@ -254,6 +257,20 @@ struct BoardObject: Identifiable, Equatable {
         // tied on the one square they both appear on. `sorted(by:)` is not
         // stable in Swift, so a tie is not a coin toss — it is unspecified.
         case .nexysPillar: return 6
+
+        // **Sorted by the row it hangs into, drawn where the island is.**
+        //
+        // The island is three rows tall and was being sorted as though it lived
+        // in one. Its own row is 3, so row 4's ground — painted later, because
+        // the board goes back to front — covered the third of it that hangs
+        // forward. Nothing was clipping it; it was being painted over.
+        //
+        // The fix is the one `libraPan` already uses: a second object whose
+        // *point* is the row ahead and whose *position* is unchanged. Layered
+        // like the pan, too, and for the same reason — it hangs in the air over
+        // that square, so it goes above what is lying on the ground there and
+        // below anything standing on it.
+        case .nexysOverhang: return 3
 
         // On the island's square you are on top of it, not beside it.
         case .piece: return point == GameRules.nexysPoint ? 5 : 3
