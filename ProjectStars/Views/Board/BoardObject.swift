@@ -178,12 +178,13 @@ struct BoardObject: Identifiable, Equatable {
     /// never like a frame around it.
     var sortLayer: Int {
         switch kind {
-        // Always in front within its row, island included.
-        case .cursorFront: return 6
+        // Always in front within its row, island included — the pillar too,
+        // which is scenery and must not hide the square being aimed at.
+        case .cursorFront: return 7
 
         // Over the lion's head and over everything else on the square. It is a
         // light source hanging in the air; nothing on the ground occludes it.
-        case .sun: return 8
+        case .sun: return 9
 
         // Above the tile face — otherwise the raised tile would hide it — but
         // behind everything standing on that tile.
@@ -245,14 +246,13 @@ struct BoardObject: Identifiable, Equatable {
         // object from the island it belongs to: the island is behind the piece
         // and this near corner of it is in front.
         //
-        // It ties with `cursorFront`, which also asks for 6 and *can* be on
-        // this square — the cursor is built at whatever point is being aimed
-        // at, with no exception for the Nexys. Left tied rather than resolved
-        // by inventing a number: the two only meet while the player is aiming
-        // at the island, `sorted(by:)` is deterministic for a given board even
-        // though it is not stable, and the honest fix if it reads wrong is a
-        // Nexys case on `cursorFront` — which would then need weighing against
-        // `facing`, that sits deliberately above the cursor already.
+        // Below the cursor, which has to stay visible over it: the pillar is
+        // scenery and the cursor is the square you are aiming at. That is what
+        // the gap here is for — `cursorFront`, `facing` and `sun` each moved up
+        // one to open it, which kept their order and cost nothing, where
+        // squeezing the pillar in beside `cursorFront` would have left the two
+        // tied on the one square they both appear on. `sorted(by:)` is not
+        // stable in Swift, so a tie is not a coin toss — it is unspecified.
         case .nexysPillar: return 6
 
         // On the island's square you are on top of it, not beside it.
@@ -274,7 +274,7 @@ struct BoardObject: Identifiable, Equatable {
         // Row order still decides everything above that, which is what keeps the
         // arrow behind the piece when it points north. See where the object is
         // built in `BoardView`.
-        case .facing: return 7
+        case .facing: return 8
         }
     }
 

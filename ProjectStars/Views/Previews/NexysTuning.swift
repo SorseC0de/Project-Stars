@@ -34,18 +34,30 @@ final class NexysTuning {
         didSet { NexysTuning.store.set("islandY", islandY) }
     }
 
-    /// And the pillar, measured the same way.
-    var pillarX: Double = store.value("pillarX", NexysStyle.defaultPillarX) {
-        didSet { NexysTuning.store.set("pillarX", pillarX) }
+    /// How much higher the cursor sits on the island's square.
+    var cursorLift: Double = store.value("cursorLift", NexysStyle.defaultCursorLift) {
+        didSet { NexysTuning.store.set("cursorLift", cursorLift) }
     }
-    var pillarY: Double = store.value("pillarY", NexysStyle.defaultPillarY) {
-        didSet { NexysTuning.store.set("pillarY", pillarY) }
+
+    /// What the island does when somebody lands on it, and how it does it.
+    var rock: NexysStyle.Rock = NexysStyle.Rock(
+        rawValue: NexysTuning.store.words("rock", NexysStyle.defaultRock.rawValue)
+    ) ?? NexysStyle.defaultRock {
+        didSet { NexysTuning.store.set("rock", rock.rawValue) }
+    }
+
+    var rockHold: Double = store.value("rockHold", NexysStyle.defaultRockHold) {
+        didSet { NexysTuning.store.set("rockHold", rockHold) }
+    }
+
+    var rockSquash: Double = store.value("rockSquash", NexysStyle.defaultRockSquash) {
+        didSet { NexysTuning.store.set("rockSquash", rockSquash) }
     }
 
     nonisolated static let store = BenchStore(
         prefix: "nexys.",
         vintage: 1,
-        names: ["foreshortened", "islandX", "islandY", "pillarX", "pillarY"]
+        names: ["foreshortened", "islandX", "islandY", "rock", "rockHold", "rockSquash", "cursorLift"]
     )
 
     func reset() {
@@ -53,15 +65,19 @@ final class NexysTuning {
         foreshortened = NexysStyle.defaultForeshortened
         islandX = NexysStyle.defaultIslandX
         islandY = NexysStyle.defaultIslandY
-        pillarX = NexysStyle.defaultPillarX
-        pillarY = NexysStyle.defaultPillarY
+        cursorLift = NexysStyle.defaultCursorLift
+        rock = NexysStyle.defaultRock
+        rockHold = NexysStyle.defaultRockHold
+        rockSquash = NexysStyle.defaultRockSquash
     }
 
     func dump() {
         print("── nexys ──")
         print("  sprite   " + (foreshortened ? "foreshortened" : "flat"))
         print(String(format: "  island   x %+.0f  y %+.0f", islandX, islandY))
-        print(String(format: "  pillar   x %+.0f  y %+.0f", pillarX, pillarY))
+        print(String(format: "  cursor   +%.0f", cursorLift))
+        print(String(format: "  rock     %@  hold %.2fs  squash %.0fpx",
+                     rock.rawValue, rockHold, rockSquash))
     }
 }
 
@@ -80,10 +96,13 @@ struct NexysControls: View {
                 Button("reset") { tuning.reset() }
             }
 
+            Button("rock: \(tuning.rock.rawValue)") { tuning.rock = tuning.rock.next }
+
             row("isl x", value: $tuning.islandX)
             row("isl y", value: $tuning.islandY)
-            row("pil x", value: $tuning.pillarX)
-            row("pil y", value: $tuning.pillarY)
+            row("cur y", value: $tuning.cursorLift, in: -8...8, step: 1)
+            row("hold", value: $tuning.rockHold, in: 0.02...0.8, step: 0.02, places: 2)
+            row("squash", value: $tuning.rockSquash, in: 0...10, step: 0.5, places: 1)
         }
         .font(.system(size: 9, weight: .semibold, design: .monospaced))
         .foregroundStyle(Palette.stone)
@@ -91,16 +110,22 @@ struct NexysControls: View {
         .background(Palette.midnight.opacity(0.9), in: RoundedRectangle(cornerRadius: 8))
     }
 
-    /// Art pixels, whole ones. The island is pixel art and a half-pixel offset
-    /// is a blurred edge rather than a smaller move.
-    private func row(_ label: String, value: Binding<Double>) -> some View {
+    /// Art pixels by default, whole ones. The island is pixel art and a
+    /// half-pixel offset is a blurred edge rather than a smaller move.
+    private func row(
+        _ label: String,
+        value: Binding<Double>,
+        in range: ClosedRange<Double> = -24...24,
+        step: Double = 1,
+        places: Int = 0
+    ) -> some View {
         HStack(spacing: 6) {
             Text(label).frame(width: 32, alignment: .leading)
-            Button("−") { value.wrappedValue -= 1 }
-            Slider(value: value, in: -24...24, step: 1).frame(width: 104)
-            Button("+") { value.wrappedValue += 1 }
-            Text(String(format: "%+.0f", value.wrappedValue))
-                .frame(width: 30, alignment: .trailing)
+            Button("−") { value.wrappedValue = max(range.lowerBound, value.wrappedValue - step) }
+            Slider(value: value, in: range, step: step).frame(width: 104)
+            Button("+") { value.wrappedValue = min(range.upperBound, value.wrappedValue + step) }
+            Text(String(format: "%+.\(places)f", value.wrappedValue))
+                .frame(width: 34, alignment: .trailing)
         }
     }
 }

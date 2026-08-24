@@ -1594,6 +1594,7 @@ struct BoardView: View {
             // In board pixels, brought back to screen ones by the row.
             .offset(
                 y: (-GameRules.cursorLift * metrics.scale
+                    - nexysCursorLift(at: point, metrics: metrics)
                     + surfaceOffset(of: point, bob: bob, metrics: metrics))
                     * rowScale(at: point, metrics: metrics)
             )
@@ -1621,6 +1622,23 @@ struct BoardView: View {
         )
     }
 
+    /// The extra lift the cursor needs on the island's own square.
+    ///
+    /// The island's drawn surface is not quite where `GameRules.nexysRaise`
+    /// says it is, so a mark placed by that number alone sits a pixel or two
+    /// low. It has always done so — the flat sprite has the same discrepancy —
+    /// and it shows up on the cursor rather than on the piece because the piece
+    /// stands *on* the surface while the cursor is painted flat onto it.
+    ///
+    /// Cursor-only on purpose: correcting `surfaceOffset` instead would move
+    /// everything standing there, which is not what is wrong.
+    private func nexysCursorLift(at point: GridPoint, metrics: PixelArtMetrics) -> CGFloat {
+        guard session.engine.nexysPlane == shown, point == GameRules.nexysPoint else {
+            return 0
+        }
+        return NexysStyle.cursorLift * metrics.scale
+    }
+
     /// How far above the flat board the surface of `point` currently sits.
     ///
     /// The one place that knows a square might not be at floor height, so
@@ -1631,7 +1649,14 @@ struct BoardView: View {
         metrics: PixelArtMetrics
     ) -> CGFloat {
         if session.engine.nexysPlane == shown, point == GameRules.nexysPoint {
+            // **The island's own nudge, inherited.**
+            //
+            // This is the one place that answers "how high is this square", so
+            // it is the one place that has to know the island has been raised —
+            // otherwise the sprite goes up and the piece standing on it stays
+            // behind. See `NexysStyle.islandY`.
             return bob - GameRules.nexysRaise * metrics.scale
+                + (NexysStyle.foreshortened ? NexysStyle.islandY * metrics.scale : 0)
         }
         if session.visibleRaisedTiles.contains(where: { $0.point == point }) {
             return -GameRules.tilePopLift * metrics.scale
@@ -1903,7 +1928,10 @@ struct BoardView: View {
                             let bob = tick.bob
                             let ascent = tick.ascent
                             let travel = tick.travel
-                            nexys(plane: plane, metrics: metrics, bob: bob, ascent: ascent, travel: travel)
+                            nexys(
+                                plane: plane, metrics: metrics, bob: bob,
+                                ascent: ascent, travel: travel, rock: tick.nexysRock
+                            )
                         }
                     case .nexysPillar:
                         // On its own clock — see `BoardView.ticking`. The same
@@ -2395,14 +2423,16 @@ struct BoardView: View {
         metrics: PixelArtMetrics,
         bob: CGFloat,
         ascent: AscentPose,
-        travel: AscentPose
+        travel: AscentPose,
+        rock: CGFloat?
     ) -> some View {
         if session.engine.nexysPlane == plane {
             NexysView(
                 tileSize: metrics.tileSize,
                 scale: metrics.scale,
                 bob: bob,
-                isFaded: pieceIsJustNorthOfNexys
+                isFaded: pieceIsJustNorthOfNexys,
+                rock: rock
             )
             // Two poses stack — the ascent (island *and* piece, when ridden)
             // and the island's own travel (island alone) — *except* while it is
@@ -2927,6 +2957,10 @@ struct BoardView: View {
         let sway: CGSize
         let flash: Double
         let starElement: ZodiacElement?
+
+        /// How far through the island's settling rock, or `nil` when it is not
+        /// rocking. See `NexysStyle.Rock`.
+        let nexysRock: CGFloat?
     }
 
     private func boardTick(at date: Date, metrics: PixelArtMetrics) -> BoardTick {
@@ -2938,7 +2972,8 @@ struct BoardView: View {
             travel: nexysTravelPose(at: date, metrics: metrics),
             sway: cloudSway(at: date, metrics: metrics),
             flash: chargeFlash(at: date),
-            starElement: starElement(at: date)
+            starElement: starElement(at: date),
+            nexysRock: nexysRock(at: date)
         )
     }
 
@@ -2995,6 +3030,32 @@ struct BoardView: View {
             pose.lift *= (1 + GameRules.hopArcHeightOntoNexys)
         }
         return pose
+    }
+
+    /// How far through the island's settling rock, or `nil` when it is still.
+    ///
+    /// **Timed from the landing, not from the step.** The engine moves the piece
+    /// at the *start* of a hop and the view animates it across, so the moment
+    /// weight actually arrives on the island is a hop's length after
+    /// `hopStartedAt`. Reading the engine's position alone would rock the island
+    /// while the piece was still in the air over it.
+    ///
+    /// A window on a timestamp rather than a stored flag, for the same reason
+    /// `HopPose` is: a pure function of elapsed time cannot be left stuck part
+    /// way through.
+    private func nexysRock(at date: Date) -> CGFloat? {
+        guard NexysStyle.rock != .off,
+              NexysStyle.foreshortened,
+              session.engine.nexysPlane == shown,
+              session.engine.piece.point == GameRules.nexysPoint,
+              let hopped = session.hopStartedAt
+        else { return nil }
+
+        let landed = GameRules.hopDuration * GameRules.hopPoseStretch
+        let since = date.timeIntervalSince(hopped) - landed
+        guard since >= 0, since < NexysStyle.rockHold else { return nil }
+
+        return CGFloat(since / NexysStyle.rockHold)
     }
 
     /// How far through an arrival the piece is, `0` at the top of its fall and
