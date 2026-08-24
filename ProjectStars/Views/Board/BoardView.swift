@@ -1381,6 +1381,7 @@ struct BoardView: View {
                 effect: burst.effect,
                 tileSize: metrics.tileSize,
                 start: burst.start,
+                reversed: burst.reversed,
                 tint: burst.tint,
                 swaps: burst.swaps
             )
@@ -2567,6 +2568,9 @@ struct BoardView: View {
             // Or the mane catching, which lights the same gemstone for a
             // moment — see `GameSession.blazeMane()`.
             isCharged: session.isZodiactionCharged || session.isManeBlazing,
+            // Gold for the whole crossing, and the plane's own material the
+            // instant it lands. See `PieceView.forcesGold`.
+            forcesGold: session.isFalling || session.fallArrivalStartedAt != nil,
             twin: session.engine.piece.twin,
             // The forward copy is a pan on a string; the shadow belongs to the
             // figure, which is drawing its own on its own square.

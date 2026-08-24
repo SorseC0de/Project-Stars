@@ -38,6 +38,15 @@ struct PieceView: View {
     /// True when the Zodiaction is charged or firing, which lights the gem.
     var isCharged: Bool = false
 
+    /// Gold regardless of plane or charge.
+    ///
+    /// A piece falling between planes is neither on the one it left nor the one
+    /// it is going to, and drawing it in either plane's material is a claim
+    /// about where it is. Gold is what it wears while it belongs to nowhere, and
+    /// the moment it lands is the moment it takes the new plane's material — see
+    /// where the fall hands it over.
+    var forcesGold: Bool = false
+
     /// How far the shadow is lifted against the perspective's seating drop, in
     /// art pixels. Handed in so it can be tuned live.
     var shadowLift: CGFloat = GameRules.pieceShadowPerspectiveLift
@@ -189,10 +198,16 @@ struct PieceView: View {
         // "further away". The rows say it now, and a piece that shrinks *and*
         // travels through a perspective is being sent away twice.
         //
-        // So it falls: driven down past the bottom of its square and faded, and
-        // the plane below catches it. Distance is the board's job.
+        // So it falls: driven straight down its own column until the rows in
+        // front of it have taken it, and the plane below catches it. Distance
+        // is the board's job.
+        //
+        // **Not faded.** It used to vanish on the way down, which is what you do
+        // when there is nothing to go behind — and there is now. Every row
+        // nearer the camera is painted after this one, so a piece travelling
+        // down passes behind each in turn and is gone by the bottom of the
+        // board without ever being made transparent. See `BoardObject.z`.
         .offset(y: isFalling ? GameRules.fallDrop * scale : 0)
-        .opacity(isFalling ? 0 : 1)
         .allowsHitTesting(false)
     }
 
@@ -432,7 +447,7 @@ struct PieceView: View {
     /// Whether the figure is drawn in gold rather than its plane's material.
     ///
     /// Both a full meter and the star burn the stone off, on both planes.
-    private var isGilded: Bool { isCharged || starElement != nil }
+    private var isGilded: Bool { isCharged || starElement != nil || forcesGold }
 
     /// True when the figure squashes itself rather than being squashed whole.
     ///
@@ -1121,5 +1136,63 @@ struct PieceView: View {
         .padding(tileSize * 0.10)
         .frame(width: tileSize, height: tileSize)
         .frame(maxHeight: .infinity, alignment: .bottom)
+    }
+}
+
+// MARK: - Landing
+
+/// What a piece arriving from the plane above is dressed in.
+@MainActor
+enum FallStyle {
+
+    /// The flash thrown at the moment of impact.
+    ///
+    /// Every one of these is an existing strip recoloured to the sign's own
+    /// element — see `EffectSpriteView.recoloured` — so choosing between them is
+    /// choosing a shape rather than commissioning a drawing.
+    enum Arrival: String, CaseIterable {
+
+        /// `absorb`, run backwards: energy arriving rather than leaving.
+        case absorb
+
+        /// The plate's shockwave.
+        case plate
+
+        /// A coin coming apart.
+        case coin
+
+        /// The slower of the two fireworks.
+        case firework
+
+        /// The larger sparkle burst.
+        case sparkle
+
+        var next: Arrival {
+            let all = Self.allCases
+            return all[(all.firstIndex(of: self)! + 1) % all.count]
+        }
+
+        var effect: EffectSprite {
+            switch self {
+            case .absorb: .absorb
+            case .plate: .plateBurst
+            case .coin: .coinExplosion
+            case .firework: .fireworkSlow
+            case .sparkle: .sparkleBurstThree
+            }
+        }
+
+        /// `absorb` is the one that means the opposite of itself reversed.
+        var runsBackwards: Bool { self == .absorb }
+    }
+
+    static let defaultArrival: Arrival = .absorb
+
+    static var arrival: Arrival {
+        #if DEBUG
+        FallTuning.shared.arrival
+        #else
+        defaultArrival
+        #endif
     }
 }

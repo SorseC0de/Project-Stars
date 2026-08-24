@@ -3103,7 +3103,13 @@ enum GameRules {
     /// Replaces the shrink that used to stand in for distance. Far enough to
     /// leave the square it was standing on, so the fade is finishing a movement
     /// rather than dissolving something in place.
-    static let fallDrop: CGFloat = 26
+    /// How far a falling piece is driven down, in art pixels.
+    ///
+    /// A whole board and then some: it starts on any row and has to be past the
+    /// front one before the plane square clips it, or it would still be sitting
+    /// on the board when the planes swap. It was twenty-six back when the piece
+    /// faded on the way down and only had to get out of its own square.
+    static let fallDrop: CGFloat = 140
 
     /// The sign the picker opens on in debug builds.
     ///

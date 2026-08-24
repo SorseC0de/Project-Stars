@@ -59,6 +59,14 @@ struct EffectSpriteView: View {
     /// comes round again.
     var frameCount: Int?
 
+    /// Play the strip back to front.
+    ///
+    /// Some effects say the opposite thing reversed, and mean it: `absorb` runs
+    /// outward as energy leaves a piece, so run backwards it is energy *arriving*
+    /// — which is the whole of what a landing is. Cheaper than a second strip
+    /// and, more to the point, guaranteed to stay the same drawing.
+    var reversed: Bool = false
+
     /// Recolours the whole strip, for art drawn deliberately colourless.
     ///
     /// A flat silhouette rather than a palette swap: the absorb is greys with no
@@ -90,7 +98,8 @@ struct EffectSpriteView: View {
                 ? now
                 : timeline.date.timeIntervalSince(start)
             let step = Int(elapsed / effect.rate.frameDuration)
-            let frame = loops ? ((step % playing) + playing) % playing : step
+            let counted = loops ? ((step % playing) + playing) % playing : step
+            let frame = reversed && counted < playing ? playing - 1 - counted : counted
 
             if elapsed >= 0, frame < playing {
                 let art = recoloured(

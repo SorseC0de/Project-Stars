@@ -2855,7 +2855,20 @@ final class GameSession {
                 to: to, context: engine.passiveSnapshot
             )
         }()
-        let tumble = controlled ? 0 : self.tumble
+        // **One turn at one speed, ending upright.**
+        //
+        // The whole spin is `fallSpinDegrees` — three turns, so the piece is
+        // the right way up at the instant it lands, which it always was. What
+        // it was not was *continuous*: half went on the way down under an ease
+        // and half on the way in under a linear, so the rate changed at the
+        // seam and the piece visibly hesitated half way through its own fall.
+        //
+        // Split by duration instead, so the angular speed is the same on both
+        // sides of the swap and the two halves read as one turn.
+        let arrival = GameRules.fallArrivalDuration
+        let whole = controlled ? 0 : GameRules.fallSpinDegrees * tumbleDirection
+        let descending = whole * (departure / (departure + arrival))
+        let landing = whole - descending
 
         // Going down through the sky pushes it aside. Only leaving Astra: a fall
         // out of Terra is a fall out of the world and there is no cloud there to
@@ -2866,9 +2879,9 @@ final class GameSession {
 
         // Spin and shrink together, and *animated* — incrementing the angle
         // outside `withAnimation` snapped the sprite round instead of turning it.
-        withAnimation(.easeIn(duration: departure)) {
+        withAnimation(.linear(duration: departure)) {
             isFalling = true
-            fallSpin += tumble
+            fallSpin += descending
         }
         await sleep(departure)
 
@@ -2882,8 +2895,8 @@ final class GameSession {
         // falling in, not fading in — so the flag is cleared without animation.
         isFalling = false
         fallArrivalStartedAt = .now
-        withAnimation(.linear(duration: GameRules.fallArrivalDuration)) {
-            fallSpin += tumble
+        withAnimation(.linear(duration: arrival)) {
+            fallSpin += landing
         }
         await sleep(GameRules.fallArrivalDuration)
 
@@ -2894,9 +2907,24 @@ final class GameSession {
         fallArrivalStartedAt = nil
         bounceSurface(at: engine.piece.point, on: engine.piece.plane)
 
-        // Impact. The lion does not raise dust — it lands, and the ground
-        // knows about it. Its own strip stands in for the puff entirely rather
-        // than playing over it.
+        // **The energy arriving, in the sign's own colour.**
+        //
+        // The piece has been gold the whole way down — belonging to neither
+        // plane — and this is the moment it takes the new one's material. The
+        // flash is what marks the handover: `absorb` played backwards is energy
+        // going *in* rather than out, which is exactly what a landing is. Which
+        // strip it uses is a drawing decision and lives on the bench.
+        let flash = FallStyle.arrival
+        playEffect(
+            flash.effect,
+            at: engine.piece.point,
+            on: engine.piece.plane,
+            tint: ElementFX.ramp(for: zodiac.element).bright,
+            reversed: flash.runsBackwards
+        )
+
+        // And the sign's own landing strip over the top of it, where one exists.
+        // The lion does not raise dust — it lands, and the ground knows about it.
         if let drawn = EffectSprite.landing(for: zodiac) {
             playEffect(drawn, at: engine.piece.point, on: engine.piece.plane)
         } else {
@@ -3733,6 +3761,9 @@ struct EffectBurst: Identifiable, Equatable {
     /// True to bloom this copy, for the flourishes that are made of light.
     var glows = false
 
+    /// True to play the strip back to front — see `EffectSpriteView.reversed`.
+    var reversed = false
+
     /// Entries to exchange, for a strip drawn in colours other than the ones
     /// wanted.
     ///
@@ -3768,7 +3799,8 @@ extension GameSession {
         scale: CGFloat = 1,
         angle: Double = 0,
         mirrored: Bool = false,
-        glows: Bool = false
+        glows: Bool = false,
+        reversed: Bool = false
     ) {
         let burst = EffectBurst(
             effect: effect,
@@ -3779,6 +3811,7 @@ extension GameSession {
             angle: angle,
             mirrored: mirrored,
             glows: glows,
+            reversed: reversed,
             swaps: swaps,
             tint: tint
         )
