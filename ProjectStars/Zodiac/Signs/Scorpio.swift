@@ -149,6 +149,7 @@ struct ScorpioDeathDream: ZodiacPassive {
                 fromPlane: .terra, toPlane: .astra,
                 type: .teleport
             ),
+            .passiveFired(name: displayName, refused: false),
         ]
     }
 }
@@ -223,6 +224,7 @@ struct ScorpioSamsaricShed: ZodiacPassive {
                 toPlane: context.nexysPlane,
                 type: .teleport
             ),
+            .passiveFired(name: displayName, refused: false),
         ]
     }
 

@@ -1124,6 +1124,18 @@ struct GameEngine {
                 // board. Scorpio's Void Culling is paid for *ruin*.
                 .filter { !sim[startingPlane][$0].isSolid && sim[startingPlane][$0].kind == .normal }
                 .count
+
+            // **The vault itself, not the charge it earns.**
+            //
+            // A two-square hop reaching this branch has already cleared her
+            // `allows` check, which only ever passes a jump that crossed open
+            // ground — so any non-zero count here is a vault that actually
+            // happened, whoever is playing. Told before the streak below folds
+            // it away, so this is the one place that still knows the jump was
+            // singular rather than the Nth of a run.
+            if landing.holesJumped > 0 {
+                commit(.passiveFired(name: ScorpioVoidCulling().displayName, refused: false))
+            }
         } else {
             // Anything that is not a jump cleared nothing, whatever the landing
             // was carrying when it got here.
@@ -3426,10 +3438,19 @@ struct GameEngine {
                 if GameRules.nexysAscendsFromTerra,
                    plane == .terra,
                    self[plane][point].kind == .nexys,
-                   !activePassives.ridesNexysDown(context: passiveContext),
-                   !activePassives.blocksAscent(context: passiveContext) {
-                    commit(.nexysMoved(to: .astra, carryingPiece: true))
-                    result.ascended = true
+                   !activePassives.ridesNexysDown(context: passiveContext) {
+                    if activePassives.blocksAscent(context: passiveContext) {
+                        // **Samsaric Shed, spent.** The ride that would have
+                        // happened for anyone else is the thing being refused
+                        // — pure restriction, nothing handed back — so this is
+                        // the one place in the roll call that earns red.
+                        commit(.passiveFired(
+                            name: ScorpioSamsaricShed().displayName, refused: true
+                        ))
+                    } else {
+                        commit(.nexysMoved(to: .astra, carryingPiece: true))
+                        result.ascended = true
+                    }
                 }
 
                 return result
