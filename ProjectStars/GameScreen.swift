@@ -258,6 +258,12 @@ struct GameScreen: View {
                 ControlPanelView(session: session, side: side, onQuit: onQuit)
                     .frame(width: side, height: side)
                     .opacity(session.panelVeil)
+                    // **Invisible is not absent.** `.opacity(0)` keeps every
+                    // control live, and the one control on this panel that is
+                    // not gated on the run accepting input is pause — so a
+                    // player watching themselves fall out of the world could
+                    // pause the game by touching a panel that was not there.
+                    .allowsHitTesting(session.panelVeil > 0)
                     .overlay(alignment: .bottomLeading) {
                         #if DEBUG
                         // **Both benches parked.** The counter is placed and the rift is
@@ -420,6 +426,7 @@ struct GameScreen: View {
             WorldSky(
                 side: side,
                 camera: session.cameraRow,
+                cameraFrom: session.cameraFrom,
                 clock: session.ambientClock(at:)
             )
 

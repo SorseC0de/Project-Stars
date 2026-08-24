@@ -250,6 +250,17 @@ final class GameSession {
     /// like from inside.
     private(set) var cameraRow: Double = Double(World.row(of: .astra))
 
+    /// Whether the island is travelling *with* the camera rather than standing
+    /// still while the camera moves past it.
+    private(set) var nexysRidesCamera = false
+
+    /// Where the camera set off from, while it is travelling. `nil` at rest.
+    ///
+    /// Only ever read to decide what may sleep — see
+    /// `World.isVisible(row:sweeping:to:)` for why an animated number cannot be
+    /// asked that question directly.
+    private(set) var cameraFrom: Double?
+
     /// How far the piece has fallen past its own plane's row.
     ///
     /// Zero almost always. It is what lets the piece move *without* the camera:
@@ -1708,6 +1719,22 @@ final class GameSession {
         guard !Task.isCancelled else { return }
 
         flashingTiles = []
+        // **The camera cannot be left looking where the piece is not.**
+        //
+        // A net, not a rule — every transition walks the camera itself, and this
+        // catches the ones that do not. There are more ways to change plane than
+        // there are transitions that animate it: a teleport between Miasma
+        // sigils, a Nexys ride reached through Libra's own dispatch. Any of them
+        // used to leave the camera three rows from the piece with no way back,
+        // which is a dead run rather than a glitch.
+        //
+        // Skipped while anything is in flight, so it can never fight an
+        // animation that is part way through doing this properly.
+        if cameraFrom == nil, pieceDrop == 0, !isFalling {
+            let home = Double(World.row(of: engine.piece.plane))
+            if cameraRow != home { cameraRow = home }
+        }
+
         phase = engine.isGameOver ? .gameOver : .awaitingInput
 
         playBufferedMove()
@@ -2656,10 +2683,17 @@ final class GameSession {
     /// - Parameter onArrival: What to disturb once the new plane is on screen.
     ///   Called *after* the board has swapped, because the thing being shoved
     ///   aside is only visible then.
+    /// - Parameter aboard: Whether the island is carrying the piece up, as
+    ///   against the piece climbing under its own power. Only the first has the
+    ///   island travelling, and only the first should have it moving with the
+    ///   camera — Pisces and Aquarius rise on their own, and an island that
+    ///   compensated for the camera on their behalf would hold its screen
+    ///   position while the board it stands on scrolled away underneath it.
     private func climb(
         _ event: GameEvent,
         to destination: Plane,
         arrivalDuration: TimeInterval,
+        aboard: Bool = false,
         onArrival: @escaping () -> Void
     ) async {
         // **Nothing covers the swap any more.**
@@ -2677,10 +2711,14 @@ final class GameSession {
         let travel = GameRules.ascentRiseDuration + arrivalDuration
 
         ascentRiseStartedAt = .now
+        nexysRidesCamera = aboard
+        cameraFrom = cameraRow
         withAnimation(.linear(duration: travel)) {
             cameraRow = Double(World.row(of: destination))
         }
         await sleep(travel)
+        cameraFrom = nil
+        nexysRidesCamera = false
 
         guard !Task.isCancelled else {
             ascentRiseStartedAt = nil
@@ -2973,12 +3011,14 @@ final class GameSession {
         // move.
         if from == .astra { disturbClouds(at: at) }
 
+        cameraFrom = cameraRow
         withAnimation(.linear(duration: travel)) {
             isFalling = true
             cameraRow = Double(World.row(of: to))
             fallSpin += whole
         }
         await sleep(travel)
+        cameraFrom = nil
 
         guard !Task.isCancelled else {
             isFalling = false
@@ -3179,7 +3219,7 @@ final class GameSession {
     /// Input is already locked for the duration — the whole replay runs in
     /// `resolvingMove`, and `acceptsInput` is false throughout.
     private func animateAscent(_ event: GameEvent) async {
-        await climb(event, to: .astra, arrivalDuration: GameRules.ascentGrowDuration) { [weak self] in
+        await climb(event, to: .astra, arrivalDuration: GameRules.ascentGrowDuration, aboard: true) { [weak self] in
             // Astra is on screen now, which is the only moment the sky being
             // shoved aside can actually be seen — see `animateNexysTravel`.
             self?.disturbClouds(at: GameRules.nexysPoint)
@@ -3216,6 +3256,33 @@ final class GameSession {
         nexysTravellingUp = goingUp
         if case let .nexysMoved(_, carrying) = event { nexysCarryingPiece = carrying }
         defer { nexysCarryingPiece = false }
+
+        // **A ride with a passenger is a plane change, and moves the camera.**
+        //
+        // Libra's own dispatch reaches this function for rides that would
+        // otherwise go to `animateAscent`, and a carry *downward* has no other
+        // path at all — so a ride taken either of those ways flipped the piece's
+        // plane while the camera stayed on the row it left. The piece then drew
+        // three rows outside the window, and the run could not be recovered
+        // without dying.
+        let carriesCamera = nexysCarryingPiece
+        if carriesCamera, case let .nexysMoved(destination, _) = event {
+            let travel = (goingUp
+                ? GameRules.ascentRiseDuration
+                : GameRules.nexysTravelDepartDuration)
+                + (goingUp ? GameRules.ascentGrowDuration : GameRules.fallArrivalDuration)
+            nexysRidesCamera = true
+            cameraFrom = cameraRow
+            withAnimation(.linear(duration: travel)) {
+                cameraRow = Double(World.row(of: destination))
+            }
+        }
+        defer {
+            if carriesCamera {
+                cameraFrom = nil
+                nexysRidesCamera = false
+            }
+        }
 
         nexysDepartStartedAt = .now
         // Climbing away takes as long as carrying the player would; shrinking
@@ -4129,7 +4196,11 @@ extension GameSession {
         // travel: an island crossing between planes on its own ran on a paused
         // timeline and snapped instead of moving. The window onto the world is
         // a fact, so ask it.
-        !World.isVisible(row: World.row(of: plane), from: cameraRow)
+        !World.isVisible(
+            row: World.row(of: plane),
+            sweeping: cameraFrom ?? cameraRow,
+            to: cameraRow
+        )
     }
 
     /// Every square the piece could move to this turn, and the swipe that gets

@@ -32,7 +32,15 @@ struct DeathView: View {
         // No fill of its own. The column's sky is already dark this far down —
         // that is what the gradient's lower half is *for* — and a second black
         // rectangle over it would be a second opinion about how deep this is.
-        FallStreaks(isLive: session.phase == .gameOver || session.pieceDrop > 0)
+        // **Alive exactly while the lid is off.**
+        //
+        // Not "while the run is over": the panel comes back once the piece is
+        // down, carrying the way out, and it is opaque and exactly one square
+        // and sitting exactly over this row. Keyed on the run's state, forty
+        // eight additively-blended capsules would go on being drawn at display
+        // rate into a canvas nothing can see — on the one screen where a player
+        // might sit for a minute deciding what to do.
+        FallStreaks(isLive: session.panelVeil > 0)
     }
 }
 

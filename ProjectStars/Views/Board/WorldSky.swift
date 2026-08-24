@@ -40,6 +40,12 @@ struct WorldSky: View {
     /// Where the camera is, in rows. Only used to decide what may sleep.
     let camera: Double
 
+    /// And where it set off from, if it is moving. See
+    /// `World.isVisible(row:sweeping:to:)` — asking an animated number where it
+    /// is gets you where it is going, which unmounts a band that is still on
+    /// screen and mounts one that is two screens away.
+    var cameraFrom: Double?
+
     /// The ambient clock, which stops while the game waits on the player.
     var clock: (TimeInterval) -> TimeInterval = { $0 }
 
@@ -69,7 +75,7 @@ struct WorldSky: View {
         // frames a second behind a row nobody can see is the bug that cost this
         // project a week, and a column nine rows tall has seven more places for
         // it to hide than a screen with two squares did.
-        if World.isVisible(row: row, from: camera) {
+        if World.isVisible(row: row, sweeping: cameraFrom ?? camera, to: camera) {
             content()
                 .frame(width: side, height: side)
                 .clipped()

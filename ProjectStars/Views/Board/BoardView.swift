@@ -2491,7 +2491,7 @@ struct BoardView: View {
             // island takes exactly the offset the piece takes, out of exactly
             // the same property. See `fallOffset(metrics:)`.
             lift: (session.nexysCarryingPiece ? travel.lift : ascent.lift + travel.lift)
-                + (session.ascentRiseStartedAt != nil ? fallOffset(metrics: metrics) : 0),
+                + (session.nexysRidesCamera ? fallOffset(metrics: metrics) : 0),
             placement: placedOnPlaneModifier(GameRules.nexysPoint, metrics: metrics)
         )
     }

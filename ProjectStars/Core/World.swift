@@ -99,6 +99,26 @@ enum World {
     /// drawn — that is what makes a piece able to fall into the underground
     /// without anything being moved to meet it.
     static func isVisible(row: Int, from camera: Double) -> Bool {
-        Double(row) < camera + 2 && Double(row) + 1 > camera
+        isVisible(row: row, sweeping: camera, to: camera)
+    }
+
+    /// The same question asked of a whole journey rather than an instant.
+    ///
+    /// **This is the one that gets used**, and the reason is a trap worth
+    /// naming. `cameraRow` is animated, which means the *model* reaches its
+    /// destination immediately and only the view takes the long way there — so
+    /// anything that reads the number to decide whether to run gets the answer
+    /// for the end of the trip on the first frame of it. Asked at an instant,
+    /// the plane being left goes to sleep while it is still filling the screen,
+    /// and the plane being arrived at wakes up two screens away.
+    ///
+    /// Asked of the sweep, everything the camera will pass over stays awake for
+    /// as long as the camera is moving, which is exactly the old rule — "both
+    /// planes are awake while falling" — without the old rule's assumption that
+    /// falling is the only way to travel.
+    static func isVisible(row: Int, sweeping from: Double, to: Double) -> Bool {
+        let lowest = min(from, to)
+        let highest = max(from, to)
+        return Double(row) < highest + 2 && Double(row) + 1 > lowest
     }
 }
