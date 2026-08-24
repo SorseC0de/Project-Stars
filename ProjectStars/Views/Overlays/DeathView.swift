@@ -85,6 +85,12 @@ struct DeathView: View {
             }
         }
         .ignoresSafeArea()
+        // **Nothing here takes a touch.**
+        //
+        // This covers the panel as well as the board, and the way out of a lost
+        // run is now a button on that panel. A view with no controls on it that
+        // sits over the only controls there are is a view that has to say so.
+        .allowsHitTesting(false)
         .opacity(arrived)
         .onAppear {
             // The piece is still falling out of the bottom of the board as this
