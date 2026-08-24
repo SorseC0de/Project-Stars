@@ -1686,7 +1686,14 @@ enum GameRules {
     /// stands higher than ground level by roughly that same amount. Centring the
     /// piece on the island's artwork was the wrong target — it put the piece at
     /// ground height while the island hovered around it.
-    static let nexysRideLift: CGFloat = 11
+    ///
+    /// **Eleven for a long time, and one pixel short the whole while.** The same
+    /// discrepancy the cursor has up there — `nexysRaise` against where the
+    /// island's surface is actually drawn — and it went unnoticed on the piece
+    /// for the same reason it did on the cursor: one pixel is invisible until
+    /// something else on the square gives you a straight edge to compare it to.
+    /// Both sprites, since both are drawn from the same surface.
+    static let nexysRideLift: CGFloat = 12
 
     /// How far the island drifts either side of its resting height.
     ///
