@@ -1088,6 +1088,21 @@ struct GameEngine {
             ), spent != sim.signState else { continue }
 
             commit(.signStateChanged(spent))
+
+            // **Vulcan Vault, told at the one hook that only ever answers when
+            // a vault was actually taken.**
+            //
+            // Its `stateAfterMove` returns non-nil exactly when
+            // `option.distance > 1` — the same guard `allows` used to permit
+            // the leap in the first place — so reaching this line already means
+            // the vault happened. Checked by identity rather than by
+            // re-deriving the condition, since the condition already ran to
+            // produce `spent`.
+            if passive is SagittariusVulcanVault {
+                commit(.passiveFired(
+                    name: SagittariusVulcanVault().displayName, refused: false
+                ))
+            }
         }
 
         // 5b. Passives that react to what the move did rather than to what it
@@ -2806,7 +2821,13 @@ struct GameEngine {
               let pickup = drawPickup(at: point, on: plane)
         else { return [] }
 
-        return [.pickupRevealed(id: pickup, plane: plane, point: point)]
+        // Sagittarius is the only sign this hook answers for today, so the name
+        // is not conditional on who is playing — it does not need to be until a
+        // second sign shares the hook.
+        return [
+            .pickupRevealed(id: pickup, plane: plane, point: point),
+            .passiveFired(name: SagittariusFortunateFind().displayName, refused: false),
+        ]
     }
 
     /// What a landing produced, beyond its events.
