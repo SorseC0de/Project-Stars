@@ -23,7 +23,7 @@ import SwiftUI
 /// moves.
 ///
 /// - TODO: **Debug only.** Never read in a shipped build.
-let debugStartingSign: Zodiac = .taurus
+let debugStartingSign: Zodiac = .aries
 #endif
 
 /// The whole game, laid out as two stacked squares.

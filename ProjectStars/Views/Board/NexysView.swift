@@ -196,6 +196,14 @@ enum NexysStyle {
     /// How long the flat sprite stands in, in seconds.
     static let defaultRockHold: Double = 0.16
 
+    /// How long the island's give lasts, in seconds.
+    ///
+    /// Its own rather than the shared `GameRules.surfaceBounceDuration`, which
+    /// also governs every cloud on Astra — the island is a rock on a chain and
+    /// gives differently from a puff of cloud, and the sprite change that goes
+    /// with it has to be able to line up with it.
+    static let defaultBounceHold: Double = GameRules.surfaceBounceDuration
+
     /// How many art pixels wider the island gets at the height of the rock.
     static let defaultRockSquash: Double = 3
 
@@ -240,6 +248,14 @@ enum NexysStyle {
         NexysTuning.shared.rock
         #else
         defaultRock
+        #endif
+    }
+
+    static var bounceHold: Double {
+        #if DEBUG
+        NexysTuning.shared.bounceHold
+        #else
+        defaultBounceHold
         #endif
     }
 

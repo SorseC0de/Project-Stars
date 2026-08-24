@@ -3076,11 +3076,17 @@ struct BoardView: View {
 
     /// How far through the island's settling rock, or `nil` when it is still.
     ///
-    /// **Timed from the landing, not from the step.** The engine moves the piece
-    /// at the *start* of a hop and the view animates it across, so the moment
-    /// weight actually arrives on the island is a hop's length after
-    /// `hopStartedAt`. Reading the engine's position alone would rock the island
-    /// while the piece was still in the air over it.
+    /// **The same instant the give starts, so the two cannot drift.** The island
+    /// dipping and the island tipping are one event seen twice, and timing them
+    /// separately means every change to either one has to be paid for in the
+    /// other. `surfaceBounce` is the session's own record of weight arriving —
+    /// raised for the island by name, in `bounceSurface(at:on:)` — so both read
+    /// it and only their *lengths* differ.
+    ///
+    /// It replaced a landing time derived from `hopStartedAt` plus a hop's
+    /// duration. That was right about when weight lands and wrong in principle:
+    /// two descriptions of one moment, one of which had to be kept in step by
+    /// hand.
     ///
     /// A window on a timestamp rather than a stored flag, for the same reason
     /// `HopPose` is: a pure function of elapsed time cannot be left stuck part
@@ -3088,13 +3094,11 @@ struct BoardView: View {
     private func nexysRock(at date: Date) -> CGFloat? {
         guard NexysStyle.rock != .off,
               NexysStyle.foreshortened,
-              session.engine.nexysPlane == shown,
-              session.engine.piece.point == GameRules.nexysPoint,
-              let hopped = session.hopStartedAt
+              let bounce = surfaceBounce,
+              bounce.point == GameRules.nexysPoint
         else { return nil }
 
-        let landed = GameRules.hopDuration * GameRules.hopPoseStretch
-        let since = date.timeIntervalSince(hopped) - landed
+        let since = date.timeIntervalSinceReferenceDate - bounce.start
         guard since >= 0, since < NexysStyle.rockHold else { return nil }
 
         return CGFloat(since / NexysStyle.rockHold)
@@ -3185,7 +3189,8 @@ struct BoardView: View {
             GameRules.nexysPoint,
             bounce: surfaceBounce,
             now: date.timeIntervalSinceReferenceDate,
-            scale: metrics.scale
+            scale: metrics.scale,
+            over: NexysStyle.bounceHold
         )
 
         return float + give
