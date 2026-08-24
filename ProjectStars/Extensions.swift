@@ -62,12 +62,12 @@ struct IconLabel: View {
 ///
 /// ## Why this exists
 ///
-/// Both planes are mounted at once and stacked, with the one being stood on
-/// scrolled into frame and the other clipped away — see `GameScreen.planeSquare`.
-/// That is what lets a fall travel between them instead of hiding a swap behind
-/// a curtain, and it is worth keeping.
+/// Every row of the world is mounted at once — see `World` — and the window onto
+/// them is two squares of a column nine tall. That is what lets a fall travel
+/// between planes instead of hiding a swap behind a curtain, and it is worth
+/// keeping.
 ///
-/// But **clipping hides pixels; it does not stop views running.** Astra's clouds
+/// But **being off screen hides pixels; it does not stop views running.** Astra's clouds
 /// carried on asking for sixty frames a second the whole time the player was
 /// standing on Terra — ten sprites, six hundred wake-ups a second, for a picture
 /// nobody could see. It was comfortably the largest single cost on the board and
@@ -80,9 +80,13 @@ struct IconLabel: View {
 ///
 /// ## Why it is not just `plane != visiblePlane`
 ///
-/// During a fall **both** planes are on screen, scrolling past each other, and
-/// the one being left has to still be alive on the way out. `isFalling` is what
-/// separates "off screen" from "on its way off".
+/// Because the camera and the piece are different questions. During a fall
+/// **both** planes are on screen, scrolling past each other, and the one being
+/// left has to still be alive on the way out — so the answer comes from where
+/// the camera is looking and where it is on its way to, not from where the piece
+/// happens to be standing. See `GameSession.planeIsAsleep(_:)`, and
+/// `World.isVisible(row:sweeping:to:)` for why the journey has to be asked about
+/// rather than the instant.
 private struct SleepingPlaneKey: EnvironmentKey {
     static let defaultValue = false
 }

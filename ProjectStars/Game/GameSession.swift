@@ -232,7 +232,7 @@ final class GameSession {
     /// When the island began carrying the piece up out of Terra, or `nil`.
     private(set) var ascentRiseStartedAt: Date?
 
-    /// When the pair began swelling back in on Astra, or `nil`.
+    /// **Vestigial**, and nothing swells anywhere any more. See `cameraRow`.
     private(set) var ascentGrowStartedAt: Date?
 
     // MARK: - Where the camera is
@@ -2652,10 +2652,11 @@ final class GameSession {
 
     /// A piece climbing to the plane above under its own power.
     ///
-    /// The reverse of a fall, and built from the same parts: the piece rises out
-    /// of frame, the plane changes behind a flash, and it drops the last of the
-    /// way onto its square. The cloud is pushed aside where it surfaces, which
-    /// is the tell that something came *through* rather than appearing.
+    /// The reverse of a fall, and built from the same one part: the camera walks
+    /// up the column to the row above, and the piece is drawn against the same
+    /// number, so it holds still while the world comes down past it. The cloud
+    /// is pushed aside where it surfaces, which is the tell that something came
+    /// *through* rather than appearing.
     private func animateRise(_ event: GameEvent, to plane: Plane) async {
         await climb(event, to: plane, arrivalDuration: GameRules.fallArrivalDuration) { [weak self] in
             guard let self else { return }
@@ -2671,15 +2672,16 @@ final class GameSession {
 
     /// Going **up** a plane, however it was earned.
     ///
-    /// One sequence rather than two near-identical ones. The rise and the
-    /// ascent were separate copies of the same five steps — light the screen,
-    /// wait, swap the board, disturb what is arriving, unlight it — and the only
-    /// real difference between them was how long the far side takes and what
-    /// gets shoved aside on arrival. Copies of a sequence drift the moment
+    /// One sequence rather than two near-identical ones. The rise and the ascent
+    /// were separate copies of the same steps, and the only real difference
+    /// between them was how long the far side takes and what gets shoved aside
+    /// on arrival. Copies of a sequence drift the moment
     /// either is retuned, and this is the sequence most likely to be retuned:
     /// it is the one the player sees on every trip between planes.
     ///
-    /// - Parameter arrivalDuration: How long the far side takes to settle.
+    /// - Parameter arrivalDuration: The tail of the trip, summed into the camera's
+    ///   travel. Kept as a parameter because the two callers genuinely differ on
+    ///   it, even though nothing settles separately any more.
     /// - Parameter onArrival: What to disturb once the new plane is on screen.
     ///   Called *after* the board has swapped, because the thing being shoved
     ///   aside is only visible then.
@@ -2696,15 +2698,6 @@ final class GameSession {
         aboard: Bool = false,
         onArrival: @escaping () -> Void
     ) async {
-        // **Nothing covers the swap any more.**
-        //
-        // There used to be a white flash across the whole screen here, raised
-        // as the piece left and lowered as it came back — the boards were cut
-        // between behind it. That was the wrong solution to a real problem, and
-        // the fall solved the problem properly: the piece climbs all the way off
-        // the top of the screen, and the plane it was standing on is replaced
-        // while there is nothing of it on screen to see the replacement happen.
-        // The slide is the transition. A flash over it is a second one.
         // The fall run backwards, and the same one number doing it. See
         // `animateFall` — going up is the camera walking to a lower row index
         // instead of a higher one, and nothing else about it differs.
@@ -2889,12 +2882,6 @@ final class GameSession {
         await sleep(GameRules.fallArrivalDuration)
     }
 
-    /// The piece disappearing down a hole: spin, shrink, fade.
-    ///
-    /// Split out because going down a hole is a property of **the hole**, not of
-    /// what happens next. Dropping to Terra and dropping out of the world
-    /// entirely look identical while you are falling; they differ only in what
-    /// is waiting underneath.
     /// The turning that never stops, once the piece is at the bottom.
     ///
     /// A repeating animation rather than a clock this view has to be woken by:
@@ -2931,47 +2918,25 @@ final class GameSession {
         await sleep(duration)
     }
 
-    /// The drop between planes, in three beats.
+    /// The drop between planes.
     ///
-    /// 1. **Departure.** The piece spins counter-clockwise, shrinks and fades as
-    ///    it goes through the hole.
-    /// 2. **Arrival.** The board below is applied, then the piece falls in from
-    ///    above the screen while a shadow on the destination tile swells to meet
-    ///    it — the shadow is what tells the player where it is coming down before
-    ///    the piece is anywhere near.
-    /// 3. **Impact.** A heavy dust cloud and a short shake.
+    /// ## The transition this file spent a long time asking for
     ///
-    /// The spin is accumulated in halves rather than set to a target angle, so
-    /// it keeps turning the same way across the plane swap instead of unwinding.
+    /// There was a TODO here describing what a real plane change should look
+    /// like: the world rushing upward, fast and looping, so the transition reads
+    /// as *travel* rather than as a cut hidden behind a flash. It proposed
+    /// getting there with `ImageRenderer` — snapshot the screen, scroll two
+    /// copies of the snapshot, and paint glowing capsules over the top.
     ///
-    /// - TODO: **Replace the plane change with a proper transition.** Not the
-    ///   piece's animation — this one is fine — but the swap itself, which is
-    ///   currently a cut hidden behind a flash.
+    /// It is done, and it did not need the snapshot. The trick that made a
+    /// scrolling picture of the world necessary was that the two planes were
+    /// never in the same place, so there was no real world to scroll. Now there
+    /// is one — nine rows of it, see `World` — and the thing rushing past is not
+    /// a picture of the world but the world.
     ///
-    ///   The effect wanted: take the game screen as it stands and scroll it
-    ///   upward, fast, looping — so the world reads as rushing past on the way
-    ///   down — with high-glow vertical capsules in white, ice blue, light
-    ///   yellow and light pink flying up through it on their own loop. Inverted
-    ///   for an ascent: everything travels down instead.
-    ///
-    ///   This is the GameMaker surface trick, and it has an equivalent here.
-    ///   `ImageRenderer` will hand back a snapshot of a view hierarchy, which is
-    ///   the surface; scrolling it is then two copies offset by the loop height
-    ///   with the phase driven off a timestamp, exactly like every other effect
-    ///   in this file. The capsules want a `Canvas` over the top — they are
-    ///   dozens of soft additive shapes, which is what `CloudSpriteField` and
-    ///   `HealSparkleView` already use one for.
-    ///
-    ///   One snapshot, taken *before* the boards swap — afterwards the view is
-    ///   already showing the destination. Once, not per frame: `ImageRenderer`
-    ///   is main-actor and not free, and re-taking it would be paying for
-    ///   detail nobody can see.
-    ///
-    ///   Which is the point, and the thing not to lose. It moves fast enough
-    ///   that the colours blur together, and **that blur is the effect** — the
-    ///   scroll is not there to be read, it is there to smear. Anything done in
-    ///   the name of making it legible, slowing it down or sharpening it, works
-    ///   directly against it.
+    /// The capsules got built too, and found a better home: they are what the
+    /// underground is made of, where you are genuinely falling and there is
+    /// genuinely nothing to see but walls going by. See `FallStreaks`.
     private func animateFall(_ event: GameEvent) async {
         guard case let .pieceFell(from, to, at) = event else { return }
 
@@ -3208,13 +3173,10 @@ final class GameSession {
 
     /// Riding the Nexys back up to Astra.
     ///
-    /// Three beats, mirroring the fall but earned rather than suffered:
-    ///
-    /// 1. **Rise.** Island and piece climb together off the top of the screen,
-    ///    accelerating, while the board whites out.
-    /// 2. **Swap.** Astra is applied behind the flash.
-    /// 3. **Settle.** The pair swell back from nothing at the centre of the
-    ///    tile, overshooting a touch so they drop into place.
+    /// The fall run backwards, earned rather than suffered. The camera walks up
+    /// the column and the island and its passenger are both drawn against it, so
+    /// the two arrive together for the only reason two things ever reliably do:
+    /// they are reading the same number.
     ///
     /// Input is already locked for the duration — the whole replay runs in
     /// `resolvingMove`, and `acceptsInput` is false throughout.

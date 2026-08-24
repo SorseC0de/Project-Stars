@@ -409,11 +409,6 @@ struct GameScreen: View {
         session.engine.floatsOverBoardEdge
     }
 
-    /// One plane's square: its sky, and its board.
-    ///
-    /// The sky belongs to the plane rather than to the screen, which is what
-    /// lets the two be stacked at all — Astra's stars and Terra's daylight are
-    /// as much a part of where you are as the ground is.
     /// The world, top to bottom.
     ///
     /// Each place offset to its own row rather than stacked in a `VStack`, so a

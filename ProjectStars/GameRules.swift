@@ -1599,7 +1599,9 @@ enum GameRules {
     static let hopStretchY: CGFloat = 1.14
 
 
-    /// A drop from Astra down to Terra.
+    /// The bulk of a drop, wherever it is going: Astra to Terra, or Terra out of
+    /// the world entirely. Paired with `fallArrivalDuration`, which is the rest
+    /// of it.
     static let fallDuration: TimeInterval = 0.72
 
     /// How far the piece spins as it drops between planes.
@@ -1609,12 +1611,12 @@ enum GameRules {
     /// on the way back.
     static let fallSpinDegrees: Double = -1080
 
-    /// Seconds the piece takes to fall in from off-screen onto the lower plane.
+    /// The tail of a trip between planes, and the whole of the Nexys' own
+    /// arrival. It no longer describes anything falling in from off-screen —
+    /// see `World` — but it is still the number that says how the end of an
+    /// arrival is paced, which is what it was always tuned for.
     static let fallArrivalDuration: TimeInterval = 0.42
 
-    /// How far above the board the piece starts its arrival, as a multiple of
-    /// the board's own height. Above 1 it begins genuinely off-screen.
-    static let fallArrivalHeight: CGFloat = 1.15
 
     /// How small the destination tile's shadow starts, before the piece nears
     /// it. Growing this shadow is what telegraphs the incoming landing.
@@ -1733,21 +1735,19 @@ enum GameRules {
     /// Seconds the island takes to leave a plane.
     static let nexysTravelDepartDuration: TimeInterval = 0.34
 
-    /// Seconds it takes to swell back in on the other plane.
-    static let nexysTravelArriveDuration: TimeInterval = 0.34
 
-    /// How far the island drifts as it leaves, as a fraction of the board's
-    /// height. Small — it shrinks away rather than flying off.
-    static let nexysTravelDrift: CGFloat = 0.18
 
-    /// Seconds the island takes to carry the piece up out of Terra.
+    /// The bulk of a climb, whether the island is carrying the piece or the
+    /// piece is climbing on its own. Paired with the caller's arrival duration,
+    /// which is the rest of it.
     static let ascentRiseDuration: TimeInterval = 0.55
 
-    /// Seconds the island and piece take to rise back into place on Astra.
+    /// The tail of a climb that ends on Astra.
     static let ascentGrowDuration: TimeInterval = 0.40
 
-    /// How far above the board the pair travel before the plane swaps, as a
-    /// multiple of the board's height. Above 1 they leave the screen entirely.
+    /// How far the island travels when it goes somewhere on its own, as a
+    /// multiple of the board's height. Above 1 it leaves the screen entirely,
+    /// which is the point — it is going, not shrinking.
     static let ascentRiseHeight: CGFloat = 1.2
 
 
@@ -3105,19 +3105,6 @@ enum GameRules {
 
 
 
-    /// How far a falling piece is driven down before the plane changes, in art
-    /// pixels.
-    ///
-    /// Replaces the shrink that used to stand in for distance. Far enough to
-    /// leave the square it was standing on, so the fade is finishing a movement
-    /// rather than dissolving something in place.
-    /// How far a falling piece is driven down, in art pixels.
-    ///
-    /// A whole board and then some: it starts on any row and has to be past the
-    /// front one before the plane square clips it, or it would still be sitting
-    /// on the board when the planes swap. It was twenty-six back when the piece
-    /// faded on the way down and only had to get out of its own square.
-    static let fallDrop: CGFloat = 140
 
     /// The sign the picker opens on in debug builds.
     ///

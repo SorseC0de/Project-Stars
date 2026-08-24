@@ -186,26 +186,6 @@ struct PieceView: View {
             .rotationEffect(.degrees(spin))
         }
         .offset(y: carryOffset)
-        // The drop: **down and out**, not smaller.
-        //
-        // The shrink was doing depth's job on a board that had none — back when
-        // Terra was drawn flat, getting smaller was the only way to say
-        // "further away". The rows say it now, and a piece that shrinks *and*
-        // travels through a perspective is being sent away twice.
-        //
-        // So it falls: driven straight down its own column until the rows in
-        // front of it have taken it, and the plane below catches it. Distance
-        // is the board's job.
-        //
-        // **Not faded.** It used to vanish on the way down, which is what you do
-        // when there is nothing to go behind — and there is now. Every row
-        // nearer the camera is painted after this one, so a piece travelling
-        // down passes behind each in turn and is gone by the bottom of the
-        // board without ever being made transparent. See `BoardObject.z`.
-        // **Not here any more.** A falling piece used to be shoved down its own
-        // square by a fixed distance while the boards were swapped behind it.
-        // It travels down the world column now, which is a real position rather
-        // than a shove — see `BoardView.fallOffset(metrics:)`.
         .allowsHitTesting(false)
     }
 
