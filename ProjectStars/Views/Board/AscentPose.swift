@@ -53,6 +53,26 @@ struct AscentPose: Equatable {
         )
     }
 
+    /// Rising into place from below the screen onto the plane above.
+    ///
+    /// The mirror of `fallingIn`, and the arrival that replaced `growing` for
+    /// anything with a passenger. A thing that swelled out of the tile said it
+    /// had materialised there; this says it came up through the hole, which is
+    /// what actually happened — the same hole it went down through, seen from
+    /// the other side.
+    ///
+    /// Decelerates rather than accelerating, because it is climbing against the
+    /// fall's gravity rather than with it.
+    static func risingIn(progress: Double, boardSize: CGFloat) -> AscentPose {
+        let p = min(max(progress, 0), 1)
+        // Eases *out*: fast off the mark, slowing into place.
+        let remaining = CGFloat((1 - p) * (1 - p))
+        return AscentPose(
+            lift: remaining * boardSize * GameRules.ascentRiseHeight,
+            scale: 1
+        )
+    }
+
     /// Leaving a plane under its own power: shrinks toward the tile centre
     /// while drifting the way it is headed.
     ///

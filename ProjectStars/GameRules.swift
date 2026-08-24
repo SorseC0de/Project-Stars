@@ -1750,8 +1750,6 @@ enum GameRules {
     /// multiple of the board's height. Above 1 they leave the screen entirely.
     static let ascentRiseHeight: CGFloat = 1.2
 
-    /// Peak whiteout at the moment the planes swap. Zero disables the flash.
-    static let ascentFlashOpacity: Double = 0.55
 
     // ──────────────────────────────────────────────────────────────────────
     // MARK: - Pentacle

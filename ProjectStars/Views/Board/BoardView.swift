@@ -3155,7 +3155,7 @@ struct BoardView: View {
         }
         if let growing = session.ascentGrowStartedAt {
             let progress = date.timeIntervalSince(growing) / GameRules.ascentGrowDuration
-            return .growing(progress: progress)
+            return .risingIn(progress: progress, boardSize: metrics.boardSize)
         }
         return .rest
     }
@@ -3166,8 +3166,10 @@ struct BoardView: View {
     /// of the world: an island coming or going there has nowhere above it to
     /// travel through, so it swells in and shrinks out on the spot. Terra has a
     /// sky, so an island arrives by falling out of it and leaves by climbing
-    /// back into it — the same rise the player sees when riding it home, minus
-    /// the whiteout, because the player has not gone anywhere.
+    /// back into it — the same rise the player sees when riding it home. It goes
+    /// up through the hole in the middle of the sky and comes back down through
+    /// it, both ways visible, which is why neither end needs anything covering
+    /// the moment the boards swap.
     private func nexysTravelPose(at date: Date, metrics: PixelArtMetrics) -> AscentPose {
         let goingUp = session.nexysTravellingUp
 
@@ -3185,7 +3187,7 @@ struct BoardView: View {
                 / (goingUp ? GameRules.ascentGrowDuration : GameRules.fallArrivalDuration)
 
             return goingUp
-                ? .growing(progress: progress)
+                ? .risingIn(progress: progress, boardSize: metrics.boardSize)
                 : .fallingIn(progress: progress, boardSize: metrics.boardSize)
         }
         return .rest

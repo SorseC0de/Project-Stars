@@ -235,9 +235,6 @@ final class GameSession {
     /// When the pair began swelling back in on Astra, or `nil`.
     private(set) var ascentGrowStartedAt: Date?
 
-    /// Whiteout at the moment the planes swap, `0`…`1`.
-    private(set) var ascentFlash: Double = 0
-
     /// When the island began leaving a plane on its own, or `nil`.
     private(set) var nexysDepartStartedAt: Date?
 
@@ -974,7 +971,6 @@ final class GameSession {
         fallArrivalStartedAt = nil
         ascentRiseStartedAt = nil
         ascentGrowStartedAt = nil
-        ascentFlash = 0
         nexysDepartStartedAt = nil
         nexysArriveStartedAt = nil
         lastCollectedPickup = nil
@@ -2607,15 +2603,20 @@ final class GameSession {
         arrivalDuration: TimeInterval,
         onArrival: @escaping () -> Void
     ) async {
+        // **Nothing covers the swap any more.**
+        //
+        // There used to be a white flash across the whole screen here, raised
+        // as the piece left and lowered as it came back — the boards were cut
+        // between behind it. That was the wrong solution to a real problem, and
+        // the fall solved the problem properly: the piece climbs all the way off
+        // the top of the screen, and the plane it was standing on is replaced
+        // while there is nothing of it on screen to see the replacement happen.
+        // The slide is the transition. A flash over it is a second one.
         ascentRiseStartedAt = .now
-        withAnimation(.easeIn(duration: GameRules.ascentRiseDuration)) {
-            ascentFlash = GameRules.ascentFlashOpacity
-        }
         await sleep(GameRules.ascentRiseDuration)
 
         guard !Task.isCancelled else {
             ascentRiseStartedAt = nil
-            ascentFlash = 0
             return
         }
 
@@ -2625,9 +2626,6 @@ final class GameSession {
 
         ascentGrowStartedAt = .now
         fallArrivalStartedAt = .now
-        withAnimation(.easeOut(duration: arrivalDuration)) {
-            ascentFlash = 0
-        }
         await sleep(arrivalDuration)
 
         ascentGrowStartedAt = nil

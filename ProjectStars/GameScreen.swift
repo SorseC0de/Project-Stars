@@ -278,19 +278,6 @@ struct GameScreen: View {
                 DeathView(session: session)
             }
         }
-        // **The plane swap's wash, over the whole screen.**
-        //
-        // It used to be a rectangle inside the board's own stack, which is the
-        // one place it could not do its job: a wash that covers the board and
-        // not the sky, the panel or the letterboxing is a wash whose edges you
-        // can see. Here it is the screen, which is what "white out" meant.
-        .overlay {
-            Rectangle()
-                .fill(Palette.white)
-                .opacity(session.ascentFlash)
-                .ignoresSafeArea()
-                .allowsHitTesting(false)
-        }
         .overlay(alignment: .top) {
             #if DEBUG
             // Over everything, including the pause and game-over sheets: the
