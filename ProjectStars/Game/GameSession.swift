@@ -384,8 +384,12 @@ final class GameSession {
         surfaceBounce = bounce
 
         Task { [weak self] in
+            // Outlives the give rather than matching it — see
+            // `GameRules.surfaceBounceHold`. Everything that reads this ends on
+            // its own clock, and clearing it at the give's own length put a
+            // ceiling on all of them.
             try? await Task.sleep(
-                nanoseconds: UInt64(GameRules.surfaceBounceDuration * 1_000_000_000)
+                nanoseconds: UInt64(GameRules.surfaceBounceHold * 1_000_000_000)
             )
             guard self?.surfaceBounce == bounce else { return }
             self?.surfaceBounce = nil

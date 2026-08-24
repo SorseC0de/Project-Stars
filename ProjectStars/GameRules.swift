@@ -1012,6 +1012,20 @@ enum GameRules {
     static let surfaceBounceDepth: CGFloat = 3
     static let surfaceBounceDuration: TimeInterval = 0.19
 
+    /// How long the record of a landing is kept, as opposed to how long the
+    /// give it causes lasts.
+    ///
+    /// **Longer than any of them, on purpose.** Three things read one landing —
+    /// the clouds' give, the island's, and the island's sprite change — and each
+    /// ends on its own clock, returning nothing once its own share is spent. So
+    /// the record only has to outlive the longest of them; clearing it at
+    /// `surfaceBounceDuration` capped every one of them at that number instead,
+    /// which made the island's own knobs silently stop working past it.
+    ///
+    /// Keeping it costs nothing: every reader is guarded on its own elapsed
+    /// time, and a stale record answers zero to all of them.
+    static let surfaceBounceHold: TimeInterval = 3
+
     /// How much of a landing's give is spent going *down*.
     ///
     /// Weight arrives at once and is taken up slowly. A symmetric curve spends
