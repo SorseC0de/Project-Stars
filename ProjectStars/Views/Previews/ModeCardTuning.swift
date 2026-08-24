@@ -26,6 +26,11 @@ final class ModeCardTuning {
         didSet { ModeCardTuning.store.set("fade", fade) }
     }
 
+    /// How long the slide out takes. Shorter is faster, not shorter-lived.
+    var exit: Double = store.value("exit", PromptStyle.defaultDeparture) {
+        didSet { ModeCardTuning.store.set("exit", exit) }
+    }
+
     /// Whether the word leaves with its shape or goes first.
     var wordsRideOut: Bool = store.flag("wordsRideOut", true) {
         didSet { ModeCardTuning.store.set("wordsRideOut", wordsRideOut) }
@@ -38,20 +43,21 @@ final class ModeCardTuning {
 
     nonisolated static let store = BenchStore(
         prefix: "modeCard.",
-        vintage: 9,
-        names: ["fade", "wordsRideOut", "sampleText"]
+        vintage: 10,
+        names: ["fade", "exit", "wordsRideOut", "sampleText"]
     )
 
     func reset() {
         ModeCardTuning.store.forget()
         fade = PromptStyle.defaultFade
+        exit = PromptStyle.defaultDeparture
         wordsRideOut = true
         sampleText = "Magnetic Mane"
     }
 
     func dump() {
         print("── passive prompt ──")
-        print(String(format: "  fade     %.2f", fade))
+        print(String(format: "  fade     %.2f   exit %.2f", fade, exit))
         print("  words    " + (wordsRideOut ? "ride out" : "go first"))
         print("  sample   " + sampleText)
     }
@@ -79,6 +85,7 @@ struct ModeCardControls: View {
                 .frame(width: 170)
 
             row("fade", value: $tuning.fade, in: 0.02...1, step: 0.01)
+            row("exit", value: $tuning.exit, in: 0.1...2, step: 0.01)
 
             Button(tuning.wordsRideOut ? "words: ride out" : "words: go first") {
                 tuning.wordsRideOut.toggle()

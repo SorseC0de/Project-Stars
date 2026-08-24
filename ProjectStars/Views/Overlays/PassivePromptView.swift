@@ -174,7 +174,13 @@ struct PassivePromptView: View {
         await sleep(PromptStyle.arrival + PromptStyle.hold)
 
         onLeaving()
-        withAnimation(.easeIn(duration: PromptStyle.departure)) { stage = .leaving }
+
+        // **Linear, not eased in.** Easing in spends the first stretch barely
+        // moving, and the first stretch is the only part anyone sees — the card
+        // appeared to stall and vanish, then do its travelling invisibly. It
+        // was stationary a moment ago, so a constant speed is a small lie; a
+        // card that visibly *goes* somewhere is worth it.
+        withAnimation(.linear(duration: PromptStyle.departure)) { stage = .leaving }
         await sleep(PromptStyle.departure)
         onFinished()
     }
@@ -239,7 +245,18 @@ enum PromptStyle {
     /// things having happened, which is what did.
     static let arrival: Double = 0.28
     static let hold: Double = 1.6
-    static let departure: Double = 0.5
+
+    /// How long the slide out takes — how *fast* it goes, not how long it is
+    /// seen for. The fade decides that, and the two are separate on purpose.
+    static var departure: Double {
+        #if DEBUG
+        ModeCardTuning.shared.exit
+        #else
+        defaultDeparture
+        #endif
+    }
+
+    static let defaultDeparture: Double = 0.5
 
     /// How long the fade out takes, against the slide it happens during.
     static var fade: Double {
