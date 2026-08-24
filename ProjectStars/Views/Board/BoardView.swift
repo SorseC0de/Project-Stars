@@ -1963,7 +1963,10 @@ struct BoardView: View {
                         // On its own clock — see `BoardView.ticking`. The same
                         // bob the island rides, so the two cannot drift apart.
                         ticking(metrics) { tick in
-                            nexysPillar(metrics: metrics, bob: tick.bob)
+                            nexysPillar(
+                                metrics: metrics, bob: tick.bob,
+                                ascent: tick.ascent, travel: tick.travel
+                            )
                         }
                     case .facing:
                         // On its own clock — see `BoardView.ticking`.
@@ -2445,9 +2448,43 @@ struct BoardView: View {
     /// it in the island's row and the offset puts it in the corner — see
     /// `BoardObjectKind.nexysPillar` for why it is not part of the island.
     @ViewBuilder
-    private func nexysPillar(metrics: PixelArtMetrics, bob: CGFloat) -> some View {
-        NexysPillarView(tileSize: metrics.tileSize, scale: metrics.scale, bob: bob)
-            .modifier(placedOnPlaneModifier(GameRules.nexysPoint, metrics: metrics))
+    private func nexysPillar(
+        metrics: PixelArtMetrics,
+        bob: CGFloat,
+        ascent: AscentPose,
+        travel: AscentPose
+    ) -> some View {
+        NexysPillarView(
+            tileSize: metrics.tileSize,
+            scale: metrics.scale,
+            bob: bob,
+            isFaded: pieceIsJustNorthOfNexys
+        )
+        .modifier(islandTransform(metrics: metrics, ascent: ascent, travel: travel))
+    }
+
+    /// Everything that happens to the island as a whole.
+    ///
+    /// **Both halves take it, because they are one object.** The pillar is drawn
+    /// apart from the island only so the piece can stand between them — every
+    /// other way it is the same rock, and anything the island does it has to do
+    /// too. Written once so a third thing cannot be added to one and forgotten
+    /// on the other, which is exactly how the pillar came to be the only part of
+    /// the island that did not fade.
+    private func islandTransform(
+        metrics: PixelArtMetrics,
+        ascent: AscentPose,
+        travel: AscentPose
+    ) -> some ViewModifier {
+        IslandTransform(
+            // Two poses stack — the ascent (island *and* piece, when ridden) and
+            // the island's own travel (island alone) — *except* while it is
+            // carrying somebody, when they are the same pose and stacking them
+            // applies the journey twice.
+            scale: session.nexysCarryingPiece ? travel.scale : ascent.scale * travel.scale,
+            lift: session.nexysCarryingPiece ? travel.lift : ascent.lift + travel.lift,
+            placement: placedOnPlaneModifier(GameRules.nexysPoint, metrics: metrics)
+        )
     }
 
     /// The Nexys island, at whatever height its drift and any transition put it.
@@ -2468,24 +2505,7 @@ struct BoardView: View {
                 isFaded: pieceIsJustNorthOfNexys,
                 rock: rock
             )
-            // Two poses stack — the ascent (island *and* piece, when ridden)
-            // and the island's own travel (island alone) — *except* while it is
-            // carrying somebody, when they are the same pose and stacking them
-            // applies the journey twice. That is why the lift outran the piece
-            // on the way up: the island climbed double the distance in the same
-            // time while the passenger climbed it once.
-            .scaleEffect(
-                session.nexysCarryingPiece ? travel.scale : ascent.scale * travel.scale
-            )
-            .offset(
-                y: session.nexysCarryingPiece ? travel.lift : ascent.lift + travel.lift
-            )
-            // The island keeps the **true** camera. The emphasis is a licence
-            // taken with the clouds, which are loose shapes whose recession is
-            // a matter of taste — the Nexys is a solid object at a known place,
-            // and exaggerating its depth would put it at odds with the piece
-            // standing on it.
-            .modifier(placedOnPlaneModifier(GameRules.nexysPoint, metrics: metrics))
+            .modifier(islandTransform(metrics: metrics, ascent: ascent, travel: travel))
         }
     }
 
@@ -3648,5 +3668,28 @@ struct BandRow: View, Equatable {
         }
         .frame(width: metrics.boardSize, height: metrics.tileSize)
         .allowsHitTesting(false)
+    }
+}
+
+/// The island's whole-object placement: its journey, and where it sits.
+///
+/// A modifier rather than a pair of calls so both halves of the island take
+/// exactly the same thing — see `BoardView.islandTransform(metrics:ascent:travel:)`.
+private struct IslandTransform<Placement: ViewModifier>: ViewModifier {
+
+    let scale: CGFloat
+    let lift: CGFloat
+
+    /// The island keeps the **true** camera. The emphasis is a licence taken
+    /// with the clouds, which are loose shapes whose recession is a matter of
+    /// taste — the Nexys is a solid object at a known place, and exaggerating
+    /// its depth would put it at odds with the piece standing on it.
+    let placement: Placement
+
+    func body(content: Content) -> some View {
+        content
+            .scaleEffect(scale)
+            .offset(y: lift)
+            .modifier(placement)
     }
 }

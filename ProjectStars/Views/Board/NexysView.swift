@@ -118,6 +118,11 @@ struct NexysPillarView: View {
     /// while the thing it holds up moves.
     let bob: CGFloat
 
+    /// The same fade the island takes when the piece is behind it. It is part of
+    /// the island; a solid pillar in front of a half-transparent rock reads as
+    /// two objects.
+    let isFaded: Bool
+
     var body: some View {
         PixelSprite(id: .nexysPillar) { EmptyView() }
             .frame(width: tileSize, height: tileSize)
@@ -133,6 +138,8 @@ struct NexysPillarView: View {
                 y: -GameRules.nexysRaise * scale + bob
                     + (NexysStyle.islandY + NexysStyle.pillarY) * scale
             )
+            .opacity(isFaded ? GameRules.nexysFadedOpacity : 1)
+            .animation(.easeInOut(duration: 0.2), value: isFaded)
             .allowsHitTesting(false)
     }
 }
@@ -152,7 +159,7 @@ enum NexysStyle {
     /// The sprite exists either way — see `SpriteID.nexysDeep`. What is not
     /// settled is where it goes, and shipping an unplaced sprite is shipping a
     /// misplaced one.
-    static let defaultForeshortened = false
+    static let defaultForeshortened = true
 
     /// The island's own nudge, in art pixels from the centre of its square.
     ///
@@ -205,7 +212,7 @@ enum NexysStyle {
     static let rebound: Double = 0.30
 
     /// How fast the whole settling runs. `1` is the shape as it was tuned.
-    static let defaultSpeed: Double = 1
+    static let defaultSpeed: Double = 0.80
 
     /// How long the flat sprite stands in, in seconds.
     static let defaultRockHold: Double = 0.14

@@ -38,7 +38,7 @@ final class NexysTuning {
 
     nonisolated static let store = BenchStore(
         prefix: "nexys.",
-        vintage: 2,
+        vintage: 3,
         names: ["foreshortened", "speed"]
     )
 
