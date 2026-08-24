@@ -3153,9 +3153,21 @@ final class GameSession {
     /// while the next slides in over it reads as two things having happened,
     /// which is what did. A third arriving takes the oldest outright — by then
     /// it has been on screen longest and has least left to say.
-    func announce(passive name: String) {
+    func announce(
+        passive name: String,
+        tone: PassivePrompt.Tone = .announcement
+    ) {
         if passivePrompts.count >= 2 { passivePrompts.removeFirst() }
-        passivePrompts.append(PassivePrompt(name: name))
+        passivePrompts.append(PassivePrompt(name: name, tone: tone))
+    }
+
+    /// Says that a passive is the reason something did **not** happen.
+    ///
+    /// Its own door rather than a parameter at every call site, because the two
+    /// read differently at a glance and the difference matters — see
+    /// `PassivePrompt.Tone`.
+    func refuse(passive name: String) {
+        announce(passive: name, tone: .refusal)
     }
 
     /// This one has begun sliding out.

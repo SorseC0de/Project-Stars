@@ -15,6 +15,32 @@ struct PassivePrompt: Identifiable, Equatable {
     /// The passive's own name, as the info panel writes it.
     let name: String
 
+    /// Whether this is something that happened or something that was refused.
+    var tone: Tone = .announcement
+
+    /// What the card is saying.
+    ///
+    /// **Red is for pure restriction only.** A passive that takes something
+    /// away and hands something back is an announcement however it feels —
+    /// Taurus refuses to be carried but plants ground cover for it, and saying
+    /// that in red would read as a failure rather than a trade. Red is kept for
+    /// the ones that only ever say no, so it never has to be weighed up: if it
+    /// is red, the thing you wanted did not happen.
+    enum Tone {
+        /// This just happened. White.
+        case announcement
+
+        /// This is why that did not happen. Red.
+        case refusal
+
+        var ink: Color {
+            switch self {
+            case .announcement: ModeCardStyle.ink
+            case .refusal: Palette.red
+            }
+        }
+    }
+
     /// Already sliding out. Kept so the queue knows which one has had its turn.
     var isLeaving = false
 
@@ -135,7 +161,7 @@ struct PassivePromptView: View {
         Text(prompt.name.uppercased())
             .font(.system(size: PromptStyle.labelSize, weight: .heavy, design: .rounded))
             .tracking(PromptStyle.labelTracking)
-            .foregroundStyle(ModeCardStyle.ink)
+            .foregroundStyle(prompt.tone.ink)
             .lineLimit(1)
             .fixedSize()
             .scaleEffect(x: PromptStyle.labelStretch, y: 1, anchor: .leading)
