@@ -28,7 +28,16 @@ import SwiftUI
 /// and this game has just paid for one of those.
 struct GameModeSplashView: View {
 
-    let mode: GameMode
+    /// What the card says, in capitals across the seam.
+    let title: String
+
+    /// The line under it.
+    let subtitle: String
+
+    /// The colour both are drawn in. Red says the run is over; white says it is
+    /// beginning. The card is the same card either way — a thing announcing
+    /// itself — and only its words change.
+    var ink: Color = ModeCardStyle.ink
 
     /// Raised when the player presses Start. The bars leave on it.
     let isLeaving: Bool
@@ -205,13 +214,13 @@ struct GameModeSplashView: View {
     /// read as one card while they overlap, and a title that respects the seam
     /// draws attention back to the fact that they are two.
     private func title(on bar: ModeCardStyle.Bar) -> some View {
-        Text(mode.title)
+        Text(title)
             .font(ModeCardStyle.titleFont(ModeCardStyle.titleSize * bar.height))
             .tracking(ModeCardStyle.titleTracking * bar.height)
             // The tracking is applied after the last letter too, which walks the
             // whole line left of centre by half a gap.
             .padding(.leading, ModeCardStyle.titleTracking * bar.height)
-            .foregroundStyle(ModeCardStyle.ink)
+            .foregroundStyle(ink)
             //.foregroundStyle(.ultraThinMaterial)
             //.environment(\.colorScheme, .light)
             .lineLimit(1)
@@ -227,9 +236,9 @@ struct GameModeSplashView: View {
 
     /// The one-line description, under the name on the lower bar.
     private func blurb(on bar: ModeCardStyle.Bar) -> some View {
-        Text(mode.blurb)
+        Text(subtitle)
             .font(ModeCardStyle.blurbFont(ModeCardStyle.blurbSize * bar.height))
-            .foregroundStyle(ModeCardStyle.ink)
+            .foregroundStyle(ink)
             .lineLimit(1)
             .minimumScaleFactor(ModeCardStyle.textSqueeze)
             .frame(maxWidth: ModeCardStyle.textWidth * bar.height)

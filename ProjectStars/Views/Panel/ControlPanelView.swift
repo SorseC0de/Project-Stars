@@ -489,6 +489,10 @@ struct ControlPanelView: View {
     /// answers to one question, and they would disagree the first time a run was
     /// restarted from the back.
     private var showing: PanelFace {
+        // First, because it outranks everything: a lost run is not awaiting a
+        // start and has no live controls, and the panel should not spend a
+        // frame showing either while the piece is falling past Terra.
+        if session.phase == .gameOver { return .death }
         if session.isAwaitingStart { return showingRules ? .rules : .start }
         return turns.isMultiple(of: 2) ? .front : .back
     }
@@ -503,7 +507,7 @@ struct ControlPanelView: View {
     /// stays one question with one answer.
     @State private var showingRules = false
 
-    enum PanelFace { case start, front, back, rules }
+    enum PanelFace { case start, front, back, rules, death }
 
     var body: some View {
         ZStack {
@@ -633,6 +637,17 @@ struct ControlPanelView: View {
                     onQuit: onQuit
                 )
             }
+            // Where a run ends. Shares the far side with the start screen it
+            // will hand back to — the two are the same face of the device, one
+            // asking to begin and one asking to begin again.
+            face(isVisible: showing == .death, flip: 180) {
+                PanelDeathView(
+                    session: session,
+                    onRestart: { session.newGame() },
+                    onChangeSign: onQuit
+                )
+            }
+
             // The start screen's far side. It shares the even side with the
             // controls and never shares a moment with them, the same way the
             // start screen shares the odd side with the back.
@@ -652,6 +667,12 @@ struct ControlPanelView: View {
             // board at this moment, and a panel flipping underneath it is the
             // distraction this whole screen is arranged to avoid.
             if awaiting, turns.isMultiple(of: 2) { turns += 1 }
+        }
+        // And the same for the death face, which lives on the same side. Also
+        // straightened rather than turned: the death card is coming up over the
+        // board at this moment, and it gets the screen to itself.
+        .onChange(of: session.phase) { _, phase in
+            if phase == .gameOver, turns.isMultiple(of: 2) { turns += 1 }
         }
     }
 
@@ -2576,6 +2597,106 @@ private struct PanelStartView: View {
     }
 
     /// A word on a button two chrome-buttons wide.
+    private func wideButton(
+        _ word: String,
+        tint: Color,
+        action: @escaping () -> Void
+    ) -> some View {
+        CelButton(tint: tint, action: action) {
+            Text(word)
+                .font(.system(size: PanelStyle.wideLabelSize, weight: .heavy, design: .rounded))
+                .tracking(PanelStyle.signNameTracking)
+                .foregroundStyle(Palette.warmBlack)
+        }
+        .frame(width: PanelStyle.wideChromeWidth, height: PanelStyle.chromeButtonHeight)
+    }
+}
+
+// MARK: - The death face
+
+/// The way out of a lost run.
+///
+/// Deliberately the start screen's twin — the same three places filled with the
+/// same three kinds of thing, because they answer the same question at opposite
+/// ends of a run. RESTART sits exactly where START did, so the player's thumb is
+/// already there.
+///
+/// The run's numbers are here rather than on the death screen because the death
+/// screen is a picture of falling, and a scoreboard drawn over it would be a
+/// second thing asking to be read at the same time.
+private struct PanelDeathView: View {
+
+    let session: GameSession
+    let onRestart: () -> Void
+    let onChangeSign: () -> Void
+
+    var body: some View {
+        VStack(spacing: PanelStyle.rowSpacing) {
+            HStack(spacing: PanelStyle.topRowSpacing) {
+                Spacer(minLength: 0)
+                wideButton("ZODEA", tint: Palette.sky, action: onChangeSign)
+            }
+
+            Spacer(minLength: 0)
+
+            tally
+
+            restart
+
+            Spacer(minLength: 0)
+
+            HStack(spacing: PanelStyle.topRowSpacing) {
+                wideButton("BACK", tint: Palette.red, action: onChangeSign)
+                Spacer(minLength: 0)
+            }
+            .offset(y: -PanelStyle.chromeButtonHeight)
+        }
+        .padding(.horizontal, PanelStyle.padding)
+        .padding(.top, PanelStyle.padding)
+        .padding(.bottom, PanelStyle.padding)
+    }
+
+    /// What the run came to.
+    private var tally: some View {
+        HStack(spacing: PanelStyle.topRowSpacing * 2) {
+            count("MOVES", session.engine.moveCount)
+            count("PICKUPS", session.engine.pickupsCollected)
+        }
+        .padding(.bottom, PanelStyle.rowSpacing)
+    }
+
+    private func count(_ label: String, _ value: Int) -> some View {
+        VStack(spacing: 2) {
+            Text("\(value)")
+                .font(.system(size: PanelStyle.startLabelSize, weight: .black, design: .rounded))
+                .foregroundStyle(Palette.gold)
+            Text(label)
+                .font(.system(size: PanelStyle.wideLabelSize, weight: .heavy, design: .rounded))
+                .tracking(PanelStyle.signNameTracking)
+                .foregroundStyle(Palette.textSecondary)
+        }
+    }
+
+    /// The way back in. Takes START's exact size and place.
+    private var restart: some View {
+        Button(action: onRestart) {
+            Text("RESTART")
+                .font(.system(size: PanelStyle.startLabelSize, weight: .black, design: .rounded))
+                .tracking(PanelStyle.signNameTracking)
+        }
+        .buttonStyle(
+            SpectrumButtonStyle(
+                shape: RoundedRectangle(cornerRadius: PanelStyle.buttonCorner),
+                halo: AnyShape(RoundedRectangle(cornerRadius: SpectrumStyle.haloCorner)),
+                isLive: true
+            )
+        )
+        .frame(height: PanelStyle.zodiactionButtonHeight)
+        .containerRelativeFrame(.horizontal) { width, _ in
+            width * PanelStyle.startButtonLength
+        }
+    }
+
     private func wideButton(
         _ word: String,
         tint: Color,

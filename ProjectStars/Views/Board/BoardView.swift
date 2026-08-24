@@ -327,11 +327,6 @@ struct BoardView: View {
             // cutting the preview in half.
             tileChoice(metrics: metrics)
 
-            // Hides the instant the planes swap during an ascent.
-            Rectangle()
-                .fill(Palette.white)
-                .opacity(session.ascentFlash)
-                .allowsHitTesting(false)
         }
     }
 

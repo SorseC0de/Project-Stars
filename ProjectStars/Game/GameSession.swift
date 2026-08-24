@@ -2295,10 +2295,15 @@ final class GameSession {
 
         case let .gameOver(reason)
             where reason == .fellThroughTerra || reason == .blownOffTheBoard:
-            // The same spin-and-shrink as any other hole. There is simply
-            // nothing below this one — and nothing beside the rim either, which
-            // is the same picture from a different edge.
-            await animateDescent(duration: GameRules.fallDuration / 2)
+            // **The same fall as any other hole, and it does not stop.**
+            //
+            // It used to be half a fall — the piece got a token drop and the
+            // old dialog took over. But the drop between planes is now a slide
+            // straight down the row, and a death is that slide with no floor
+            // under it: the piece leaves the bottom of the board still turning,
+            // and the death screen comes up around it while it is on its way.
+            // Half a fall would have it stop in mid-air first.
+            await animateDescent(duration: GameRules.fallDuration)
             engine.apply(event)
             await sleep(event.displayDuration)
 
