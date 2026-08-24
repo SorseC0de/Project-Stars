@@ -21,7 +21,14 @@ struct Piece: Equatable {
     /// Updated on every committed move, including one that is blocked from
     /// completing. Several signs' passives read this, so it is real state rather
     /// than a presentation detail.
-    var facing: SwipeDirection = .up
+    ///
+    /// **South to begin with**, and south again on every restart and every ride
+    /// between planes. A piece looking away from the player is a piece whose
+    /// face they cannot see, and the first thing a run should show is who they
+    /// are playing. It is a real direction rather than a pose, so signs that
+    /// read the facing — Capricorn stands on holes while facing north — start
+    /// from a known answer instead of whichever way the last run ended.
+    var facing: SwipeDirection = .down
 
     /// Which of Gemini's twins this is, once they have come apart.
     ///
@@ -5478,6 +5485,12 @@ struct GameEngine {
                 }
                 piece.plane = destination
                 piece.point = GameRules.nexysPoint
+
+                // Turned to face the player before the island moves, for the
+                // same reason a run opens that way: arriving somewhere new
+                // showing your back is the one moment the piece has nothing to
+                // say for itself.
+                piece.facing = .down
             }
 
         case let .zodiactionMeterChanged(value):
