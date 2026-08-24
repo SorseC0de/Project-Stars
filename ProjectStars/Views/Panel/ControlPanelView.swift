@@ -92,6 +92,17 @@ enum PanelStyle {
     /// The info and pause buttons.
     static let chromeButtonWidth: CGFloat = 44
     static let chromeButtonHeight: CGFloat = 40
+
+    /// The word on a chrome button, and the line under a mode's name.
+    static let chromeLabelSize: CGFloat = 13
+    static let summarySize: CGFloat = 12
+
+    /// One sample square on the rules page.
+    ///
+    /// Bigger than the board draws them. The board is showing you where things
+    /// *are*; this page is showing you what they *look like*, and a 16-pixel
+    /// sprite at board scale is too small to tell two stages of cracking apart.
+    static let rulesCellSize: CGFloat = 52
     static let chromeGlyphSize: CGFloat = 15
 
     // ─────────────────────────────────────────────────────────────────────
@@ -478,13 +489,21 @@ struct ControlPanelView: View {
     /// answers to one question, and they would disagree the first time a run was
     /// restarted from the back.
     private var showing: PanelFace {
-        if session.isAwaitingStart { return .start }
+        if session.isAwaitingStart { return showingRules ? .rules : .start }
         return turns.isMultiple(of: 2) ? .front : .back
     }
 
     private var showingInfo: Bool { showing == .back }
 
-    enum PanelFace { case start, front, back }
+    /// Whether the start screen has been turned over to read the mode's rules.
+    ///
+    /// A flag beside `turns` rather than a fourth position on it, for the same
+    /// reason the start screen is: the rules are the far side of the *start*
+    /// screen, not a further step round from the controls. Which face is showing
+    /// stays one question with one answer.
+    @State private var showingRules = false
+
+    enum PanelFace { case start, front, back, rules }
 
     var body: some View {
         ZStack {
@@ -607,9 +626,21 @@ struct ControlPanelView: View {
                         session.startRun()
                         turn()
                     },
-                    onRules: { },
+                    onRules: {
+                        showingRules = true
+                        turn()
+                    },
                     onQuit: onQuit
                 )
+            }
+            // The start screen's far side. It shares the even side with the
+            // controls and never shares a moment with them, the same way the
+            // start screen shares the odd side with the back.
+            face(isVisible: showing == .rules, flip: 0) {
+                PanelRulesView(session: session) {
+                    showingRules = false
+                    turn()
+                }
             }
         }
         .frame(width: side, height: side)
@@ -2557,5 +2588,55 @@ private struct PanelStartView: View {
                 .foregroundStyle(Palette.warmBlack)
         }
         .frame(width: PanelStyle.wideChromeWidth, height: PanelStyle.chromeButtonHeight)
+    }
+}
+
+// MARK: - The rules page
+
+/// What the mode about to be played does, drawn.
+///
+/// The page itself is `GameModeRulesView`; this is the panel around it — the
+/// heading, and the way back. Kept apart so the diagram can be shown anywhere
+/// the mode needs explaining without dragging a panel's chrome along with it.
+private struct PanelRulesView: View {
+
+    let session: GameSession
+    let onBack: () -> Void
+
+    var body: some View {
+        VStack(spacing: 0) {
+            Text(session.mode.title)
+                .font(.system(size: PanelStyle.signNameSize, weight: .black, design: .rounded))
+                .tracking(PanelStyle.signNameTracking)
+                .foregroundStyle(Palette.textPrimary)
+                .padding(.top, PanelStyle.padding)
+
+            Text(session.mode.blurb)
+                .font(.system(size: PanelStyle.summarySize, weight: .medium))
+                .foregroundStyle(Palette.textSecondary)
+                .multilineTextAlignment(.center)
+                .padding(.horizontal, PanelStyle.padding)
+                .padding(.top, 4)
+
+            Spacer(minLength: 0)
+
+            GameModeRulesView(mode: session.mode, size: PanelStyle.rulesCellSize)
+
+            Spacer(minLength: 0)
+
+            HStack {
+                CelButton(tint: Palette.red, action: onBack) {
+                    Text("BACK")
+                        .font(.system(size: PanelStyle.chromeLabelSize,
+                                      weight: .heavy, design: .rounded))
+                }
+                .frame(width: PanelStyle.chromeButtonWidth,
+                       height: PanelStyle.chromeButtonHeight)
+
+                Spacer(minLength: 0)
+            }
+            .padding(.horizontal, PanelStyle.padding)
+            .padding(.bottom, PanelStyle.padding)
+        }
     }
 }
