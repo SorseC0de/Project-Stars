@@ -186,6 +186,11 @@ struct SagittariusLuckyLanding: ZodiacPassive {
     /// - TODO: Untuned, as with Variable Voyager.
     static let chance = 0.12
 
+    // - TODO: Give this its own picture. It heals the tile it lands on, which
+    //   is exactly what Virgo's Poised Plummet does, and two signs sharing an
+    //   effect makes neither of them recognisable. A glow gathering at the
+    //   landing point rather than a tile mending says *lucky* instead of
+    //   *careful*, and leaves the mend to Virgo.
     let displayName = "Lucky Landing"
     let icon: String? = "sagittarius_lucky"
 
