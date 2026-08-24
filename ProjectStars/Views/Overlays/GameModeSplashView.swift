@@ -325,16 +325,14 @@ enum ModeCardStyle {
 
     // ── The streaks ───────────────────────────────────────────────────
 
-    /// How bright the warp streaks are. Zero turns them off entirely.
-    static var warp: Double {
-        #if DEBUG
-        ModeCardTuning.shared.warp
-        #else
-        defaultWarp
-        #endif
-    }
-
-    static let defaultWarp: Double = 0.22
+    /// How bright the tunnel is.
+    ///
+    /// **Settled, and its own.** This read the bench's `warp` until that knob
+    /// was handed to the passive prompt — after which the card's tunnel was
+    /// being dimmed by a slider that had stopped being about the card at all.
+    /// A shared knob is fine right up until one of the two things it drives
+    /// moves out.
+    static let warp: Double = 0.66
 
     /// How many streaks are in flight at once.
     static let warpCount = 34
@@ -350,14 +348,9 @@ enum ModeCardStyle {
     /// How faint the dimmest streak is.
     static let warpFaintest: Double = 0.15
 
-    /// How thick a capsule is at the rim.
-    static var thickness: CGFloat {
-        #if DEBUG
-        CGFloat(ModeCardTuning.shared.thickness)
-        #else
-        CGFloat(defaultThickness)
-        #endif
-    }
+    /// How thick a capsule is at the rim. Settled, and the card's own — see
+    /// `warp` for what sharing one with the prompt cost.
+    static var thickness: CGFloat { CGFloat(defaultThickness) }
 
     /// The hole at the middle of the tunnel, as a share of the reach.
     ///

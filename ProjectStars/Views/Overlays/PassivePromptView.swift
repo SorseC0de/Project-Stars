@@ -15,10 +15,7 @@ struct PassivePrompt: Identifiable, Equatable {
     /// The passive's own name, as the info panel writes it.
     let name: String
 
-    /// Asked to go away in place, because something newer wants the spot.
-    var isShrinking = false
-
-    /// Already sliding out, and past being asked to do anything else.
+    /// Already sliding out. Kept so the queue knows which one has had its turn.
     var isLeaving = false
 
 }
@@ -67,9 +64,6 @@ struct PassivePromptView: View {
 
         /// Carrying on past the trailing edge.
         case leaving
-
-        /// Going away in place, because something newer arrived.
-        case shrinking
     }
 
     var body: some View {
@@ -88,16 +82,18 @@ struct PassivePromptView: View {
 
             word
         }
-        .scaleEffect(stage == .shrinking ? 0 : 1, anchor: .center)
-        .opacity(opacity)
         .offset(x: offset(size))
+        .opacity(opacity)
+        // **Its own curve, and a far shorter one.**
+        //
+        // The slide and the fade are the same move but not the same length: it
+        // carries on at the speed it arrived at, and is gone long before it
+        // gets anywhere. Tied to the travel it crossed the whole board still
+        // visible, which is a prompt competing with the game underneath it.
+        .animation(.easeOut(duration: PromptStyle.fade), value: opacity)
         .frame(maxWidth: .infinity, alignment: .leading)
         .allowsHitTesting(false)
         .task { await arrive() }
-        .task(id: prompt.isShrinking) {
-            guard prompt.isShrinking, stage != .leaving else { return }
-            await shrink()
-        }
     }
 
     // MARK: - The shape
@@ -127,6 +123,7 @@ struct PassivePromptView: View {
             .scaleEffect(x: PromptStyle.labelStretch, y: 1, anchor: .leading)
             .offset(x: PromptStyle.labelX)
             .opacity(wordOpacity)
+            .animation(.easeOut(duration: wordFade), value: wordOpacity)
     }
 
     // MARK: - Where it is
@@ -134,7 +131,7 @@ struct PassivePromptView: View {
     private func offset(_ size: CGSize) -> CGFloat {
         switch stage {
         // Its trailing edge at the counter's, which is what `reach` means.
-        case .held, .shrinking: reach - size.width
+        case .held: reach - size.width
         case .offstage: -size.width
         // Far enough that the shape itself is gone, though the fade will have
         // finished long before it gets there.
@@ -145,7 +142,7 @@ struct PassivePromptView: View {
     private var opacity: Double {
         switch stage {
         case .offstage: 0
-        case .held, .shrinking: 1
+        case .held: 1
         case .leaving: 0
         }
     }
@@ -160,24 +157,25 @@ struct PassivePromptView: View {
         return 0
     }
 
+    /// How quickly the word goes.
+    ///
+    /// **The A/B only shows if these differ.** Riding out, the word fades on
+    /// the card's own curve and leaves with it; going first, it has to be
+    /// quicker than the card or both simply vanish together and the two
+    /// settings look identical — which is what they did.
+    private var wordFade: Double {
+        PromptStyle.wordsRideOut ? PromptStyle.fade : PromptStyle.fade * PromptStyle.wordHaste
+    }
+
     // MARK: - What it does
 
     private func arrive() async {
         withAnimation(.easeOut(duration: PromptStyle.arrival)) { stage = .held }
         await sleep(PromptStyle.arrival + PromptStyle.hold)
 
-        // Shrinking already, or gone: not this one's business any more.
-        guard stage == .held else { return }
-
         onLeaving()
         withAnimation(.easeIn(duration: PromptStyle.departure)) { stage = .leaving }
         await sleep(PromptStyle.departure)
-        onFinished()
-    }
-
-    private func shrink() async {
-        withAnimation(.easeIn(duration: PromptStyle.shrink)) { stage = .shrinking }
-        await sleep(PromptStyle.shrink)
         onFinished()
     }
 
@@ -197,37 +195,19 @@ struct PassivePromptView: View {
 enum PromptStyle {
 
     /// How tall it is and how long, against how far it flies.
-    static var height: CGFloat {
-        #if DEBUG
-        CGFloat(ModeCardTuning.shared.height)
-        #else
-        CGFloat(defaultHeight)
-        #endif
-    }
-    static var length: CGFloat {
-        #if DEBUG
-        CGFloat(ModeCardTuning.shared.length)
-        #else
-        CGFloat(defaultLength)
-        #endif
-    }
+    static var height: CGFloat { CGFloat(defaultHeight) }
+    static var length: CGFloat { CGFloat(defaultLength) }
 
     /// How far below the turn counter it sits, in points.
-    static var drop: CGFloat {
-        #if DEBUG
-        CGFloat(ModeCardTuning.shared.drop)
-        #else
-        CGFloat(defaultDrop)
-        #endif
-    }
+    static var drop: CGFloat { CGFloat(defaultDrop) }
 
     static func size(reaching reach: CGFloat) -> CGSize {
         CGSize(width: reach * length, height: reach * height)
     }
 
-    static let defaultHeight: Double = 0.34
-    static let defaultLength: Double = 0.96
-    static let defaultDrop: Double = 12
+    static let defaultHeight: Double = 0.20
+    static let defaultLength: Double = 1.60
+    static let defaultDrop: Double = -8
 
     /// Solid at the front, gone at the tail — the mother shape's taper, on the
     /// end that trails as it flies out.
@@ -245,38 +225,35 @@ enum PromptStyle {
     }
 
     /// The word over it: how big, how wide, and where it starts.
-    static var labelSize: CGFloat {
-        #if DEBUG
-        CGFloat(ModeCardTuning.shared.labelSize)
-        #else
-        CGFloat(defaultLabelSize)
-        #endif
-    }
-    static var labelStretch: CGFloat {
-        #if DEBUG
-        CGFloat(ModeCardTuning.shared.labelStretch)
-        #else
-        CGFloat(defaultLabelStretch)
-        #endif
-    }
-    static var labelX: CGFloat {
-        #if DEBUG
-        CGFloat(ModeCardTuning.shared.labelX)
-        #else
-        CGFloat(defaultLabelX)
-        #endif
-    }
+    static var labelSize: CGFloat { CGFloat(defaultLabelSize) }
+    static var labelStretch: CGFloat { CGFloat(defaultLabelStretch) }
+    static var labelX: CGFloat { CGFloat(defaultLabelX) }
 
     static let labelTracking: CGFloat = 0.5
-    static let defaultLabelSize: Double = 13
-    static let defaultLabelStretch: Double = 1
-    static let defaultLabelX: Double = 14
+    static let defaultLabelSize: Double = 10
+    static let defaultLabelStretch: Double = 0.85
+    static let defaultLabelX: Double = 75
 
-    /// In, read, out — and the third way out, when something newer arrives.
+    /// In, read, out. **One way out, whatever else arrives** — an exit that can
+    /// be interrupted looks like a mistake, and letting it run looks like two
+    /// things having happened, which is what did.
     static let arrival: Double = 0.28
     static let hold: Double = 1.6
     static let departure: Double = 0.5
-    static let shrink: Double = 0.18
+
+    /// How long the fade out takes, against the slide it happens during.
+    static var fade: Double {
+        #if DEBUG
+        ModeCardTuning.shared.fade
+        #else
+        defaultFade
+        #endif
+    }
+
+    static let defaultFade: Double = 0.2
+
+    /// How much quicker the word goes than the card, when it is not riding out.
+    static let wordHaste: Double = 0.35
 
     /// Whether the word leaves with the shape or goes first. The bench's A/B.
     static var wordsRideOut: Bool {
@@ -293,42 +270,18 @@ enum PromptStyle {
     // the ones still being looked at, so they are the ones on the bench.
 
     /// How bright the streaks are. Zero turns them off.
-    static var warp: Double {
-        #if DEBUG
-        ModeCardTuning.shared.warp
-        #else
-        defaultWarp
-        #endif
-    }
+    static var warp: Double { defaultWarp }
 
     /// How thick a streak is.
-    static var thickness: CGFloat {
-        #if DEBUG
-        CGFloat(ModeCardTuning.shared.thickness)
-        #else
-        CGFloat(defaultThickness)
-        #endif
-    }
+    static var thickness: CGFloat { CGFloat(defaultThickness) }
 
     /// How long and how fast, as shares of the shape's own length.
-    static var streakLength: CGFloat {
-        #if DEBUG
-        CGFloat(ModeCardTuning.shared.streakLength)
-        #else
-        CGFloat(defaultStreakLength)
-        #endif
-    }
+    static var streakLength: CGFloat { CGFloat(defaultStreakLength) }
 
-    static var streakSpeed: CGFloat {
-        #if DEBUG
-        CGFloat(ModeCardTuning.shared.streakSpeed)
-        #else
-        CGFloat(defaultStreakSpeed)
-        #endif
-    }
+    static var streakSpeed: CGFloat { CGFloat(defaultStreakSpeed) }
 
     static let defaultWarp: Double = 0.66
-    static let defaultThickness: Double = 3
-    static let defaultStreakLength: Double = 0.30
-    static let defaultStreakSpeed: Double = 0.55
+    static let defaultThickness: Double = 1
+    static let defaultStreakLength: Double = 0.15
+    static let defaultStreakSpeed: Double = 2
 }

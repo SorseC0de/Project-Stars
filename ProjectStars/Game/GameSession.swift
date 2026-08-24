@@ -3162,32 +3162,24 @@ final class GameSession {
 
     /// Says that a passive just did something.
     ///
-    /// ## Why there are two of these on screen and not one, or five
+    /// ## Why two, and why nothing is cut short
     ///
-    /// One would mean a second trigger either replaced the first mid-sentence or
-    /// was dropped, and both of those lose something the player was told. More
-    /// than two would mean a column of them down the side of the board, which is
-    /// a log rather than a prompt.
+    /// One would mean a second trigger either replaced the first mid-sentence
+    /// or was dropped, and both of those lose something the player was told.
+    /// More than two would be a log down the side of the board rather than a
+    /// prompt.
     ///
-    /// So: the one already up is asked to shrink away in place, and the new one
-    /// slides in over it. Unless the old one has already begun sliding out — a
-    /// card that is leaving is allowed to finish, because interrupting an exit
-    /// looks like a mistake where letting it run looks like two things having
-    /// happened. Either way there are at most two, and a third arriving throws
-    /// the oldest away outright.
+    /// Every card plays its whole exit, whenever the next one arrives. An exit
+    /// that gets interrupted reads as a mistake; one that is allowed to finish
+    /// while the next slides in over it reads as two things having happened,
+    /// which is what did. A third arriving takes the oldest outright — by then
+    /// it has been on screen longest and has least left to say.
     func announce(passive name: String) {
-        // Full: the one at the back has had its turn.
         if passivePrompts.count >= 2 { passivePrompts.removeFirst() }
-
-        // Whatever is current gives up its place, unless it is already going.
-        if let last = passivePrompts.indices.last, !passivePrompts[last].isLeaving {
-            passivePrompts[last].isShrinking = true
-        }
-
         passivePrompts.append(PassivePrompt(name: name))
     }
 
-    /// This one has begun sliding out, and may not be asked to shrink instead.
+    /// This one has begun sliding out.
     func passivePromptIsLeaving(_ id: PassivePrompt.ID) {
         guard let index = passivePrompts.firstIndex(where: { $0.id == id }) else { return }
         passivePrompts[index].isLeaving = true
