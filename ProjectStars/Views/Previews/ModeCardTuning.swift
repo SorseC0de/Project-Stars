@@ -21,10 +21,9 @@ final class ModeCardTuning {
 
     static let shared = ModeCardTuning()
 
-    /// How much opacity the card loses per second as it leaves. Higher is
-    /// gone sooner, and does not touch how fast it travels.
-    var fadeRate: Double = store.value("fadeRate", PromptStyle.defaultFadeRate) {
-        didSet { ModeCardTuning.store.set("fadeRate", fadeRate) }
+    /// How long the slide in takes.
+    var entry: Double = store.value("entry", PromptStyle.defaultArrival) {
+        didSet { ModeCardTuning.store.set("entry", entry) }
     }
 
     /// How long the slide out takes. Shorter is faster, not shorter-lived.
@@ -44,13 +43,13 @@ final class ModeCardTuning {
 
     nonisolated static let store = BenchStore(
         prefix: "modeCard.",
-        vintage: 11,
-        names: ["fadeRate", "exit", "wordsRideOut", "sampleText"]
+        vintage: 12,
+        names: ["entry", "exit", "wordsRideOut", "sampleText"]
     )
 
     func reset() {
         ModeCardTuning.store.forget()
-        fadeRate = PromptStyle.defaultFadeRate
+        entry = PromptStyle.defaultArrival
         exit = PromptStyle.defaultDeparture
         wordsRideOut = true
         sampleText = "Magnetic Mane"
@@ -58,7 +57,7 @@ final class ModeCardTuning {
 
     func dump() {
         print("── passive prompt ──")
-        print(String(format: "  fade     %.1f /sec   exit %.2f", fadeRate, exit))
+        print(String(format: "  entry    %.2f   exit %.2f", entry, exit))
         print("  words    " + (wordsRideOut ? "ride out" : "go first"))
         print("  sample   " + sampleText)
     }
@@ -85,7 +84,7 @@ struct ModeCardControls: View {
                 .textFieldStyle(.roundedBorder)
                 .frame(width: 170)
 
-            row("fade", value: $tuning.fadeRate, in: 0.5...25, step: 0.5)
+            row("entry", value: $tuning.entry, in: 0.05...1.5, step: 0.01)
             row("exit", value: $tuning.exit, in: 0.1...2, step: 0.01)
 
             Button(tuning.wordsRideOut ? "words: ride out" : "words: go first") {

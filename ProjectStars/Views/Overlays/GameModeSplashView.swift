@@ -212,6 +212,8 @@ struct GameModeSplashView: View {
             // whole line left of centre by half a gap.
             .padding(.leading, ModeCardStyle.titleTracking * bar.height)
             .foregroundStyle(ModeCardStyle.ink)
+            //.foregroundStyle(.ultraThinMaterial)
+            //.environment(\.colorScheme, .light)
             .lineLimit(1)
             .minimumScaleFactor(ModeCardStyle.textSqueeze)
             .frame(maxWidth: ModeCardStyle.textWidth * bar.height)

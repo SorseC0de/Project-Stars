@@ -233,7 +233,16 @@ enum PromptStyle {
     /// In, read, out. **One way out, whatever else arrives** — an exit that can
     /// be interrupted looks like a mistake, and letting it run looks like two
     /// things having happened, which is what did.
-    static let arrival: Double = 0.28
+    /// How long the slide in takes.
+    static var arrival: Double {
+        #if DEBUG
+        ModeCardTuning.shared.entry
+        #else
+        defaultArrival
+        #endif
+    }
+
+    static let defaultArrival: Double = 0.28
     static let hold: Double = 1.6
 
     /// How long the slide out takes — how *fast* it goes, not how long it is
@@ -254,15 +263,7 @@ enum PromptStyle {
     /// worth less each tick. Which is the only way it can be set without also
     /// setting how fast the card travels: an animation attached here would
     /// govern the offset beside it, and that is what kept happening.
-    static var fadeRate: Double {
-        #if DEBUG
-        ModeCardTuning.shared.fadeRate
-        #else
-        defaultFadeRate
-        #endif
-    }
-
-    static let defaultFadeRate: Double = 5
+    static let fadeRate: Double = 4
 
     /// How much faster the word goes than the card, when it is not riding out.
     static let wordHaste: Double = 2.8
