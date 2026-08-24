@@ -1610,6 +1610,15 @@ struct GameEngine {
             commit(.nexysMoved(to: sim.piece.plane.opposite, carryingPiece: true))
         }
 
+        // **The button, not the ordinary ride.**
+        //
+        // Every sign can stand on the Nexys and go up with it; only Libra has a
+        // button that calls it or rides it on demand, which is the ability
+        // being announced. Told here rather than at `ridesNexysDown` itself —
+        // that hook also governs the ordinary walk-onto-the-square case, where
+        // nothing about pressing an elevator button is true.
+        commit(.passiveFired(name: LibraJudicatorElevator().displayName, refused: false))
+
         if !sim.isGameOver {
             events += sim.settle(arrivedByFalling: false, wearsOnArrival: false).events
         }

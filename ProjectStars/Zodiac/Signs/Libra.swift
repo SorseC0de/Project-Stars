@@ -131,7 +131,10 @@ struct LibraAxialAdjudication: ZodiacPassive {
         guard !restored.isEmpty else { return [] }
 
         let changes = restored.reduce(into: [GridPoint: TileHealth]()) { $0[$1] = .healthy }
-        return [.tilesChanged(plane: context.plane, changes: changes)]
+        return [
+            .tilesChanged(plane: context.plane, changes: changes),
+            .passiveFired(name: displayName, refused: false),
+        ]
     }
 
     /// **Every** line that has levelled out, not the first one found.
