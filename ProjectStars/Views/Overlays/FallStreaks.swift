@@ -77,14 +77,30 @@ struct FallStreaks: View {
                         height: length
                     )
 
-                    let colour = streakColour(scatter(index, 5))
+                    // **A gradient along the streak, not a flat colour.**
+                    //
+                    // A line of one colour is a line. A line that is bright at
+                    // the end it is travelling towards and falls away behind it
+                    // is a thing *moving* — the leading edge is where the light
+                    // is, and the rest is the trail it has already left. These
+                    // run upward, so the head is the top.
                     let glow = FallStreakStyle.glow
                         * (FallStreakStyle.faintest + scatter(index, 4))
-                        * ModeCardStyle.gain(of: colour)
 
                     context.fill(
                         Capsule().path(in: streak),
-                        with: .color(colour.opacity(glow))
+                        with: .linearGradient(
+                            Gradient(stops: [
+                                .init(color: Palette.brown.opacity(glow), location: 0),
+                                .init(
+                                    color: Palette.coffee.opacity(glow),
+                                    location: FallStreakStyle.head
+                                ),
+                                .init(color: Palette.coffee.opacity(glow), location: 1),
+                            ]),
+                            startPoint: CGPoint(x: streak.midX, y: streak.minY),
+                            endPoint: CGPoint(x: streak.midX, y: streak.maxY)
+                        )
                     )
                 }
             }
@@ -151,9 +167,13 @@ enum FallStreakStyle {
 
     static let defaultGlow: Double = 0.66
     static let defaultCount = 48
-    static let defaultLength: Double = 0.22
-    static let defaultSpeed: Double = 1.1
-    static let defaultThickness: Double = 2
+    static let defaultLength: Double = 0.25
+    static let defaultSpeed: Double = 3.0
+    static let defaultThickness: Double = 5
+
+    /// How much of a streak is its bright head, the rest being the tail it
+    /// drags. A third, so two thirds of every line is the trail.
+    static let head: Double = 1.0 / 3
 
     /// How short, how slow and how faint the meekest streak is allowed to be,
     /// as shares of the boldest. A spread is what makes a field read as depth;

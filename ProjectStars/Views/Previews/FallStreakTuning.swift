@@ -50,7 +50,7 @@ final class FallStreakTuning {
 
     nonisolated static let store = BenchStore(
         prefix: "fallstreak.",
-        vintage: 1,
+        vintage: 2,
         names: ["glow", "count", "length", "speed", "thickness"]
     )
 

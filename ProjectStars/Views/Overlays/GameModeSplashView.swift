@@ -48,6 +48,17 @@ struct GameModeSplashView: View {
     /// as loudly as the fact that you did.
     var subtitleInk: Color = ModeCardStyle.ink
 
+    /// Where the two lines sit on their bars, as shares of a bar's height.
+    ///
+    /// Handed in because the two cards want different answers. The mode card
+    /// puts the name low in the upper bar and the blurb tight under the seam,
+    /// which reads as one block of text across the middle. The death card has a
+    /// piece turning behind it and wants the middle left alone: the name
+    /// centred in the upper bar, the line pushed down into the lower one.
+    var titleDrop: CGFloat = ModeCardStyle.titleDrop
+
+    var blurbDrop: CGFloat = ModeCardStyle.blurbDrop
+
     /// Raised when the player presses Start. The bars leave on it.
     let isLeaving: Bool
 
@@ -115,10 +126,10 @@ struct GameModeSplashView: View {
                 // them both. The words are the message; nothing in the card
                 // should ever be in front of them.
                 title(on: bar)
-                    .offset(y: -bar.height / 2 + ModeCardStyle.titleDrop * bar.height)
+                    .offset(y: -bar.height / 2 + titleDrop * bar.height)
 
                 blurb(on: bar)
-                    .offset(y: bar.height / 2 + ModeCardStyle.blurbDrop * bar.height)
+                    .offset(y: bar.height / 2 + blurbDrop * bar.height)
             }
             .frame(width: width, height: geometry.size.height)
         }

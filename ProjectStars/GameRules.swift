@@ -1611,6 +1611,10 @@ enum GameRules {
     /// on the way back.
     static let fallSpinDegrees: Double = -1080
 
+    /// How small the destination square's shadow starts, before the piece nears
+    /// it. Growing this shadow is what telegraphs the incoming landing.
+    static let landingShadowMin: CGFloat = 0.15
+
     /// The tail of a trip between planes, and the whole of the Nexys' own
     /// arrival. It no longer describes anything falling in from off-screen —
     /// see `World` — but it is still the number that says how the end of an

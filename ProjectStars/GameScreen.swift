@@ -264,23 +264,6 @@ struct GameScreen: View {
                             onLanded: { session.modeCardHasLanded = true },
                             onFinished: { session.modeCardFinished() }
                         )
-                    } else if session.phase == .gameOver {
-                        // **The same card, saying the opposite thing.** It opens
-                        // the run and it closes it, in the same place, so the two
-                        // read as one object rather than two that resemble each
-                        // other. It arrives and never leaves: `isLeaving` stays
-                        // low, so the bars settle into their Z and hold.
-                        GameModeSplashView(
-                            title: DeathStyle.title,
-                            subtitle: session.engine.gameOverReason?.displayText ?? "",
-                            // The name is the announcement; the reason under it
-                            // is the explanation, and an explanation in alarm
-                            // red is a second alarm.
-                            ink: Palette.red,
-                            isLeaving: false,
-                            onLanded: {},
-                            onFinished: {}
-                        )
                     }
                 }
 

@@ -95,6 +95,7 @@ struct BoardView: View {
             }
             }
         }
+        .overlay { landingShadow(metrics: metrics) }
         .frame(width: metrics.boardSize, height: metrics.boardSize)
         // A heavy landing jolts the board. Only the upper square shakes — the
         // panel below is under the player's thumb, and shaking a control surface
@@ -2049,7 +2050,10 @@ struct BoardView: View {
                                 ascent: ascent,
                                 sway: sway,
                                 flash: flash,
-                                starElement: starElement
+                                starElement: starElement,
+                                // Settling to the middle on the way out of the
+                                // world — see `GameSession.deathSeat`.
+                                placedAt: session.deathSeat
                             )
                             // Where the figure sits on its square, in art pixels.
                         }
@@ -2573,7 +2577,15 @@ struct BoardView: View {
             twin: session.engine.piece.twin,
             // The forward copy is a pan on a string; the shadow belongs to the
             // figure, which is drawing its own on its own square.
-            showsShadow: part == .whole,
+            //
+            // And **nothing in the air has one at all.** A shadow is a mark on
+            // the ground saying where a thing is standing, and a piece between
+            // planes is not standing anywhere — it used to carry one down with
+            // it, which said it was hovering an inch above a floor three squares
+            // away. The ground it is going to gets its own; see
+            // `landingShadow(metrics:)`.
+            showsShadow: part == .whole
+                && !session.isChangingPlane && !session.isFalling,
             // Which copy this is: the whole figure, or the one pan that sorts a
             // row ahead of her. See `LibraPieceView.Part`.
             part: part,
@@ -2685,6 +2697,31 @@ struct BoardView: View {
         .offset(y: fallOffset(metrics: metrics))
         }
         .frame(width: metrics.boardSize, height: metrics.boardSize)
+    }
+
+    /// The mark on the square the piece is coming down onto.
+    ///
+    /// Drawn on the **destination** plane while the piece is still on the one it
+    /// left, which is the only place it can be: a shadow belongs to the ground
+    /// it is cast on, and that ground is three rows away from the thing casting
+    /// it. Small to begin with and swelling to full as the camera closes, which
+    /// is what tells you where you are about to land before you are anywhere
+    /// near it.
+    ///
+    /// Nothing for a fall out of the world — there is no ground down there to
+    /// cast on, which is the whole of what is wrong with falling out of a world.
+    @ViewBuilder
+    private func landingShadow(metrics: PixelArtMetrics) -> some View {
+        if session.isChangingPlane, shown == session.engine.piece.plane.opposite {
+            let progress = session.fallProgress
+            PieceShadowView(tileSize: metrics.tileSize)
+                .scaleEffect(GameRules.landingShadowMin
+                    + (1 - GameRules.landingShadowMin) * CGFloat(progress * progress))
+                .offset(y: (GameRules.pieceShadowDrop
+                    - GameRules.pieceShadowPerspectiveLift) * metrics.scale)
+                .modifier(placedOnPlaneModifier(session.engine.piece.point, metrics: metrics))
+                .allowsHitTesting(false)
+        }
     }
 
     /// Where the piece is in the world, relative to the square it is drawn in.

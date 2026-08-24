@@ -252,6 +252,26 @@ final class GameSession {
     /// waits behind a card — so it needs saying rather than deriving.
     private(set) var isDropping = false
 
+    /// Where a piece that has fallen out of the world is settling to.
+    ///
+    /// The middle of the board — which is the Nexys' own square, and therefore
+    /// exactly where a restart puts it back. It slides there on the way down
+    /// rather than landing wherever it happened to fall through, so the run
+    /// ends and begins in the same place and the card has something centred to
+    /// be built around.
+    private(set) var deathSeat: GridPoint?
+
+    /// How far through a crossing the camera is, `0`…`1`.
+    ///
+    /// Measured off the camera rather than a clock, so anything reading it
+    /// cannot disagree with what is on screen about where the piece has got to.
+    var fallProgress: Double {
+        guard isChangingPlane, let from = cameraFrom else { return 1 }
+        let span = Double(World.row(of: engine.piece.plane.opposite)) - from
+        guard abs(span) > 0.001 else { return 1 }
+        return min(max((cameraRow - from) / span, 0), 1)
+    }
+
     /// Whether the piece is on its way from one plane to another.
     ///
     /// True for every kind of crossing — a fall through a hole, a climb, a ride
@@ -1028,6 +1048,7 @@ final class GameSession {
         nexysRidesCamera = false
         isChangingPlane = false
         isDropping = false
+        deathSeat = nil
         isLaunching = false
         nexysDepartStartedAt = nil
         nexysArriveStartedAt = nil
@@ -2925,6 +2946,7 @@ final class GameSession {
         withAnimation(.linear(duration: duration)) {
             isFalling = true
             cameraRow = Double(World.underground)
+            deathSeat = GameRules.nexysPoint
             fallSpin += tumble
         }
         await sleep(duration)

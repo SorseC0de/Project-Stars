@@ -29,22 +29,63 @@ struct DeathView: View {
     let session: GameSession
 
     var body: some View {
-        // No fill of its own. The column's sky is already dark this far down —
-        // that is what the gradient's lower half is *for* — and a second black
-        // rectangle over it would be a second opinion about how deep this is.
-        // **Alive exactly while this row is on screen**, and asleep otherwise —
-        // the same question every other row of the column answers. It was
-        // briefly keyed on the control panel's opacity instead, and keyed the
-        // wrong way round, so forty eight additively blended capsules drew at
-        // display rate for the whole of every run on a row nobody had looked at
-        // yet.
-        FallStreaks(
-            isLive: World.isVisible(
-                row: World.underground,
-                sweeping: session.cameraFrom ?? session.cameraRow,
-                to: session.cameraRow
+        ZStack {
+            // **Its own ground, over the column's sky.**
+            //
+            // The sky is one field the height of the world and it has one job:
+            // saying how far you are from the light. Down here you are past the
+            // point where that is the question — this is not more sky, it is
+            // what is under the world, and it gets a colour of its own. Warm
+            // rather than cold, and darkening downward, so falling into it reads
+            // as going further in rather than further away.
+            LinearGradient(
+                colors: [Palette.coffee, Palette.warmBlack],
+                startPoint: .top,
+                endPoint: .bottom
             )
-        )
+
+            // **Alive exactly while this row is on screen**, and asleep
+            // otherwise — the same question every other row of the column
+            // answers. It was briefly keyed on the control panel's opacity
+            // instead, and keyed the wrong way round, so forty eight additively
+            // blended capsules drew at display rate for the whole of every run
+            // on a row nobody had looked at yet.
+            FallStreaks(
+                isLive: World.isVisible(
+                    row: World.underground,
+                    sweeping: session.cameraFrom ?? session.cameraRow,
+                    to: session.cameraRow
+                )
+            )
+
+            // **The card is part of this place, and under the piece.**
+            //
+            // It used to be an overlay on the upper screen square, which put it
+            // over whatever the camera happened to be looking at and over the
+            // piece with it — so the one thing the screen is about was behind
+            // the words describing it. Mounted here it belongs to the
+            // underground, it scrolls in with it, and the piece is drawn on
+            // Terra's row, which sits above this one.
+            //
+            // Which is why there is no mask cutting a hole in the card. A hole
+            // is what you reach for when the thing you want to see is behind
+            // something and cannot be moved; this one could be moved.
+            if session.phase == .gameOver {
+                GameModeSplashView(
+                    title: DeathStyle.title,
+                    subtitle: session.engine.gameOverReason?.displayText ?? "",
+                    // The name is the announcement and takes the announcement's
+                    // colour. The reason under it is the explanation, and an
+                    // explanation in alarm red is a second alarm.
+                    ink: Palette.red,
+                    titleDrop: DeathStyle.titleDrop,
+                    blurbDrop: DeathStyle.blurbDrop,
+                    isLeaving: false,
+                    onLanded: {},
+                    onFinished: {}
+                )
+            }
+        }
     }
 }
 
@@ -52,6 +93,13 @@ struct DeathView: View {
 enum DeathStyle {
 
     static let title = "GAME OVER"
+
+    /// Centred in the upper bar rather than sitting low in it, and the line
+    /// under it pushed down into the lower one — so the middle of the card,
+    /// where the piece is turning, is left clear.
+    static let titleDrop: CGFloat = 0
+
+    static let blurbDrop: CGFloat = 0.42
 
     /// How long one turn of the endless spin takes, once the piece is down here.
     ///
