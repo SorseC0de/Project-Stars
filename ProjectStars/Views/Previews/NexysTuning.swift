@@ -43,7 +43,23 @@ final class NexysTuning {
     var rock: NexysStyle.Rock = NexysStyle.Rock(
         rawValue: NexysTuning.store.words("rock", NexysStyle.defaultRock.rawValue)
     ) ?? NexysStyle.defaultRock {
-        didSet { NexysTuning.store.set("rock", rock.rawValue) }
+        didSet {
+            NexysTuning.store.set("rock", rock.rawValue)
+            // **Choosing one loads it.** The sliders keep working afterwards, so
+            // a rendition is a starting point rather than a cage — but they show
+            // what is actually running, which a preset that lived beside them
+            // without touching them would not.
+            load(rock)
+        }
+    }
+
+    /// Copies a rendition's numbers into the knobs.
+    func load(_ rendition: NexysStyle.Rock) {
+        rockHold = rendition.hold
+        bounceHold = rendition.bounce
+        bounceDepth = rendition.dip
+        bounceAttack = rendition.drop
+        rockSquash = rendition.squash
     }
 
     var rockHold: Double = store.value("rockHold", NexysStyle.defaultRockHold) {
@@ -84,6 +100,7 @@ final class NexysTuning {
         islandY = NexysStyle.defaultIslandY
         cursorLift = NexysStyle.defaultCursorLift
         rock = NexysStyle.defaultRock
+        load(NexysStyle.defaultRock)
         rockHold = NexysStyle.defaultRockHold
         bounceHold = NexysStyle.defaultBounceHold
         bounceDepth = NexysStyle.defaultBounceDepth
@@ -117,6 +134,7 @@ struct NexysControls: View {
             }
 
             Button("rock: \(tuning.rock.rawValue)") { tuning.rock = tuning.rock.next }
+            Button("reload") { tuning.load(tuning.rock) }
 
             row("isl x", value: $tuning.islandX)
             row("isl y", value: $tuning.islandY)

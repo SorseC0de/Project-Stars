@@ -15,7 +15,7 @@ import SwiftUI
 // is nowhere anybody looks — so every time the work moved to another sign,
 // finding this cost longer than changing it.
 //
-// Read by `RootView` to skip straight into a run and by
+// Read by `RootView` to skiap straight into a run and by
 // `PieceSelectionScreen` to open on the right sign; both go through
 // `GameRules.debugStartingSign`, which now forwards here.
 

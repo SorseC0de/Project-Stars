@@ -317,6 +317,7 @@ struct CloudMotion {
     /// - Parameter over: How long the give lasts.
     /// - Parameter depth: How far it gives, in art pixels.
     /// - Parameter attack: The share of that life spent going down.
+    /// - Parameter rebound: How far past rest it swings on the way back.
     ///
     /// Both are the island's own where the island asks — it is a rock on a
     /// chain rather than a puff of cloud, it gives differently, and the sprite
@@ -328,21 +329,42 @@ struct CloudMotion {
         scale: CGFloat,
         over duration: TimeInterval = GameRules.surfaceBounceDuration,
         depth: CGFloat = GameRules.surfaceBounceDepth,
-        attack: Double = GameRules.surfaceBounceAttack
+        attack: Double = GameRules.surfaceBounceAttack,
+        rebound: Double = 0
     ) -> CGFloat {
         guard let bounce, bounce.point == point else { return 0 }
 
         let progress = (now - bounce.start) / duration
         guard progress > 0, progress < 1 else { return 0 }
 
-        // Both halves eased, so the turn at full depth is a curve rather than a
-        // corner — `shove` does the same and for the same reason.
-        let attack = max(attack, 0.001)
-        let swell = progress < attack
-            ? sin(progress / attack * .pi / 2)
-            : cos((progress - attack) / (1 - attack) * .pi / 2)
+        return depth * scale * CGFloat(press(progress, attack: attack, rebound: rebound))
+    }
 
-        return depth * scale * CGFloat(swell)
+    /// One press: away fast, back slowly, and settled at the end.
+    ///
+    /// `0` at both ends and `1` at full extension, with `attack` deciding how
+    /// much of the span is spent getting there. Both halves are eased, so the
+    /// turn at the top is a curve rather than a corner.
+    ///
+    /// Shared so that anything happening *because* of a press can be drawn on
+    /// the same curve as the press itself — the island's squash against its own
+    /// dip, above all. Two descriptions of one movement drift the moment either
+    /// is tuned.
+    ///
+    /// - Parameter rebound: How far past rest the return carries before
+    ///   settling, as a share of the press. `0` stops dead at rest, which is
+    ///   right for cloud; a mass on a chain does not.
+    static func press(_ progress: Double, attack: Double, rebound: Double = 0) -> Double {
+        let attack = max(attack, 0.001)
+        guard progress >= attack else { return sin(progress / attack * .pi / 2) }
+
+        let back = (progress - attack) / (1 - attack)
+        guard rebound > 0 else { return cos(back * .pi / 2) }
+
+        // A quarter-turn further round the cosine crosses rest and comes back,
+        // and the decay is what stops it doing so for ever. Damped by the
+        // inverse of the rebound, so one number is the whole character of it.
+        return cos(back * .pi * 1.5) * exp(-back * (1 / max(rebound, 0.05)))
     }
 
     /// How far this cloud is pushed aside by a wake, if it is near one.

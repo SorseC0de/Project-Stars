@@ -3095,8 +3095,7 @@ struct BoardView: View {
     /// `HopPose` is: a pure function of elapsed time cannot be left stuck part
     /// way through.
     private func nexysRock(at date: Date) -> CGFloat? {
-        guard NexysStyle.rock != .off,
-              NexysStyle.foreshortened,
+        guard NexysStyle.foreshortened,
               let bounce = surfaceBounce,
               bounce.point == GameRules.nexysPoint
         else { return nil }
@@ -3195,7 +3194,8 @@ struct BoardView: View {
             scale: metrics.scale,
             over: NexysStyle.bounceHold,
             depth: NexysStyle.bounceDepth,
-            attack: NexysStyle.bounceAttack
+            attack: NexysStyle.bounceAttack,
+            rebound: NexysStyle.rebound
         )
 
         return float + give
