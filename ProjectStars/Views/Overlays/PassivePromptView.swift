@@ -82,15 +82,20 @@ struct PassivePromptView: View {
 
             word
         }
-        .offset(x: offset(size))
         .opacity(opacity)
-        // **Its own curve, and a far shorter one.**
+        // **Inside the fade, outside the slide.**
         //
-        // The slide and the fade are the same move but not the same length: it
-        // carries on at the speed it arrived at, and is gone long before it
-        // gets anywhere. Tied to the travel it crossed the whole board still
-        // visible, which is a prompt competing with the game underneath it.
+        // `.animation(_:value:)` governs everything *beneath* it in the chain,
+        // not just the property it watches — and offset and opacity change in
+        // the same instant, so with the offset underneath this it was being
+        // retimed too. Turning the fade down made the whole card cross the
+        // screen faster instead of disappearing sooner.
+        //
+        // So the fade wraps the opacity and nothing else, and the offset is
+        // applied outside it, where it keeps the slide's own transaction. Two
+        // durations for two things, which is what they always were.
         .animation(.easeOut(duration: PromptStyle.fade), value: opacity)
+        .offset(x: offset(size))
         .frame(maxWidth: .infinity, alignment: .leading)
         .allowsHitTesting(false)
         .task { await arrive() }
