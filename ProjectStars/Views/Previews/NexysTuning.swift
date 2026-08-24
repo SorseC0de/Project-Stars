@@ -56,6 +56,12 @@ final class NexysTuning {
         didSet { NexysTuning.store.set("bounceHold", bounceHold) }
     }
 
+    /// How much of the give is spent going down, as a share of its life.
+    /// Lower drops faster and returns more slowly.
+    var bounceAttack: Double = store.value("bounceAttack", NexysStyle.defaultBounceAttack) {
+        didSet { NexysTuning.store.set("bounceAttack", bounceAttack) }
+    }
+
     /// How far down the give pushes the island, in art pixels.
     var bounceDepth: Double = store.value("bounceDepth", NexysStyle.defaultBounceDepth) {
         didSet { NexysTuning.store.set("bounceDepth", bounceDepth) }
@@ -68,7 +74,7 @@ final class NexysTuning {
     nonisolated static let store = BenchStore(
         prefix: "nexys.",
         vintage: 1,
-        names: ["foreshortened", "islandX", "islandY", "rock", "rockHold", "rockSquash", "cursorLift", "bounceHold", "bounceDepth"]
+        names: ["foreshortened", "islandX", "islandY", "rock", "rockHold", "rockSquash", "cursorLift", "bounceHold", "bounceDepth", "bounceAttack"]
     )
 
     func reset() {
@@ -81,6 +87,7 @@ final class NexysTuning {
         rockHold = NexysStyle.defaultRockHold
         bounceHold = NexysStyle.defaultBounceHold
         bounceDepth = NexysStyle.defaultBounceDepth
+        bounceAttack = NexysStyle.defaultBounceAttack
         rockSquash = NexysStyle.defaultRockSquash
     }
 
@@ -89,8 +96,8 @@ final class NexysTuning {
         print("  sprite   " + (foreshortened ? "foreshortened" : "flat"))
         print(String(format: "  island   x %+.0f  y %+.0f", islandX, islandY))
         print(String(format: "  cursor   +%.0f", cursorLift))
-        print(String(format: "  rock     %@  hold %.2fs  bounce %.2fs  dip %.0fpx  squash %.0fpx",
-                     rock.rawValue, rockHold, bounceHold, bounceDepth, rockSquash))
+        print(String(format: "  rock     %@  hold %.2fs  bounce %.2fs  dip %.0fpx (drop %.2f)  squash %.0fpx",
+                     rock.rawValue, rockHold, bounceHold, bounceDepth, bounceAttack, rockSquash))
     }
 }
 
@@ -117,6 +124,7 @@ struct NexysControls: View {
             row("hold", value: $tuning.rockHold, in: 0.02...0.8, step: 0.02, places: 2)
             row("bounce", value: $tuning.bounceHold, in: 0.02...1.2, step: 0.02, places: 2)
             row("dip", value: $tuning.bounceDepth, in: 0...24, step: 1)
+            row("drop", value: $tuning.bounceAttack, in: 0.05...0.95, step: 0.05, places: 2)
             row("squash", value: $tuning.rockSquash, in: 0...10, step: 0.5, places: 1)
         }
         .font(.system(size: 9, weight: .semibold, design: .monospaced))

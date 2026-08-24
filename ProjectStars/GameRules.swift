@@ -1012,6 +1012,14 @@ enum GameRules {
     static let surfaceBounceDepth: CGFloat = 3
     static let surfaceBounceDuration: TimeInterval = 0.19
 
+    /// How much of a landing's give is spent going *down*.
+    ///
+    /// Weight arrives at once and is taken up slowly. A symmetric curve spends
+    /// half the bounce sinking, which reads as the surface deciding to move
+    /// rather than being pressed — the same reason `cloudWakeAttack` is a
+    /// quarter rather than a half.
+    static let surfaceBounceAttack: Double = 0.3
+
     /// How far every cloud sits below the centre of its square, in art pixels.
     ///
     /// The art is drawn with its mass in the upper part of the cell, so centring
@@ -1687,13 +1695,11 @@ enum GameRules {
     /// piece on the island's artwork was the wrong target — it put the piece at
     /// ground height while the island hovered around it.
     ///
-    /// **Eleven for a long time, and one pixel short the whole while.** The same
-    /// discrepancy the cursor has up there — `nexysRaise` against where the
-    /// island's surface is actually drawn — and it went unnoticed on the piece
-    /// for the same reason it did on the cursor: one pixel is invisible until
-    /// something else on the square gives you a straight edge to compare it to.
-    /// Both sprites, since both are drawn from the same surface.
-    static let nexysRideLift: CGFloat = 12
+    /// **The flat sprite's number, and it was always right.** The
+    /// drawn-in-perspective island has its own surface a pixel higher — it is
+    /// drawn that way rather than placed that way — so the extra pixel belongs
+    /// to that sprite and is added beside this. See `NexysStyle.rideLift`.
+    static let nexysRideLift: CGFloat = 11
 
     /// How far the island drifts either side of its resting height.
     ///

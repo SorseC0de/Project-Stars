@@ -204,6 +204,22 @@ enum NexysStyle {
     /// with it has to be able to line up with it.
     static let defaultBounceHold: Double = GameRules.surfaceBounceDuration
 
+    /// The extra lift a piece takes on the drawn-in-perspective island, in art
+    /// pixels.
+    ///
+    /// **The sprite's, not the placement's.** Its surface is drawn a pixel
+    /// higher than the flat one's, so this belongs to the drawing rather than to
+    /// `GameRules.nexysRideLift` — which is the flat island's number and was
+    /// always right.
+    static let defaultRideLift: Double = 1
+
+    /// How much of the island's give is spent going down.
+    ///
+    /// Its own rather than the shared `GameRules.surfaceBounceAttack`, so the
+    /// drop and the return can be pulled apart from the sprite change that runs
+    /// alongside them.
+    static let defaultBounceAttack: Double = GameRules.surfaceBounceAttack
+
     /// How far the island gives, in art pixels.
     ///
     /// The shared value is three over a fifth of a second, which on a rock the
@@ -271,6 +287,20 @@ enum NexysStyle {
         CGFloat(NexysTuning.shared.bounceDepth)
         #else
         CGFloat(defaultBounceDepth)
+        #endif
+    }
+
+    /// Only the drawn-in-perspective island. The flat one is placed correctly by
+    /// `GameRules.nexysRideLift` alone.
+    static var rideLift: CGFloat {
+        foreshortened ? CGFloat(defaultRideLift) : 0
+    }
+
+    static var bounceAttack: Double {
+        #if DEBUG
+        NexysTuning.shared.bounceAttack
+        #else
+        defaultBounceAttack
         #endif
     }
 

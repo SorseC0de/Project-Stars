@@ -2572,6 +2572,9 @@ struct BoardView: View {
                 ? bob * GameRules.carryFollow
                     - GameRules.nexysRideLift * metrics.scale
                     + (NexysStyle.foreshortened ? NexysStyle.islandY * metrics.scale : 0)
+                    // The deep sprite's surface is drawn a pixel higher than the
+                    // flat one's — see `NexysStyle.rideLift`.
+                    - NexysStyle.rideLift * metrics.scale
                 : 0) + launchLift(metrics: metrics),
             pose: pose,
             spin: session.fallSpin,
@@ -3191,7 +3194,8 @@ struct BoardView: View {
             now: date.timeIntervalSinceReferenceDate,
             scale: metrics.scale,
             over: NexysStyle.bounceHold,
-            depth: NexysStyle.bounceDepth
+            depth: NexysStyle.bounceDepth,
+            attack: NexysStyle.bounceAttack
         )
 
         return float + give

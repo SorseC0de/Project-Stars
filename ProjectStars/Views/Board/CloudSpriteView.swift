@@ -303,14 +303,20 @@ struct CloudMotion {
 
     /// How far the surface at `point` has given under a landing, in points.
     ///
-    /// Down and back over the bounce's life, on one half-cycle of a sine — a
-    /// press and a release, with no overshoot. Cloud is soft and the island
-    /// hangs on nothing; neither should twang.
+    /// Down and back over the bounce's life, with no overshoot: cloud is soft
+    /// and the island hangs on nothing, so neither should twang.
+    ///
+    /// **Not symmetrically, though.** Weight arrives all at once and is taken up
+    /// slowly, so an even curve spends half the bounce sinking, which reads as
+    /// the surface *choosing* to go down rather than being pressed. `attack` is
+    /// the share spent dropping — the same trick, and the same shape, as
+    /// `shove`'s `GameRules.cloudWakeAttack`.
     ///
     /// Only the square landed on. Its neighbours are a separate idea — see
     /// `shove`, which is what a fall *through* the plane does.
     /// - Parameter over: How long the give lasts.
     /// - Parameter depth: How far it gives, in art pixels.
+    /// - Parameter attack: The share of that life spent going down.
     ///
     /// Both are the island's own where the island asks — it is a rock on a
     /// chain rather than a puff of cloud, it gives differently, and the sprite
@@ -321,14 +327,22 @@ struct CloudMotion {
         now: TimeInterval,
         scale: CGFloat,
         over duration: TimeInterval = GameRules.surfaceBounceDuration,
-        depth: CGFloat = GameRules.surfaceBounceDepth
+        depth: CGFloat = GameRules.surfaceBounceDepth,
+        attack: Double = GameRules.surfaceBounceAttack
     ) -> CGFloat {
         guard let bounce, bounce.point == point else { return 0 }
 
         let progress = (now - bounce.start) / duration
         guard progress > 0, progress < 1 else { return 0 }
 
-        return depth * scale * CGFloat(sin(progress * .pi))
+        // Both halves eased, so the turn at full depth is a curve rather than a
+        // corner — `shove` does the same and for the same reason.
+        let attack = max(attack, 0.001)
+        let swell = progress < attack
+            ? sin(progress / attack * .pi / 2)
+            : cos((progress - attack) / (1 - attack) * .pi / 2)
+
+        return depth * scale * CGFloat(swell)
     }
 
     /// How far this cloud is pushed aside by a wake, if it is near one.
