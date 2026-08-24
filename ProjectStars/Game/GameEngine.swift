@@ -3692,6 +3692,13 @@ struct GameEngine {
             events.append(event)
         }
 
+        // The only implementer of `spillsMeterOnDescent` today, so reaching
+        // this far already means Delta Distillation. Told once for the spill,
+        // not once per bubble it scattered.
+        let named = GameEvent.passiveFired(name: PiscesGaiaGeyser().displayName, refused: false)
+        apply(named)
+        events.append(named)
+
         return events
     }
 
@@ -4793,6 +4800,20 @@ struct GameEngine {
         guard capped != zodiactionMeter else { return [] }
 
         var events: [GameEvent] = []
+
+        // **Starstream Surfer, named at the crossing rather than the meter.**
+        //
+        // The same test `meterBonus` uses for a surf — ending on Astra having
+        // covered more than one square — except the surf pays *nothing*, so
+        // there is no bonus to attach this to. Told directly instead.
+        if piece.zodiac == .pisces, move.endingPlane == .astra,
+           move.origin.manhattanDistance(to: move.destination) > 1 {
+            let named = GameEvent.passiveFired(
+                name: PiscesStarstreamSurfer().displayName, refused: false
+            )
+            apply(named)
+            events.append(named)
+        }
 
         // **Prideful Plant, named before the number that pays it.**
         //

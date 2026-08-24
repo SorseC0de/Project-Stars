@@ -269,6 +269,17 @@ struct PiscesAridAquanaut: ZodiacPassive {
         context.plane == .terra ? GameRules.bubbleSpawnChance : 0
     }
 
+    // - TODO: The roll call asked for a red card when a multi-tile pickup —
+    //   the Brook, the Breeze — is unpacked without a full meter to carry it.
+    //   That rule does not exist yet: `AstralBrookEffect.plan` and
+    //   `AstralBreezeEffect.plan` both build their slide unconditionally,
+    //   consulting no passive at all, so nothing about them currently reads
+    //   Arid Aquanaut. What this struct actually restricts is the player's
+    //   own chosen step, through `PiscesStarstreamSurfer.adjustedMovement` —
+    //   a different hook, on a different struct, that Brook and Breeze do not
+    //   pass through. Wiring the card without the rule would announce a
+    //   refusal that never happens.
+
     /// **The fish is wet, so the ground it crosses is watered rather than worn.**
     ///
     /// Cover is fed by him instead of being spent — see `WearCause.water`. The
