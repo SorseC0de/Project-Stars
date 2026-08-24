@@ -83,8 +83,26 @@ struct LayerBenchControls: View {
 
     let session: GameSession
 
+    @State private var isOpen = false
+
     var body: some View {
-        EmptyView()
+        VStack(alignment: .leading, spacing: 0) {
+            // Folded away by default. A bench is for the thing being tuned right
+            // now, and one left open covers the board it is tuning against.
+            Button {
+                isOpen.toggle()
+            } label: {
+                Text(isOpen ? "nexys ▾" : "nexys ▸")
+                    .font(.system(size: 11, weight: .bold, design: .monospaced))
+                    .foregroundStyle(Palette.textPrimary)
+                    .padding(.horizontal, 8)
+                    .padding(.vertical, 4)
+                    .background(Palette.background.opacity(0.85))
+            }
+            .buttonStyle(.plain)
+
+            if isOpen { NexysControls() }
+        }
     }
 }
 

@@ -1,21 +1,21 @@
 {
-  "images" : [
+  "images": [
     {
-      "filename" : "ProjectStarsSprites_16x_Zuphy32.png",
-      "idiom" : "universal",
-      "scale" : "1x"
+      "filename": "ProjectStarsSprites_16x_MortVsZuphy47.png",
+      "idiom": "universal",
+      "scale": "1x"
     },
     {
-      "idiom" : "universal",
-      "scale" : "2x"
+      "idiom": "universal",
+      "scale": "2x"
     },
     {
-      "idiom" : "universal",
-      "scale" : "3x"
+      "idiom": "universal",
+      "scale": "3x"
     }
   ],
-  "info" : {
-    "author" : "xcode",
-    "version" : 1
+  "info": {
+    "author": "xcode",
+    "version": 1
   }
 }

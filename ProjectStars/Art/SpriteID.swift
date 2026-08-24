@@ -246,6 +246,21 @@ enum SpriteID: Hashable {
     /// middle cell is the tile it occupies.
     case nexys
 
+    /// The island again, drawn in the board's own perspective rather than flat.
+    ///
+    /// **Beside the original, not instead of it.** Both are on the sheet and
+    /// both are reachable, because which one the board wants is a drawing
+    /// decision that has not been made yet — see `NexysStyle.foreshortened`.
+    case nexysDeep
+
+    /// The pillar under the foreshortened island's near corner.
+    ///
+    /// Its own sprite rather than part of the 48x48, because it is the one part
+    /// of the island that stands *in front of* whoever is on it — see
+    /// `BoardObjectKind.nexysPillar`. Drawn inside the island's own art it
+    /// would sort with the island, which is behind the piece.
+    case nexysPillar
+
     /// The plane's background layer. → `bg_astra`, `bg_terra`
     case planeBackground(Plane)
 
@@ -409,6 +424,10 @@ enum SpriteID: Hashable {
             "tile_\(plane.rawValue)_damage_\(health.assetSuffix)"
         case .nexys:
             "tile_nexys"
+        case .nexysDeep:
+            "tile_nexys_deep"
+        case .nexysPillar:
+            "tile_nexys_pillar"
         case let .planeBackground(plane):
             "bg_\(plane.rawValue)"
         case let .piece(zodiac):

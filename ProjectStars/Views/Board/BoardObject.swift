@@ -100,6 +100,9 @@ enum BoardObjectKind: String, Hashable, CaseIterable {
 
     case nexys
 
+    /// The pillar under the foreshortened island's near corner.
+    case nexysPillar
+
     /// The cursor's two **lower** brackets, which pass in front.
     case cursorFront
 }
@@ -235,6 +238,22 @@ struct BoardObject: Identifiable, Equatable {
 
         case .pentacle: return sweeping ? 5 : 2
         case .nexys: return 4
+
+        // **In front of whoever is standing on the island.**
+        //
+        // Above the piece's 5, which is the whole reason this is a separate
+        // object from the island it belongs to: the island is behind the piece
+        // and this near corner of it is in front.
+        //
+        // It ties with `cursorFront`, which also asks for 6 and *can* be on
+        // this square — the cursor is built at whatever point is being aimed
+        // at, with no exception for the Nexys. Left tied rather than resolved
+        // by inventing a number: the two only meet while the player is aiming
+        // at the island, `sorted(by:)` is deterministic for a given board even
+        // though it is not stable, and the honest fix if it reads wrong is a
+        // Nexys case on `cursorFront` — which would then need weighing against
+        // `facing`, that sits deliberately above the cursor already.
+        case .nexysPillar: return 6
 
         // On the island's square you are on top of it, not beside it.
         case .piece: return point == GameRules.nexysPoint ? 5 : 3

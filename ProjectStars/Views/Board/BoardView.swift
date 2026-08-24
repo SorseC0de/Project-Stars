@@ -1905,6 +1905,12 @@ struct BoardView: View {
                             let travel = tick.travel
                             nexys(plane: plane, metrics: metrics, bob: bob, ascent: ascent, travel: travel)
                         }
+                    case .nexysPillar:
+                        // On its own clock — see `BoardView.ticking`. The same
+                        // bob the island rides, so the two cannot drift apart.
+                        ticking(metrics) { tick in
+                            nexysPillar(metrics: metrics, bob: tick.bob)
+                        }
                     case .facing:
                         // On its own clock — see `BoardView.ticking`.
                         ticking(metrics) { tick in
@@ -2169,6 +2175,12 @@ struct BoardView: View {
         }
         if session.engine.nexysPlane == plane {
             objects.append(BoardObject(kind: .nexys, point: GameRules.nexysPoint))
+
+            // The near corner of the drawn-in-perspective island, which stands
+            // in front of whoever is on it. Only that version has one.
+            if NexysStyle.foreshortened {
+                objects.append(BoardObject(kind: .nexysPillar, point: GameRules.nexysPoint))
+            }
         }
         return objects
     }
@@ -2363,6 +2375,17 @@ struct BoardView: View {
             ),
             eased < 0.25 ? eased / 0.25 * swell : swell
         )
+    }
+
+    /// The pillar under the drawn-in-perspective island's near corner.
+    ///
+    /// Placed on the island's own square and nudged from there, so the sort puts
+    /// it in the island's row and the offset puts it in the corner — see
+    /// `BoardObjectKind.nexysPillar` for why it is not part of the island.
+    @ViewBuilder
+    private func nexysPillar(metrics: PixelArtMetrics, bob: CGFloat) -> some View {
+        NexysPillarView(tileSize: metrics.tileSize, scale: metrics.scale, bob: bob)
+            .modifier(placedOnPlaneModifier(GameRules.nexysPoint, metrics: metrics))
     }
 
     /// The Nexys island, at whatever height its drift and any transition put it.

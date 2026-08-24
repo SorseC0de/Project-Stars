@@ -362,6 +362,11 @@ enum SpriteAtlas {
         // island's rim and the greenery spilling off it.
         map[.nexys] = .cells(column: 12 + sheetShiftX, row: 6, width: 3, height: 3)
 
+        // The foreshortened island sits in the next 48x48 zone along, and its
+        // pillar is the single cell at the end of the same row.
+        map[.nexysDeep] = .cells(column: 15 + sheetShiftX, row: 6, width: 3, height: 3)
+        map[.nexysPillar] = .cells(column: 18 + sheetShiftX, row: 7)
+
         // ── Pieces ───────────────────────────────────────────────────────
         // 16x32 — a piece is twice a tile's height.
         //
