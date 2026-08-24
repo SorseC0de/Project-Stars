@@ -167,6 +167,7 @@ struct LeoCourageousCharge: ZodiacPassive {
         return [
             .tileHealed(plane: plane, point: point, to: .healthy),
             .zodiactionMeterChanged(to: context.zodiac.zodiaction.meterMax(on: plane)),
+            .passiveFired(name: displayName, refused: false),
         ]
     }
 }
@@ -205,6 +206,11 @@ struct LeoRallyingRoar: ZodiacPassive {
 
     let displayName = "Rallying Roar"
     let summary = "Terra: step onto the Nexys to change Zodea instead of riding up. (Not yet implemented.)"
+
+    // - TODO: Once wired, the offer of a piece change is the moment worth a
+    //   card — `GameSession.announce(passive: displayName)` — the same way
+    //   every other passive in the roll call speaks at the instant it bends
+    //   something rather than on a timer or a standing state.
 }
 
 // MARK: - Zodiaction: Attracting Aten

@@ -4642,6 +4642,17 @@ struct GameEngine {
 
         var events: [GameEvent] = []
 
+        // **Prideful Plant, named before the number that pays it.**
+        //
+        // Same shape as Six Singe below: checked against exactly the condition
+        // `LeoPridefulPlant.meterBonus` used to earn its share of `gain`, so
+        // this speaks on the fall that paid out and nothing else.
+        if piece.zodiac == .leo, move.fell {
+            let named = GameEvent.passiveFired(name: LeoPridefulPlant().displayName, refused: false)
+            apply(named)
+            events.append(named)
+        }
+
         // **Six Singe, named before the number that pays it.**
         //
         // Checked against the same condition `AriesSixSinge.meterBonus` used to
