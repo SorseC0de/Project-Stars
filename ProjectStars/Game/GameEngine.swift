@@ -3178,6 +3178,10 @@ struct GameEngine {
         var result = LandingResult()
         var fellAlready = arrivedByFalling
 
+        // Crazy Current speaks once per chain, not once per hole — see where
+        // it is read below.
+        var crazyCurrentAnnounced = false
+
         func commit(_ event: GameEvent) {
             result.events.append(event)
             apply(event)
@@ -3450,6 +3454,21 @@ struct GameEngine {
                airborne,
                activePassives.walksOnHoles(context: passiveContext),
                let heading {
+                // **Once per chain, at its start.**
+                //
+                // `walksOnHoles` is exclusive to Aquarius, so reaching here at
+                // all already means Crazy Current — the only question is
+                // whether this is the first hole of a run or the fifth. The
+                // flag is local to this call of `settle`, and a chain can never
+                // outlive one: it ends the moment the piece reaches solid
+                // ground, which is also every path out of this loop.
+                if !crazyCurrentAnnounced {
+                    crazyCurrentAnnounced = true
+                    commit(.passiveFired(
+                        name: AquariusCrazyCurrent().displayName, refused: false
+                    ))
+                }
+
                 let next = point.offset(by: heading.unitOffset)
                 commit(.pieceSlid(from: point, to: next, plane: plane))
 

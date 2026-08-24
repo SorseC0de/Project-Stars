@@ -436,6 +436,7 @@ struct AquariusEolianEjection: ZodiacPassive {
                 type: .rise
             )
         )
+        events.append(.passiveFired(name: displayName, refused: false))
         return events
     }
 }
