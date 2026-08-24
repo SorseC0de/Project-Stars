@@ -1247,50 +1247,65 @@ struct BoardView: View {
         // can drag a Pentacle off the tile that popped up for it.
         let popped = Set(session.visibleRaisedTiles.map(\.point))
 
+        // **Nothing here on Astra any more.**
+        //
+        // Its clouds and its squares are drawn a row at a time inside the sorted
+        // stack now — see `cloudRow` — because a ground pass that runs before
+        // that stack can never be in front of anything in it. Left as the mount
+        // for the placeholder field, which has no row-by-row version and is only
+        // ever seen when the sheet is missing.
         return ZStack {
-            // Astra's ordinary squares are one canvas, not 49.
-            //
-            // Drawn art if the sheet is there, generated clusters if it is not —
-            // the same rule every placeholder in this game follows. The drawn
-            // version is also the one that made Astra affordable: see
-            // `CloudSpriteField`.
-            if plane == .astra, LayerBench.shared.clouds {
-                if CloudSpriteField.hasArt {
-                    CloudSpriteField(
-                        board: board,
-                        metrics: metrics,
-                        flashing: session.flashingTiles,
-                        raised: popped,
-                        // Whatever is being stood on or hovered over has to stay
-                        // clear of its neighbours' overlap.
-                        mending: Set(healFlashes.keys),
-                        occupied: occupiedSquares(on: plane, popped: popped),
-                        clock: session.ambientClock(at:),
-                        wake: cloudWake,
-                        bounce: surfaceBounce,
-                        emphasis: GameRules.astraDepthEmphasis,
-                        zoom: GameRules.astraForeshortenScale,
-                        lift: GameRules.astraForeshortenLift
-                    )
-                    // Skipped entirely when nothing about it has changed — see
-                    // `CloudSpriteField ==`.
-                    .equatable()
-                } else {
-                    CloudFieldView(
-                        board: board,
-                        metrics: metrics,
-                        flashing: session.flashingTiles,
-                        freeze: session.ambientClock(at: Date().timeIntervalSinceReferenceDate),
-                        excluding: popped,
-                        isPaused: session.isPaused,
-                        emphasis: GameRules.astraDepthEmphasis,
-                        zoom: GameRules.astraForeshortenScale,
-                        lift: GameRules.astraForeshortenLift
-                    )
-                }
+            if plane == .astra, LayerBench.shared.clouds, !CloudSpriteField.hasArt {
+                CloudFieldView(
+                    board: board,
+                    metrics: metrics,
+                    flashing: session.flashingTiles,
+                    freeze: session.ambientClock(at: Date().timeIntervalSinceReferenceDate),
+                    excluding: popped,
+                    isPaused: session.isPaused,
+                    emphasis: GameRules.astraDepthEmphasis,
+                    zoom: GameRules.astraForeshortenScale,
+                    lift: GameRules.astraForeshortenLift
+                )
+            }
+        }
+    }
+
+    /// One row of Astra: its clouds, and the squares the clouds do not cover.
+    ///
+    /// Astra's answer to `bandRow`. It has no bands — a cloud is a loose shape
+    /// rather than a tile that has to meet its neighbours — so there is nothing
+    /// to shear or stretch. What it needs from the row is only that it be *drawn*
+    /// with it, so the sort can put the row in front of it over the top.
+    @ViewBuilder
+    private func cloudRow(_ row: Int, board: Board, metrics: PixelArtMetrics) -> some View {
+        let popped = Set(session.visibleRaisedTiles.map(\.point))
+
+        ZStack {
+            if LayerBench.shared.clouds, CloudSpriteField.hasArt {
+                CloudSpriteField(
+                    board: board,
+                    metrics: metrics,
+                    flashing: session.flashingTiles,
+                    raised: popped,
+                    // Whatever is being stood on or hovered over has to stay
+                    // clear of its neighbours' overlap.
+                    mending: Set(healFlashes.keys),
+                    occupied: occupiedSquares(on: .astra, popped: popped),
+                    clock: session.ambientClock(at:),
+                    wake: cloudWake,
+                    bounce: surfaceBounce,
+                    emphasis: GameRules.astraDepthEmphasis,
+                    zoom: GameRules.astraForeshortenScale,
+                    lift: GameRules.astraForeshortenLift,
+                    row: row
+                )
+                // Skipped entirely when nothing about it has changed — see
+                // `CloudSpriteField ==`, which compares the row too.
+                .equatable()
             }
 
-            faces(board: board, plane: plane, metrics: metrics, popped: popped)
+            faces(board: board, plane: .astra, metrics: metrics, popped: popped, row: row)
         }
     }
 
@@ -1302,9 +1317,13 @@ struct BoardView: View {
         board: Board,
         plane: Plane,
         metrics: PixelArtMetrics,
-        popped: Set<GridPoint>
+        popped: Set<GridPoint>,
+        row: Int? = nil
     ) -> some View {
-        ForEach(board.allPoints.filter { !popped.contains($0) }, id: \.self) { point in
+        let squares = board.allPoints.filter {
+            !popped.contains($0) && (row == nil || $0.y == row)
+        }
+        return ForEach(squares, id: \.self) { point in
             TileView(
                 tile: board[point],
                 plane: plane,
@@ -1726,7 +1745,13 @@ struct BoardView: View {
                             )
                         }
                     case .tileRow:
-                        bandRow(object.point.y, board: board, plane: plane, metrics: metrics)
+                        // Terra tiles, Astra clouds — the same place in the
+                        // order either way.
+                        if plane == .terra {
+                            bandRow(object.point.y, board: board, plane: plane, metrics: metrics)
+                        } else {
+                            cloudRow(object.point.y, board: board, metrics: metrics)
+                        }
 
                     case .pentacle:
                         pentacle(at: object.point, metrics: metrics)
@@ -2109,7 +2134,15 @@ struct BoardView: View {
         // Terra only. Astra's ground is one canvas for the whole plane rather
         // than a band per row — there is no grid up there that has to tile —
         // so there are no rows to interleave with, and it keeps its own pass.
-        if plane == .terra, includesGround, LayerBench.shared.ground {
+        // **Both planes, because both planes have ground.**
+        //
+        // Terra lays bands and Astra lays clouds, but the sort does not care
+        // which — what it needs is that the ground be in this list, so that a
+        // row of it can be drawn *after* something standing in the row behind.
+        // Astra's ground used to be a pass of its own, running before all of
+        // this, which is why nothing up there could ever be occluded by the
+        // ground in front of it — the island simply sat over the whole plane.
+        if includesGround, LayerBench.shared.ground {
             objects += (0..<board.size).map { row in
                 BoardObject(kind: .tileRow, point: GridPoint(0, row), slot: row)
             }

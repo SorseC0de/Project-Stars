@@ -111,6 +111,18 @@ struct CloudSpriteField: View, Equatable {
     var separationX: CGFloat = GameRules.cloudSpacingX
     var separationY: CGFloat = GameRules.cloudSpacingY
 
+    /// Which row of the board this copy draws, or `nil` for all of them.
+    ///
+    /// **The board sorts by row, so the ground has to be drawn by row.** Astra's
+    /// clouds were one canvas covering the whole plane, drawn before the stack
+    /// that holds everything standing on it — which meant nothing on Astra could
+    /// ever be occluded by ground in front of it. The island is three rows tall
+    /// and sat over the lot.
+    ///
+    /// One canvas per row costs the same drawing spread over seven layers, which
+    /// is exactly what Terra already pays for the same reason — see `BandRow`.
+    var row: Int?
+
     /// **Compared on its values, ignoring its clock.**
     ///
     /// The field is the most expensive thing on Astra — forty-nine clusters in
@@ -126,7 +138,8 @@ struct CloudSpriteField: View, Equatable {
     /// here. The clock is a pure function of a timestamp; two of them differ in
     /// identity and never in what they answer.
     static func == (lhs: CloudSpriteField, rhs: CloudSpriteField) -> Bool {
-        lhs.board == rhs.board
+        lhs.row == rhs.row
+            && lhs.board == rhs.board
             && lhs.metrics == rhs.metrics
             && lhs.flashing == rhs.flashing
             && lhs.raised == rhs.raised
@@ -231,10 +244,12 @@ struct CloudSpriteField: View, Equatable {
         // Row order is depth order: a cloud nearer the bottom of the screen is
         // nearer the viewer and draws over the one behind it. Within a row, an
         // occupied square goes last — see `occupied`.
-        let order = board.allPoints.sorted {
-            ($0.y, occupied.contains($0) ? 1 : 0, $0.x)
-                < ($1.y, occupied.contains($1) ? 1 : 0, $1.x)
-        }
+        let order = board.allPoints
+            .filter { row == nil || $0.y == row }
+            .sorted {
+                ($0.y, occupied.contains($0) ? 1 : 0, $0.x)
+                    < ($1.y, occupied.contains($1) ? 1 : 0, $1.x)
+            }
 
         for point in order {
             let tile = board[point]
