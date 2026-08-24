@@ -423,9 +423,28 @@ struct GameScreen: View {
                 clock: session.ambientClock(at:)
             )
 
-            row(World.row(of: .astra), side: side) { planeSquare(.astra, side: side) }
-            row(World.row(of: .terra), side: side) { planeSquare(.terra, side: side) }
+            // The underground first, because it is the furthest thing from the
+            // camera and nothing is ever in front of it except by falling into
+            // it.
             row(World.underground, side: side) { DeathView(session: session) }
+
+            // **The plane the piece is on draws last.**
+            //
+            // A `ZStack` draws its children in order, and for a whole fall the
+            // piece is still drawn in the square it *left* — three rows above
+            // the one it is heading for. In plain row order the destination's
+            // board would be drawn over the piece falling towards it, and it
+            // would disappear behind Terra at the exact moment the fall was
+            // meant to be worth watching.
+            //
+            // `zIndex` rather than reordering the views: reordering a stack's
+            // children can cost SwiftUI the identity of what is inside them, and
+            // what is inside these is two boards — rebuilt, at the one moment in
+            // the game where there is no frame to spare.
+            row(World.row(of: .astra), side: side) { planeSquare(.astra, side: side) }
+                .zIndex(session.engine.piece.plane == .astra ? 1 : 0)
+            row(World.row(of: .terra), side: side) { planeSquare(.terra, side: side) }
+                .zIndex(session.engine.piece.plane == .terra ? 1 : 0)
         }
         .frame(width: side, height: side * CGFloat(World.rows), alignment: .top)
     }

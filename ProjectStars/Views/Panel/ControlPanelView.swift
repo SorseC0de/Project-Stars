@@ -640,7 +640,9 @@ struct ControlPanelView: View {
             face(.death) {
                 PanelDeathView(
                     session: session,
-                    onRestart: { session.newGame() },
+                    // Straight back into the fall, no card. See
+                    // `GameSession.restartRunSeamlessly`.
+                    onRestart: { session.restartRunSeamlessly() },
                     onChangeSign: onQuit
                 )
             }

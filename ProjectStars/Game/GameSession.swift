@@ -980,14 +980,17 @@ final class GameSession {
     }
 
     /// Abandons the current run and starts a new one.
-    func newGame(zodiac: Zodiac? = nil, seed: UInt64? = nil) {
+    /// - Parameter announced: Whether the mode card goes up and the run waits on
+    ///   the start button. False for a seamless restart, which is already in
+    ///   motion and has nothing to announce — see `restartRunSeamlessly`.
+    func newGame(zodiac: Zodiac? = nil, seed: UInt64? = nil, announced: Bool = true) {
         replayTask?.cancel()
         replayTask = nil
 
         // Every run opens by saying what it is. Set before the board is built
         // rather than after, so the card is already up while the first frame of
         // a fresh board is being put together.
-        modeCard = mode
+        modeCard = announced ? mode : nil
         modeCardIsLeaving = false
         modeCardHasLanded = false
 
@@ -1026,8 +1029,14 @@ final class GameSession {
         // the rest of the state and then cleared two lines later by the very
         // wipe that empties the board of last run's effects — so the entrance
         // was played and thrown away every time.
-        spawnedAt = .now
-        playEffect(.spawn, at: engine.piece.point, on: engine.piece.plane, glows: true)
+        // Only for a run that is *appearing*. A seamless restart's piece has been
+        // on screen and turning for the last ten seconds, and a
+        // resolve-into-being flash on it would be the game admitting it swapped
+        // the piece out.
+        if announced {
+            spawnedAt = .now
+            playEffect(.spawn, at: engine.piece.point, on: engine.piece.plane, glows: true)
+        }
         healSparkles = []
         nexysCarryingPiece = false
         coinFlight = nil
@@ -2984,6 +2993,16 @@ final class GameSession {
         // is on.
         engine.apply(event)
         isFalling = false
+        land()
+    }
+
+    /// Hitting the ground at the end of a fall, however the fall began.
+    ///
+    /// One copy, because there is now more than one way to arrive: a fall
+    /// through a hole, and a restart that drops the player back into the world
+    /// from the seam. Two copies of a landing drift apart the first time either
+    /// is retuned, and a landing is mostly feel.
+    private func land() {
         bounceSurface(at: engine.piece.point, on: engine.piece.plane)
 
         // **The energy arriving, in the sign's own colour.**
@@ -3418,6 +3437,99 @@ extension GameSession {
     func restart() {
         isPaused = false
         newGame()
+    }
+
+    /// Beginning again **without leaving the fall.**
+    ///
+    /// The ordinary way in is the mode card: the run announces itself and the
+    /// player presses start. That is right for a run you have chosen to begin
+    /// and wrong for one you are already inside. You died falling; you have been
+    /// watching yourself fall ever since; so this does not stop the fall — it
+    /// gives it somewhere to land.
+    ///
+    /// ## How it gets away with it
+    ///
+    /// Entirely through the shape of the world. `newGame` puts a fresh piece on
+    /// Astra and points the camera at it; this immediately points the camera
+    /// back at the row the old piece fell to, which draws the new piece exactly
+    /// where the old one was — four rows under Astra, in the dark, mid-turn. The
+    /// player cannot tell the two apart because there is nothing to tell apart:
+    /// same sign, same pose, same place, same instant.
+    ///
+    /// Then it keeps falling. Down to the seam at the bottom of the column, over
+    /// the join — where both sides show the same two rows of empty sky, so there
+    /// is nothing to fade and nothing to hide — and down into Astra, landing
+    /// with the same bounce any other arrival gets.
+    ///
+    /// Every leg is timed at the rate of the fall the game already has, so the
+    /// three of them read as one drop rather than three moves.
+    func restartRunSeamlessly() {
+        isPaused = false
+
+        // Seconds per row, taken from the trip the player already knows: Astra
+        // to Terra, which is three rows.
+        let pace = (GameRules.fallDuration + GameRules.fallArrivalDuration)
+            / Double(World.row(of: .terra) - World.row(of: .astra))
+
+        // Not the replay task. `newGame` cancels that one, and this sequence
+        // calls `newGame` half way through — it would be cancelling itself.
+        Task { @MainActor [weak self] in
+            guard let self else { return }
+
+            // **1. The camera catches up with the piece it let fall.**
+            //
+            // It held still while the piece dropped out of the world, which is
+            // what made that a fall rather than a journey. Going somewhere again
+            // means going after it.
+            let landed = self.cameraRow + self.pieceDrop
+            let catchUp = landed - self.cameraRow
+            if catchUp > 0 {
+                withAnimation(.linear(duration: catchUp * pace)) {
+                    self.cameraRow = landed
+                    self.pieceDrop = 0
+                }
+                await self.sleep(catchUp * pace)
+            }
+
+            // **2. A fresh world, built behind a piece that never stopped.**
+            self.newGame(announced: false)
+            self.cameraRow = landed
+
+            // The endless turn ends here: it said the fall had no bottom, and
+            // this one has. Cleared without animation first, because a
+            // `repeatForever` is not replaced by another animation — it is
+            // replaced by an assignment that carries none.
+            var settle = Transaction()
+            settle.disablesAnimations = true
+            withTransaction(settle) { self.fallSpin = 0 }
+
+            let seam = Double(World.rows - 1)
+            let home = Double(World.row(of: .astra))
+            let remaining = (seam - landed) + (home - World.wrapped(seam))
+
+            // A whole number of turns over the whole trip, so it arrives
+            // upright — the same contract `animateFall` keeps.
+            withAnimation(.linear(duration: remaining * pace)) {
+                self.fallSpin += GameRules.fallSpinDegrees * self.tumbleDirection
+            }
+
+            // **3. Down to the seam.**
+            withAnimation(.linear(duration: (seam - landed) * pace)) {
+                self.cameraRow = seam
+            }
+            await self.sleep((seam - landed) * pace)
+
+            // **4. Over the join.** One assignment, and nothing sees it.
+            self.cameraRow = World.wrapped(self.cameraRow)
+
+            // **5. And down into Astra.**
+            let toHome = home - self.cameraRow
+            withAnimation(.linear(duration: toHome * pace)) { self.cameraRow = home }
+            await self.sleep(toHome * pace)
+
+            self.cameraRow = home
+            self.land()
+        }
     }
 }
 
