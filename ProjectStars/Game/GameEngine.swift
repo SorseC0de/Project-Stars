@@ -3191,6 +3191,19 @@ struct GameEngine {
             // belongs.
             if earnsWear, passiveAllows, timing == .onEntry {
                 result.absorb(applyWear(to: point, on: plane, arrivedByFalling: fellAlready))
+            } else if earnsWear, !passiveAllows, timing == .onEntry,
+                      piece.zodiac == .aries,
+                      !signState.planeFlags.contains(AriesSearingStride.freshTileKey) {
+                // **Searing Stride's one free tile, told rather than left to be
+                // noticed.** `causesWear` only answers *whether*; this is the
+                // one place the engine acts on that answer, so it is the one
+                // place that can say *why* wear did not happen. Guarded on the
+                // flag being still unset, because every later tile on the same
+                // visit answers the same "no" for the ordinary reason — the
+                // tile just does not want to wear — and only the first is the
+                // passive actually doing something.
+                result.events.append(.passiveFired(name: AriesSearingStride().displayName, refused: false))
+                apply(result.events.last!)
             }
 
             // A fall can be softened into a full repair — Virgo always, and
@@ -4627,9 +4640,26 @@ struct GameEngine {
         let capped = min(max(zodiactionMeter + gain, 0), zodiactionMeterMax)
         guard capped != zodiactionMeter else { return [] }
 
+        var events: [GameEvent] = []
+
+        // **Six Singe, named before the number that pays it.**
+        //
+        // Checked against the same condition `AriesSixSinge.meterBonus` used to
+        // earn its share of `gain` — a streak of six not yet spent this visit —
+        // so this only speaks on the move that actually crossed the board, not
+        // on every later top-up the meter happens to receive.
+        if piece.zodiac == .aries,
+           signState.streakLength == GameRules.sixSingeLength,
+           !signState.planeFlags.contains(AriesSixSinge.usedThisVisitKey) {
+            let named = GameEvent.passiveFired(name: AriesSixSinge().displayName, refused: false)
+            apply(named)
+            events.append(named)
+        }
+
         let event = GameEvent.zodiactionMeterChanged(to: capped)
         apply(event)
-        return [event]
+        events.append(event)
+        return events
     }
 
     /// The squares strictly between two points on a shared row or column.
@@ -4817,7 +4847,14 @@ struct GameEngine {
                 to: meter(afterGaining: GameRules.trampleCharge)
             )
             apply(paid)
-            return [broken, paid]
+
+            // Named at the coin, not at the charge: what a player needs
+            // explained is why a Pentacle they ran straight through did not
+            // open, and the ZC that came out of it is the reward, not the news.
+            let named = GameEvent.passiveFired(name: AriesSearingStride().displayName, refused: false)
+            apply(named)
+
+            return [broken, paid, named]
         }
 
         let gathered = GameEvent.pickupGathered(id: coin.id, plane: plane, point: to)
@@ -5075,6 +5112,9 @@ struct GameEngine {
         switch event {
         case .moveBlocked:
             break // Presentation only.
+
+        case .passiveFired:
+            break // Presentation only: the rule has already acted.
 
         case let .pickupRevealed(id, plane, point, _, asCloud):
             #if DEBUG

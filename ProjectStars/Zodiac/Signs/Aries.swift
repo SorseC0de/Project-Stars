@@ -171,7 +171,10 @@ struct AriesReboundingRam: ZodiacPassive {
     func amend(_ events: [GameEvent], context: PassiveContext) -> [GameEvent] {
         for event in events {
             if case let .moveBlocked(direction) = event {
-                return [.pieceTurned(to: direction.opposite)]
+                return [
+                    .pieceTurned(to: direction.opposite),
+                    .passiveFired(name: displayName, refused: false),
+                ]
             }
         }
         return []

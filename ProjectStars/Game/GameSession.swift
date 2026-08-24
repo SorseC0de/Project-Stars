@@ -1693,6 +1693,15 @@ final class GameSession {
 
         switch event {
 
+        case let .passiveFired(name, refused):
+            // No sleep and no animation: the card runs on its own clock, and a
+            // beat here would stop the move in order to say what the move did.
+            if refused {
+                refuse(passive: name)
+            } else {
+                announce(passive: name)
+            }
+
         case let .moveBlocked(direction):
             reportBlocked(direction)
 

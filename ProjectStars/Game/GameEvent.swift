@@ -502,6 +502,26 @@ enum GameEvent: Equatable {
 
 
     /// The run ended.
+    /// A passive did something worth naming, or refused something worth
+    /// explaining.
+    ///
+    /// ## Why the engine says this and not the session
+    ///
+    /// Because the session would have to *infer* it. Most passives have no
+    /// event of their own — they bend an ordinary move, and what comes out the
+    /// other side is an ordinary `pieceMoved` with a different destination.
+    /// Working out which passive was responsible from the outside means
+    /// re-deriving the rule that was just applied, in a second place, where it
+    /// can disagree with the first.
+    ///
+    /// So the rule says its own name at the point it acts. It costs the engine
+    /// one line where the rule already is, and the session never has to guess.
+    ///
+    /// - Note: Carries the name rather than the passive, because a passive is
+    ///   a protocol existential and an event has to be `Equatable` and cheap to
+    ///   copy. The name is what gets drawn anyway.
+    case passiveFired(name: String, refused: Bool)
+
     case gameOver(reason: GameOverReason)
 
     // MARK: - Presentation
@@ -521,6 +541,9 @@ enum GameEvent: Equatable {
 
     var displayDuration: TimeInterval {
         switch self {
+        // Instant. The card has its own life and its own clock, and a beat
+        // here would stop the move to say what the move just did.
+        case .passiveFired: 0
         case .moveBlocked: 0.18
         case .pickupRevealed: GameRules.pickupRevealDuration
         // Instant: it happens *during* a slide, and a beat here would be the
