@@ -154,7 +154,7 @@ struct TaurusHooves: ZodiacPassive {
             return []
         }
 
-        return GroundWave(
+        let spread = GroundWave(
             origin: landing,
             plane: .terra,
             touches: { tile, _ in !tile.health.isHole },
@@ -165,6 +165,12 @@ struct TaurusHooves: ZodiacPassive {
             }
         )
         .plan(on: context.currentBoard)
+
+        // Only when the wave actually found ground to green — a landing beside
+        // nothing but hole and flowers is still an arrival, but not one this
+        // passive did anything with.
+        guard !spread.isEmpty else { return spread }
+        return spread + [.passiveFired(name: displayName, refused: false)]
     }
 
     /// Where she just set foot on Terra, if this move is an arrival.
@@ -266,7 +272,8 @@ struct TaureanTear: ZodiacPassive {
                     plane: plane,
                     point: point,
                     to: GroundCover.ordinary(at: point, seed: context.moveCount)
-                )
+                ),
+                .passiveFired(name: displayName, refused: false),
             ]
         }
         return []

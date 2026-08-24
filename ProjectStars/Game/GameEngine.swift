@@ -5001,7 +5001,10 @@ struct GameEngine {
         // The balk, first. It is the same statement a wall makes — *you are not
         // going that way* — and the board already knows how to shove for it, so
         // the refusal is felt rather than merely not happening.
-        var events: [GameEvent] = [.moveBlocked(direction: piece.facing)]
+        var events: [GameEvent] = [
+            .moveBlocked(direction: piece.facing),
+            .passiveFired(name: TaurusStubbornStatue().displayName, refused: false),
+        ]
         let point = piece.point
 
         if self[piece.plane][point].cover == nil,
