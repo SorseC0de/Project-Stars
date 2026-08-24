@@ -37,7 +37,6 @@ struct FrameRateView: View {
     var body: some View {
         TimelineView(.animation) { timeline in
             let rate = window.record(timeline.date)
-            let rebuilds = tally.record(timeline.date)
 
             VStack(alignment: .trailing, spacing: 2) {
                 Text(rate > 0 ? "\(Int(rate.rounded())) FPS" : "— FPS")

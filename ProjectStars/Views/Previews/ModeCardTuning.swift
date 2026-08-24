@@ -21,9 +21,10 @@ final class ModeCardTuning {
 
     static let shared = ModeCardTuning()
 
-    /// How long the card takes to fade as it slides out.
-    var fade: Double = store.value("fade", PromptStyle.defaultFade) {
-        didSet { ModeCardTuning.store.set("fade", fade) }
+    /// How much opacity the card loses per second as it leaves. Higher is
+    /// gone sooner, and does not touch how fast it travels.
+    var fadeRate: Double = store.value("fadeRate", PromptStyle.defaultFadeRate) {
+        didSet { ModeCardTuning.store.set("fadeRate", fadeRate) }
     }
 
     /// How long the slide out takes. Shorter is faster, not shorter-lived.
@@ -43,13 +44,13 @@ final class ModeCardTuning {
 
     nonisolated static let store = BenchStore(
         prefix: "modeCard.",
-        vintage: 10,
-        names: ["fade", "exit", "wordsRideOut", "sampleText"]
+        vintage: 11,
+        names: ["fadeRate", "exit", "wordsRideOut", "sampleText"]
     )
 
     func reset() {
         ModeCardTuning.store.forget()
-        fade = PromptStyle.defaultFade
+        fadeRate = PromptStyle.defaultFadeRate
         exit = PromptStyle.defaultDeparture
         wordsRideOut = true
         sampleText = "Magnetic Mane"
@@ -57,7 +58,7 @@ final class ModeCardTuning {
 
     func dump() {
         print("── passive prompt ──")
-        print(String(format: "  fade     %.2f   exit %.2f", fade, exit))
+        print(String(format: "  fade     %.1f /sec   exit %.2f", fadeRate, exit))
         print("  words    " + (wordsRideOut ? "ride out" : "go first"))
         print("  sample   " + sampleText)
     }
@@ -84,7 +85,7 @@ struct ModeCardControls: View {
                 .textFieldStyle(.roundedBorder)
                 .frame(width: 170)
 
-            row("fade", value: $tuning.fade, in: 0.02...1, step: 0.01)
+            row("fade", value: $tuning.fadeRate, in: 0.5...25, step: 0.5)
             row("exit", value: $tuning.exit, in: 0.1...2, step: 0.01)
 
             Button(tuning.wordsRideOut ? "words: ride out" : "words: go first") {

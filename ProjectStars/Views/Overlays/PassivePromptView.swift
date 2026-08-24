@@ -66,39 +66,52 @@ struct PassivePromptView: View {
         case leaving
     }
 
+    /// When the card began leaving, or `nil` while it is still arriving or held.
+    @State private var leftAt: Date?
+
     var body: some View {
         let size = PromptStyle.size(reaching: reach)
 
-        // **Leading-aligned, and wider than the card when the word needs it.**
-        //
-        // The word sits over the card rather than inside it, so a long name
-        // grows the frame instead of being squeezed into a shape that was not
-        // drawn for it. Aligned to the leading edge, all of that growth happens
-        // on the trailing side and the card itself does not move.
-        ZStack(alignment: .leading) {
-            face
-                .overlay { streaks }
-                .frame(width: size.width, height: size.height)
+        // Ticking only while it is leaving. Nothing else here needs a frame
+        // clock, and a clock that runs the whole time the card is up is a clock
+        // running for nothing.
+        TimelineView(.animation(paused: leftAt == nil)) { timeline in
+            ZStack(alignment: .leading) {
+                face
+                    .overlay { streaks }
+                    .frame(width: size.width, height: size.height)
 
-            word
+                word(burning: burn(at: timeline.date, rate: wordRate))
+            }
+            // Arriving: animated by the transaction that changes the stage.
+            .opacity(stage == .offstage ? 0 : 1)
+            // Leaving: **not animated at all.** Opacity is spent per tick, at a
+            // rate of its own, so how fast the card disappears has nothing to do
+            // with how fast it travels. An animation here governs the whole
+            // subtree, which is how the fade ended up retiming the slide.
+            .opacity(burn(at: timeline.date, rate: PromptStyle.fadeRate))
+            .offset(x: offset(size))
         }
-        .opacity(opacity)
-        // **Inside the fade, outside the slide.**
-        //
-        // `.animation(_:value:)` governs everything *beneath* it in the chain,
-        // not just the property it watches — and offset and opacity change in
-        // the same instant, so with the offset underneath this it was being
-        // retimed too. Turning the fade down made the whole card cross the
-        // screen faster instead of disappearing sooner.
-        //
-        // So the fade wraps the opacity and nothing else, and the offset is
-        // applied outside it, where it keeps the slide's own transaction. Two
-        // durations for two things, which is what they always were.
-        .animation(.easeOut(duration: PromptStyle.fade), value: opacity)
-        .offset(x: offset(size))
         .frame(maxWidth: .infinity, alignment: .leading)
         .allowsHitTesting(false)
         .task { await arrive() }
+    }
+
+    /// What is left of the card, given how long it has been going.
+    ///
+    /// One over `rate` seconds from full to nothing. Full until it leaves.
+    private func burn(at now: Date, rate: Double) -> Double {
+        guard let leftAt else { return 1 }
+        return max(0, 1 - now.timeIntervalSince(leftAt) * rate)
+    }
+
+    /// How fast the word goes.
+    ///
+    /// The A/B: with the shape, or ahead of it.
+    private var wordRate: Double {
+        PromptStyle.wordsRideOut
+            ? PromptStyle.fadeRate
+            : PromptStyle.fadeRate * PromptStyle.wordHaste
     }
 
     // MARK: - The shape
@@ -118,7 +131,7 @@ struct PassivePromptView: View {
     /// squashing it in both directions to make it fit makes it *smaller* where
     /// what is wanted is *narrower* — so the vertical scale is pinned at one and
     /// only the width gives.
-    private var word: some View {
+    private func word(burning left: Double) -> some View {
         Text(prompt.name.uppercased())
             .font(.system(size: PromptStyle.labelSize, weight: .heavy, design: .rounded))
             .tracking(PromptStyle.labelTracking)
@@ -127,8 +140,7 @@ struct PassivePromptView: View {
             .fixedSize()
             .scaleEffect(x: PromptStyle.labelStretch, y: 1, anchor: .leading)
             .offset(x: PromptStyle.labelX)
-            .opacity(wordOpacity)
-            .animation(.easeOut(duration: wordFade), value: wordOpacity)
+            .opacity(left)
     }
 
     // MARK: - Where it is
@@ -144,34 +156,6 @@ struct PassivePromptView: View {
         }
     }
 
-    private var opacity: Double {
-        switch stage {
-        case .offstage: 0
-        case .held: 1
-        case .leaving: 0
-        }
-    }
-
-    /// Whether the word is still showing.
-    ///
-    /// **The A/B.** With `wordsRideOut` the word is part of the shape and leaves
-    /// with it; without, it is gone the moment the shape commits to leaving and
-    /// what slides away is a blank. See `ModeCardTuning.wordsRideOut`.
-    private var wordOpacity: Double {
-        guard stage == .leaving, !PromptStyle.wordsRideOut else { return 1 }
-        return 0
-    }
-
-    /// How quickly the word goes.
-    ///
-    /// **The A/B only shows if these differ.** Riding out, the word fades on
-    /// the card's own curve and leaves with it; going first, it has to be
-    /// quicker than the card or both simply vanish together and the two
-    /// settings look identical — which is what they did.
-    private var wordFade: Double {
-        PromptStyle.wordsRideOut ? PromptStyle.fade : PromptStyle.fade * PromptStyle.wordHaste
-    }
-
     // MARK: - What it does
 
     private func arrive() async {
@@ -179,6 +163,7 @@ struct PassivePromptView: View {
         await sleep(PromptStyle.arrival + PromptStyle.hold)
 
         onLeaving()
+        leftAt = .now
 
         // **Linear, not eased in.** Easing in spends the first stretch barely
         // moving, and the first stretch is the only part anyone sees — the card
@@ -263,19 +248,24 @@ enum PromptStyle {
 
     static let defaultDeparture: Double = 0.5
 
-    /// How long the fade out takes, against the slide it happens during.
-    static var fade: Double {
+    /// How much opacity the card loses per second on its way out.
+    ///
+    /// A *rate*, not a duration, and nothing animates it — the card is simply
+    /// worth less each tick. Which is the only way it can be set without also
+    /// setting how fast the card travels: an animation attached here would
+    /// govern the offset beside it, and that is what kept happening.
+    static var fadeRate: Double {
         #if DEBUG
-        ModeCardTuning.shared.fade
+        ModeCardTuning.shared.fadeRate
         #else
-        defaultFade
+        defaultFadeRate
         #endif
     }
 
-    static let defaultFade: Double = 0.2
+    static let defaultFadeRate: Double = 5
 
-    /// How much quicker the word goes than the card, when it is not riding out.
-    static let wordHaste: Double = 0.35
+    /// How much faster the word goes than the card, when it is not riding out.
+    static let wordHaste: Double = 2.8
 
     /// Whether the word leaves with the shape or goes first. The bench's A/B.
     static var wordsRideOut: Bool {
