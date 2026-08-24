@@ -17,12 +17,24 @@ import SwiftUI
 /// Everything both copies of the name share, so the shadow cannot drift away
 /// from the letters it is under.
 private struct BadgeLabel: ViewModifier {
+
+    /// Whole-pixel scale, so the lift below is an art pixel rather than a point.
+    let scale: CGFloat
+
     func body(content: Content) -> some View {
         content
             .font(.system(size: 12, weight: .heavy, design: .monospaced))
             .lineLimit(1)
             .fixedSize(horizontal: true, vertical: false)
             .tracking(GameRules.planeBadgeTracking)
+            // **Up one art pixel.**
+            //
+            // The word centres in the plaque's whole frame, and the plaque is
+            // not symmetrical — its border is eight pixels at the top and nine
+            // at the bottom, so the middle of the box is half a pixel below the
+            // middle of the *panel*. Rounded to whole pixels that reads as one
+            // pixel low, which on a two-row plaque is plainly visible.
+            .offset(y: -GameRules.planeBadgeLabelLift * scale)
     }
 }
 
@@ -83,11 +95,11 @@ struct PlaneBadgeView: View {
                         x: GameRules.planeBadgeShadow * scale,
                         y: GameRules.planeBadgeShadow * scale
                     )
-                    .modifier(BadgeLabel())
+                    .modifier(BadgeLabel(scale: scale))
 
                 Text(plane.displayName.uppercased())
                     .foregroundStyle(Palette.textPrimary)
-                    .modifier(BadgeLabel())
+                    .modifier(BadgeLabel(scale: scale))
             }
             .animation(.easeInOut(duration: 0.25), value: plane)
             .allowsHitTesting(false)

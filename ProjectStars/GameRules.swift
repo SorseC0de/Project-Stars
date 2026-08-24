@@ -3976,6 +3976,11 @@ enum GameRules {
     /// **Eight above, nine below.** The plaque is not symmetric: at nine both
     /// ways the wash cleared the middle panel's top row of pixels and left a
     /// bright line across it.
+    /// How far up the plaque's word sits from the centre of its frame, in art
+    /// pixels. See `BadgeLabel` — the border is a pixel taller at the bottom
+    /// than the top, so centring in the frame is not centring in the panel.
+    static let planeBadgeLabelLift: CGFloat = 1
+
     static let planeBadgeBorderTop: CGFloat = 8
 
     static let planeBadgeBorderBottom: CGFloat = 9

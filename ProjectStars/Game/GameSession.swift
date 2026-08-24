@@ -3098,27 +3098,6 @@ final class GameSession {
         nexysArriveStartedAt = nil
     }
 
-    /// A two-part "leaves one plane, arrives on the other" animation, kept for
-    /// any transition that still wants a plain crossfade.
-    private func animateTransit(
-        _ event: GameEvent,
-        flag: ReferenceWritableKeyPath<GameSession, Bool>,
-        duration: TimeInterval
-    ) async {
-        let half = duration / 2
-
-        withAnimation(.easeIn(duration: half)) { self[keyPath: flag] = true }
-        await sleep(half)
-
-        guard !Task.isCancelled else {
-            self[keyPath: flag] = false
-            return
-        }
-        engine.apply(event)
-
-        withAnimation(.easeOut(duration: half)) { self[keyPath: flag] = false }
-        await sleep(half)
-    }
 
     // MARK: - Pentacle introductions
 
