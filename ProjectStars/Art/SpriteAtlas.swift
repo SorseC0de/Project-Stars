@@ -520,6 +520,9 @@ enum SpriteAtlas {
         // lying in it.
         map[.umbraRock] = .cells(column: 0 + sheetShiftX, row: 7, height: 2)
 
+        // The red cross. One cell left of `cursorWarning`, and a different
+        // statement: the exclamation warns about a square you are standing
+        // *over*, this says the square is gone.
         map[.astraHole] = .cells(column: 0 + sheetShiftX, row: 12)
 
         // The coin a piece carries over its head.

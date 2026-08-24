@@ -70,21 +70,39 @@ struct GameModeRulesView: View {
     @ViewBuilder
     private func cloud(_ health: TileHealth) -> some View {
         if health.isHole {
-            PixelSprite(id: .cursorWarning) {
+            // A cloud has no picture for *gone* — there is nothing left to
+            // draw — so the last cell is the cross the board already marks a
+            // missing Astra square with. `astraHole` rather than a sprite of
+            // its own: it is the same statement about the same thing, and it
+            // was already on the sheet one cell from where I first looked.
+            PixelSprite(id: .astraHole) {
                 Rectangle().fill(Palette.red)
             }
             .frame(width: size, height: size)
         } else {
-            CloudTileView(
-                health: health,
-                shade: RulesStyle.shade,
-                // A fixed square, so every showing of this page draws the same
-                // cluster. `CloudTileView` seeds itself from the point it is
-                // given, and a cloud that came out differently each time would
-                // read as four *kinds* of cloud rather than one wearing down.
+            // **The drawn cloud, not the generated one.**
+            //
+            // `CloudTileView` builds a cluster out of thirty-nine shapes and is
+            // the placeholder from before the sheet had clouds on it — the board
+            // stopped using it the moment `CloudSpriteField.hasArt` went true.
+            // A rules page is where a player learns what they are looking at, so
+            // showing them the stand-in teaches them a picture the game does not
+            // draw.
+            //
+            // `CloudSpriteView` rather than the field, because this is one cloud
+            // rather than a plane of them — and it is the view that can run the
+            // palette shader, which is what turns one drawing into four stages
+            // of wear. See `GameRules.cloudWearSwaps(_:shade:)`.
+            CloudSpriteView(
+                // A fixed square, so every visit draws the same cloud: the
+                // wander *and the shade* are read off the point, and four
+                // different ones would come out as four kinds of cloud rather
+                // than one wearing down.
                 point: RulesStyle.samplePoint,
-                size: size
+                health: health,
+                metrics: PixelArtMetrics(availableSide: size * CGFloat(GameRules.gridSize))
             )
+            .frame(width: size, height: size)
         }
     }
 
@@ -114,7 +132,8 @@ enum RulesStyle {
     static let rowSpacing: CGFloat = 10
     static let cellSpacing: CGFloat = 8
 
-    /// The shade every sample is drawn in.
+    /// The shade every *tile* sample is drawn in. A cloud reads its own off
+    /// `samplePoint`, so the two agree only because both are fixed.
     ///
     /// One of the two, not both. The board alternates them so a grid of squares
     /// reads as a grid; a row of samples alternating would read as *two things*

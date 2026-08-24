@@ -287,6 +287,7 @@ enum SpriteID: Hashable {
     /// The exclamation struck through a cursor sitting over a hole.
     case cursorWarning
 
+
     /// The puff kicked up by a landing. Five frames, played once.
     ///
     /// Per plane: Astra's dust is cloudstuff and Terra's is earth, and the two

@@ -77,16 +77,12 @@ struct NexysView: View {
     private var squash: CGFloat {
         guard let rock else { return 1 }
 
-        // **On the island's own curve, or on a curve of its own.**
-        //
-        // Following the dip puts the widest moment at the deepest one, which is
-        // what compression means. A symmetric swell instead peaks at the middle
-        // of the hold — later than the bottom, and by a long way when the drop
-        // is a tenth of the span — which reads as the island bulging on its way
-        // back up rather than under the weight.
-        let swell = NexysStyle.squashFollowsDip
-            ? CloudMotion.press(Double(rock), attack: NexysStyle.bounceAttack)
-            : sin(Double(rock) * .pi)
+        // A swell of its own rather than the dip's curve. Tying the two puts
+        // the widest moment at the deepest, which is what compression *is* —
+        // and it lost anyway, because matching the dip means holding the
+        // stand-in for the whole give, and the lip snapping back after that
+        // long is a cut you cannot help seeing.
+        let swell = sin(Double(rock) * .pi)
 
         return 1 + NexysStyle.rockSquash * CGFloat(swell) / NexysStyle.islandArtWidth
     }
@@ -166,7 +162,7 @@ enum NexysStyle {
     /// a knob rather than a constant — the island has been sitting low since the
     /// perspective rework, and the piece has to come up with it.
     static let defaultIslandX: Double = 0
-    static let defaultIslandY: Double = 1
+    static let defaultIslandY: Double = -6
 
     /// The pillar, measured **from the island** rather than from the board.
     static let defaultPillarX: Double = 4
@@ -176,113 +172,43 @@ enum NexysStyle {
     ///
     /// Applies to both sprites: the discrepancy is in `GameRules.nexysRaise`
     /// against the drawn surface, not in either drawing.
-    static let defaultCursorLift: Double = 1
+    static let defaultCursorLift: Double = 3
 
     /// How wide the island's art is, in art pixels: three cells of sixteen.
     static let islandArtWidth: CGFloat = CGFloat(GameRules.tilePixelSize * 3)
 
     // ── The settling rock ─────────────────────────────────────────────
 
-    /// What the island does when somebody lands on it.
+    // ── The settling ─────────────────────────────────────────────────
+    //
+    // **One shape, and one knob to run it faster or slower.**
+    //
+    // The parts of this only mean anything together — a squash peaking while
+    // the island is on its way back up says something quite different from one
+    // peaking at the bottom — so they are written as a set and scaled as a set.
+    // Pulling any single duration would break the relationships that make it
+    // read as weight rather than as five things happening near each other.
+    //
+    // Two other renditions were tried and are not kept. One tied the squash to
+    // the dip so the widest moment was the deepest, which is what compression
+    // *is* and still lost: the sprite came back at the end of the whole give,
+    // and the island's lip snapping to its other drawing after that long a hold
+    // is a cut you cannot help seeing. What survives holds the stand-in for a
+    // third of the give and is gone well before the interesting part.
+
+    /// How far past rest the return carries before it settles.
     ///
-    /// The flat sprite standing in for the foreshortened one reads as the island
-    /// tipping under the weight and righting itself — the two drawings are the
-    /// same island at two angles, so swapping between them *is* the rock. There
-    /// is no third drawing to make and nothing to interpolate.
-    ///
-    /// Each case is a whole set of numbers rather than a switch, because the
-    /// parts of this only mean anything together: a squash that peaks while the
-    /// island is on its way back up says something different from one that peaks
-    /// at the bottom, whatever either is worth on its own.
-    enum Rock: String, CaseIterable {
+    /// `CloudMotion.dip` says outright that neither cloud nor island should
+    /// twang. That was written while the two shared one curve; the island has
+    /// had its own since, and they are not the same thing — cloud hangs on
+    /// nothing, and this hangs on a chain. A mass on a chain does not stop dead.
+    static let rebound: Double = 0.30
 
-        /// Settled by eye. A hard slam and a long recovery, with the sprite
-        /// coming back while the island is still rising.
-        case weight
-
-        /// The same movement, with the squash locked to it.
-        ///
-        /// Widest exactly when the island is deepest, because that is what being
-        /// compressed *is* — and the sprite holds for the whole give, so the
-        /// drawn-in-perspective one returns as the island settles rather than
-        /// part way up. `weight` peaks its squash at the midpoint of the hold,
-        /// which with a tenth-of-a-span drop is well after the bottom.
-        case compress
-
-        /// A rock on a chain, which does not stop dead.
-        ///
-        /// Deeper, slammed harder, and carried past rest on the way back before
-        /// it settles. `CloudMotion.dip` was written for cloud and says outright
-        /// that neither should twang — that was right while the two shared one
-        /// curve, and the island has had its own since. Cloud hangs on nothing;
-        /// this is a mass on a tether, and a mass on a tether swings.
-        ///
-        /// The sprite is back before the rebound, so what rides the swing up is
-        /// the island's own drawing rather than the stand-in.
-        case swing
-
-        var next: Rock {
-            let all = Self.allCases
-            return all[(all.firstIndex(of: self)! + 1) % all.count]
-        }
-
-        /// How long the flat sprite stands in.
-        var hold: Double {
-            switch self {
-            case .weight: 0.20
-            case .compress: 0.30
-            case .swing: 0.14
-            }
-        }
-
-        /// How long the give lasts.
-        var bounce: Double {
-            switch self {
-            case .weight: 0.30
-            case .compress: 0.30
-            case .swing: 0.42
-            }
-        }
-
-        /// How far it gives, in art pixels.
-        var dip: Double {
-            switch self {
-            case .weight: 10
-            case .compress: 10
-            case .swing: 12
-            }
-        }
-
-        /// The share of the give spent going down.
-        var drop: Double {
-            switch self {
-            case .weight: 0.10
-            case .compress: 0.10
-            case .swing: 0.08
-            }
-        }
-
-        /// How many art pixels wider the island gets at the height of it.
-        var squash: Double {
-            switch self {
-            case .weight: 8
-            case .compress: 8
-            case .swing: 10
-            }
-        }
-
-        /// Whether the squash rides the dip's own curve instead of a symmetric
-        /// swell of its own.
-        var squashFollowsDip: Bool { self == .compress }
-
-        /// How far past rest the return carries. Zero stops dead.
-        var rebound: Double { self == .swing ? 0.30 : 0 }
-    }
-
-    static let defaultRock: Rock = .weight
+    /// How fast the whole settling runs. `1` is the shape as it was tuned.
+    static let defaultSpeed: Double = 1
 
     /// How long the flat sprite stands in, in seconds.
-    static let defaultRockHold: Double = 0.20
+    static let defaultRockHold: Double = 0.14
 
     /// How long the island's give lasts, in seconds.
     ///
@@ -290,7 +216,7 @@ enum NexysStyle {
     /// also governs every cloud on Astra — the island is a rock on a chain and
     /// gives differently from a puff of cloud, and the sprite change that goes
     /// with it has to be able to line up with it.
-    static let defaultBounceHold: Double = 0.30
+    static let defaultBounceHold: Double = 0.42
 
     /// The extra lift a piece takes on the drawn-in-perspective island, in art
     /// pixels.
@@ -306,17 +232,17 @@ enum NexysStyle {
     /// Its own rather than the shared `GameRules.surfaceBounceAttack`, so the
     /// drop and the return can be pulled apart from the sprite change that runs
     /// alongside them.
-    static let defaultBounceAttack: Double = 0.10
+    static let defaultBounceAttack: Double = 0.08
 
     /// How far the island gives, in art pixels.
     ///
     /// The shared value is three over a fifth of a second, which on a rock the
     /// size of the island is easy to miss entirely — a cloud that size gives
     /// visibly because it is soft and the eye expects it to.
-    static let defaultBounceDepth: Double = 10
+    static let defaultBounceDepth: Double = 12
 
     /// How many art pixels wider the island gets at the height of the rock.
-    static let defaultRockSquash: Double = 8
+    static let defaultRockSquash: Double = 10
 
     static var foreshortened: Bool {
         #if DEBUG
@@ -326,64 +252,30 @@ enum NexysStyle {
         #endif
     }
 
-    static var islandX: CGFloat {
-        #if DEBUG
-        CGFloat(NexysTuning.shared.islandX)
-        #else
-        CGFloat(defaultIslandX)
-        #endif
-    }
+    static var islandX: CGFloat { CGFloat(defaultIslandX) }
 
-    static var islandY: CGFloat {
-        #if DEBUG
-        CGFloat(NexysTuning.shared.islandY)
-        #else
-        CGFloat(defaultIslandY)
-        #endif
-    }
+    static var islandY: CGFloat { CGFloat(defaultIslandY) }
 
     /// Settled by eye, and island-relative — see `NexysPillarView`.
     static var pillarX: CGFloat { CGFloat(defaultPillarX) }
     static var pillarY: CGFloat { CGFloat(defaultPillarY) }
 
-    static var cursorLift: CGFloat {
+    static var cursorLift: CGFloat { CGFloat(defaultCursorLift) }
+
+    /// **The one knob.** Every duration is divided by it and every distance is
+    /// left alone, so the settling runs faster or slower without any part of it
+    /// changing shape relative to any other.
+    static var speed: Double {
         #if DEBUG
-        CGFloat(NexysTuning.shared.cursorLift)
+        max(NexysTuning.shared.speed, 0.05)
         #else
-        CGFloat(defaultCursorLift)
+        defaultSpeed
         #endif
     }
 
-    /// Whether the squash rides the dip's curve, and how far the dip carries
-    /// past rest. Both belong to the preset rather than to a slider — they are
-    /// what makes one rendition a different *idea* from another rather than the
-    /// same one at different sizes.
-    static var squashFollowsDip: Bool { rock.squashFollowsDip }
-    static var rebound: Double { rock.rebound }
+    static var bounceHold: Double { defaultBounceHold / speed }
 
-    static var rock: Rock {
-        #if DEBUG
-        NexysTuning.shared.rock
-        #else
-        defaultRock
-        #endif
-    }
-
-    static var bounceHold: Double {
-        #if DEBUG
-        NexysTuning.shared.bounceHold
-        #else
-        defaultBounceHold
-        #endif
-    }
-
-    static var bounceDepth: CGFloat {
-        #if DEBUG
-        CGFloat(NexysTuning.shared.bounceDepth)
-        #else
-        CGFloat(defaultBounceDepth)
-        #endif
-    }
+    static var bounceDepth: CGFloat { CGFloat(defaultBounceDepth) }
 
     /// Only the drawn-in-perspective island. The flat one is placed correctly by
     /// `GameRules.nexysRideLift` alone.
@@ -391,27 +283,11 @@ enum NexysStyle {
         foreshortened ? CGFloat(defaultRideLift) : 0
     }
 
-    static var bounceAttack: Double {
-        #if DEBUG
-        NexysTuning.shared.bounceAttack
-        #else
-        defaultBounceAttack
-        #endif
-    }
+    /// A *share* of the give rather than a length, so it is already
+    /// proportional and the speed leaves it alone.
+    static var bounceAttack: Double { defaultBounceAttack }
 
-    static var rockHold: Double {
-        #if DEBUG
-        NexysTuning.shared.rockHold
-        #else
-        defaultRockHold
-        #endif
-    }
+    static var rockHold: Double { defaultRockHold / speed }
 
-    static var rockSquash: CGFloat {
-        #if DEBUG
-        CGFloat(NexysTuning.shared.rockSquash)
-        #else
-        CGFloat(defaultRockSquash)
-        #endif
-    }
+    static var rockSquash: CGFloat { CGFloat(defaultRockSquash) }
 }
