@@ -2468,9 +2468,9 @@ struct BoardView: View {
             // to guarantee that is for both to read the same number — so the
             // island takes exactly the offset the piece takes, out of exactly
             // the same property. See `fallOffset(metrics:)`.
-            lift: (session.nexysCarryingPiece ? travel.lift : ascent.lift + travel.lift)
-                + (session.nexysRidesCamera ? fallOffset(metrics: metrics) : 0),
-            placement: placedOnPlaneModifier(GameRules.nexysPoint, metrics: metrics)
+            lift: session.nexysCarryingPiece ? travel.lift : ascent.lift + travel.lift,
+            placement: placedOnPlaneModifier(GameRules.nexysPoint, metrics: metrics),
+            camera: session.nexysRidesCamera ? fallOffset(metrics: metrics) : 0
         )
     }
 
@@ -2560,7 +2560,16 @@ struct BoardView: View {
             isCharged: session.isZodiactionCharged || session.isManeBlazing,
             // Gold for the whole crossing, and the plane's own material the
             // instant it lands. See `PieceView.forcesGold`.
-            forcesGold: session.isFalling,
+            // **Gold for exactly as long as it belongs nowhere.**
+            //
+            // Which is the whole of a crossing and no part of anything else. It
+            // used to be "while falling", so a ride on the island never went
+            // gold at all and simply changed material at whatever moment the
+            // board was exchanged — half way up, in mid-air. And a fall out of
+            // the world went gold for a drop that arrives nowhere and has no
+            // new material to take, which is why the piece appeared to blink as
+            // it left Terra. See `GameSession.isChangingPlane`.
+            forcesGold: session.isChangingPlane,
             twin: session.engine.piece.twin,
             // The forward copy is a pan on a string; the shadow belongs to the
             // figure, which is drawing its own on its own square.
@@ -2655,7 +2664,6 @@ struct BoardView: View {
         // the world moves the second and leaves the first, which drops the piece
         // out of the frame it is standing in. The two never both move, and
         // neither is a scale — a piece further down is not a piece further away.
-        .offset(y: fallOffset(metrics: metrics))
         // Island and passenger travel as one object during an ascent.
         .scaleEffect(ascent.scale)
         .offset(y: ascent.lift)
@@ -2669,6 +2677,12 @@ struct BoardView: View {
         // was placed by a separate linear model, which is why it agreed with
         // the board only where the two happened to cross.
         .modifier(placedOnPlaneModifier(placedAt ?? session.engine.piece.point, metrics: metrics))
+        // **Outside the placement, in screen points.** See `IslandTransform`'s
+        // `camera` — the same trap, and the piece was in it too: three rows of
+        // the world is three whole squares whatever row the piece happens to be
+        // standing on, and running that through the row's perspective scale
+        // makes a fall that quietly falls short.
+        .offset(y: fallOffset(metrics: metrics))
         }
         .frame(width: metrics.boardSize, height: metrics.boardSize)
     }
@@ -3712,10 +3726,28 @@ private struct IslandTransform<Placement: ViewModifier>: ViewModifier {
     /// its depth would put it at odds with the piece standing on it.
     let placement: Placement
 
+    /// How far the camera has moved off this island's row, in points.
+    ///
+    /// **Applied outside the placement, and that is the whole point of it being
+    /// its own property.** Everything else here is measured in the board's
+    /// space, where the row's perspective scale applies: a lift of eight pixels
+    /// on the back row should read as a smaller lift than eight on the front,
+    /// because the back row is further away.
+    ///
+    /// A camera offset is not in that space. It is screen distance — three rows
+    /// of the world, which is three whole squares whatever the island is
+    /// standing on. Folded into `lift` it went through the row's scale and came
+    /// out short, so the island fell behind the camera on its way between planes
+    /// and only caught up again at either end. It was on screen where the board
+    /// was and nowhere in the gap between.
+    var camera: CGFloat = 0
+
     func body(content: Content) -> some View {
         content
             .scaleEffect(scale)
             .offset(y: lift)
             .modifier(placement)
+            // Last, and in screen points. See `camera`.
+            .offset(y: camera)
     }
 }

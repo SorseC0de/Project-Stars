@@ -467,10 +467,9 @@ struct ControlPanelView: View {
     /// un-turning it reads as a mistake being undone; turning it again reads as
     /// a board with two sides.
     ///
-    /// Starts at one because the run opens on the start screen, which is on the
-    /// far side: the first press has to bring the panel *round* to the controls
-    /// rather than starting there and turning away.
-    @State private var turns = 1
+    /// Starts at zero: the run opens on the start screen, which shares the near
+    /// side with the controls it hands over to, so there is nothing to turn.
+    @State private var turns = 0
 
     /// Where the in-progress drag points, and how far past the commit threshold
     /// it has run.
@@ -704,8 +703,20 @@ struct ControlPanelView: View {
     /// the parity correction read this, so the two cannot fall out of step.
     private func isFar(_ face: PanelFace) -> Bool {
         switch face {
-        case .front, .rules: false
-        case .back, .start, .death: true
+        // **The start screen is the near side, with the controls.**
+        //
+        // It used to be the far side, which meant beginning a run turned the
+        // panel over — and that was never anything the flip was *for*. The
+        // panel turns to show you the other side of something: the controls and
+        // the sign's information, the start screen and its rules. A run
+        // beginning is not the other side of anything, it is the same side
+        // getting on with it, so the start screen hands straight over to the
+        // controls without moving.
+        //
+        // The same for a run ending. The card is coming up over the board at
+        // that moment and it should have it.
+        case .front, .start, .death: false
+        case .back, .rules: true
         }
     }
 

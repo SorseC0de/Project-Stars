@@ -252,6 +252,19 @@ final class GameSession {
     /// waits behind a card — so it needs saying rather than deriving.
     private(set) var isDropping = false
 
+    /// Whether the piece is on its way from one plane to another.
+    ///
+    /// True for every kind of crossing — a fall through a hole, a climb, a ride
+    /// on the island — and false for falling out of the world, which arrives
+    /// nowhere and so has no new material to take.
+    ///
+    /// It is what decides when the piece is gold. Gold is the material of a
+    /// thing that belongs to neither plane, so it has to last exactly as long as
+    /// that is true: from the moment the crossing starts to the moment it lands.
+    /// Read off `piece.plane` instead, the swap happened wherever the board
+    /// happened to be exchanged — which for a ride is half way through.
+    private(set) var isChangingPlane = false
+
     /// Whether the island is travelling *with* the camera rather than standing
     /// still while the camera moves past it.
     private(set) var nexysRidesCamera = false
@@ -1013,6 +1026,7 @@ final class GameSession {
         cameraRow = Double(World.row(of: engine.piece.plane))
         cameraFrom = nil
         nexysRidesCamera = false
+        isChangingPlane = false
         isDropping = false
         isLaunching = false
         nexysDepartStartedAt = nil
@@ -2691,8 +2705,8 @@ final class GameSession {
         // instead of a higher one, and nothing else about it differs.
         let travel = GameRules.ascentRiseDuration + arrivalDuration
 
-        facesTheFall()
         ascentRiseStartedAt = .now
+        isChangingPlane = true
         nexysRidesCamera = aboard
         cameraFrom = cameraRow
         withAnimation(.linear(duration: travel)) {
@@ -2713,6 +2727,7 @@ final class GameSession {
         // square it is drawn in, and until the apply that is still the square it
         // left — dropping the offset first snaps it home for a frame.
         nexysRidesCamera = false
+        isChangingPlane = false
         ascentRiseStartedAt = nil
         onArrival()
     }
@@ -2906,7 +2921,6 @@ final class GameSession {
     /// there, and what you are looking at when the run ends is the place the
     /// piece ended up in — not a gap behind a lid.
     private func animateDescent(duration: TimeInterval) async {
-        facesTheFall()
         cameraFrom = cameraRow
         withAnimation(.linear(duration: duration)) {
             isFalling = true
@@ -2915,40 +2929,6 @@ final class GameSession {
         }
         await sleep(duration)
         cameraFrom = nil
-    }
-
-    /// The drop between planes.
-    ///
-    /// ## The transition this file spent a long time asking for
-    ///
-    /// There was a TODO here describing what a real plane change should look
-    /// like: the world rushing upward, fast and looping, so the transition reads
-    /// as *travel* rather than as a cut hidden behind a flash. It proposed
-    /// getting there with `ImageRenderer` — snapshot the screen, scroll two
-    /// copies of the snapshot, and paint glowing capsules over the top.
-    ///
-    /// It is done, and it did not need the snapshot. The trick that made a
-    /// scrolling picture of the world necessary was that the two planes were
-    /// never in the same place, so there was no real world to scroll. Now there
-    /// is one — nine rows of it, see `World` — and the thing rushing past is not
-    /// a picture of the world but the world.
-    ///
-    /// The capsules got built too, and found a better home: they are what the
-    /// underground is made of, where you are genuinely falling and there is
-    /// genuinely nothing to see but walls going by. See `FallStreaks`.
-    /// Turns the piece to face the camera, for a journey between planes.
-    ///
-    /// **Every kind**: a fall through a hole, a fall out of the world, a climb,
-    /// a ride on the island. A piece in the air is not walking anywhere, so the
-    /// sprite it was wearing to say which way it was headed is the one thing it
-    /// should not still be wearing — and south is the face, which is what you
-    /// want to be looking at while somebody is falling past you.
-    ///
-    /// Turned in the model rather than overridden in the view, so it is still
-    /// facing this way when it lands. An override would snap back to whatever
-    /// it was facing before it left, at the exact frame it hits the ground.
-    private func facesTheFall() {
-        engine.turnPiece(to: .down)
     }
 
     private func animateFall(_ event: GameEvent) async {
@@ -2990,8 +2970,8 @@ final class GameSession {
         // move.
         if from == .astra { disturbClouds(at: at) }
 
-        facesTheFall()
         cameraFrom = cameraRow
+        isChangingPlane = true
         withAnimation(.linear(duration: travel)) {
             isFalling = true
             cameraRow = Double(World.row(of: to))
@@ -3248,12 +3228,12 @@ final class GameSession {
         // without dying.
         let carriesCamera = nexysCarryingPiece
         if carriesCamera, case let .nexysMoved(destination, _) = event {
-            facesTheFall()
             let travel = (goingUp
                 ? GameRules.ascentRiseDuration
                 : GameRules.nexysTravelDepartDuration)
                 + (goingUp ? GameRules.ascentGrowDuration : GameRules.fallArrivalDuration)
             nexysRidesCamera = true
+            isChangingPlane = true
             cameraFrom = cameraRow
             withAnimation(.linear(duration: travel)) {
                 cameraRow = Double(World.row(of: destination))
@@ -3263,6 +3243,7 @@ final class GameSession {
             if carriesCamera {
                 cameraFrom = nil
                 nexysRidesCamera = false
+                isChangingPlane = false
             }
         }
 
@@ -3536,6 +3517,7 @@ extension GameSession {
             // and grow a ground shadow — and then carry that shadow down five
             // rows of empty sky.
             self.isFalling = true
+            self.isChangingPlane = true
 
             // And still not taking input. `newGame` sets the phase to awaiting
             // input, which for the two seconds of this drop would let a swipe
@@ -3585,6 +3567,7 @@ extension GameSession {
             self.cameraFrom = nil
             self.cameraRow = home
             self.isFalling = false
+            self.isChangingPlane = false
             self.isDropping = false
             self.land()
         }

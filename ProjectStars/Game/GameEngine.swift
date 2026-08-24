@@ -1570,6 +1570,8 @@ struct GameEngine {
         } else if sim.nexysPlane != plane {
             commit(.nexysMoved(to: plane, carryingPiece: false))
         } else {
+            // Facing the camera for the ride, the same as for a fall.
+            commit(.pieceTurned(to: .down))
             commit(.nexysMoved(to: plane.opposite, carryingPiece: true))
         }
 
@@ -1666,6 +1668,8 @@ struct GameEngine {
         if sim.nexysPlane != sim.piece.plane {
             commit(.nexysMoved(to: sim.piece.plane, carryingPiece: false))
         } else {
+            // Facing the camera for the ride, the same as for a fall.
+            commit(.pieceTurned(to: .down))
             commit(.nexysMoved(to: sim.piece.plane.opposite, carryingPiece: true))
         }
 
@@ -2206,6 +2210,11 @@ struct GameEngine {
                 (point.x % size + size) % size,
                 (point.y % size + size) % size
             )
+            // Facing the camera on the way down — see the other fall site.
+            let turn = GameEvent.pieceTurned(to: .down)
+            events.append(turn)
+            apply(turn)
+
             let fell = GameEvent.pieceFell(from: plane, to: below, at: landing)
             events.append(fell)
             apply(fell)
@@ -3536,6 +3545,8 @@ struct GameEngine {
                             name: ScorpioSamsaricShed().displayName, refused: true
                         ))
                     } else {
+                        // Facing the camera for the ride, the same as for a fall.
+                        commit(.pieceTurned(to: .down))
                         commit(.nexysMoved(to: .astra, carryingPiece: true))
                         result.ascended = true
                     }
@@ -3594,6 +3605,16 @@ struct GameEngine {
                     for event in rescue { commit(event) }
                     return result
                 }
+            // **Turned to face the camera before it leaves.**
+            //
+            // Decided here rather than drawn later: a piece in the air is not
+            // walking anywhere, so the sprite it was wearing to say which way it
+            // was headed is the one thing it should not still be wearing. Its
+            // facing is a real thing the rest of the game reads, so this is a
+            // real turn — emitted into the event stream ahead of the fall, which
+            // means it lands facing this way rather than snapping back to
+            // whatever it was doing before it fell.
+                commit(.pieceTurned(to: .down))
                 commit(.gameOver(reason: .fellThroughTerra))
                 return result
             }
@@ -3614,6 +3635,16 @@ struct GameEngine {
                 ))
             }
 
+            // **Turned to face the camera before it leaves.**
+            //
+            // Decided here rather than drawn later: a piece in the air is not
+            // walking anywhere, so the sprite it was wearing to say which way it
+            // was headed is the one thing it should not still be wearing. Its
+            // facing is a real thing the rest of the game reads, so this is a
+            // real turn — emitted into the event stream ahead of the fall, which
+            // means it lands facing this way rather than snapping back to
+            // whatever it was doing before it fell.
+            commit(.pieceTurned(to: .down))
             commit(.pieceFell(from: plane, to: below, at: point))
             result.fell = true
             fellAlready = true
