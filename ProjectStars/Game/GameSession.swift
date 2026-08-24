@@ -298,6 +298,14 @@ final class GameSession {
     /// Whether the run is still waiting behind the card.
     var isAwaitingStart: Bool { modeCard != nil && !modeCardIsLeaving }
 
+    /// Whether a run is live: begun, and not yet lost.
+    ///
+    /// The two ways a run stops being live — waiting on the start button, and
+    /// ending — are asked about separately everywhere else, because they mean
+    /// different things. This is for the one question that does not care which:
+    /// the panel shows its controls exactly when there is something to control.
+    var isRunning: Bool { !isAwaitingStart && phase != .gameOver }
+
     /// The mode being announced right now, or `nil` between runs.
     ///
     /// Holds the mode rather than a flag so the card can outlive a change of

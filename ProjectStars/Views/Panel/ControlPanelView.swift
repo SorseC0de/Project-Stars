@@ -607,7 +607,7 @@ struct ControlPanelView: View {
             // Both faces stay mounted; the turn hides whichever faces away.
             // Rebuilding them on every flip would restart the meter's animation
             // and drop the drag mid-gesture.
-            face(isVisible: showing == .front, flip: 0) {
+            face(.front) {
                 PanelFrontView(
                     session: session,
                     liveDirection: $liveDirection,
@@ -616,14 +616,14 @@ struct ControlPanelView: View {
                 )
             }
 
-            face(isVisible: showing == .back, flip: 180) {
+            face(.back) {
                 PanelBackView(session: session, onBack: turn)
             }
 
             // Shares the far side with the back, and never shares a moment with
             // it: one belongs to a run that has not started and the other to one
             // that has.
-            face(isVisible: showing == .start, flip: 180) {
+            face(.start) {
                 PanelStartView(
                     session: session,
                     onStart: { session.startRun() },
@@ -637,7 +637,7 @@ struct ControlPanelView: View {
             // Where a run ends. Shares the far side with the start screen it
             // will hand back to — the two are the same face of the device, one
             // asking to begin and one asking to begin again.
-            face(isVisible: showing == .death, flip: 180) {
+            face(.death) {
                 PanelDeathView(
                     session: session,
                     onRestart: { session.newGame() },
@@ -648,7 +648,7 @@ struct ControlPanelView: View {
             // The start screen's far side. It shares the even side with the
             // controls and never shares a moment with them, the same way the
             // start screen shares the odd side with the back.
-            face(isVisible: showing == .rules, flip: 0) {
+            face(.rules) {
                 PanelRulesView(session: session) {
                     showingRules = false
                     turn()
@@ -657,26 +657,53 @@ struct ControlPanelView: View {
         }
         .frame(width: side, height: side)
         .clipped()
-        // A fresh run puts the start screen back up, and it lives on the odd
-        // side — so the panel turns to meet it rather than appearing mirrored.
-        .onChange(of: session.isAwaitingStart) { _, awaiting in
-            // Straightened rather than turned. The card is coming in over the
-            // board at this moment, and a panel flipping underneath it is the
-            // distraction this whole screen is arranged to avoid.
-            if awaiting, turns.isMultiple(of: 2) { turns += 1 }
-
-            // And the other way round. The start button used to turn the panel
-            // itself, which made *pressing start* the thing that brought the
-            // controls up rather than *the run beginning* — so a run begun any
-            // other way, from the keyboard say, left the panel showing the info
-            // page. One owner: the run begins, the controls come round.
-            if !awaiting, !turns.isMultiple(of: 2) { turn() }
+        // **A live run shows the controls.**
+        //
+        // Both ways in: pressing START, and coming back from a lost run.
+        // Pressing the button used to be what turned the panel, which made the
+        // *button* the cause rather than the run — so a run begun from the
+        // keyboard, or resumed without a card, left the panel on the info page.
+        //
+        // Which face, not which way up. The corrector below owns orientation,
+        // and the two questions are kept apart on purpose: answering both from
+        // one handler is what put the panel upside down in the first place.
+        .onChange(of: session.isRunning) { _, running in
+            if running, !turns.isMultiple(of: 2) { turn() }
         }
-        // And the same for the death face, which lives on the same side. Also
-        // straightened rather than turned: the death card is coming up over the
-        // board at this moment, and it gets the screen to itself.
-        .onChange(of: session.phase) { _, phase in
-            if phase == .gameOver, turns.isMultiple(of: 2) { turns += 1 }
+        // **One owner for which way up the panel is.**
+        //
+        // `turns` answers two questions at once — which face is showing, and
+        // which way up it is — and for the two faces derived from it, the
+        // controls and the info page, those answers can never disagree. The
+        // other three are chosen by the run's state instead, so when one of them
+        // comes up the parity has to be brought round to meet it.
+        //
+        // That used to be done by two handlers watching two different signals,
+        // each written as if the other were still. A restart from a lost run
+        // changes both in the same transaction, they gave opposite answers, and
+        // the panel came back at an odd multiple of 180° — upside down. Asking
+        // the *face* instead of the signals that produced it is the whole fix:
+        // there is only one question, so there is only one place to answer it.
+        .onChange(of: showing) { _, face in
+            guard turns.isMultiple(of: 2) == isFar(face) else { return }
+
+            // Turned when there is nothing else to look at, straightened when
+            // there is. A card arriving over the board or a run ending should
+            // not have to share the moment with the panel flipping over — but
+            // coming back to the controls is the moment, and it should be seen.
+            if face == .front || face == .back { turn() } else { turns += 1 }
+        }
+    }
+
+    /// Which side of the panel a face is mounted on.
+    ///
+    /// `true` is the far side: the one that is only right way up when `turns` is
+    /// odd, because `face` adds a further half turn to it. Both the rotation and
+    /// the parity correction read this, so the two cannot fall out of step.
+    private func isFar(_ face: PanelFace) -> Bool {
+        switch face {
+        case .front, .rules: false
+        case .back, .start, .death: true
         }
     }
 
@@ -687,15 +714,15 @@ struct ControlPanelView: View {
     /// sight — a button on the back of a board should not be pressable through
     /// it.
     private func face<Content: View>(
-        isVisible: Bool,
-        flip: Double,
+        _ which: PanelFace,
         @ViewBuilder content: () -> Content
     ) -> some View {
-        content()
+        let isVisible = showing == which
+        return content()
             .frame(width: side, height: side)
             .opacity(isVisible ? 1 : 0)
             .rotation3DEffect(
-                .degrees(Double(turns) * 180 + flip),
+                .degrees(Double(turns) * 180 + (isFar(which) ? 180 : 0)),
                 axis: (x: 1, y: 0, z: 0),
                 perspective: PanelStyle.turnPerspective
             )

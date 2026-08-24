@@ -250,6 +250,20 @@ struct GameScreen: View {
                             .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .topLeading)
                             .padding(.leading, 6)
                             .padding(.top, 40)
+
+                        // **Only while the streaks are on screen.**
+                        //
+                        // A bench for a thing you cannot see is a bench you tune
+                        // blind, and this one sits over the panel — so it is
+                        // mounted with the screen it belongs to and goes away
+                        // with it.
+                        if session.phase == .gameOver {
+                            FallStreakControls()
+                                .frame(maxWidth: .infinity, maxHeight: .infinity,
+                                       alignment: .bottomLeading)
+                                .padding(.leading, 6)
+                                .padding(.bottom, 6)
+                        }
                         #endif
                     }
             }

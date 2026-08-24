@@ -609,7 +609,10 @@ enum ModeCardStyle {
 /// The usual trick: take something irrational-looking, multiply, keep the
 /// fraction. It is not a good random number and does not need to be. It needs
 /// to be scattered, and it needs to be the same every time.
-private func scatter(_ index: Int, _ question: Int) -> Double {
+/// Shared with `FallStreaks`, which scatters its own field the same way. A
+/// second copy of a hash is a second field that drifts the first time either is
+/// touched.
+func scatter(_ index: Int, _ question: Int) -> Double {
     let n = sin(Double(index) * 12.9898 + Double(question) * 78.233) * 43758.5453
     return n - n.rounded(.down)
 }
@@ -619,7 +622,7 @@ private func scatter(_ index: Int, _ question: Int) -> Double {
 /// Blue is the field and the other three are the exceptions in it — a spread of
 /// four colours in equal numbers reads as confetti, where four in a lopsided mix
 /// reads as one colour with sparks through it.
-private func streakColour(_ roll: Double) -> Color {
+func streakColour(_ roll: Double) -> Color {
     switch roll * 10 {
     case ..<4: Palette.blue
     case ..<7: Palette.white

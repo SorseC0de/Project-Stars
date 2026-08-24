@@ -48,11 +48,11 @@ struct DeathView: View {
             ZStack {
                 Palette.coolBlack
 
-                // The same streaks the passive prompts fly in on, turned from a
-                // decoration into a place: there, they say a thing came from
-                // somewhere fast; here, they say *you* are moving, and the walls
-                // are what you are passing.
-                SideStreaks()
+                // Vertical, and running upward. The card's streaks say a thing
+                // arrived from over there; these say *you* are moving, and what
+                // you can see of the walls is going the other way. See
+                // `FallStreaks` for why it is a separate field.
+                FallStreaks()
 
                 PieceView(
                     zodiac: session.zodiac,
