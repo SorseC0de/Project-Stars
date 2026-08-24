@@ -37,30 +37,6 @@ struct NexysView: View {
     /// rocking. See `NexysStyle.Rock`.
     var rock: CGFloat?
 
-    /// Which half of the island this copy is drawing.
-    var part: Part = .whole
-
-    /// The island is drawn twice, cut apart so each half can sort in the row it
-    /// actually occupies.
-    ///
-    /// A 48x48 sprite on a 16x16 grid stands in three rows, and the board sorts
-    /// by row — so drawn once it can only ever be correct for one of them. The
-    /// body takes rows behind and its own; the overhang takes the row in front
-    /// and is sorted there. See `BoardObjectKind.nexysOverhang`.
-    enum Part {
-        /// Everything except the forward third.
-        case body
-
-        /// The forward third alone.
-        case overhang
-
-        /// Uncut — for anywhere the island is drawn outside the board's sort,
-        /// such as the sign-select preview.
-        case whole
-    }
-
-    /// Whether the flat sprite is standing in for the foreshortened one right
-    /// now — which is the whole of the rock's first mode.
     private var isRocking: Bool { rock != nil && NexysStyle.rock != .off }
 
     var body: some View {
@@ -87,38 +63,7 @@ struct NexysView: View {
         )
         .opacity(isFaded ? GameRules.nexysFadedOpacity : 1)
         .animation(.easeInOut(duration: 0.2), value: isFaded)
-        // **Cut after everything else.**
-        //
-        // Last in the chain so the two copies are identical in every respect
-        // that moves them — the rock, the bob, the ascent — and differ only in
-        // which third of the result survives. Cutting earlier would mask a
-        // sprite and then transform the mask with it, which is how the seam
-        // between the halves opens up.
-        .mask { cut }
         .allowsHitTesting(false)
-    }
-
-    /// Which third of the island this copy keeps.
-    ///
-    /// The seam is one cell up from the bottom: the sprite's middle cell is the
-    /// square the island stands on, so the forward third is exactly the last
-    /// cell of the three.
-    @ViewBuilder
-    private var cut: some View {
-        switch part {
-        case .whole:
-            Rectangle()
-        case .body:
-            VStack(spacing: 0) {
-                Rectangle().frame(height: tileSize * 2)
-                Color.clear.frame(height: tileSize)
-            }
-        case .overhang:
-            VStack(spacing: 0) {
-                Color.clear.frame(height: tileSize * 2)
-                Rectangle().frame(height: tileSize)
-            }
-        }
     }
 
     /// How much wider the island is at this instant of the rock.

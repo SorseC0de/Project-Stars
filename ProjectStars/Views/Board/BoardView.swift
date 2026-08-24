@@ -1931,20 +1931,7 @@ struct BoardView: View {
                             let travel = tick.travel
                             nexys(
                                 plane: plane, metrics: metrics, bob: bob,
-                                ascent: ascent, travel: travel, rock: tick.nexysRock,
-                                part: .body
-                            )
-                        }
-                    case .nexysOverhang:
-                        // On its own clock — see `BoardView.ticking`. The same
-                        // numbers the island itself takes, because it *is* the
-                        // island: two copies of one sprite, cut apart so each
-                        // half can sort in the row it occupies.
-                        ticking(metrics) { tick in
-                            nexys(
-                                plane: plane, metrics: metrics, bob: tick.bob,
-                                ascent: tick.ascent, travel: tick.travel,
-                                rock: tick.nexysRock, part: .overhang
+                                ascent: ascent, travel: travel, rock: tick.nexysRock
                             )
                         }
                     case .nexysPillar:
@@ -2218,14 +2205,6 @@ struct BoardView: View {
         if session.engine.nexysPlane == plane {
             objects.append(BoardObject(kind: .nexys, point: GameRules.nexysPoint))
 
-            // The third of the island that hangs over the row in front, sorted
-            // with that row so its own ground cannot paint over it. See
-            // `BoardObjectKind.nexysOverhang`.
-            objects.append(BoardObject(
-                kind: .nexysOverhang,
-                point: GridPoint(GameRules.nexysPoint.x, GameRules.nexysPoint.y + 1)
-            ))
-
             // The near corner of the drawn-in-perspective island, which stands
             // in front of whoever is on it. Only that version has one.
             if NexysStyle.foreshortened {
@@ -2446,8 +2425,7 @@ struct BoardView: View {
         bob: CGFloat,
         ascent: AscentPose,
         travel: AscentPose,
-        rock: CGFloat?,
-        part: NexysView.Part
+        rock: CGFloat?
     ) -> some View {
         if session.engine.nexysPlane == plane {
             NexysView(
@@ -2455,8 +2433,7 @@ struct BoardView: View {
                 scale: metrics.scale,
                 bob: bob,
                 isFaded: pieceIsJustNorthOfNexys,
-                rock: rock,
-                part: part
+                rock: rock
             )
             // Two poses stack — the ascent (island *and* piece, when ridden)
             // and the island's own travel (island alone) — *except* while it is
