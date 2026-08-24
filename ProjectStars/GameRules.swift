@@ -1748,14 +1748,6 @@ enum GameRules {
     static let ascentRiseHeight: CGFloat = 1.2
 
 
-    /// How much of a fall out of the world the panel takes to get out of the
-    /// way, as a share of the fall.
-    ///
-    /// Less than all of it, so the lid is already clear before the piece arrives
-    /// underneath — a panel still fading while the piece lands would have the
-    /// two reading as one event, and they are not: one is the world opening and
-    /// the other is you hitting the bottom of it.
-    static let panelLiftShare: Double = 0.7
 
 
     // ──────────────────────────────────────────────────────────────────────

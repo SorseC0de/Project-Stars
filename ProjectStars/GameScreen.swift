@@ -281,23 +281,10 @@ struct GameScreen: View {
                     }
                 }
 
-                // Lower square: information and the input zone — and the lid
-                // over the underground.
-                //
-                // **It fades rather than moving.** The row below Terra is drawn
-                // whether or not anybody is looking at it, directly behind this,
-                // so a piece falling out of the world is already down there
-                // before the panel gets out of the way. Nothing is revealed;
-                // something stops being covered.
+                // Lower square: information and the input zone.
                 ControlPanelView(session: session, side: side, onQuit: onQuit)
                     .frame(width: side, height: side)
-                    .opacity(session.panelVeil)
-                    // **Invisible is not absent.** `.opacity(0)` keeps every
-                    // control live, and the one control on this panel that is
-                    // not gated on the run accepting input is pause — so a
-                    // player watching themselves fall out of the world could
-                    // pause the game by touching a panel that was not there.
-                    .allowsHitTesting(session.panelVeil > 0)
+
                     .overlay(alignment: .bottomLeading) {
                         #if DEBUG
                         // **Both benches parked.** The counter is placed and the rift is

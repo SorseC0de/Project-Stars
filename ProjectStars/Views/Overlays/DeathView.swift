@@ -32,15 +32,19 @@ struct DeathView: View {
         // No fill of its own. The column's sky is already dark this far down —
         // that is what the gradient's lower half is *for* — and a second black
         // rectangle over it would be a second opinion about how deep this is.
-        // **Alive exactly while the lid is off.**
-        //
-        // Not "while the run is over": the panel comes back once the piece is
-        // down, carrying the way out, and it is opaque and exactly one square
-        // and sitting exactly over this row. Keyed on the run's state, forty
-        // eight additively-blended capsules would go on being drawn at display
-        // rate into a canvas nothing can see — on the one screen where a player
-        // might sit for a minute deciding what to do.
-        FallStreaks(isLive: session.panelVeil > 0)
+        // **Alive exactly while this row is on screen**, and asleep otherwise —
+        // the same question every other row of the column answers. It was
+        // briefly keyed on the control panel's opacity instead, and keyed the
+        // wrong way round, so forty eight additively blended capsules drew at
+        // display rate for the whole of every run on a row nobody had looked at
+        // yet.
+        FallStreaks(
+            isLive: World.isVisible(
+                row: World.underground,
+                sweeping: session.cameraFrom ?? session.cameraRow,
+                to: session.cameraRow
+            )
+        )
     }
 }
 

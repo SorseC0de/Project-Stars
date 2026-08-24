@@ -136,6 +136,16 @@ struct GameEngine {
     /// The player's piece.
     private(set) var piece: Piece
 
+    /// Turns the piece to face a direction without it having moved.
+    ///
+    /// For presentation only, and only for travel between planes — see
+    /// `GameSession.facesTheFall`. No event, because nothing happened that a
+    /// rule should hear about: the piece is in the air, and which way it is
+    /// pointing while it is up there is a drawing question.
+    mutating func turnPiece(to direction: SwipeDirection) {
+        piece.facing = direction
+    }
+
     /// Puts the piece down somewhere without it having travelled there.
     ///
     /// For the seamless restart, and nothing else. A fresh run seats its piece

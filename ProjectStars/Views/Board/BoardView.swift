@@ -2665,11 +2665,17 @@ struct BoardView: View {
 
     /// Where the piece is in the world, relative to the square it is drawn in.
     ///
-    /// In points, from two counts of rows — see `GameSession.cameraRow` and
-    /// `pieceDrop` for what each means and why they are separate.
+    /// How far the camera has moved off this plane's row, in points. Standing
+    /// still it is zero; while the camera travels it holds the piece still on
+    /// screen and lets the world go past — see `GameSession.cameraRow`.
+    ///
+    /// There used to be a second term for the piece moving *without* the
+    /// camera, which is how falling out of the world worked. It does not any
+    /// more: the underground is a row like any other and the camera goes there
+    /// too, so there is one kind of travel and one number describing it.
     private func fallOffset(metrics: PixelArtMetrics) -> CGFloat {
         let home = Double(World.row(of: shown))
-        return CGFloat(session.cameraRow - home + session.pieceDrop) * availableSide
+        return CGFloat(session.cameraRow - home) * availableSide
     }
 
     /// How far the cloud under the piece has wandered, and therefore how far
@@ -3169,6 +3175,17 @@ struct BoardView: View {
     /// it, both ways visible, which is why neither end needs anything covering
     /// the moment the boards swap.
     private func nexysTravelPose(at date: Date, metrics: PixelArtMetrics) -> AscentPose {
+        // **Nothing of its own while it is carrying somebody.**
+        //
+        // A ride is a plane change, and a plane change is the camera's — the
+        // island already takes `fallOffset` for it, out of the same property the
+        // passenger does, which is the only way two things travelling together
+        // reliably arrive together. Left with its own departure as well, it took
+        // both: the camera walked it down one row while its own travel threw it
+        // a board and a fifth further, so it left the bottom of the frame and
+        // was not seen again until it arrived.
+        guard !session.nexysRidesCamera else { return .rest }
+
         let goingUp = session.nexysTravellingUp
 
         if let departing = session.nexysDepartStartedAt {
