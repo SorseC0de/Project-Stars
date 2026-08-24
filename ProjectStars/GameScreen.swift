@@ -451,7 +451,8 @@ struct GameScreen: View {
     /// surface for input. A `keyboardShortcut` only needs the button to be in the
     /// hierarchy.
     ///
-    /// - **Arrow keys / WASD** move, at the shortest distance available.
+    /// - **Arrow keys / WASD** move, at the shortest distance available — or begin
+    ///   the run, when it has not begun.
     /// - **Q / E / Z / C** move diagonally, for the signs that can.
     /// - **R** restarts the run with the same sign.
     /// - **N** sends the Nexys to the other plane (debug builds only).
@@ -468,8 +469,24 @@ struct GameScreen: View {
             // of distance still need the drag.
             ForEach(SwipeDirection.allCases) { direction in
                 ForEach(Array(direction.keyEquivalents.enumerated()), id: \.offset) { _, key in
-                    Button(direction.rawValue) { session.submit(direction, reach: 0) }
-                        .keyboardShortcut(key, modifiers: [])
+                    Button(direction.rawValue) {
+                        // **On the start screen, any movement key is Start.**
+                        //
+                        // These shortcuts exist so the game can be played at
+                        // speed without touching the panel, and a run that can
+                        // be played entirely from the keyboard except for the
+                        // one press that begins it is not that. It starts and
+                        // does not also move: the card is still crossing the
+                        // board, and the first thing a run does should not be
+                        // hidden behind it.
+                        if session.isAwaitingStart {
+                            guard session.modeCardHasLanded else { return }
+                            session.startRun()
+                        } else {
+                            session.submit(direction, reach: 0)
+                        }
+                    }
+                    .keyboardShortcut(key, modifiers: [])
                 }
             }
 

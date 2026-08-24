@@ -1743,7 +1743,7 @@ enum GameRules {
     /// Seconds the island takes to carry the piece up out of Terra.
     static let ascentRiseDuration: TimeInterval = 0.55
 
-    /// Seconds the island and piece take to swell back in on Astra.
+    /// Seconds the island and piece take to rise back into place on Astra.
     static let ascentGrowDuration: TimeInterval = 0.40
 
     /// How far above the board the pair travel before the plane swaps, as a

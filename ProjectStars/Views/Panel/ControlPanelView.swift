@@ -626,10 +626,7 @@ struct ControlPanelView: View {
             face(isVisible: showing == .start, flip: 180) {
                 PanelStartView(
                     session: session,
-                    onStart: {
-                        session.startRun()
-                        turn()
-                    },
+                    onStart: { session.startRun() },
                     onRules: {
                         showingRules = true
                         turn()
@@ -667,6 +664,13 @@ struct ControlPanelView: View {
             // board at this moment, and a panel flipping underneath it is the
             // distraction this whole screen is arranged to avoid.
             if awaiting, turns.isMultiple(of: 2) { turns += 1 }
+
+            // And the other way round. The start button used to turn the panel
+            // itself, which made *pressing start* the thing that brought the
+            // controls up rather than *the run beginning* — so a run begun any
+            // other way, from the keyboard say, left the panel showing the info
+            // page. One owner: the run begins, the controls come round.
+            if !awaiting, !turns.isMultiple(of: 2) { turn() }
         }
         // And the same for the death face, which lives on the same side. Also
         // straightened rather than turned: the death card is coming up over the
