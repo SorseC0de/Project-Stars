@@ -309,22 +309,26 @@ struct CloudMotion {
     ///
     /// Only the square landed on. Its neighbours are a separate idea — see
     /// `shove`, which is what a fall *through* the plane does.
-    /// - Parameter over: How long the give lasts. The island's is its own — it
-    ///   is a rock on a chain rather than a puff of cloud, and the sprite change
-    ///   that goes with it has to be able to line up.
+    /// - Parameter over: How long the give lasts.
+    /// - Parameter depth: How far it gives, in art pixels.
+    ///
+    /// Both are the island's own where the island asks — it is a rock on a
+    /// chain rather than a puff of cloud, it gives differently, and the sprite
+    /// change that goes with it has to be able to line up.
     static func dip(
         _ point: GridPoint,
         bounce: Bounce?,
         now: TimeInterval,
         scale: CGFloat,
-        over duration: TimeInterval = GameRules.surfaceBounceDuration
+        over duration: TimeInterval = GameRules.surfaceBounceDuration,
+        depth: CGFloat = GameRules.surfaceBounceDepth
     ) -> CGFloat {
         guard let bounce, bounce.point == point else { return 0 }
 
         let progress = (now - bounce.start) / duration
         guard progress > 0, progress < 1 else { return 0 }
 
-        return GameRules.surfaceBounceDepth * scale * CGFloat(sin(progress * .pi))
+        return depth * scale * CGFloat(sin(progress * .pi))
     }
 
     /// How far this cloud is pushed aside by a wake, if it is near one.

@@ -56,6 +56,11 @@ final class NexysTuning {
         didSet { NexysTuning.store.set("bounceHold", bounceHold) }
     }
 
+    /// How far down the give pushes the island, in art pixels.
+    var bounceDepth: Double = store.value("bounceDepth", NexysStyle.defaultBounceDepth) {
+        didSet { NexysTuning.store.set("bounceDepth", bounceDepth) }
+    }
+
     var rockSquash: Double = store.value("rockSquash", NexysStyle.defaultRockSquash) {
         didSet { NexysTuning.store.set("rockSquash", rockSquash) }
     }
@@ -63,7 +68,7 @@ final class NexysTuning {
     nonisolated static let store = BenchStore(
         prefix: "nexys.",
         vintage: 1,
-        names: ["foreshortened", "islandX", "islandY", "rock", "rockHold", "rockSquash", "cursorLift", "bounceHold"]
+        names: ["foreshortened", "islandX", "islandY", "rock", "rockHold", "rockSquash", "cursorLift", "bounceHold", "bounceDepth"]
     )
 
     func reset() {
@@ -75,6 +80,7 @@ final class NexysTuning {
         rock = NexysStyle.defaultRock
         rockHold = NexysStyle.defaultRockHold
         bounceHold = NexysStyle.defaultBounceHold
+        bounceDepth = NexysStyle.defaultBounceDepth
         rockSquash = NexysStyle.defaultRockSquash
     }
 
@@ -83,8 +89,8 @@ final class NexysTuning {
         print("  sprite   " + (foreshortened ? "foreshortened" : "flat"))
         print(String(format: "  island   x %+.0f  y %+.0f", islandX, islandY))
         print(String(format: "  cursor   +%.0f", cursorLift))
-        print(String(format: "  rock     %@  hold %.2fs  bounce %.2fs  squash %.0fpx",
-                     rock.rawValue, rockHold, bounceHold, rockSquash))
+        print(String(format: "  rock     %@  hold %.2fs  bounce %.2fs  dip %.0fpx  squash %.0fpx",
+                     rock.rawValue, rockHold, bounceHold, bounceDepth, rockSquash))
     }
 }
 
@@ -110,6 +116,7 @@ struct NexysControls: View {
             row("cur y", value: $tuning.cursorLift, in: -8...8, step: 1)
             row("hold", value: $tuning.rockHold, in: 0.02...0.8, step: 0.02, places: 2)
             row("bounce", value: $tuning.bounceHold, in: 0.02...1.2, step: 0.02, places: 2)
+            row("dip", value: $tuning.bounceDepth, in: 0...24, step: 1)
             row("squash", value: $tuning.rockSquash, in: 0...10, step: 0.5, places: 1)
         }
         .font(.system(size: 9, weight: .semibold, design: .monospaced))

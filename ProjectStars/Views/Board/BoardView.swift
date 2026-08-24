@@ -3190,7 +3190,8 @@ struct BoardView: View {
             bounce: surfaceBounce,
             now: date.timeIntervalSinceReferenceDate,
             scale: metrics.scale,
-            over: NexysStyle.bounceHold
+            over: NexysStyle.bounceHold,
+            depth: NexysStyle.bounceDepth
         )
 
         return float + give

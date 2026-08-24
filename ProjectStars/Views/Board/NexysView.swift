@@ -204,6 +204,13 @@ enum NexysStyle {
     /// with it has to be able to line up with it.
     static let defaultBounceHold: Double = GameRules.surfaceBounceDuration
 
+    /// How far the island gives, in art pixels.
+    ///
+    /// The shared value is three over a fifth of a second, which on a rock the
+    /// size of the island is easy to miss entirely — a cloud that size gives
+    /// visibly because it is soft and the eye expects it to.
+    static let defaultBounceDepth: Double = Double(GameRules.surfaceBounceDepth)
+
     /// How many art pixels wider the island gets at the height of the rock.
     static let defaultRockSquash: Double = 3
 
@@ -256,6 +263,14 @@ enum NexysStyle {
         NexysTuning.shared.bounceHold
         #else
         defaultBounceHold
+        #endif
+    }
+
+    static var bounceDepth: CGFloat {
+        #if DEBUG
+        CGFloat(NexysTuning.shared.bounceDepth)
+        #else
+        CGFloat(defaultBounceDepth)
         #endif
     }
 
