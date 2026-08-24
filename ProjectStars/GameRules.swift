@@ -3115,6 +3115,16 @@ enum GameRules {
     ///
     /// Release keeps Aries: the only reader that matters in a shipped build is
     /// the picker's initial selection, and nothing debug-only should decide it.
+    /// Whether an ordinary move wears the ground. Always true in a shipped
+    /// build — see `debugDamagesTiles` at the top of `GameScreen`.
+    static var damagesTiles: Bool {
+        #if DEBUG
+        ProjectStars.debugDamagesTiles
+        #else
+        true
+        #endif
+    }
+
     static var debugStartingSign: Zodiac {
         #if DEBUG
         ProjectStars.debugStartingSign

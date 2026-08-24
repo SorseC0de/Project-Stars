@@ -24,6 +24,22 @@ import SwiftUI
 ///
 /// - TODO: **Debug only.** Never read in a shipped build.
 let debugStartingSign: Zodiac = .aries
+
+/// Whether the ground wears out under the piece.
+///
+/// Set it to `false` to walk about a board that never breaks — which is most of
+/// what testing anything else needs, since the alternative is falling through
+/// the floor a dozen moves into whatever you were actually looking at and
+/// starting the run again.
+///
+/// **Only what movement costs the ground.** Anything that sets out to break a
+/// tile still does — Aries' charge, Pisces surfacing through a cloud, a
+/// Zodiaction that opens a ring of holes — because those are the thing being
+/// tested when they are on screen, and a switch that quietly disabled them
+/// would be a switch that lies about what the game does.
+///
+/// - TODO: **Debug only.** Never read in a shipped build.
+let debugDamagesTiles = false
 #endif
 
 /// The whole game, laid out as two stacked squares.

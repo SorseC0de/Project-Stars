@@ -4158,6 +4158,13 @@ struct GameEngine {
         cause: WearCause = .landing
     ) -> LandingResult {
         var result = LandingResult()
+
+        // **The one place a move costs the ground.** Every landing, every push
+        // off, every hoof and charge multiplier arrives here — so switching it
+        // off is one guard rather than a flag threaded through the passives.
+        // See `debugDamagesTiles` at the top of `GameScreen`.
+        guard GameRules.damagesTiles else { return result }
+
         func commit(_ event: GameEvent) {
             result.events.append(event)
             apply(event)
