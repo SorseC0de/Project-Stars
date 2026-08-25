@@ -57,19 +57,24 @@ struct PieceView: View {
     /// the turn changes every turn, and either of them can be the one that fell.
     var twin: GeminiHalf?
 
-    /// Whether the charged figure's blurred halo is drawn.
+    /// Whether this figure gives off light: the aura behind it, and the bloom
+    /// on its lit gem.
     ///
-    /// **Off for afterimages.** A ghost is a picture of what was standing
-    /// somewhere, and the aura is not part of the figure — it is light coming
-    /// off the living one. Three of them trailing behind read as four charged
-    /// pieces rather than as one leaving a mark.
+    /// **Off for afterimages**, and it covers every bloom rather than just the
+    /// halo, because they are one idea. A ghost is a picture of what was
+    /// standing somewhere; light is not part of the figure, it is something the
+    /// living one is doing. Three glows trailing behind read as four charged
+    /// pieces rather than one leaving a mark.
     ///
-    /// It is also the most expensive thing the piece draws: two copies of the
-    /// whole silhouette, each through a shader and then a Gaussian blur, which
-    /// is an offscreen pass apiece. A charged sign with a trail was paying for
-    /// eight of them a frame, and that is where the frame rate went while
-    /// moving.
-    var showsAura = true
+    /// The gem still lights — that is a swapped palette entry, and part of what
+    /// the figure looked like. It simply does not bloom.
+    ///
+    /// And it is the whole of what the piece is expensive to draw. Every bloom
+    /// here is a silhouette taken through a shader and then a Gaussian blur,
+    /// which is an offscreen pass apiece; a charged sign dragging a trail was
+    /// paying for eight of them a frame, and only while walking, which is
+    /// exactly the shape the frame rate had.
+    var emitsLight = true
 
     /// Whether the pool of shadow under the figure is drawn.
     ///
@@ -280,7 +285,16 @@ struct PieceView: View {
     ///
     /// Named so the doubled version below can reuse it rather than restate it —
     /// two copies of this drifted apart the moment Leo's threshold went in.
+    @ViewBuilder
     private func charged(intensity: Double = 1) -> some View {
+        // The lit sprite itself, which a ghost still gets: the gem is a swapped
+        // palette entry and part of the picture. Only the bloom over it is
+        // light, and only the living figure is giving any off.
+        let core = material.paletteSwap([PaletteSwap(gem.dim, gem.lit)])
+
+        if !emitsLight {
+            core
+        } else {
             // The gold blooms, and the eyes with it. Both entries, not just the
             // gem: a charged piece should look lit from inside rather than
             // wearing two bright pixels.
@@ -308,14 +322,18 @@ struct PieceView: View {
                 //
                 // The eyes keep the old rule — the sign's element, on both
                 // planes — while the body stays gold.
-                material.paletteSwap([PaletteSwap(gem.dim, gem.lit)])
+                core
             }
+        }
     }
 
     /// The sprite with its gem lit, before any flash is laid over it.
     @ViewBuilder
     private var lit: some View {
-        if isCharged, zodiac.zodiaction.firesAtEmpty {
+        // A ghost of a backwards sign is still a ghost — see `emitsLight`. It
+        // keeps the charged assembly and drops the purple halo, the same way it
+        // keeps the lit gem and drops the bloom over it.
+        if isCharged, zodiac.zodiaction.firesAtEmpty, emitsLight {
             // **Behind him, not over him.**
             //
             // `PaletteGlow` hangs its halo in an `.overlay`, so nesting one
@@ -357,7 +375,7 @@ struct PieceView: View {
             ) {
                 charged(intensity: GameRules.aquariusBodyGlowShare)
             }
-            .background { if showsAura { aura } }
+            .background { if emitsLight { aura } }
         } else if isCharged {
             charged()
         } else if let resting = gem.resting {

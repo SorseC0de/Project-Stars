@@ -92,8 +92,8 @@ struct AfterimageView: View {
             scale: scale,
             plane: plane,
             isCharged: isCharged,
-            // A ghost is not a source of light — see `PieceView.showsAura`.
-            showsAura: false,
+            // A ghost is not a source of light — see `PieceView.emitsLight`.
+            emitsLight: false,
             // Nor a thing standing on the square.
             showsShadow: false,
             facing: facing,
