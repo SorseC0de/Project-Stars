@@ -1732,7 +1732,7 @@ struct BoardView: View {
                         raisedTile(at: object.point, plane: plane, metrics: metrics)
                     case .cursorBack:
                         // On its own clock — see `BoardView.ticking`.
-                        ticking(metrics) { tick in
+                        ticking(metrics, "curB") { tick in
                             let bob = tick.bob
                             cursor(
                                 at: object.point, metrics: metrics, bob: bob,
@@ -1741,7 +1741,7 @@ struct BoardView: View {
                         }
                     case .cursorFront:
                         // On its own clock — see `BoardView.ticking`.
-                        ticking(metrics) { tick in
+                        ticking(metrics, "curF") { tick in
                             let bob = tick.bob
                             cursor(
                                 at: object.point, metrics: metrics, bob: bob,
@@ -1953,7 +1953,7 @@ struct BoardView: View {
                         // .allowsHitTesting(false)
                     case .nexys:
                         // On its own clock — see `BoardView.ticking`.
-                        ticking(metrics) { tick in
+                        ticking(metrics, "nexys") { tick in
                             let bob = tick.bob
                             let ascent = tick.ascent
                             let travel = tick.travel
@@ -1965,7 +1965,7 @@ struct BoardView: View {
                     case .nexysPillar:
                         // On its own clock — see `BoardView.ticking`. The same
                         // bob the island rides, so the two cannot drift apart.
-                        ticking(metrics) { tick in
+                        ticking(metrics, "pillar") { tick in
                             nexysPillar(
                                 metrics: metrics, bob: tick.bob,
                                 ascent: tick.ascent, travel: tick.travel
@@ -1973,7 +1973,7 @@ struct BoardView: View {
                         }
                     case .facing:
                         // On its own clock — see `BoardView.ticking`.
-                        ticking(metrics) { tick in
+                        ticking(metrics, "facing") { tick in
                             let bob = tick.bob
                             let sway = tick.sway
                             // Positioned on the *piece's* square and offset forward from
@@ -2054,7 +2054,7 @@ struct BoardView: View {
                         }
                     case .piece:
                         // On its own clock — see `BoardView.ticking`.
-                        ticking(metrics) { tick in
+                        ticking(metrics, "piece") { tick in
                             let bob = tick.bob
                             let pose = tick.pose
                             let ascent = tick.ascent
@@ -3175,11 +3175,16 @@ struct BoardView: View {
     @ViewBuilder
     private func ticking<Content: View>(
         _ metrics: PixelArtMetrics,
+        _ label: String = "?",
         @ViewBuilder content: @escaping (BoardTick) -> Content
     ) -> some View {
         TimelineView(.animation(paused: session.isPaused || planeIsAsleep)) { timeline in
             #if DEBUG
+            // Named as well as counted. Six of these run on Astra and one of
+            // them was found still running on a plane that was supposed to be
+            // asleep — which `tick.astra 60` can report but cannot identify.
             let _ = RenderTally.tick("tick.\(shown.rawValue)")
+            let _ = RenderTally.tick("t:\(label).\(shown.rawValue)")
             #endif
             content(boardTick(at: timeline.date, metrics: metrics))
         }

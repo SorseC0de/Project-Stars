@@ -57,7 +57,18 @@ struct CloudSpriteView: View {
     var glows: Bool = false
 
     var body: some View {
-        TimelineView(.animation(paused: planeIsAsleep || isStill)) { timeline in
+        // **At the field's rate, not the display's.**
+        //
+        // This is one cloud out of forty-nine, drawn as a view rather than
+        // stamped into the field's canvas because it is the only one that gets
+        // recoloured. It was the only one running at sixty as well — twice its
+        // neighbours, for a drift nobody can tell apart from theirs.
+        TimelineView(
+            .animation(
+                minimumInterval: 1 / GameRules.cloudFrameRate,
+                paused: planeIsAsleep || isStill
+            )
+        ) { timeline in
             #if DEBUG
             let _ = RenderTally.tick("CloudSprite")
             #endif
