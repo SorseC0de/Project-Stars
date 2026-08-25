@@ -90,10 +90,13 @@ struct PentacleIntroView: View {
                     .tracking(2)
                     .foregroundStyle(Palette.textSecondary)
 
+                // A name is a name: it shrinks rather than wrapping.
                 Text(effect.displayName.uppercased())
                     .font(.system(size: 18, weight: .heavy, design: .monospaced))
                     .tracking(1)
                     .foregroundStyle(Palette.pentacle)
+                    .lineLimit(1)
+                    .minimumScaleFactor(0.6)
 
                 Text(effect.summary(in: context))
                     .font(.system(size: 10, design: .monospaced))

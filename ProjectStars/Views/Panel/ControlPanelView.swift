@@ -208,6 +208,13 @@ enum PanelStyle {
     ///
     /// Slow enough that a state which changes twice in quick succession reads
     /// as one movement rather than as a blink.
+    /// How long a flashing mark stays lit before letting go.
+    ///
+    /// Long enough to be caught out of the corner of an eye while a move is
+    /// still resolving, short enough that it is plainly an event rather than a
+    /// state. See `ZodiacPassive.flashes(in:)`.
+    static let passiveFlashHold: TimeInterval = 0.6
+
     static let passiveMarkFade: Double = 0.25
 
     static let padArrowSize: CGFloat = 96
@@ -568,33 +575,22 @@ struct ControlPanelView: View {
                             // it says what you are about to play, not how it is
                             // going.
                             let marks = showing == .start ? [] : session.zodiac.passives
-                                .compactMap { passive -> (mark: String, lit: Bool)? in
+                                .compactMap { passive -> PassiveMark.Entry? in
                                     guard let mark = passive.icon(in: snapshot) else {
                                         return nil
                                     }
-                                    return (mark, passive.isLit(in: snapshot))
+                                    return PassiveMark.Entry(
+                                        mark: mark,
+                                        lit: passive.isLit(in: snapshot),
+                                        flashes: passive.flashes(in: snapshot)
+                                    )
                                 }
 
                             ForEach(Array(marks.enumerated()), id: \.offset) { _, entry in
-                                Image(entry.mark)
-                                    .renderingMode(.template)
-                                    .resizable()
-                                    .scaledToFit()
-                                    .frame(width: PanelStyle.passiveMarkSize,
-                                           height: PanelStyle.passiveMarkSize)
-                                    // Lit in the sign's own element, dim
-                                    // otherwise. See `ZodiacPassive.isLit(in:)`
-                                    // for why this is a span rather than a
-                                    // flash.
-                                    .foregroundStyle(
-                                        entry.lit
-                                            ? ElementFX.ramp(for: session.zodiac.element).bright
-                                            : Palette.textSecondary
-                                    )
-                                    .animation(
-                                        .easeInOut(duration: PanelStyle.passiveMarkFade),
-                                        value: entry.lit
-                                    )
+                                PassiveMark(
+                                    entry: entry,
+                                    tint: ElementFX.ramp(for: session.zodiac.element).bright
+                                )
                             }
                         }
                         .padding(.horizontal)
@@ -952,9 +948,14 @@ private struct PanelFrontView: View {
             HStack(spacing: 12) {
                 PickupIconView(effect: PickupCatalog.effect(for: id), size: 22)
 
+                // A name is a name: it shrinks rather than wrapping. A second
+                // line makes this row taller than its neighbours and walks the
+                // whole list out of alignment.
                 Text(PickupCatalog.effect(for: id).displayName)
                     .font(.system(size: 17, weight: .semibold, design: .rounded))
                     .foregroundStyle(Palette.white)
+                    .lineLimit(1)
+                    .minimumScaleFactor(0.6)
 
                 Spacer(minLength: 0)
 
@@ -2645,6 +2646,61 @@ private struct PanelStartView: View {
                 .foregroundStyle(Palette.warmBlack)
         }
         .frame(width: PanelStyle.wideChromeWidth, height: PanelStyle.chromeButtonHeight)
+    }
+}
+
+/// One passive's mark, lit or dim.
+///
+/// Its own view because a flashing mark has to remember when it lit, and that
+/// is state — inline in the row it would have been one piece of state shared by
+/// every mark, which is exactly the bug where lighting one dims another.
+private struct PassiveMark: View {
+
+    struct Entry: Equatable {
+        let mark: String
+        let lit: Bool
+        let flashes: Bool
+    }
+
+    let entry: Entry
+    let tint: Color
+
+    /// Whether this mark is currently showing lit.
+    ///
+    /// For a span this is just `entry.lit`. For a flash it is raised when
+    /// `entry.lit` *becomes* true and lowered a moment later on its own, so a
+    /// condition that stays true — a streak that survives the move that paid
+    /// for it — does not leave the mark burning until the next step.
+    @State private var showing = false
+
+    var body: some View {
+        Image(entry.mark)
+            .renderingMode(.template)
+            .resizable()
+            .scaledToFit()
+            .frame(width: PanelStyle.passiveMarkSize, height: PanelStyle.passiveMarkSize)
+            // Lit in the sign's own element, dim otherwise. See
+            // `ZodiacPassive.isLit(in:)` for why most of these are spans, and
+            // `ZodiacPassive.flashes(in:)` for the ones that are not.
+            .foregroundStyle(showing ? tint : Palette.textSecondary)
+            .animation(.easeInOut(duration: PanelStyle.passiveMarkFade), value: showing)
+            .task(id: entry.lit) {
+                guard entry.flashes else {
+                    showing = entry.lit
+                    return
+                }
+                guard entry.lit else { return }
+
+                showing = true
+                try? await Task.sleep(
+                    nanoseconds: UInt64(PanelStyle.passiveFlashHold * 1_000_000_000)
+                )
+                // Cancelled means the condition changed under us and a newer
+                // run of this task owns the mark. Leaving it lit is that run's
+                // business, not this one's.
+                guard !Task.isCancelled else { return }
+                showing = false
+            }
     }
 }
 

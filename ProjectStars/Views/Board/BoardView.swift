@@ -3683,7 +3683,12 @@ struct BandRow: View, Equatable {
                 .frame(width: metrics.tileSize, height: metrics.tileSize)
             }
         }
-        .overlay { cover }
+        // **Bottom-aligned, because the cover needs room above the row.**
+        //
+        // A lifted tile's cover lifts with it, which takes it above the row's
+        // own bounds — and a `Canvas` draws nothing outside its own. See
+        // `cover`.
+        .overlay(alignment: .bottom) { cover }
         .frame(width: metrics.boardSize, height: metrics.tileSize)
         .asBoardRow(row, metrics: metrics)
     }
@@ -3700,8 +3705,18 @@ struct BandRow: View, Equatable {
     /// the picture.
     ///
     /// A `Canvas` has no children. It draws.
+    ///
+    /// **It is a row taller than the row, and that is what fixes pop tiles.**
+    /// A canvas clips to its own bounds, and a lifted tile's cover is drawn
+    /// lifted — so the top of it, exactly `tilePopLift` worth, was being cut
+    /// off. What was left sat low on the face and left the tile's own top strip
+    /// bare, which reads as the cover having slipped down rather than as the
+    /// tile having risen. The extra room is above, so the draws are offset into
+    /// it and the row's own geometry is untouched.
     private var cover: some View {
-        Canvas { context, _ in
+        let room = GameRules.tilePopLift * metrics.scale
+
+        return Canvas { context, _ in
             #if DEBUG
             RenderTally.tick("cover")
             #endif
@@ -3737,13 +3752,15 @@ struct BandRow: View, Equatable {
 
                 context.draw(image, in: CGRect(
                     x: CGFloat(column) * metrics.tileSize,
-                    y: lift,
+                    // `room` puts the canvas' own origin back on the row's top
+                    // edge, so `lift` still means what it means everywhere else.
+                    y: room + lift,
                     width: metrics.tileSize,
                     height: metrics.tileSize
                 ))
             }
         }
-        .frame(width: metrics.boardSize, height: metrics.tileSize)
+        .frame(width: metrics.boardSize, height: metrics.tileSize + room)
         .allowsHitTesting(false)
     }
 }

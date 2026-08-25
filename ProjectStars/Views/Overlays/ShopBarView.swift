@@ -118,10 +118,14 @@ struct ShopBarView: View {
         let effect = PickupCatalog.effect(for: id)
 
         return VStack(spacing: 1) {
+            // A name is a name: it shrinks rather than wrapping. A second line
+            // pushes the summary under it out of a strip measured for one.
             Text(effect.displayName.uppercased())
                 .font(.system(size: Style.captionSize, weight: .heavy, design: .rounded))
                 .tracking(Style.captionTracking)
                 .foregroundStyle(Palette.pentacle)
+                .lineLimit(1)
+                .minimumScaleFactor(0.6)
 
             Text(effect.summary(in: context))
                 .font(.system(size: Style.summarySize, weight: .semibold, design: .rounded))

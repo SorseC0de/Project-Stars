@@ -463,6 +463,20 @@ protocol ZodiacPassive {
     /// which is the honest answer until somebody decides what its span is.
     func isLit(in context: PassiveContext) -> Bool
 
+    /// Whether the mark should **flash** when it lights rather than stay lit.
+    ///
+    /// `isLit` is a span, deliberately: for most passives the interesting thing
+    /// is a *condition holding* — a skin unshed, a plane you are standing on —
+    /// and a mark that says so for exactly as long as it is true is a mark you
+    /// can plan against.
+    ///
+    /// A few are not conditions but *events*. Aries' stride pays charge on the
+    /// move it pays it on; there is no state afterwards worth reporting, so a
+    /// span leaves the mark lit until the next move for no reason. Those opt in
+    /// here, and the panel lights them briefly and lets them go. Default:
+    /// `false`.
+    func flashes(in context: PassiveContext) -> Bool
+
     /// Whether a Pentacle is dragged a square toward the piece as it appears.
     ///
     /// Aquarius' current. Default: `false`.
@@ -573,6 +587,7 @@ extension ZodiacPassive {
     func tramplesPickups(context: PassiveContext) -> Bool { false }
     func reversesCharge(context: PassiveContext) -> Bool { false }
     func isLit(in context: PassiveContext) -> Bool { false }
+    func flashes(in context: PassiveContext) -> Bool { false }
     func reversesControls(context: PassiveContext) -> Bool { false }
     func walksOnHoles(context: PassiveContext) -> Bool { false }
     func mayLeaveTheBoard(context: PassiveContext) -> Bool { false }

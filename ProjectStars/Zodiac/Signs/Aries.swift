@@ -77,6 +77,17 @@ struct AriesSearingStride: ZodiacPassive {
     /// exactly the window in which knowing you have it changes what you do; the
     /// streak is lit for the moves `meterBonus` pays for, so the mark and the
     /// pip arrive together rather than the mark trailing the meter.
+    /// **The streak half is an event, not a condition.**
+    ///
+    /// The charge arrives on the move that earns it and there is nothing left
+    /// over to report — but the streak itself survives the move, so a span left
+    /// the mark burning until he stepped again. See `ZodiacPassive.flashes`.
+    ///
+    /// The grace is genuinely a condition and would rather be a span, but one
+    /// mark cannot be both: it flashes, and what it flashes on is the moment it
+    /// starts being true, which for an unspent tile is arrival.
+    func flashes(in context: PassiveContext) -> Bool { true }
+
     func isLit(in context: PassiveContext) -> Bool {
         // The free tile, unspent. The same flag `causesWear` reads below and
         // the same one the engine checks before announcing the spare — one
