@@ -1609,7 +1609,14 @@ enum GameRules {
     /// Negative is counter-clockwise. Applied as a running total rather than a
     /// target angle, so the spin always turns the same way instead of unwinding
     /// on the way back.
-    static let fallSpinDegrees: Double = -1080
+    /// How many whole turns a piece makes on its way down.
+    ///
+    /// Whole, so it is upright at the instant it lands — which it has to be,
+    /// since it lands standing. Three was a third too fast to read as tumbling;
+    /// at two you can see the figure come round.
+    static let fallSpinTurns: Double = 2
+
+    static let fallSpinDegrees: Double = -360 * fallSpinTurns
 
     /// How small the destination square's shadow starts, before the piece nears
     /// it. Growing this shadow is what telegraphs the incoming landing.
@@ -2255,6 +2262,13 @@ enum GameRules {
     /// below it, which is what puts a piece's feet at the same height on both.
     static let astraForeshortenScale: CGFloat = 1.0
     static let astraForeshortenLift: CGFloat = 0.15 + 0.25 / CGFloat(gridSize)
+
+    /// How far above its square a cloud sits, in art pixels.
+    ///
+    /// A cloud is not a tile: a tile's top edge is where you stand on it, and a
+    /// cloud's is where it billows. Drawn flush, the whole field read as sitting
+    /// slightly too low in its own row.
+    static let astraCloudLift: CGFloat = 4
 
     /// How much of its square a cloud fills, and how far apart the squares sit.
     ///

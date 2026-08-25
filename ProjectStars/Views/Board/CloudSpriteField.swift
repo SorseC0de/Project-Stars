@@ -319,6 +319,7 @@ struct CloudSpriteField: View, Equatable {
         let box = CGRect(
             x: centre.x + wander.width + shove.width - width / 2,
             y: centre.y + wander.height + shove.height + give - height / 2 - lift
+                - GameRules.astraCloudLift * metrics.scale
                 + GameRules.cloudSpriteDrop * metrics.scale,
             width: width,
             height: height

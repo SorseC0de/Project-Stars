@@ -39,7 +39,7 @@ struct DeathView: View {
             // rather than cold, and darkening downward, so falling into it reads
             // as going further in rather than further away.
             LinearGradient(
-                colors: [Palette.coffee, Palette.warmBlack],
+                colors: [Palette.coffee, Palette.coolBlack],
                 startPoint: .top,
                 endPoint: .bottom
             )
@@ -70,7 +70,7 @@ struct DeathView: View {
             // Which is why there is no mask cutting a hole in the card. A hole
             // is what you reach for when the thing you want to see is behind
             // something and cannot be moved; this one could be moved.
-            if session.phase == .gameOver {
+            if session.phase == .gameOver || session.deathCardIsLeaving {
                 GameModeSplashView(
                     title: DeathStyle.title,
                     subtitle: session.engine.gameOverReason?.displayText ?? "",
@@ -80,7 +80,9 @@ struct DeathView: View {
                     ink: Palette.red,
                     titleDrop: DeathStyle.titleDrop,
                     blurbDrop: DeathStyle.blurbDrop,
-                    isLeaving: false,
+                    // It leaves the way it arrived, on the press that ends the
+                    // screen — see `GameSession.deathCardIsLeaving`.
+                    isLeaving: session.deathCardIsLeaving,
                     onLanded: {},
                     onFinished: {}
                 )

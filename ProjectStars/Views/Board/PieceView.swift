@@ -183,10 +183,27 @@ struct PieceView: View {
             .offset(y: -pose.lift * scale)
             // Spin and drop apply to the sprite alone, so the shadow stays put
             // on the square being fallen onto.
-            .rotationEffect(.degrees(spin))
+            //
+            // **About the body's middle, not the frame's.** The figure is two
+            // cells tall and drawn shifted up out of its own layout box, so the
+            // box's centre — which is what a rotation takes by default — sits
+            // down at the middle of the *lower* cell, roughly where the feet
+            // are. A piece turning about its feet does not tumble, it swings,
+            // which is what has always looked slightly wrong about this.
+            .rotationEffect(.degrees(spin), anchor: bodyCentre)
         }
         .offset(y: carryOffset)
         .allowsHitTesting(false)
+    }
+
+    /// The middle of the drawn figure, in the units of its own layout box.
+    ///
+    /// The box is `tileSize` by `tileSize * 2`; the figure inside it is offset
+    /// up by half a tile plus the seating lift. Undoing exactly that in unit
+    /// space is what puts the anchor back on the body.
+    private var bodyCentre: UnitPoint {
+        let rise = tileSize / 2 + GameRules.pieceLift * scale
+        return UnitPoint(x: 0.5, y: 0.5 - rise / (tileSize * 2))
     }
 
     // MARK: - Material

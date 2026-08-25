@@ -261,6 +261,14 @@ final class GameSession {
     /// be built around.
     private(set) var deathSeat: GridPoint?
 
+    /// Raised when the player asks to leave the death screen.
+    ///
+    /// The card arrives by sliding its two bars across the screen and it should
+    /// go the same way, for the same reason the mode card does: the bars never
+    /// reverse, they arrive and they leave. Without this the run restarted out
+    /// from under a card that was still sitting there.
+    private(set) var deathCardIsLeaving = false
+
     /// How far through a crossing the camera is, `0`…`1`.
     ///
     /// Measured off the camera rather than a clock, so anything reading it
@@ -616,6 +624,15 @@ final class GameSession {
     /// from and snap round on arrival — the turn arriving last is what made it
     /// look like an afterthought.
     var visibleFacing: SwipeDirection {
+        // **Nothing in the air is walking anywhere.**
+        //
+        // The engine turns the piece south the moment a fall or a ride is
+        // decided, and that turn was then thrown away here: a movement is still
+        // running when the square gives way, and a movement outranked the
+        // facing. So the piece fell in whatever direction it had been going and
+        // snapped south on landing, which is the one moment it should not have
+        // been turning.
+        if isChangingPlane || isFalling { return engine.piece.facing }
         guard let movement else { return engine.piece.facing }
         return movement.direction.facing(from: engine.piece.facing)
     }
@@ -1049,6 +1066,7 @@ final class GameSession {
         isChangingPlane = false
         isDropping = false
         deathSeat = nil
+        deathCardIsLeaving = false
         isLaunching = false
         nexysDepartStartedAt = nil
         nexysArriveStartedAt = nil
@@ -3025,6 +3043,16 @@ final class GameSession {
     /// from the seam. Two copies of a landing drift apart the first time either
     /// is retuned, and a landing is mostly feel.
     private func land() {
+        // **The crossing is over here and nowhere else.**
+        //
+        // It used to be cleared beside each `engine.apply`, and the fall's copy
+        // was simply missing — so a piece that fell to Terra stayed gold for the
+        // rest of the run, never took the plane's material, and dragged every
+        // other thing keyed on being mid-crossing along with it. One owner: the
+        // crossing ends when the piece is on the ground.
+        isChangingPlane = false
+        deathSeat = nil
+
         bounceSurface(at: engine.piece.point, on: engine.piece.plane)
 
         // **The energy arriving, in the sign's own colour.**
@@ -4192,7 +4220,26 @@ extension GameSession {
         // travel: an island crossing between planes on its own ran on a paused
         // timeline and snapped instead of moving. The window onto the world is
         // a fact, so ask it.
-        !World.isVisible(
+        //
+        // **But whatever is being carried keeps its own plane awake.**
+        //
+        // The piece and the island are drawn in the square they belong to even
+        // when the camera has taken them somewhere else — that is the whole of
+        // what `fallOffset` does — and that offset is read *inside* the square's
+        // own timeline. Pause the timeline and the offset freezes at whatever it
+        // last was: the thing stops following the camera and scrolls away with a
+        // square that is no longer on screen.
+        //
+        // It is why the island vanished part-way across, and why the piece
+        // sometimes stopped turning on the death screen, where its plane is a
+        // whole row behind the camera. Neither costs anything the rest of the
+        // time — there is one piece, and it is on the plane you are looking at.
+        if plane == engine.piece.plane { return false }
+        if plane == engine.nexysPlane, isChangingPlane || nexysRidesCamera {
+            return false
+        }
+
+        return !World.isVisible(
             row: World.row(of: plane),
             sweeping: cameraFrom ?? cameraRow,
             to: cameraRow
