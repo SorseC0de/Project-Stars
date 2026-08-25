@@ -185,7 +185,7 @@ struct BoardView: View {
                 // dimmed for the overwhelming majority of them. The dims fade
                 // their own opacity in and out; what this skips is the machinery
                 // around them.
-                if session.isDimmed || session.isResolvingAction {
+                if (session.isDimmed || session.isResolvingAction), !session.isChangingPlane {
                 ZStack {
                     actionDim(metrics: metrics)
                     boardDim(metrics: metrics)
@@ -803,8 +803,11 @@ struct BoardView: View {
         Rectangle().fill(Palette.midnight)
             .frame(width: availableSide, height: availableSide)
             // One question, whatever the reason — see `GameSession.isDimmed`.
-            .opacity(session.isDimmed ? GameRules.boardDim : 0)
+            // Same reason as `actionDim`: this covers the whole square, and a
+            // thing that has left the square should not be under it.
+            .opacity(session.isDimmed && !session.isChangingPlane ? GameRules.boardDim : 0)
             .animation(.easeOut(duration: 0.18), value: session.isDimmed)
+            .animation(.easeOut(duration: 0.18), value: session.isChangingPlane)
             .allowsHitTesting(false)
             .frame(width: metrics.boardSize, height: metrics.boardSize)
     }
@@ -824,8 +827,27 @@ struct BoardView: View {
             // `scaleEffect` does not touch layout, so the dim can cover the
             // screen without moving anything that shares the stack with it.
             .scaleEffect(3)
-            .opacity(session.isResolvingAction ? GameRules.actionDim : 0)
+            // **Down while the world is moving.**
+            //
+            // This is a wash over *the board*, and it is drawn three times the
+            // board's size — a thousand points of coolBlack, most of a screen.
+            // The holes in it are punched by a rasterised copy of the object
+            // stack padded by three tiles, so anything further out than that is
+            // simply under the wash.
+            //
+            // A piece or an island crossing between planes is three whole
+            // *squares* out, twenty times further than the mask can reach. That
+            // is why the Nexys vanished mid-crossing and came back at both ends:
+            // the ends are the only moments it is near a board. It was never
+            // being clipped or mis-placed — it was under a black rectangle.
+            //
+            // And it should be. A crossing is not the board waiting on an action
+            // you need pointing at; it is the whole screen moving. See
+            // `GameSession.isChangingPlane`.
+            .opacity(session.isResolvingAction && !session.isChangingPlane
+                ? GameRules.actionDim : 0)
             .animation(.easeOut(duration: 0.14), value: session.isResolvingAction)
+            .animation(.easeOut(duration: 0.14), value: session.isChangingPlane)
             .allowsHitTesting(false)
     }
 
@@ -1552,7 +1574,10 @@ struct BoardView: View {
         // drawn, because that moment *is* a resolution.
         SparkleView(
             size: metrics.tileSize,
-            plane: shown,
+            // Which material, not which square. Normally the plane it is drawn
+            // in; held at the old one while a restart carries it down — see
+            // `GameSession.materialPlane`.
+            plane: session.materialPlane ?? shown,
             index: index,
             tint: set.pattern == .ring ? Palette.pink : nil,
             sway: { surfaceSway(of: point, at: $0, metrics: metrics) },
@@ -2573,7 +2598,10 @@ struct BoardView: View {
             // the world went gold for a drop that arrives nowhere and has no
             // new material to take, which is why the piece appeared to blink as
             // it left Terra. See `GameSession.isChangingPlane`.
-            forcesGold: session.isChangingPlane,
+            // Gold belongs to a piece between planes — unless something is
+            // holding the old plane's material, which a restart does until the
+            // feet are down. See `GameSession.materialPlane`.
+            forcesGold: session.isChangingPlane && session.materialPlane == nil,
             twin: session.engine.piece.twin,
             // The forward copy is a pan on a string; the shadow belongs to the
             // figure, which is drawing its own on its own square.
@@ -2695,6 +2723,16 @@ struct BoardView: View {
         // standing on, and running that through the row's perspective scale
         // makes a fall that quietly falls short.
         .offset(y: fallOffset(metrics: metrics))
+        // **Sat on the middle of its square, once it is out of the world.**
+        //
+        // A figure stands *above* its tile — the whole body is up out of the
+        // square its feet are on — which is right everywhere there is a floor
+        // and wrong in the one place there is none. Down here the piece is the
+        // thing the card is built around, and it wants its middle on the row's
+        // middle. The distance is exactly the one `PieceView.bodyCentre` undoes
+        // for the spin, for the same reason.
+        .offset(y: session.deathSeat == nil ? 0
+            : metrics.tileSize / 2 + GameRules.pieceLift * metrics.scale)
         }
         .frame(width: metrics.boardSize, height: metrics.boardSize)
     }

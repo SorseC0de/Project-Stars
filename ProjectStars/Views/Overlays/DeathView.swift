@@ -39,7 +39,11 @@ struct DeathView: View {
             // rather than cold, and darkening downward, so falling into it reads
             // as going further in rather than further away.
             LinearGradient(
-                colors: [Palette.coffee, Palette.coolBlack],
+                stops: [
+                    .init(color: Palette.coffee, location: 0),
+                    .init(color: Palette.coolBlack, location: DeathStyle.floor),
+                    .init(color: Palette.coolBlack, location: 1),
+                ],
                 startPoint: .top,
                 endPoint: .bottom
             )
@@ -99,9 +103,17 @@ enum DeathStyle {
     /// Centred in the upper bar rather than sitting low in it, and the line
     /// under it pushed down into the lower one — so the middle of the card,
     /// where the piece is turning, is left clear.
+    /// How far down the row the warm crust gives way to the dark under it.
+    ///
+    /// High: the brown is the underside of the world you have just come through,
+    /// and you are past it almost immediately. Most of this place is the dark.
+    static let floor: CGFloat = 0.28
+
     static let titleDrop: CGFloat = 0
 
-    static let blurbDrop: CGFloat = 0.42
+    /// Far enough down the lower bar to clear the piece, and not so far it sits
+    /// on the bar's own bottom edge.
+    static let blurbDrop: CGFloat = 0.28
 
     /// How long one turn of the endless spin takes, once the piece is down here.
     ///

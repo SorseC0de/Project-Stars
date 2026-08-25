@@ -359,7 +359,13 @@ struct GameScreen: View {
     /// move off it is simply refused.
     @ViewBuilder
     private func edgeVignette(side: CGFloat) -> some View {
-        if session.engine.isAgainstTheEdge {
+        // **Only while there is a run to be warned about.**
+        //
+        // Aquarius dies by being blown off the board, so he is against the edge
+        // at the moment he dies and stays against it — the warning followed him
+        // down into the underground and pulsed red around a screen that had
+        // nothing left to warn him about.
+        if session.engine.isAgainstTheEdge, session.isRunning {
             TimelineView(.animation(paused: session.isPaused)) { timeline in
                 let clock = session.ambientClock(at: timeline.date.timeIntervalSinceReferenceDate)
                 let breath = (1 - cos(clock / GameRules.edgeWarningPeriod * 2 * .pi)) / 2

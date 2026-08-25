@@ -635,6 +635,14 @@ struct AstralBreezeEffect: PickupEffect {
 /// pick its winner in advance. Both produce the same fact for the player: the
 /// shining one is the one worth taking. See the note in
 /// `_Design/project-stars-pickups-backlog.md`, which sanctions this.
+/// - TODO: **Rebuild this.** As it stands it marks the next glow phase, which
+///   is a phase you were going to get anyway — so it tells you nothing you
+///   were not about to be told and the coin is effectively a blank.
+///
+///   What it should do: put the sparkles **where the Pentacle will actually
+///   be**, and keep doing it outside the glow phase, for the next ten turns.
+///   That turns it from a restatement of the hunt into a reason to change
+///   route, which is what a coin at this rarity has to be worth.
 struct StardarEffect: PickupEffect {
 
     let id: PickupID = .stardar

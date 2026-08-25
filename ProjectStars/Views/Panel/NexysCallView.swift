@@ -116,3 +116,14 @@ struct NexysCallView: View {
         static let glowRadius: CGFloat = 6
     }
 }
+
+/// What the elevator takes up, for whatever has to sit clear of it.
+///
+/// Published rather than left inside `Style` because the panel places this and
+/// the panel cannot see a private enum — and a height typed in twice is a
+/// height that is wrong in one of the two places the first time either moves.
+enum NexysCallStyle {
+
+    /// Two lamps stacked, their gap, and the case around them.
+    static let height: CGFloat = 30 * 2 + 6 + 8 * 2
+}

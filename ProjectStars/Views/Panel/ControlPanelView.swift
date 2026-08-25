@@ -844,7 +844,11 @@ private struct PanelFrontView: View {
                 }
             }
             .padding(.leading, PanelStyle.padding)
+            // Its own height again on top of the row it clears. The panel is a
+            // stack of things that each sit above the next; this one was sitting
+            // *on* the Zodiaction row rather than over it.
             .padding(.bottom, PanelStyle.zodiactionRowHeight
+                + NexysCallStyle.height
                 + PanelStyle.rowSpacing * 2)
         }
     }

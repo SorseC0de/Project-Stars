@@ -269,6 +269,15 @@ final class GameSession {
     /// from under a card that was still sitting there.
     private(set) var deathCardIsLeaving = false
 
+    /// The material the piece is drawn in, when it is not its plane's.
+    ///
+    /// A restart puts the piece on Astra before it has gone anywhere, so its
+    /// material changed the instant the button was pressed and it fell the
+    /// length of the world already wearing the sprite it was going to arrive
+    /// in. The swap belongs at the landing, like every other swap: this holds
+    /// the old plane's material until the feet are down.
+    private(set) var materialPlane: Plane?
+
     /// How far through a crossing the camera is, `0`…`1`.
     ///
     /// Measured off the camera rather than a clock, so anything reading it
@@ -3052,6 +3061,7 @@ final class GameSession {
         // crossing ends when the piece is on the ground.
         isChangingPlane = false
         deathSeat = nil
+        materialPlane = nil
 
         bounceSurface(at: engine.piece.point, on: engine.piece.plane)
 
@@ -3558,7 +3568,15 @@ extension GameSession {
 
             // **1. A fresh world, built behind a piece that never stopped.**
             let landed = self.cameraRow
-            let fellFrom = self.engine.piece.point
+            // **Where it settled, not where it fell from.**
+            //
+            // A piece slides to the middle on its way out of the world — see
+            // `deathSeat` — so the middle is where it is when this runs, and the
+            // middle is the Nexys' own square, which is where it is going to
+            // land. Seating it at the square that gave way put Aquarius' next
+            // run outside the board, because outside the board is the only place
+            // Aquarius ever dies.
+            let fellFrom = GameRules.nexysPoint
             self.newGame(announced: false)
             self.cameraRow = landed
 
@@ -3568,6 +3586,7 @@ extension GameSession {
             // rows of empty sky.
             self.isFalling = true
             self.isChangingPlane = true
+            self.materialPlane = .terra
 
             // And still not taking input. `newGame` sets the phase to awaiting
             // input, which for the two seconds of this drop would let a swipe

@@ -149,6 +149,18 @@ struct AquariusCrazyCurrent: ZodiacPassive {
         context.zodiactionMeter > 0
     }
 
+    /// **And a fall on the storm is a descent, not a tumble.**
+    ///
+    /// The same condition as the holes, and for the same reason: something is
+    /// holding him up. A piece that is floating has not lost control of what is
+    /// happening to it, and the spin is the part of a fall that says it has —
+    /// see `ZodiacPassive.fallIsControlled(to:context:)`. At zero the storm is
+    /// gone and he drops like anyone else, spin and all, which is the whole
+    /// danger of running dry.
+    func fallIsControlled(to plane: Plane, context: PassiveContext) -> Bool {
+        context.zodiactionMeter > 0
+    }
+
     /// And the edge stops being a wall — **at every phase, storm or not.**
     ///
     /// Unlike the holes, which need something holding him up. Floating explains
