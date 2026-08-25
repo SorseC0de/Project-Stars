@@ -199,97 +199,6 @@ struct BoardView: View {
                 // time either flag moves — which is why Astra's board and its
                 // island were ticking away while the player was on Terra, and
                 // why the frame rate fell only while something was moving.
-                if (session.isDimmed || session.isResolvingAction),
-                   !session.isChangingPlane, !planeIsAsleep {
-                ZStack {
-                    actionDim(metrics: metrics)
-                    boardDim(metrics: metrics)
-                }
-                .mask(
-                    ZStack {
-                        // **Sized, not scaled.**
-                        //
-                        // A mask is rasterised into its own layout bounds and
-                        // everything outside them is discarded — the same rule
-                        // that clips `PaletteGlow`, and the reason a
-                        // `scaleEffect` here bought nothing: measured, the sky
-                        // either side of the board came back at 99.9% of its
-                        // undimmed brightness while the board itself dimmed. So
-                        // the mask is given the room outright.
-                        Rectangle()
-                            .frame(
-                                width: metrics.boardSize * 3,
-                                height: metrics.boardSize * 3
-                            )
-
-                        // **A probe, for telling two failures apart.**
-                        //
-                        // If the holes do not appear, either the construction
-                        // is wrong — a `destinationOut` layer inside a mask not
-                        // cutting at all — or the construction is fine and the
-                        // object stack is not rendering into the mask, which
-                        // would point at the blend modes and drawing groups it
-                        // carries inside it. A plain circle has neither, so a
-                        // circular hole in the middle of the board says the
-                        // construction works and the content is the problem.
-                        if GameRules.debugDimHoleProbe, session.isDimmed || session.isResolvingAction {
-                            Circle()
-                                .frame(width: metrics.tileSize * 3, height: metrics.tileSize * 3)
-                                .blendMode(.destinationOut)
-                        }
-
-                        // **Holes, not silhouettes.**
-                        //
-                        // This used to be a second full pass over every object
-                        // on the board, rasterised through `drawingGroup` into a
-                        // surface half again the board's size — rebuilt every
-                        // frame for as long as a move was resolving, and
-                        // invisible to every counter, because a counter counts
-                        // view evaluations and this is fill.
-                        //
-                        // It is why the frame rate held at sixty while the board
-                        // was still and fell the moment anything moved, and why
-                        // `clouds` and `tick` went *down* as it fell: those are
-                        // the display's own rate, so they were reporting the
-                        // symptom.
-                        //
-                        // A hole does not need to be sprite-shaped. What the
-                        // wash is for is keeping the things that matter legible
-                        // through it, and a soft disc over each of them does
-                        // that for the cost of a gradient — no second pass, no
-                        // rasterisation, no timelines built twice.
-                        if !GameRules.debugDimHoleProbe,
-                           session.isDimmed || session.isResolvingAction {
-                            ForEach(
-                                objectsOnBoard(
-                                    plane: plane,
-                                    board: board,
-                                    includesGround: false
-                                )
-                            ) { object in
-                                RadialGradient(
-                                    colors: [Palette.white, .clear],
-                                    center: .center,
-                                    startRadius: 0,
-                                    endRadius: metrics.tileSize * GameRules.dimHoleReach
-                                )
-                                .frame(
-                                    width: metrics.tileSize * GameRules.dimHoleReach * 2,
-                                    height: metrics.tileSize * GameRules.dimHoleReach * 2
-                                )
-                                .modifier(
-                                    placedOnPlaneModifier(object.point, metrics: metrics)
-                                )
-                                .blendMode(.destinationOut)
-                            }
-                        }
-                    }
-                    // The subtraction has to resolve inside the mask, against
-                    // the rectangle it is cutting — not against whatever the
-                    // mask happens to be drawn over.
-                    .compositingGroup()
-                )
-                }
             }
             // **No group-wide z any more.**
             //
@@ -804,75 +713,7 @@ struct BoardView: View {
         }
     }
 
-    /// The wash that says the game is waiting on an answer.
-    ///
-    /// ## Where it sits
-    ///
-    /// Over the whole upper square, sky and letterboxing included — the pause is
-    /// about the *view*, not about the grid — but under the piece and the
-    /// cursor, which are the two things the player is still working with. Dimmed
-    /// ground with a bright cursor over it says exactly what is true: the board
-    /// is on hold and the thing you are moving is not.
-    ///
-    /// Sized past the board and reported back at board size, so it can cover the
-    /// sky without growing the stack it lives in and shifting everything that
-    /// positions itself inside — the same arrangement `CloudSpriteField` needs,
-    /// and for the same reason.
-    ///
-    /// Deeper than the action wash, and a different colour, because it means
-    /// something different: an action is over in a moment, and this is not over
-    /// until the player does something.
-    private func boardDim(metrics: PixelArtMetrics) -> some View {
-        Rectangle().fill(Palette.midnight)
-            .frame(width: availableSide, height: availableSide)
-            // One question, whatever the reason — see `GameSession.isDimmed`.
-            // Same reason as `actionDim`: this covers the whole square, and a
-            // thing that has left the square should not be under it.
-            .opacity(session.isDimmed && !session.isChangingPlane ? GameRules.boardDim : 0)
-            .animation(.easeOut(duration: 0.18), value: session.isDimmed)
-            .animation(.easeOut(duration: 0.18), value: session.isChangingPlane)
-            .allowsHitTesting(false)
-            .frame(width: metrics.boardSize, height: metrics.boardSize)
-    }
 
-    /// The wash that says the board is mid-move.
-    @ViewBuilder
-    private func actionDim(metrics: PixelArtMetrics) -> some View {
-        Rectangle()
-            .fill(Palette.coolBlack)
-            .frame(width: metrics.boardSize, height: metrics.boardSize)
-            // Drawn three times its size, but **laid out** at one.
-            //
-            // Framing it larger grew the stack it sits in, and everything in
-            // that stack is placed with `.position` — which is measured against
-            // the container. The board kept its own frame, so the damage showed
-            // up as objects flung toward a corner rather than as a bigger board.
-            // `scaleEffect` does not touch layout, so the dim can cover the
-            // screen without moving anything that shares the stack with it.
-            .scaleEffect(3)
-            // **Down while the world is moving.**
-            //
-            // This is a wash over *the board*, and it is drawn three times the
-            // board's size — a thousand points of coolBlack, most of a screen.
-            // The holes in it are punched by a rasterised copy of the object
-            // stack padded by three tiles, so anything further out than that is
-            // simply under the wash.
-            //
-            // A piece or an island crossing between planes is three whole
-            // *squares* out, twenty times further than the mask can reach. That
-            // is why the Nexys vanished mid-crossing and came back at both ends:
-            // the ends are the only moments it is near a board. It was never
-            // being clipped or mis-placed — it was under a black rectangle.
-            //
-            // And it should be. A crossing is not the board waiting on an action
-            // you need pointing at; it is the whole screen moving. See
-            // `GameSession.isChangingPlane`.
-            .opacity(session.isResolvingAction && !session.isChangingPlane
-                ? GameRules.actionDim : 0)
-            .animation(.easeOut(duration: 0.14), value: session.isResolvingAction)
-            .animation(.easeOut(duration: 0.14), value: session.isChangingPlane)
-            .allowsHitTesting(false)
-    }
 
     /// The plane's background, when there is art for it.
     ///
@@ -2107,10 +1948,80 @@ struct BoardView: View {
                 // Applied here, to the sibling, because this is the stack
                 // whose order is in question — the same number set on some
                 // descendant would order it against its own children instead.
-                .zIndex(object.z)
+                // **Lifted clear of the wash while there is one.**
+                //
+                // Ground keeps the row it stands on; everything standing *on*
+                // the ground is pushed above the wash's own depth, so the wash
+                // lands between the two. One constant, applied to a whole
+                // group, so nothing inside either group reorders — the rows
+                // still interleave with each other and the actors still
+                // interleave with each other. The only order that changes is
+                // ground against actor, which is precisely the change the wash
+                // is for.
+                .zIndex(object.z + (object.kind == .tileRow ? 0 : dimLift))
             }
+
+            wash(metrics: metrics)
         }
         .frame(width: metrics.boardSize, height: metrics.boardSize)
+    }
+
+    /// How far above the ground the things standing on it are lifted while the
+    /// wash is up. Past any row's own depth, and nothing else uses this range.
+    private var dimLift: Double {
+        washIsUp ? 1000 : 0
+    }
+
+    /// How dark the wash is, and why.
+    ///
+    /// **Two washes, not one.** Waiting on the player is a modal — the board
+    /// has stopped and is asking a question — and it is drawn to say so.
+    /// Resolving a move is a mood: something is happening, it will be over in a
+    /// moment, and a third of the board's brightness would be shouting. Asking
+    /// which outranks which in one place keeps them from ever being up at once
+    /// and adding together.
+    private var washDepth: Double {
+        guard !session.isChangingPlane, !planeIsAsleep else { return 0 }
+        if session.isDimmed { return GameRules.boardDim }
+        if session.isResolvingAction { return GameRules.actionDim }
+        return 0
+    }
+
+    private var washIsUp: Bool { washDepth > 0 }
+
+    /// The wash that says the board is mid-move, **in the stack rather than
+    /// over it**.
+    ///
+    /// ## Why this is a rectangle and not a mask
+    ///
+    /// It used to be drawn on top of everything, which meant the things it was
+    /// not supposed to cover had to be cut back out of it — a second full pass
+    /// over every object on the board, rasterised into a bitmap half again the
+    /// board's size, rebuilt every frame for as long as a move was resolving.
+    /// That was the most expensive thing in the game and no counter could see
+    /// it, because a counter counts view evaluations and this was fill.
+    ///
+    /// None of it was necessary. The board is already a depth-sorted stack, and
+    /// a wash is a thing at a depth: put it below the piece and above the
+    /// ground, and the piece is in front of it because it is in front of it.
+    /// There is nothing to cut out.
+    @ViewBuilder
+    private func wash(metrics: PixelArtMetrics) -> some View {
+        Rectangle()
+            .fill(session.isDimmed ? Palette.midnight : Palette.coolBlack)
+            .frame(width: metrics.boardSize, height: metrics.boardSize)
+            // Drawn past its own bounds, but **laid out** at one board.
+            //
+            // Framing it larger would grow the stack it sits in, and everything
+            // in that stack is placed with `.position`, which is measured
+            // against the container. `scaleEffect` does not touch layout, so
+            // the wash can cover the sky either side of the board without
+            // moving anything that shares the stack with it.
+            .scaleEffect(3)
+            .opacity(washDepth)
+            .animation(.easeOut(duration: GameRules.actionDimFade), value: washDepth)
+            .allowsHitTesting(false)
+            .zIndex(dimLift / 2)
     }
 
     /// Which objects are on the board right now.

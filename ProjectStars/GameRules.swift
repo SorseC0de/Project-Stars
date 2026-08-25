@@ -3685,15 +3685,10 @@ enum GameRules {
     /// Debug only, and off. See the comment where it is used: it exists to say
     /// whether a reverse mask cuts here at all, which is the one thing that
     /// separates a broken construction from mask-hostile content.
-    /// How far a hole in the action wash reaches, in tiles.
-    ///
-    /// Generous: a piece stands two tiles tall and a coin hovers above its
-    /// square, so a disc that merely covers the tile leaves the top of both in
-    /// the dark. It is a soft gradient, so the edge is a falloff rather than a
-    /// rim, and being too large costs only contrast.
-    static let dimHoleReach: CGFloat = 1.6
+    /// How long the action wash takes to come up and go down.
+    static let actionDimFade: TimeInterval = 0.14
 
-    static let debugDimHoleProbe = false
+
 
     /// How far the scrim behind a full-screen overlay covers the board.
     ///
