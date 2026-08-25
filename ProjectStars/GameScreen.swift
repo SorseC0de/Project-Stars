@@ -289,7 +289,7 @@ struct GameScreen: View {
                         // Over everything, including the death screen: the
                         // frames that matter most are the ones being dropped
                         // while something is covering the board.
-                        RenderTallyView()
+                        RenderTallyView(session: session)
                             .frame(maxWidth: .infinity, maxHeight: .infinity,
                                    alignment: .topTrailing)
 

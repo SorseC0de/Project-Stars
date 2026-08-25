@@ -2754,6 +2754,22 @@ final class GameSession {
         let travel = GameRules.ascentRiseDuration + arrivalDuration
 
         ascentRiseStartedAt = .now
+        // **Cleared on every way out of here, including the ones nobody
+        // writes down.**
+        //
+        // A replay is cancelled whenever the next one starts, and a crossing
+        // cancelled half way used to leave this raised for the rest of the run.
+        // Everything keyed on it then stuck with it: the piece stayed gold, it
+        // stopped taking its facing from a movement, it never grew a shadow
+        // again, the action wash stayed down — and the island's plane never
+        // slept, which is a whole board's worth of clocks running behind a
+        // screen nobody is looking at. A `defer` cannot be forgotten by a new
+        // early return the way four separate assignments can.
+        defer {
+            isChangingPlane = false
+            nexysRidesCamera = false
+        }
+
         isChangingPlane = true
         nexysRidesCamera = aboard
         cameraFrom = cameraRow
@@ -2765,7 +2781,6 @@ final class GameSession {
 
         guard !Task.isCancelled else {
             ascentRiseStartedAt = nil
-            nexysRidesCamera = false
             cameraRow = Double(World.row(of: engine.piece.plane))
             return
         }
@@ -2774,8 +2789,6 @@ final class GameSession {
         // Cleared *after* the apply. The island's offset is measured against the
         // square it is drawn in, and until the apply that is still the square it
         // left — dropping the offset first snaps it home for a frame.
-        nexysRidesCamera = false
-        isChangingPlane = false
         ascentRiseStartedAt = nil
         onArrival()
     }
@@ -3020,6 +3033,22 @@ final class GameSession {
         if from == .astra { disturbClouds(at: at) }
 
         cameraFrom = cameraRow
+        // **Cleared on every way out of here, including the ones nobody
+        // writes down.**
+        //
+        // A replay is cancelled whenever the next one starts, and a crossing
+        // cancelled half way used to leave this raised for the rest of the run.
+        // Everything keyed on it then stuck with it: the piece stayed gold, it
+        // stopped taking its facing from a movement, it never grew a shadow
+        // again, the action wash stayed down — and the island's plane never
+        // slept, which is a whole board's worth of clocks running behind a
+        // screen nobody is looking at. A `defer` cannot be forgotten by a new
+        // early return the way four separate assignments can.
+        defer {
+            isChangingPlane = false
+            nexysRidesCamera = false
+        }
+
         isChangingPlane = true
         withAnimation(.linear(duration: travel)) {
             isFalling = true
@@ -3584,6 +3613,13 @@ extension GameSession {
             // `newGame` clears this, which would have the piece stop being gold
             // and grow a ground shadow — and then carry that shadow down five
             // rows of empty sky.
+            // The same guarantee the other crossings have — see `climb`.
+            defer {
+                self.isChangingPlane = false
+                self.nexysRidesCamera = false
+                self.materialPlane = nil
+            }
+
             self.isFalling = true
             self.isChangingPlane = true
             self.materialPlane = .terra
@@ -4254,9 +4290,11 @@ extension GameSession {
         // whole row behind the camera. Neither costs anything the rest of the
         // time — there is one piece, and it is on the plane you are looking at.
         if plane == engine.piece.plane { return false }
-        if plane == engine.nexysPlane, isChangingPlane || nexysRidesCamera {
-            return false
-        }
+        // Narrower than it was. `isChangingPlane` is a fact about the *piece*,
+        // and the piece's own plane is already answered above — including it
+        // here meant the island's plane took a second, unrelated reason to stay
+        // awake, and the one that leaked.
+        if plane == engine.nexysPlane, nexysRidesCamera { return false }
 
         return !World.isVisible(
             row: World.row(of: plane),

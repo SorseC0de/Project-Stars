@@ -95,6 +95,13 @@ enum RenderTally {
 /// fact: one more clock, counting itself.
 struct RenderTallyView: View {
 
+    /// Read once a second for the standing facts — which planes are asleep, and
+    /// whether anything still thinks a crossing is in progress.
+    ///
+    /// A flag that leaks is invisible until something it gates misbehaves hours
+    /// later; on the readout it is a `1` that should be a `0`.
+    let session: GameSession
+
     @State private var lines: [String] = []
 
     var body: some View {
@@ -128,6 +135,17 @@ struct RenderTallyView: View {
             while !Task.isCancelled {
                 try? await Task.sleep(nanoseconds: 1_000_000_000)
                 guard !Task.isCancelled else { return }
+
+                RenderTally.gauge("f.chg", session.isChangingPlane ? 1 : 0)
+                RenderTally.gauge("f.rides", session.nexysRidesCamera ? 1 : 0)
+                RenderTally.gauge("f.fall", session.isFalling ? 1 : 0)
+                for plane in Plane.allCases {
+                    RenderTally.gauge(
+                        "awake.\(plane.rawValue)",
+                        session.planeIsAsleep(plane) ? 0 : 1
+                    )
+                }
+
                 lines = RenderTally.drain()
             }
         }
