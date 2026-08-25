@@ -153,14 +153,6 @@ enum PickupID: String, CaseIterable, Codable, Identifiable, Hashable {
 struct VirgoVictorylapEffect: PickupEffect {
 
     let id: PickupID = .virgoVictorylap
-    let rarity: PickupRarity = .legendary
-
-    /// Never drawn from the table. See the type's note.
-    let chance = 0
-    let displayName = "Virgo Victorylap"
-    let summary = "Mends the tile it was on, hole or not, and fills your meter."
-    let glyph = "✦"
-    let icon: String? = nil
 
     func plan(
         context: PickupContext,
@@ -199,15 +191,6 @@ struct VirgoVictorylapEffect: PickupEffect {
 struct ZChargeEffect: PickupEffect {
 
     let id: PickupID = .zCharge
-    let rarity: PickupRarity = .common
-
-    /// One against the Tear's three. Charge is the consolation prize for a
-    /// coin that was not a repair, not the other way round.
-    let chance = 20
-    let displayName = "Z-Charge"
-    let summary = "Gain \(GameRules.zChargePentacleAmount) ZC."
-    let glyph = "⚡"
-    let icon: String? = "charge"
 
     /// Commonest thing in the tier.
     func plan(
@@ -255,22 +238,6 @@ struct ZChargeEffect: PickupEffect {
 struct BubbleEffect: PickupEffect {
 
     let id: PickupID = .bubble
-    let rarity: PickupRarity = .common
-
-    /// Never rolled. Placed by `PiscesAridAquanaut` and by a fall — see
-    /// `GameEngine.scatterMeterAsBubbles(on:)`.
-    let chance = 0
-    let displayName = "Delta Droplet"
-    /// Says what it is, not what it pays.
-    let summary = "A droplet of pure, distilled Astral energy."
-    let glyph = "🫧"
-    let icon: String? = "pisces_droplet"
-    let element: ZodiacElement? = .water
-    let appearance: PentacleAppearance = .bubble
-
-    /// Gathered, not chosen — several stand at once and taking one leaves the
-    /// others. See `PickupClass.scatter`.
-    let pickupClass: PickupClass = .scatter
 
     /// Water settling on a square does not break it.
     let arrivalWearsTile = false
@@ -307,18 +274,6 @@ struct BubbleEffect: PickupEffect {
 struct AstralTearEffect: PickupEffect {
 
     let id: PickupID = .restoreTile
-    let rarity: PickupRarity = .common
-
-    /// Three against Z-Charge's one, which with the common tier at 75 makes this
-    /// a little over half of every coin opened — three grabs in five, near
-    /// enough. It is the floor the whole economy sits on: a coin that mends one
-    /// tile is small enough to be the ordinary case and still worth crossing the
-    /// board for.
-    let chance = 33
-    let displayName = "Astral Tears"
-    let summary = "Fully restores the tile you are standing on and one other at random."
-    let glyph = "✚"
-    let icon: String? = "heart_drop"
 
     /// Two tiles: **here**, and one elsewhere.
     ///
@@ -381,24 +336,6 @@ struct AstralTearEffect: PickupEffect {
 struct AstralBrookEffect: PickupEffect {
 
     let id: PickupID = .astralBrook
-    let rarity: PickupRarity = .uncommon
-
-    /// The four Essences are what the uncommon tier is *for*, and their current
-    /// rate plays well — three each keeps it where it was while the warps come
-    /// down around them.
-    let chance = 5
-    let displayName = "Astral Essence ✧ Brook"
-    /// Says where it takes you and not what it ignores on the way.
-    ///
-    /// The hole-crossing is the discovery: a player learns the Brook passes over
-    /// gaps by watching it pass over one, which is worth more than being told.
-    /// One line for both planes, because a coin that describes itself
-    /// differently depending on where you found it is a coin the player has to
-    /// read twice.
-    let summary = "An Astral water current carries you forward to the edge of the plane."
-    let glyph = "≈"
-    let icon: String? = "Element_Water"
-    let element: ZodiacElement? = .water
 
     /// The slide applies its own wear square by square, so the engine must not
     /// charge the destination a second time on arrival.
@@ -547,15 +484,6 @@ struct AstralBrookEffect: PickupEffect {
 struct AstralBoltEffect: PickupEffect {
 
     let id: PickupID = .astralBolt
-    let rarity: PickupRarity = .uncommon
-
-    /// Never drawn directly — see the note above.
-    let chance = 0
-
-    let displayName = "Astral Essence ✧ Bolt"
-    let summary = "Struck by Astral lightning, you are super-charged for \(GameRules.starMoves) turns. You do not damage tiles or fall in holes, and gain 1 ZC each turn."
-    let glyph = "⚡︎"
-    let icon: String? = "Element_Wind"
 
     /// Nothing is worn while the star runs anyway, but the coin's own square is
     /// the first thing that would have been.
@@ -584,19 +512,7 @@ struct AstralBoltEffect: PickupEffect {
 struct AstralBreezeEffect: PickupEffect {
 
     let id: PickupID = .astralBreeze
-    let rarity: PickupRarity = .uncommon
 
-    /// The four Essences are what the uncommon tier is *for*, and their current
-    /// rate plays well — three each keeps it where it was while the warps come
-    /// down around them.
-    let chance = 5
-    let displayName = "Astral Essence ✧ Breeze"
-    let summary = "An Astral wind carries you to a tile of choice within this plane."
-    let glyph = "❁"
-    let icon: String? = "breeze"
-
-    /// The player picks the destination, so this effect suspends the move.
-    let element: ZodiacElement? = .air
     let choice: PickupChoice = .tile
 
     func plan(
@@ -646,13 +562,6 @@ struct AstralBreezeEffect: PickupEffect {
 struct StardarEffect: PickupEffect {
 
     let id: PickupID = .stardar
-    let rarity: PickupRarity = .uncommon
-
-    let chance = 4
-    let displayName = "Stardar"
-    let summary = "Trust the glimmer of the stars to guide you to fortune"
-    let glyph = "◎"
-    let icon: String? = "radar"
 
     func plan(
         context: PickupContext,
@@ -681,13 +590,6 @@ struct StardarEffect: PickupEffect {
 struct NexyialBastionEffect: PickupEffect {
 
     let id: PickupID = .nexyialBastion
-    let rarity: PickupRarity = .uncommon
-
-    let chance = 4
-    let displayName = "Nexyial Bastion"
-    let summary = "Astral energy emits from the Nexys, protecting a tile from its next damage."
-    let glyph = "◇"
-    let icon: String? = "shield_reflect"
 
     func summary(in context: PickupSummaryContext) -> String {
         context.nexysPlane == context.plane
@@ -744,13 +646,6 @@ struct NexyialBastionEffect: PickupEffect {
 struct MatchShiftMiasmaEffect: PickupEffect {
 
     let id: PickupID = .matchShiftMiasma
-    let rarity: PickupRarity = .uncommon
-
-    let chance = 4
-    let displayName = "Match-shift Miasma"
-    let summary = "A strange sigil forms below."
-    let glyph = "≈"
-    let icon: String? = "typhoon"
 
     func summary(in context: PickupSummaryContext) -> String {
         context.signState.miasmaMarks.count < GameRules.miasmaMarkLimit
@@ -801,13 +696,6 @@ struct MatchShiftMiasmaEffect: PickupEffect {
 struct StellunaSpriteEffect: PickupEffect {
 
     let id: PickupID = .stellunaSprite
-    let rarity: PickupRarity = .rare
-
-    let chance = 3
-    let displayName = "Stelluna Sprite"
-    let summary = "A peculiar fairy whose sparkling wings make those it visits feel safe and protected."
-    let glyph = "✧"
-    let icon: String? = "fairy"
 
     func plan(
         context: PickupContext,
@@ -836,14 +724,6 @@ struct StellunaSpriteEffect: PickupEffect {
 struct PolarityProngsEffect: PickupEffect {
 
     let id: PickupID = .polarityProngs
-    let rarity: PickupRarity = .rare
-    let spawnPlane: Plane? = .terra
-
-    let chance = 2
-    let displayName = "Polarity Prongs"
-    let summary = "Shards of Astra rain down in an oddly specific pattern, emitting pulling pulses"
-    let glyph = "◈"
-    let icon: String? = "crystal_shower"
 
     func plan(
         context: PickupContext,
@@ -950,19 +830,6 @@ struct PolarityProngsEffect: PickupEffect {
 struct UnknownEssenceEffect: PickupEffect {
 
     let id: PickupID = .unknownEssence
-    let rarity: PickupRarity = .uncommon
-
-    /// On the uncommon-rare cusp: the weight sits at the bottom of its tier.
-    let chance = 1
-    let displayName = "Unknown Essence"
-
-    var summary: String {
-        "A strange black mist that crystalizes into sharp blades on contact, sapping ZC for the next "
-            + "\(GameRules.essenceMoves) turns."
-    }
-
-    let glyph = "◍"
-    let icon: String? = "spiked_swirl"
 
     /// Scorpio reads a different line, because he gets a different effect.
     func summary(in context: PickupSummaryContext) -> String {
@@ -994,21 +861,6 @@ struct UnknownEssenceEffect: PickupEffect {
 struct AstralEssenceEffect: PickupEffect {
 
     let id: PickupID = .astralEssence
-    let rarity: PickupRarity = .common
-
-    /// A little more likely than Z-Charge, whose weight is 1.
-    let chance = 20
-    let displayName = "Astral Essence"
-
-    var summary: String {
-        "The power of the stars energizes your next \(GameRules.essenceMoves) steps."
-    }
-
-    let glyph = "◎"
-    let icon: String? = "soul"
-
-    /// Astra only.
-    let spawnPlane: Plane? = .astra
 
     func plan(
         context: PickupContext,
@@ -1034,15 +886,6 @@ struct AstralEssenceEffect: PickupEffect {
 struct TrivialTremorEffect: PickupEffect {
 
     let id: PickupID = .trivialTremor
-    let rarity: PickupRarity = .common
-    let chance = 10
-    let displayName = "Trivial Tremor"
-    let summary = "Nothing to worry about."
-    let glyph = "▪︎"
-    let icon: String? = "slab"
-
-    /// Terra only. There is no ground to crack on Astra.
-    let spawnPlane: Plane? = .terra
 
     func plan(
         context: PickupContext,
@@ -1097,14 +940,6 @@ struct TrivialTremorEffect: PickupEffect {
 struct SeismicShakedownEffect: PickupEffect {
 
     let id: PickupID = .seismicShakedown
-    let rarity: PickupRarity = .uncommon
-    let chance = 2
-    let displayName = "Seismic Shakedown"
-    let summary = "Worrying warranted."
-    let glyph = "▰"
-    let icon: String? = "groundbreaker"
-
-    let spawnPlane: Plane? = .terra
 
     func plan(
         context: PickupContext,
@@ -1131,17 +966,6 @@ struct SeismicShakedownEffect: PickupEffect {
 struct AstralBlazeEffect: PickupEffect {
 
     let id: PickupID = .astralBlaze
-    let rarity: PickupRarity = .uncommon
-
-    /// The four Essences are what the uncommon tier is *for*, and their current
-    /// rate plays well — three each keeps it where it was while the warps come
-    /// down around them.
-    let chance = 5
-    let displayName = "Astral Essence ✧ Blaze"
-    let summary = "The ring of tiles around you loses one stage. Gain 1 ZC per tile damaged, 2 per tile broken."
-    let glyph = "✷"
-    let icon: String? = "Element_Fire"
-    let element: ZodiacElement? = .fire
 
     func plan(
         context: PickupContext,
@@ -1204,16 +1028,6 @@ struct AstralBlazeEffect: PickupEffect {
 struct AstralBlossomEffect: PickupEffect {
 
     let id: PickupID = .astralBlossom
-    let rarity: PickupRarity = .uncommon
-
-    /// The four Essences are what the uncommon tier is *for*, and their current
-    /// rate plays well — three each keeps it where it was while the warps come
-    /// down around them.
-    let chance = 5
-    let displayName = "Astral Essence ✧ Blossom"
-    let summary = "A ring of Astral energy blooms around you. On Astra it fully heals the ring; on Terra it mends one stage and leaves flowers, even on holes."
-    let glyph = "✽"
-    let icon: String? = "Element_Earth"
 
     func plan(
         context: PickupContext,
@@ -1296,19 +1110,6 @@ struct AstralBlossomEffect: PickupEffect {
 struct CornerWarpEffect: PickupEffect {
 
     let id: PickupID = .cornerWarp
-    let rarity: PickupRarity = .uncommon
-
-    /// Below the Essences: a warp rearranges where the whole run is happening,
-    /// which is a bigger event than any single tile changing.
-    let chance = 5
-    /// Renamed off "Corner Current", which collided with Aquarius' Crazy
-    /// Current — one is a coin that moves you once, the other is the rule that
-    /// governs how that sign moves at all, and two things called *current* in a
-    /// game about being carried around is a word doing too much work.
-    let displayName = "Corner-Cut"
-    let summary = "An Astral gust takes you to a random corner of the plane."
-    let glyph = "⟀"
-    let icon: String? = "corner_cut"
 
     func plan(
         context: PickupContext,
@@ -1361,14 +1162,6 @@ struct CornerWarpEffect: PickupEffect {
 struct NexysShiftEffect: PickupEffect {
 
     let id: PickupID = .nexysShift
-    let rarity: PickupRarity = .uncommon
-
-    /// The rarest uncommon. Moving the island moves the one fixed landmark on
-    /// the board, and at its old rate it was turning up often enough that the
-    /// Nexys stopped feeling fixed at all.
-    let chance = 5
-    let displayName = "Nexys Node"
-    let summary = "Return to the Nexys. Summon it if on a different plane."
 
     /// Two different moves, depending on where the island is. "Summon it if on a
     /// different plane" asks the player to work out which half applies; the
@@ -1379,8 +1172,6 @@ struct NexysShiftEffect: PickupEffect {
             ? "Return to the Nexys, or dismiss it if you are already on it."
             : "Summon the Nexys to this plane."
     }
-    let glyph = "◈"
-    let icon: String? = "nexys_node"
 
     func plan(
         context: PickupContext,
@@ -1426,13 +1217,6 @@ struct NexysShiftEffect: PickupEffect {
 struct ZodaemoniteSkullEffect: PickupEffect {
 
     let id: PickupID = .zodaemoniteSkull
-    let rarity: PickupRarity = .rare
-    let chance = 2
-    let displayName = "Zodaemonite Skull"
-    let summary = "A strange skull made of Zodaemonite; a pitch-black ore from "
-        + "deep beneath Terra. Your Zodea's Astral Essence is sapped upon touch."
-    let glyph = "☠"
-    let icon: String? = "skull_slices"
 
     /// Scorpio reads a different line, because the stone does a different thing
     /// to him.
@@ -1460,19 +1244,6 @@ struct ZodaemoniteSkullEffect: PickupEffect {
 struct ForcedFateEffect: PickupEffect {
 
     let id: PickupID = .forcedFate
-    let rarity: PickupRarity = .rare
-
-    /// One, down from three.
-    ///
-    /// Being *given* a Zodea is still the lesser of the pair against Alignment,
-    /// which is a decision — but three made it the commonest rare in the game,
-    /// and a coin that rewrites who you are playing should read as an event
-    /// rather than as a mechanic you plan around.
-    let chance = 2
-    let displayName = "Forced Fate"
-    let summary = "The stars have ordained your Zodea has changed."
-    let glyph = "✦"
-    let icon: String? = "forced_fate"
 
     /// ## Why company takes the hit
     ///
@@ -1519,16 +1290,6 @@ struct ForcedFateEffect: PickupEffect {
 struct AlignmentEffect: PickupEffect {
 
     let id: PickupID = .alignment
-    let rarity: PickupRarity = .rare
-
-    /// The rarest thing that is not pinned to a single square. Choosing your
-    /// own sign is the strongest effect in the game — it converts a bad run into
-    /// whichever run you wanted — so it has to be the one you almost never see.
-    let chance = 1
-    let displayName = "Alignment"
-    let summary = "When fully aligned, even the stars reaarange to your will."
-    let glyph = "✧"
-    let icon: String? = "alignment"
 
     /// The player picks, so this effect suspends the move.
     let choice: PickupChoice = .piece
@@ -1570,10 +1331,6 @@ struct AlignmentEffect: PickupEffect {
 struct PolarisEffect: PickupEffect {
 
     let id: PickupID = .polaris
-    let rarity: PickupRarity = .legendary
-    let displayName = "Polaris"
-    let summary = "A fragment of Old Astra, radiating with power. Restores the current plane, on your word."
-
 
     /// What it says when it is found cold.
     ///
@@ -1592,28 +1349,6 @@ struct PolarisEffect: PickupEffect {
     func appearance(on plane: Plane) -> PentacleAppearance {
         plane == .terra ? .dormant : appearance
     }
-    let glyph = "★"
-    let icon: String? = "eclipse_star"
-
-    /// Bright and starlit rather than the anonymous gold coin — a legendary is
-    /// rare enough that telegraphing it is the point.
-    let appearance: PentacleAppearance = .radiant
-
-    /// Rolled among the commons, not the legendaries.
-    ///
-    /// Being pinned to one square already makes it rare: a sparkle set has to
-    /// cover the top-centre tile before Polaris is even a candidate. Charging it
-    /// legendary odds *as well* is two gates on the same door, and it is why it
-    /// was never seen.
-    let rollsAsRarity: PickupRarity = .common
-
-    /// Zero: Polaris never wins an ordinary draw.
-    ///
-    /// It is placed by `GameEngine.drawPickup(at:on:)`, which asks the only
-    /// question that decides it — whether this is the north-middle tile, and
-    /// whether the third came up. Being in the weighted roll as well would be
-    /// two lotteries for one prize.
-    let chance = 0
 
     func plan(
         context: PickupContext,
@@ -1696,18 +1431,6 @@ struct PolarisEffect: PickupEffect {
 struct ShadowWorkEffect: PickupEffect {
 
     let id: PickupID = .shadowWork
-    let rarity: PickupRarity = .legendary
-    let displayName = "Shadow Work"
-    let summary = "Sometimes true power comes from conquering the darknesses avoided within self."
-    let glyph = "☾"
-    let icon: String? = "cross_flare"
-
-    /// Desaturated and dark, so it is recognisable on sight.
-    let appearance: PentacleAppearance = .shadow
-
-    /// As rare as Polaris. It is the other legendary, and the only coin in the
-    /// game that makes the board *worse* on purpose.
-    let chance = GameRules.shadowWorkChance
 
     func plan(
         context: PickupContext,
@@ -1769,18 +1492,6 @@ struct ShadowWorkEffect: PickupEffect {
 struct GaleforceGavelEffect: PickupEffect {
 
     let id: PickupID = .galeforceGavel
-    let appearance: PentacleAppearance = .gavel
-    let rarity: PickupRarity = .uncommon
-
-    /// Zero, so it is never rolled by anyone. Libra swaps it into the Nexys
-    /// Shift's place through `ZodiacPassive.pickupWeight` — the same idiom
-    /// Pisces uses to trade Z-Charge against the Tear.
-    let chance = 0
-    let displayName = "Galeforce Gavel"
-    let summary = "Tip the scales in your favor by placing tiles where you see fit."
-    let glyph = "⚖"
-    let icon: String? = "fluffy_swirl"
-    let element: ZodiacElement? = .air
 
     /// The slab arrives as ground; the square Libra is standing on to place it
     /// is not part of the deal and should not be charged for the privilege.
@@ -1835,21 +1546,6 @@ struct GaleforceGavelEffect: PickupEffect {
 struct GaiaDropletEffect: PickupEffect {
 
     let id: PickupID = .gaiaDroplet
-    let rarity: PickupRarity = .common
-
-    /// Never rolled. Placed by `PiscesGaiaGeyser` and by a pool burning off.
-    let chance = 0
-    let displayName = "Gaia Droplet"
-    let summary = "Gain \(GameRules.gaiaDropletCharge) ZC."
-    let glyph = "💧"
-    let icon: String? = "bubbles2"
-    let element: ZodiacElement? = .water
-    let appearance: PentacleAppearance = .droplet
-
-    /// Not part of the hunt — see `PickupClass`. Droplets are put on the board
-    /// deliberately and are meant to stay there, so the sparkle phase carries on
-    /// around them and taking a Pentacle does not shatter them.
-    let pickupClass: PickupClass = .boon
 
     /// The droplet mended its square when it appeared; landing on it must not
     /// then wear the square it just repaired.

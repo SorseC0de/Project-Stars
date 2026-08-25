@@ -400,22 +400,75 @@ struct PickupSummaryContext {
     let signState: SignState
 }
 
+/// Everything about a pickup that is a *description* rather than a behaviour.
+///
+/// Authored in `_Design/Pickups.xlsx` and compiled in — see
+/// `PickupDescriptors`, which the generator writes. A spreadsheet is the right
+/// home for this half: it is twenty-seven rows of the same dozen fields, most
+/// edits are to a name, a line of rules text or a weight, and the one question
+/// that spans the whole catalogue — do the chances add up — is a column sum
+/// there and an afternoon of grepping here.
+///
+/// It is emphatically *not* the home for the other half. What a coin does is
+/// `plan(...)`, and that stays in Swift where it can be read, typed and
+/// argued with.
+struct PickupDescriptor {
+
+    let displayName: String
+    let summary: String
+    let glyph: String
+    let icon: String?
+    let rarity: PickupRarity
+
+    /// Blank in the sheet means "the same as `rarity`", which is why this is
+    /// optional here and resolved at the point of use.
+    let rollsAsRarity: PickupRarity?
+
+    let chance: Int
+    let spawnPlane: Plane?
+    let element: ZodiacElement?
+    let appearance: PentacleAppearance
+    let pickupClass: PickupClass
+}
+
 extension PickupEffect {
+
+    /// This coin's row in the sheet.
+    ///
+    /// Every descriptive property below reads through here, so a coin whose row
+    /// is missing fails one obvious way — with its own id on screen — rather
+    /// than twelve subtle ones. The generator will not let it get that far: it
+    /// refuses to write at all if a struct has no row.
+    var sheet: PickupDescriptor {
+        PickupDescriptors.all[id] ?? PickupDescriptor(
+            displayName: "\(id)",
+            summary: "No row in Pickups.xlsx.",
+            glyph: "?",
+            icon: nil,
+            rarity: .common,
+            rollsAsRarity: nil,
+            chance: 0,
+            spawnPlane: nil,
+            element: nil,
+            appearance: .standard,
+            pickupClass: .pentacle
+        )
+    }
+
+    var displayName: String { sheet.displayName }
+    var summary: String { sheet.summary }
+    var glyph: String { sheet.glyph }
+    var rarity: PickupRarity { sheet.rarity }
 
     /// The plain line, unless the coin says otherwise.
     func summary(in context: PickupSummaryContext) -> String { summary }
 
-
-    /// No art yet. See `icon`.
-    var icon: String? { nil }
-
-    /// Spawns on both planes. See `spawnPlane`.
-    var spawnPlane: Plane? { nil }
-
-    var appearance: PentacleAppearance { .standard }
-    var element: ZodiacElement? { nil }
-    var chance: Int { 0 }
-    var rollsAsRarity: PickupRarity { rarity }
+    var icon: String? { sheet.icon }
+    var spawnPlane: Plane? { sheet.spawnPlane }
+    var appearance: PentacleAppearance { sheet.appearance }
+    var element: ZodiacElement? { sheet.element }
+    var chance: Int { sheet.chance }
+    var rollsAsRarity: PickupRarity { sheet.rollsAsRarity ?? rarity }
     var choice: PickupChoice { .none }
     var arrivalWearsTile: Bool { true }
     var pickupClass: PickupClass { .pentacle }
