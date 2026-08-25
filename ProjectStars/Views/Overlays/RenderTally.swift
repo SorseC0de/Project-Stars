@@ -141,6 +141,24 @@ struct RenderTallyView: View {
                 try? await Task.sleep(nanoseconds: 1_000_000_000)
                 guard !Task.isCancelled else { return }
 
+                // **Everything that could be piling up.**
+                //
+                // A frame rate that falls the longer you play is not the cost of
+                // drawing a board — that cost is the same on the first move as
+                // on the hundredth. It is something accumulating, and the way to
+                // find which is to watch all of them at once and see which
+                // number only ever goes up.
+                RenderTally.gauge("g.recolour", PaletteRecolour.cacheCount)
+                RenderTally.gauge("g.bursts", session.effectBursts.count)
+                RenderTally.gauge("g.smoke", session.smoke.count)
+                RenderTally.gauge("g.poofs", session.cloudPoofs.count)
+                RenderTally.gauge("g.heal", session.healSparkles.count)
+                RenderTally.gauge("g.disp", session.sparkleDispersals.count)
+                RenderTally.gauge("g.ghosts", session.afterimages.count)
+                RenderTally.gauge("g.pressed", session.pressedTiles.count)
+                RenderTally.gauge("g.flash", session.flashingTiles.count)
+                RenderTally.gauge("g.prompts", session.passivePrompts.count)
+
                 RenderTally.gauge("f.chg", session.isChangingPlane ? 1 : 0)
                 RenderTally.gauge("f.rides", session.nexysRidesCamera ? 1 : 0)
                 RenderTally.gauge("f.fall", session.isFalling ? 1 : 0)

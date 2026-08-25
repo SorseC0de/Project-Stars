@@ -40,6 +40,17 @@ enum PaletteRecolour {
     ///
     /// Returns the original when there is nothing to swap, so callers do not
     /// need to branch.
+    #if DEBUG
+    /// How many distinct recolours are being held.
+    ///
+    /// The cache is keyed on the swap list and never evicted, which is right
+    /// for a fixed set of swaps and a slow leak for any swap derived from a
+    /// value that moves: every new key is a full walk over every pixel of a
+    /// sprite, and the walk is the expensive half of drawing one. A number that
+    /// climbs while nothing new is on screen is the whole story.
+    static var cacheCount: Int { cache.count }
+    #endif
+
     static func image(_ id: SpriteID, frame: Int, swaps: [PaletteSwap]) -> UIImage? {
         guard let source = SpriteSheetLoader.image(for: id, frame: frame) else { return nil }
         guard !swaps.isEmpty else { return source }
