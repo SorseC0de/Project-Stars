@@ -238,42 +238,50 @@ struct BoardView: View {
                                 .blendMode(.destinationOut)
                         }
 
-                        // Built only while there is a wash to cut, because it
-                        // is a second pass over every object on the board.
+                        // **Holes, not silhouettes.**
+                        //
+                        // This used to be a second full pass over every object
+                        // on the board, rasterised through `drawingGroup` into a
+                        // surface half again the board's size — rebuilt every
+                        // frame for as long as a move was resolving, and
+                        // invisible to every counter, because a counter counts
+                        // view evaluations and this is fill.
+                        //
+                        // It is why the frame rate held at sixty while the board
+                        // was still and fell the moment anything moved, and why
+                        // `clouds` and `tick` went *down* as it fell: those are
+                        // the display's own rate, so they were reporting the
+                        // symptom.
+                        //
+                        // A hole does not need to be sprite-shaped. What the
+                        // wash is for is keeping the things that matter legible
+                        // through it, and a soft disc over each of them does
+                        // that for the cost of a gradient — no second pass, no
+                        // rasterisation, no timelines built twice.
                         if !GameRules.debugDimHoleProbe,
                            session.isDimmed || session.isResolvingAction {
-                                objects(
-                                    board: board,
+                            ForEach(
+                                objectsOnBoard(
                                     plane: plane,
-                                    includesGround: false,
-                                    metrics: metrics
+                                    board: board,
+                                    includesGround: false
                                 )
-                                // **Rasterised first, not merely grouped.**
-                                //
-                                // A mask wants plain alpha, and this stack has
-                                // none to offer: it is full of blend modes,
-                                // drawing groups and timelines, none of which a
-                                // mask renders the way the screen does. A plain
-                                // `Circle` in this same slot cuts its hole
-                                // perfectly, which is what proved the
-                                // construction sound and the content the
-                                // problem.
-                                //
-                                // `drawingGroup` renders the whole subtree into
-                                // one bitmap, resolving every blend inside it
-                                // into pixels — and a bitmap has exactly the one
-                                // thing a mask is asking for.
-                                //
-                                // Padded going in and unpadded coming out,
-                                // because that bitmap is cut to the view's
-                                // layout bounds: a shard stands two tiles tall
-                                // and the cursor hangs past the edge, and both
-                                // would lose whatever crossed the line. The same
-                                // reach `PaletteGlow` needs, for the same reason.
-                                .padding(metrics.tileSize * 3)
-                                .drawingGroup()
-                                .padding(-metrics.tileSize * 3)
+                            ) { object in
+                                RadialGradient(
+                                    colors: [Palette.white, .clear],
+                                    center: .center,
+                                    startRadius: 0,
+                                    endRadius: metrics.tileSize * GameRules.dimHoleReach
+                                )
+                                .frame(
+                                    width: metrics.tileSize * GameRules.dimHoleReach * 2,
+                                    height: metrics.tileSize * GameRules.dimHoleReach * 2
+                                )
+                                .modifier(
+                                    placedOnPlaneModifier(object.point, metrics: metrics)
+                                )
                                 .blendMode(.destinationOut)
+                            }
                         }
                     }
                     // The subtraction has to resolve inside the mask, against
