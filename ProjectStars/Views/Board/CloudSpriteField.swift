@@ -158,7 +158,7 @@ struct CloudSpriteField: View, Equatable {
         // fast enough to need a frame a frame.
         TimelineView(.animation(minimumInterval: 1 / GameRules.cloudFrameRate, paused: planeIsAsleep)) { timeline in
             #if DEBUG
-            let _ = RenderTally.tick("CloudSpriteField")
+            let _ = RenderTally.tick("clouds")
             #endif
             let now = clock(timeline.date.timeIntervalSinceReferenceDate)
 

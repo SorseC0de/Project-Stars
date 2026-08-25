@@ -46,7 +46,7 @@ struct BoardView: View {
 
     var body: some View {
         #if DEBUG
-        let _ = RenderTally.tick("board")
+        let _ = RenderTally.tick("board.\(shown.rawValue)")
         #endif
         let metrics = PixelArtMetrics(availableSide: availableSide)
         let plane = shown
@@ -1574,10 +1574,7 @@ struct BoardView: View {
         // drawn, because that moment *is* a resolution.
         SparkleView(
             size: metrics.tileSize,
-            // Which material, not which square. Normally the plane it is drawn
-            // in; held at the old one while a restart carries it down — see
-            // `GameSession.materialPlane`.
-            plane: session.materialPlane ?? shown,
+            plane: shown,
             index: index,
             tint: set.pattern == .ring ? Palette.pink : nil,
             sway: { surfaceSway(of: point, at: $0, metrics: metrics) },
@@ -2514,6 +2511,24 @@ struct BoardView: View {
         rock: CGFloat?
     ) -> some View {
         if session.engine.nexysPlane == plane {
+            // **What the island thinks is happening to it.**
+            //
+            // Four guesses at why it disappears mid-crossing have all been
+            // wrong, and every one of them was made by reading code. `nx.draw`
+            // ticking says it is being built at all; `nx.dy` is the camera
+            // offset it is taking, in points, which should run to three
+            // squares and back to zero; `nx.rides` says whether it believes it
+            // is crossing. If all three read right and it still cannot be seen,
+            // it is being covered by something, and the answer is not in here.
+            #if DEBUG
+            let _ = RenderTally.tick("nx.draw")
+            let _ = RenderTally.gauge("nx.rides", session.nexysRidesCamera ? 1 : 0)
+            let _ = RenderTally.gauge(
+                "nx.dy",
+                Int(session.nexysRidesCamera ? fallOffset(metrics: metrics) : 0)
+            )
+            #endif
+
             NexysView(
                 tileSize: metrics.tileSize,
                 scale: metrics.scale,
@@ -2583,12 +2598,14 @@ struct BoardView: View {
             zodiac: session.zodiac,
             tileSize: metrics.tileSize,
             scale: metrics.scale,
-            plane: shown,
+            // Which material, not which square. Normally the plane it is drawn
+            // in; held at the old one while a restart carries it down, so the
+            // sprite swaps when the feet land rather than when the button is
+            // pressed — see `GameSession.materialPlane`.
+            plane: session.materialPlane ?? shown,
             // Or the mane catching, which lights the same gemstone for a
             // moment — see `GameSession.blazeMane()`.
             isCharged: session.isZodiactionCharged || session.isManeBlazing,
-            // Gold for the whole crossing, and the plane's own material the
-            // instant it lands. See `PieceView.forcesGold`.
             // **Gold for exactly as long as it belongs nowhere.**
             //
             // Which is the whole of a crossing and no part of anything else. It
@@ -2597,10 +2614,9 @@ struct BoardView: View {
             // board was exchanged — half way up, in mid-air. And a fall out of
             // the world went gold for a drop that arrives nowhere and has no
             // new material to take, which is why the piece appeared to blink as
-            // it left Terra. See `GameSession.isChangingPlane`.
-            // Gold belongs to a piece between planes — unless something is
-            // holding the old plane's material, which a restart does until the
-            // feet are down. See `GameSession.materialPlane`.
+            // it left Terra. See `GameSession.isChangingPlane`. Unless
+            // something is holding the old plane's material, which a restart
+            // does until the feet are down — see `GameSession.materialPlane`.
             forcesGold: session.isChangingPlane && session.materialPlane == nil,
             twin: session.engine.piece.twin,
             // The forward copy is a pan on a string; the shadow belongs to the
@@ -3163,7 +3179,7 @@ struct BoardView: View {
     ) -> some View {
         TimelineView(.animation(paused: session.isPaused || planeIsAsleep)) { timeline in
             #if DEBUG
-            let _ = RenderTally.tick("Bd#10")
+            let _ = RenderTally.tick("tick.\(shown.rawValue)")
             #endif
             content(boardTick(at: timeline.date, metrics: metrics))
         }

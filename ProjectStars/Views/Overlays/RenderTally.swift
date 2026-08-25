@@ -81,4 +81,57 @@ enum RenderTally {
 
 }
 
+// MARK: - The readout
+
+/// The tally, on screen, once a second.
+///
+/// A single column down the right-hand edge, busiest at the top — so the thing
+/// that just multiplied is always the first line your eye lands on, wherever in
+/// the codebase it came from. Concatenating them into a paragraph was tried and
+/// is unreadable while something is happening on the board, which is the only
+/// time this is worth looking at.
+///
+/// `FPS` is in the list rather than beside it, because it is the same kind of
+/// fact: one more clock, counting itself.
+struct RenderTallyView: View {
+
+    @State private var lines: [String] = []
+
+    var body: some View {
+        ZStack(alignment: .topTrailing) {
+            // **The frame clock.**
+            //
+            // Ticks itself into the tally like every other clock, so the fps
+            // number is measured the same way as everything it is being
+            // compared against. Drawing nothing: it exists to be asked for a
+            // frame, not to show one.
+            TimelineView(.animation) { _ in
+                let _ = RenderTally.tick("FPS")
+                Color.clear
+            }
+
+            VStack(alignment: .trailing, spacing: 0) {
+                ForEach(lines, id: \.self) { line in
+                    Text(line)
+                        .font(.system(size: 9, weight: .semibold, design: .monospaced))
+                        .foregroundStyle(Palette.white)
+                        .shadow(color: Palette.coolBlack, radius: 0, x: 1, y: 1)
+                }
+            }
+            .padding(.trailing, 4)
+            .padding(.top, 2)
+        }
+        .allowsHitTesting(false)
+        // Drained on its own clock rather than inside `body`: writing state
+        // from a view's body makes the count its own cause.
+        .task {
+            while !Task.isCancelled {
+                try? await Task.sleep(nanoseconds: 1_000_000_000)
+                guard !Task.isCancelled else { return }
+                lines = RenderTally.drain()
+            }
+        }
+    }
+}
+
 #endif

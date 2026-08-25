@@ -286,6 +286,13 @@ struct GameScreen: View {
                         // The layer switchboard is *not* parked, because what it is for is
                         // not finished: it takes the board apart one layer at a time while
                         // the frame counter is running. See `LayerBench`.
+                        // Over everything, including the death screen: the
+                        // frames that matter most are the ones being dropped
+                        // while something is covering the board.
+                        RenderTallyView()
+                            .frame(maxWidth: .infinity, maxHeight: .infinity,
+                                   alignment: .topTrailing)
+
                         LayerBenchControls(session: session)
                             .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .topLeading)
                             .padding(.leading, 6)
