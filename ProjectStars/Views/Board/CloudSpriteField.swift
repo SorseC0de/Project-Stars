@@ -170,66 +170,30 @@ struct CloudSpriteField: View, Equatable {
             // field read as a rectangle of weather rather than as sky.
             let wall = timeline.date.timeIntervalSinceReferenceDate
 
-            // **A row's canvas is a row tall.**
-            //
-            // Every one of these used to be a whole board square — and on Astra
-            // there are seven of them, one per row, each rasterising a surface
-            // the size of the entire board thirty times a second to draw one
-            // band of cloud across the middle of it. That is most of a
-            // megapixel of fill per row per frame for content occupying a
-            // fraction of it, seven times over, and it is the whole of why
-            // Astra costs what Terra does not.
-            //
-            // The band is measured from the row's own projected centre rather
-            // than assumed, because the perspective does not space the rows
-            // evenly: the back row's is a fraction of the front row's.
-            let span = band
-
             Canvas { context, _ in
-                context.translateBy(x: overhang, y: overhang - span.top)
+                context.translateBy(x: overhang, y: overhang)
                 draw(&context, at: now, impulseNow: wall)
             }
             .frame(
                 width: metrics.boardSize + overhang * 2,
-                height: span.height + overhang * 2
+                height: metrics.boardSize + overhang * 2
             )
-            // …and then reported to the layout as board-sized, so nothing that
-            // shares the stack resolves its `.position` against a different
-            // space. The drawing room above is room, not size — without this
-            // the enclosing `ZStack` grew to the padded bounds and everything
-            // else in it that positions itself, the tile faces and the
-            // sparkles, drew a cloud's width off the grid.
+            // …and then reported to the layout as board-sized.
             //
-            // The band's own offset is undone here for the same reason: the
-            // canvas sits where its row is, and the layout still sees a board.
-            .offset(y: span.top + span.height / 2 - metrics.boardSize / 2)
+            // The padding above is drawing room, not size. Without this the
+            // enclosing `ZStack` grew to the padded bounds, and everything else
+            // in it that positions itself — the tile faces, the sparkles —
+            // resolved `.position` against the larger space and drew a cloud's
+            // width off the grid.
+            //
+            // **And it is not worth narrowing to the row.** That was tried: a
+            // cloud is two tiles across, so a band with enough margin either
+            // side of its row came out *taller* than the board it replaced, and
+            // paid for an extra offset and frame on each of seven rows for the
+            // privilege. Measured, it cost frames.
             .frame(width: metrics.boardSize, height: metrics.boardSize)
         }
         .allowsHitTesting(false)
-    }
-
-    /// How far down the board this field has to draw, and how tall.
-    ///
-    /// A whole board when it is drawing the whole board — the placeholder path,
-    /// which has no row — and one row's worth otherwise. The reach either side
-    /// of the row's centre is two clouds, which is more than the drift, the
-    /// stretch, the wake, the dip and a Pentacle's lift can add up to between
-    /// them; a margin that merely usually suffices is one that clips on the
-    /// frame nobody was looking at.
-    private var band: (top: CGFloat, height: CGFloat) {
-        guard let row else { return (0, metrics.boardSize) }
-
-        let centre = metrics.projected(
-            GridPoint(0, row),
-            zoom: zoom,
-            lift: lift,
-            emphasis: emphasis,
-            pivot: GameRules.astraDepthPivot,
-            spacing: CGSize(width: separationX, height: separationY)
-        ).position.y
-
-        let reach = cloudSide * baseSize * 2
-        return (centre - reach, reach * 2)
     }
 
     /// The size one cloud is drawn at, in points.

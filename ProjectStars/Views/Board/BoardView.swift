@@ -185,7 +185,22 @@ struct BoardView: View {
                 // dimmed for the overwhelming majority of them. The dims fade
                 // their own opacity in and out; what this skips is the machinery
                 // around them.
-                if (session.isDimmed || session.isResolvingAction), !session.isChangingPlane {
+                // **The plane being looked at, and only that one.**
+                //
+                // `isDimmed` and `isResolvingAction` are facts about the run,
+                // not about a square, so both planes were building this — and
+                // this is the most expensive thing on the board: a second full
+                // pass over every object, rasterised through `drawingGroup`
+                // into a surface half again the board's size, rebuilt every
+                // frame for as long as a move is resolving.
+                //
+                // Two of them. One of them for a plane that is off screen, whose
+                // clocks are paused but whose *body* is still re-evaluated every
+                // time either flag moves — which is why Astra's board and its
+                // island were ticking away while the player was on Terra, and
+                // why the frame rate fell only while something was moving.
+                if (session.isDimmed || session.isResolvingAction),
+                   !session.isChangingPlane, !planeIsAsleep {
                 ZStack {
                     actionDim(metrics: metrics)
                     boardDim(metrics: metrics)

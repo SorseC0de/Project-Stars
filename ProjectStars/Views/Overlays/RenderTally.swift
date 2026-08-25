@@ -114,7 +114,12 @@ struct RenderTallyView: View {
             // frame, not to show one.
             TimelineView(.animation) { _ in
                 let _ = RenderTally.tick("FPS")
-                Color.clear
+                // A point, not a screen. `Color.clear` fills whatever it is
+                // given, and this is given the whole screen — a full-size
+                // transparent layer re-composited sixty times a second, by the
+                // one view whose entire job is to not change what anything
+                // costs.
+                Color.clear.frame(width: 1, height: 1)
             }
 
             VStack(alignment: .trailing, spacing: 0) {
