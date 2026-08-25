@@ -67,6 +67,12 @@ struct AfterimageView: View {
     let age: Double
 
     var body: some View {
+        #if DEBUG
+        // Counted because a trail is three more of the most complicated view in
+        // the game, drawn only while something is moving — which is the one
+        // time there is no frame to spare for it.
+        let _ = RenderTally.tick("ghost")
+        #endif
         // **The assembled figure**, not a bare sprite.
         //
         // A ghost is a picture of what was standing there, and what is standing
@@ -86,7 +92,9 @@ struct AfterimageView: View {
             scale: scale,
             plane: plane,
             isCharged: isCharged,
-            // A ghost is a mark, not a thing standing on the square.
+            // A ghost is not a source of light — see `PieceView.showsAura`.
+            showsAura: false,
+            // Nor a thing standing on the square.
             showsShadow: false,
             facing: facing,
             stormPhase: stormPhase

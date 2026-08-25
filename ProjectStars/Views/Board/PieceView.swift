@@ -57,6 +57,20 @@ struct PieceView: View {
     /// the turn changes every turn, and either of them can be the one that fell.
     var twin: GeminiHalf?
 
+    /// Whether the charged figure's blurred halo is drawn.
+    ///
+    /// **Off for afterimages.** A ghost is a picture of what was standing
+    /// somewhere, and the aura is not part of the figure — it is light coming
+    /// off the living one. Three of them trailing behind read as four charged
+    /// pieces rather than as one leaving a mark.
+    ///
+    /// It is also the most expensive thing the piece draws: two copies of the
+    /// whole silhouette, each through a shader and then a Gaussian blur, which
+    /// is an offscreen pass apiece. A charged sign with a trail was paying for
+    /// eight of them a frame, and that is where the frame rate went while
+    /// moving.
+    var showsAura = true
+
     /// Whether the pool of shadow under the figure is drawn.
     ///
     /// Off for afterimages: a ghost is a picture of the figure, and a trail of
@@ -343,7 +357,7 @@ struct PieceView: View {
             ) {
                 charged(intensity: GameRules.aquariusBodyGlowShare)
             }
-            .background { aura }
+            .background { if showsAura { aura } }
         } else if isCharged {
             charged()
         } else if let resting = gem.resting {

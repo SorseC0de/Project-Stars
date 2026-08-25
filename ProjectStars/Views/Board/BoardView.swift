@@ -2015,9 +2015,15 @@ struct BoardView: View {
             // Framing it larger would grow the stack it sits in, and everything
             // in that stack is placed with `.position`, which is measured
             // against the container. `scaleEffect` does not touch layout, so
-            // the wash can cover the sky either side of the board without
-            // moving anything that shares the stack with it.
-            .scaleEffect(3)
+            // the wash can cover the letterboxing either side of the board
+            // without moving anything that shares the stack with it.
+            //
+            // **As far as the square, and no further.** This was three, which
+            // is nine board-squares of semi-transparent fill blended every
+            // frame for as long as a move lasted, to cover a plane square that
+            // is barely larger than one. Six and a half times the pixels for
+            // nothing anybody can see.
+            .scaleEffect(max(availableSide / metrics.boardSize, 1))
             .opacity(washDepth)
             .animation(.easeOut(duration: GameRules.actionDimFade), value: washDepth)
             .allowsHitTesting(false)
