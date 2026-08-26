@@ -59,6 +59,15 @@ final class BoardScene: SKScene {
     /// when it actually changes rather than every frame.
     private var wearing: SpriteID?
 
+    /// The square the piece was last sent to.
+    ///
+    /// A step changes `piece.point` in one go — the model does not travel, it
+    /// arrives — so setting the position from it every frame would teleport.
+    /// SwiftUI hides that by animating the change; a scene has to be told, and
+    /// what it is told is an action to run.
+    private var sentTo: GridPoint?
+    private var sentOn: Plane?
+
     /// The board each plane was last built from.
     ///
     /// A scene is only cheap because it is not rebuilt — so it has to be told
@@ -262,14 +271,37 @@ final class BoardScene: SKScene {
             wearing = id
         }
 
-        let spot = metrics.projected(standing.point)
         let inset = (side - metrics.boardSize) / 2
-        piece.position = CGPoint(
+        let spot = metrics.projected(standing.point)
+        let seat = CGPoint(
             x: spot.position.x + inset,
             y: -CGFloat(World.row(of: standing.plane)) * side
                 - spot.position.y - inset - metrics.tileSize / 2
         )
-        piece.setScale(spot.scale)
+
+        // **Sent, not set.** Only when the square actually changed, and as an
+        // action the render thread carries out — which is the whole point:
+        // travelling costs one instruction, not a position written every frame.
+        if standing.point != sentTo || standing.plane != sentOn {
+            sentTo = standing.point
+            sentOn = standing.plane
+
+            piece.removeAction(forKey: "step")
+            let span = session.movement?.duration ?? GameRules.hopDuration
+            if span > 0, piece.parent != nil, sentTo != nil {
+                let go = SKAction.move(to: seat, duration: span)
+                go.timingMode = SKActionTimingMode.easeInEaseOut
+                piece.run(go, withKey: "step")
+                piece.run(.scale(to: spot.scale, duration: span))
+            } else {
+                piece.position = seat
+                piece.setScale(spot.scale)
+            }
+        } else if piece.action(forKey: "step") == nil {
+            // Standing still, or carried by the camera: keep it seated.
+            piece.position = seat
+            piece.setScale(spot.scale)
+        }
 
         // The cursor, on the square the next move would land on.
         let aim = session.engine.cursor(
@@ -286,14 +318,14 @@ final class BoardScene: SKScene {
 
         // The island, on whichever plane it is currently part of.
         let home = session.engine.nexysPlane
-        let seat = metrics.projected(GameRules.nexysPoint)
+        let perch = metrics.projected(GameRules.nexysPoint)
         let base = CGPoint(
-            x: seat.position.x + inset,
-            y: -CGFloat(World.row(of: home)) * side - seat.position.y - inset
+            x: perch.position.x + inset,
+            y: -CGFloat(World.row(of: home)) * side - perch.position.y - inset
         )
         for node in [island, pillar] {
             node.position = base
-            node.setScale(seat.scale)
+            node.setScale(perch.scale)
             // Behind the piece, and the pillar in front of it: the piece stands
             // between the two halves of the same rock.
             node.zPosition = node === pillar ? 600 : 300
