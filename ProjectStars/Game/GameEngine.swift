@@ -5388,6 +5388,9 @@ struct GameEngine {
     /// Contains no decisions and no randomness — every choice was already made
     /// during planning, which is what makes replaying a plan deterministic.
     mutating func apply(_ event: GameEvent) {
+        #if DEBUG
+        RenderTally.count("apply")
+        #endif
         switch event {
         case .moveBlocked:
             break // Presentation only.

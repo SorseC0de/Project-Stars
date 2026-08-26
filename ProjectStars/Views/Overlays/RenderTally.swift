@@ -83,6 +83,24 @@ enum RenderTally {
         worstGap = max(worstGap, gap)
     }
 
+    /// The longest a named piece of work took in the last second, in ms.
+    ///
+    /// A worst frame of sixty to a hundred milliseconds is not a board that is
+    /// generally expensive — that would show as a steadily raised floor. It is
+    /// one frame doing something enormous, which means synchronous work, which
+    /// means it can be timed directly instead of inferred.
+    private static var spans: [String: TimeInterval] = [:]
+
+    @discardableResult
+    nonisolated static func span<T>(_ key: String, _ work: () throws -> T) rethrows -> T {
+        let started = DispatchTime.now().uptimeNanoseconds
+        defer {
+            let took = Double(DispatchTime.now().uptimeNanoseconds - started) / 1_000_000_000
+            MainActor.assumeIsolated { spans[key] = max(spans[key] ?? 0, took) }
+        }
+        return try work()
+    }
+
     /// Records one evaluation of `key`.
     static func tick(_ key: String) {
         counts[key, default: 0] += 1
@@ -112,11 +130,18 @@ enum RenderTally {
 
         let worst = worstGap
         worstGap = 0
+
+        // Anything that took longer than a frame at 120Hz is worth naming.
+        let slow = spans
+            .filter { $0.value > 0.008 }
+            .sorted { $0.value > $1.value }
+            .map { String(format: "%@ %.0fms", $0.key, $0.value * 1000) }
+        spans.removeAll(keepingCapacity: true)
         counts.removeAll(keepingCapacity: true)
 
         // First, because it is the only line that says whether there is room.
         let budget = String(format: "worst %.1fms", worst * 1000)
-        return [budget] + busiest + held
+        return [budget] + slow + busiest + held
     }
 
 }

@@ -97,6 +97,9 @@ final class GameSession {
     ///
     /// Called after every applied event. Cheap, and it cannot go stale.
     private func publish() {
+        #if DEBUG
+        RenderTally.count("pub")
+        #endif
         zodiactionMeter = engine.zodiactionMeter
         zodiactionMeterMax = engine.zodiactionMeterMax
         // Held steady while a move plays out.
@@ -1236,7 +1239,14 @@ final class GameSession {
         previewDirection = nil
         previewReach = 0
 
+        // Timed: a worst frame of sixty to a hundred milliseconds during a move
+        // is one frame doing something enormous, and planning is the largest
+        // synchronous thing a move does. See `RenderTally.span`.
+        #if DEBUG
+        let events = RenderTally.span("plan") { engine.plan(direction, reach: reach) }
+        #else
         let events = engine.plan(direction, reach: reach)
+        #endif
         guard !events.isEmpty else { return }
 
         // A rejected swipe has nothing to animate — just nudge and stay idle.
