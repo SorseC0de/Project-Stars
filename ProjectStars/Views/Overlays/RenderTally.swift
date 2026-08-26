@@ -59,6 +59,30 @@ enum RenderTally {
         MainActor.assumeIsolated { tick(key) }
     }
 
+    /// The longest gap between two frames in the last second, in milliseconds.
+    ///
+    /// **This is the number that matters, and `FPS` never was.** A frame counter
+    /// driven by a `TimelineView` reports the *display's* rate, and iOS lowers
+    /// that on its own when nothing is asking to be drawn — so sixty can mean
+    /// "idling comfortably" or "flat out and missing", and the two are
+    /// indistinguishable. Frame *time* is not: at 120Hz a frame has 8.3ms and at
+    /// 60Hz it has 16.7ms, so a worst case well under the budget is headroom
+    /// however low the rate has dropped.
+    private static var lastFrame: TimeInterval?
+    private static var worstGap: TimeInterval = 0
+
+    static func frame(at date: Date) {
+        let now = date.timeIntervalSinceReferenceDate
+        defer { lastFrame = now }
+        guard let lastFrame else { return }
+
+        let gap = now - lastFrame
+        // A gap longer than a quarter second is the app coming back from
+        // somewhere, not a slow frame.
+        guard gap < 0.25 else { return }
+        worstGap = max(worstGap, gap)
+    }
+
     /// Records one evaluation of `key`.
     static func tick(_ key: String) {
         counts[key, default: 0] += 1
@@ -86,8 +110,13 @@ enum RenderTally {
             .sorted { $0.key < $1.key }
             .map { "\($0.key) \($0.value)" }
 
+        let worst = worstGap
+        worstGap = 0
         counts.removeAll(keepingCapacity: true)
-        return busiest + held
+
+        // First, because it is the only line that says whether there is room.
+        let budget = String(format: "worst %.1fms", worst * 1000)
+        return [budget] + busiest + held
     }
 
 }
@@ -123,8 +152,9 @@ struct RenderTallyView: View {
             // number is measured the same way as everything it is being
             // compared against. Drawing nothing: it exists to be asked for a
             // frame, not to show one.
-            TimelineView(.animation) { _ in
+            TimelineView(.animation) { timeline in
                 let _ = RenderTally.tick("FPS")
+                let _ = RenderTally.frame(at: timeline.date)
                 // A point, not a screen. `Color.clear` fills whatever it is
                 // given, and this is given the whole screen — a full-size
                 // transparent layer re-composited sixty times a second, by the

@@ -84,3 +84,33 @@ from frame-rate deltas, and every one has been wrong.
   is applied outside the board's placement and the flags read correctly; it is
   visible at both ends of the crossing and nowhere between.
 - Terra pop-tiles are skewed and sit slightly low. Explicitly lowest priority.
+
+## The measurement itself is suspect (2026-08-26)
+
+Three findings that change how any of this should be read.
+
+**`fracture` reads 0.** The board is no longer rebuilt at display rate — that fix
+landed and worked. It did not move the frame rate, so the cost is elsewhere.
+
+**The frame rate warms up.** On a fresh build: 15–20fps, then 30–40 after a
+reset, then 50–60, then **120 resting and 60–90 moving** after a few minutes.
+Then it fell back to 60/40–50 with the piece standing still. Nothing in the game
+changed across any of that. This is compilation, image decoding and paging
+settling — plus host contention, since testing happens in the canvas simulator.
+
+**`FPS` cannot tell idling from struggling.** It is a `TimelineView`, so it
+reports the *display's* rate, and iOS lowers that by itself when nothing is
+asking to be drawn. Sixty resting may be a display idling with the board
+genuinely still. The 60↔120 swing while stationary is consistent with adaptive
+refresh, not with anything in the game.
+
+So the readout now leads with **`worst NNms`** — the longest gap between two
+frames in the last second. That is headroom, and it is unambiguous:
+
+- 120Hz gives a frame 8.3ms; 60Hz gives 16.7ms.
+- `worst 4ms` at 60fps = idling with room to spare.
+- `worst 30ms` at 60fps = missing frames.
+
+**Read `worst`, not `FPS`.** And take absolute numbers from a device, not the
+canvas — an earlier session already found the canvas lagging where the device
+did not.
