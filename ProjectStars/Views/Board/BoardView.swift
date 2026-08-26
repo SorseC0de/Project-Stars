@@ -3230,40 +3230,7 @@ struct BoardView: View {
         return tick
     }
 
-    private func hopPose(at date: Date) -> HopPose {
-        // A deliberate leap outranks a hop: it is a different shape, and the two
-        // are never wanted at once.
-        if let leapt = session.leapStartedAt {
-            let weight = session.leapWeight
-            let span = weight == .flop ? GameRules.flopDuration : GameRules.leapDuration
-            return .leap(progress: date.timeIntervalSince(leapt) / span, weight: weight)
-        }
-
-        guard let started = session.hopStartedAt else { return .rest }
-
-        // Only a style that leaves the ground gets the arc and the squash.
-        //
-        // Every step sets `hopStartedAt`, whatever it is — the style rides on
-        // the event rather than deciding whether it fired — so a slide was
-        // being posed as a hop. `arcs` is already the question, and it is the
-        // same one `bouncesOnArrival` asks a few lines further down.
-        guard session.movement?.style.arcs ?? true else { return .rest }
-
-        var pose = HopPose.at(
-            // Stretched past the step it belongs to — see
-            // `GameRules.hopPoseStretch`.
-            progress: date.timeIntervalSince(started)
-                / (session.hopDuration * GameRules.hopPoseStretch),
-            distance: session.hopDistance
-        )
-        // Landing on the island is a climb, not a step. See
-        // `GameRules.hopArcHeightOntoNexys`.
-        if session.engine.piece.point == GameRules.nexysPoint,
-           session.engine.nexysPlane == session.engine.piece.plane {
-            pose.lift *= (1 + GameRules.hopArcHeightOntoNexys)
-        }
-        return pose
-    }
+    private func hopPose(at date: Date) -> HopPose { session.hopPose(at: date) }
 
     /// How far through the island's settling rock, or `nil` when it is still.
     ///

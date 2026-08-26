@@ -662,6 +662,49 @@ final class GameSession {
     /// And stops it.
     func endMovement() { movement = nil }
 
+    /// How the figure is posed right now: hopping, leaping, or at rest.
+    ///
+    /// **On the session, because two things draw it.** It reads nothing but
+    /// session state and it is a pure function of elapsed time — written that
+    /// way so an animation could not leave it stuck part-way — which is exactly
+    /// what lets a scene read it on SpriteKit's loop as easily as a view reads
+    /// it in a body.
+    func hopPose(at date: Date) -> HopPose {
+        // A deliberate leap outranks a hop: it is a different shape, and the two
+        // are never wanted at once.
+        if let leapt = leapStartedAt {
+            let weight = leapWeight
+            let span = weight == .flop ? GameRules.flopDuration : GameRules.leapDuration
+            return .leap(progress: date.timeIntervalSince(leapt) / span, weight: weight)
+        }
+
+        guard let started = hopStartedAt else { return .rest }
+
+        // Only a style that leaves the ground gets the arc and the squash.
+        //
+        // Every step sets `hopStartedAt`, whatever it is — the style rides on
+        // the event rather than deciding whether it fired — so a slide was
+        // being posed as a hop. `arcs` is already the question, and it is the
+        // same one `bouncesOnArrival` asks a few lines further down.
+        guard movement?.style.arcs ?? true else { return .rest }
+
+        var pose = HopPose.at(
+            // Stretched past the step it belongs to — see
+            // `GameRules.hopPoseStretch`.
+            progress: date.timeIntervalSince(started)
+                / (hopDuration * GameRules.hopPoseStretch),
+            distance: hopDistance
+        )
+        // Landing on the island is a climb, not a step. See
+        // `GameRules.hopArcHeightOntoNexys`.
+        if engine.piece.point == GameRules.nexysPoint,
+           engine.nexysPlane == engine.piece.plane {
+            pose.lift *= (1 + GameRules.hopArcHeightOntoNexys)
+        }
+        return pose
+    }
+
+
     /// When the run began, for the arrival wash. `nil` once it has faded.
     private(set) var spawnedAt: Date?
 

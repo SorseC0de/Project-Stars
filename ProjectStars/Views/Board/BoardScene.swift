@@ -47,7 +47,8 @@ final class BoardScene: SKScene {
 
     /// One container per plane, parked at its row in the column.
     private var planes: [Plane: SKNode] = [:]
-    private var piece = SKSpriteNode()
+    private var piece = SKNode()
+    private var figure = SKSpriteNode()
     private var cursor = SKSpriteNode()
     /// The coins on the board, by the square they are standing on.
     ///
@@ -143,13 +144,107 @@ final class BoardScene: SKScene {
         let board = session.engine[plane]
         let inset = (side - metrics.boardSize) / 2
 
-        for point in board.allPoints {
-            guard let node = ground(at: point, on: plane, board: board) else { continue }
-            node.position.x += inset
-            node.position.y -= inset
-            holder.addChild(node)
+        if plane == .terra {
+            for row in 0..<board.size {
+                guard let node = terraRow(row, board: board) else { continue }
+                node.position.x += inset
+                node.position.y -= inset
+                holder.addChild(node)
+            }
+        } else {
+            for point in board.allPoints {
+                guard let node = ground(at: point, on: plane, board: board) else { continue }
+                node.position.x += inset
+                node.position.y -= inset
+                holder.addChild(node)
+            }
         }
         built[plane] = board
+    }
+
+    /// One row of Terra: seven tiles in a single sprite, warped into its band.
+    ///
+    /// **A row, not seven squares.** Terra's ground is a keystone — each band's
+    /// top edge narrower than its bottom — and squares placed individually
+    /// inside one open seams, which is the whole reason the SwiftUI board draws
+    /// rows rather than tiles. `SKWarpGeometryGrid` is the same trapezoid: the
+    /// bottom corners stay and the top two come in by `1 / (1 + lean)`, which is
+    /// exactly what the projective transform in `Foreshortened` works out to.
+    private func terraRow(_ row: Int, board: Board) -> SKSpriteNode? {
+        guard let strip = Self.rowImage(row, board: board, metrics: metrics) else {
+            return nil
+        }
+
+        let texture = SKTexture(image: strip)
+        texture.filteringMode = .nearest
+
+        let band = BoardBand.at(row: row, metrics: metrics)
+        let node = SKSpriteNode(
+            texture: texture,
+            size: CGSize(width: metrics.boardSize, height: metrics.tileSize)
+        )
+        node.anchorPoint = CGPoint(x: 0.5, y: 0)
+
+        // The keystone. Normalised, origin bottom-left; the top edge is pulled
+        // in and down by the same divisor the perspective applies.
+        let pinch = 1 / (1 + band.lean)
+        let source: [SIMD2<Float>] = [
+            .init(0, 0), .init(1, 0), .init(0, 1), .init(1, 1),
+        ]
+        let destination: [SIMD2<Float>] = [
+            .init(0, 0),
+            .init(1, 0),
+            .init(Float(0.5 - 0.5 * pinch), Float(pinch)),
+            .init(Float(0.5 + 0.5 * pinch), Float(pinch)),
+        ]
+        node.warpGeometry = SKWarpGeometryGrid(
+            __columns: 1, rows: 1,
+            sourcePositions: source,
+            destPositions: destination
+        )
+
+        node.xScale = band.scale
+        node.yScale = band.groundScale
+        node.position = CGPoint(
+            x: metrics.boardSize / 2,
+            y: -(band.groundCentreY + metrics.tileSize / 2)
+        )
+        node.zPosition = CGFloat(row)
+        return node
+    }
+
+    /// A row's seven tiles, composited into one strip.
+    private static func rowImage(
+        _ row: Int,
+        board: Board,
+        metrics: PixelArtMetrics
+    ) -> UIImage? {
+        let size = CGSize(width: metrics.boardSize, height: metrics.tileSize)
+        let format = UIGraphicsImageRendererFormat()
+        format.scale = 1
+
+        var drewAnything = false
+        let strip = UIGraphicsImageRenderer(size: size, format: format).image { _ in
+            for column in 0..<board.size {
+                let point = GridPoint(column, row)
+                let tile = board[point]
+                guard tile.kind == .normal, !tile.health.isHole else { continue }
+                guard let art = PaletteRecolour.image(
+                    .tileFace(.terra, .at(point), popped: false),
+                    frame: 0,
+                    swaps: []
+                ) else { continue }
+
+                drewAnything = true
+                art.draw(in: CGRect(
+                    x: CGFloat(column) * metrics.tileSize,
+                    y: 0,
+                    width: metrics.tileSize,
+                    height: metrics.tileSize
+                ))
+            }
+        }
+        return drewAnything ? strip : nil
     }
 
     /// One square of ground: a cloud on Astra, a tile face on Terra.
@@ -199,10 +294,18 @@ final class BoardScene: SKScene {
         return node
     }
 
+    /// The piece is two nodes: where it stands, and what it is doing.
+    ///
+    /// `piece` is the square it is on — moved by an action when it steps.
+    /// `figure` is the drawing inside it, which hops, squashes and bobs against
+    /// that. Kept apart so a hop cannot fight a step: one writes the parent,
+    /// the other the child, and neither has to know about the other.
     private func addPiece() {
-        piece.anchorPoint = CGPoint(x: 0.5, y: 0)
         piece.zPosition = 500
         addChild(piece)
+
+        figure.anchorPoint = CGPoint(x: 0.5, y: 0)
+        piece.addChild(figure)
     }
 
     /// Four corner brackets, baked once.
@@ -271,8 +374,8 @@ final class BoardScene: SKScene {
         if id != wearing, let art = PaletteRecolour.image(id, frame: 0, swaps: []) {
             let texture = SKTexture(image: art)
             texture.filteringMode = .nearest
-            piece.texture = texture
-            piece.size = CGSize(width: metrics.tileSize, height: metrics.tileSize * 2)
+            figure.texture = texture
+            figure.size = CGSize(width: metrics.tileSize, height: metrics.tileSize * 2)
             wearing = id
         }
 
@@ -307,6 +410,15 @@ final class BoardScene: SKScene {
             piece.position = seat
             piece.setScale(spot.scale)
         }
+
+        // **The hop, the squash and the bob, from the same clock the board
+        // uses.** `HopPose` is already a pure function of elapsed time — it was
+        // written that way so an animation could not leave it stuck part-way —
+        // which means a scene can read it exactly as a view did.
+        let hop = session.hopPose(at: Date())
+        figure.position.y = hop.lift * metrics.scale
+        figure.xScale = hop.scaleX
+        figure.yScale = hop.scaleY
 
         // The cursor, on the square the next move would land on.
         let aim = session.engine.cursor(
