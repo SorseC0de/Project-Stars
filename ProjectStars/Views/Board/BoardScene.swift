@@ -44,6 +44,13 @@ final class BoardScene: SKScene {
     private var planes: [Plane: SKNode] = [:]
     private var piece = SKSpriteNode()
     private var cursor = SKSpriteNode()
+    /// The coins on the board, by the square they are standing on.
+    ///
+    /// Kept rather than rebuilt: a coin that has not moved is a node that does
+    /// not need touching, and the hunt puts one down and takes it away perhaps
+    /// twice a minute.
+    private var coins: [GridPoint: SKSpriteNode] = [:]
+
     private var island = SKSpriteNode()
     private var pillar = SKSpriteNode()
     private let follow = SKCameraNode()
@@ -290,6 +297,51 @@ final class BoardScene: SKScene {
             // Behind the piece, and the pillar in front of it: the piece stands
             // between the two halves of the same rock.
             node.zPosition = node === pillar ? 600 : 300
+        }
+
+        syncCoins(on: standing.plane, inset: inset)
+    }
+
+    /// The Pentacles, added and removed as the hunt puts them out.
+    ///
+    /// Diffed against what is already there rather than cleared and rebuilt: an
+    /// untouched coin should cost nothing, and almost every frame touches none
+    /// of them.
+    private func syncCoins(on plane: Plane, inset: CGFloat) {
+        let wanted = session.visiblePickups.filter { $0.plane == plane }
+        let places = Set(wanted.map(\.point))
+
+        for (point, node) in coins where !places.contains(point) {
+            node.removeFromParent()
+            coins[point] = nil
+        }
+
+        for pickup in wanted where coins[pickup.point] == nil {
+            let look = PickupCatalog.effect(for: pickup.id).appearance(on: plane)
+            guard let art = PaletteRecolour.image(
+                .pentacle(look), frame: 0, swaps: []
+            ) else { continue }
+
+            let texture = SKTexture(image: art)
+            texture.filteringMode = .nearest
+
+            let node = SKSpriteNode(texture: texture)
+            node.size = CGSize(
+                width: art.size.width * metrics.scale,
+                height: art.size.height * metrics.scale
+            )
+            node.zPosition = 450
+            addChild(node)
+            coins[pickup.point] = node
+        }
+
+        for (point, node) in coins {
+            let spot = metrics.projected(point)
+            node.position = CGPoint(
+                x: spot.position.x + inset,
+                y: -CGFloat(World.row(of: plane)) * side - spot.position.y - inset
+            )
+            node.setScale(spot.scale)
         }
     }
 
