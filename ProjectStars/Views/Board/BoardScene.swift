@@ -36,7 +36,12 @@ import SwiftUI
 @MainActor
 final class BoardScene: SKScene {
 
-    private unowned let session: GameSession
+    /// Held strongly, not `unowned`.
+    ///
+    /// Nothing here is a cycle — the session does not know the scene exists —
+    /// and `unowned` would trap if the scene ever outlived it during a teardown,
+    /// which is exactly the moment a toggle tears one down and builds another.
+    private let session: GameSession
     private let metrics: PixelArtMetrics
     private let side: CGFloat
 
@@ -110,7 +115,7 @@ final class BoardScene: SKScene {
     private func addSky() {
         let height = side * CGFloat(World.rows)
         let sky = SKSpriteNode(
-            texture: SKTexture(image: Self.skyImage(width: side, height: height)),
+            texture: SKTexture(image: Self.skyImage()),
             size: CGSize(width: side, height: height)
         )
         sky.position = CGPoint(x: side / 2, y: -height / 2)
@@ -430,12 +435,18 @@ final class BoardScene: SKScene {
         }
     }
 
-    /// The sky, drawn once into an image.
+    /// The sky, drawn once into a small image and stretched.
     ///
-    /// The same three stops the column's gradient uses — dark, daylight where
-    /// Terra sits, dark again — so the two are the same sky and not two
-    /// opinions about one.
-    private static func skyImage(width: CGFloat, height: CGFloat) -> UIImage {
+    /// **Small deliberately.** Drawn at its real size this is nine plane
+    /// squares tall — about ten and a half thousand pixels on a 3x screen,
+    /// which is past the maximum texture size on most GPUs, and asking for it
+    /// takes the app down. A vertical gradient needs no horizontal resolution
+    /// and very little vertical, so it is baked at a couple of hundred pixels
+    /// and the sprite is sized to the column.
+    ///
+    /// The same stops the SwiftUI column uses, so the two are the same sky and
+    /// not two opinions about one.
+    private static func skyImage() -> UIImage {
         let rows = Double(World.rows)
         let terra = Double(World.row(of: .terra))
         let stops: [(CGFloat, UIColor)] = [
@@ -446,19 +457,26 @@ final class BoardScene: SKScene {
             (1, UIColor(Palette.coolBlack)),
         ]
 
-        let size = CGSize(width: width, height: height)
-        return UIGraphicsImageRenderer(size: size).image { context in
+        let size = CGSize(width: 8, height: 512)
+        let format = UIGraphicsImageRendererFormat()
+        format.scale = 1
+
+        return UIGraphicsImageRenderer(size: size, format: format).image { context in
             let space = CGColorSpaceCreateDeviceRGB()
             guard let gradient = CGGradient(
                 colorsSpace: space,
                 colors: stops.map(\.1.cgColor) as CFArray,
                 locations: stops.map(\.0)
-            ) else { return }
+            ) else {
+                UIColor(Palette.coolBlack).setFill()
+                context.fill(CGRect(origin: .zero, size: size))
+                return
+            }
 
             context.cgContext.drawLinearGradient(
                 gradient,
                 start: .zero,
-                end: CGPoint(x: 0, y: height),
+                end: CGPoint(x: 0, y: size.height),
                 options: []
             )
         }
