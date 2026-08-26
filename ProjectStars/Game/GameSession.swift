@@ -96,7 +96,24 @@ final class GameSession {
     /// Republishes anything derived from the engine.
     ///
     /// Called after every applied event. Cheap, and it cannot go stale.
+    /// The last answer to `reachableSquares`, and the last to
+    /// `availableDirections`.
+    ///
+    /// Both are derived entirely from engine state, and both are read by views
+    /// — which means they were being recomputed on every render rather than
+    /// once a turn. `reachableSquares` resolves every option in every
+    /// direction, so one read is dozens of full move resolutions, and it was
+    /// happening while the piece stood still.
+    ///
+    /// Cleared in `publish`, which is the one place the engine's state is
+    /// handed out, so a stale answer cannot outlive the move that changed it.
+    private var cachedReachable: [GridPoint: (direction: SwipeDirection, reach: Int)]?
+    private var cachedDirections: Set<SwipeDirection>?
+
     private func publish() {
+        cachedReachable = nil
+        cachedDirections = nil
+
         zodiactionMeter = engine.zodiactionMeter
         zodiactionMeterMax = engine.zodiactionMeterMax
         // Held steady while a move plays out.
@@ -4315,6 +4332,8 @@ extension GameSession {
     /// Nearest first, so a square reachable two ways is credited to the shorter
     /// move — which is the one that wears less ground.
     var reachableSquares: [GridPoint: (direction: SwipeDirection, reach: Int)] {
+        if let cachedReachable { return cachedReachable }
+
         var found: [GridPoint: (direction: SwipeDirection, reach: Int)] = [:]
 
         for direction in SwipeDirection.allCases {
@@ -4328,6 +4347,7 @@ extension GameSession {
                 }
             }
         }
+        cachedReachable = found
         return found
     }
 
@@ -4534,15 +4554,19 @@ extension GameSession {
     /// buttons — so the diagonals only exist as inputs for a piece that can use
     /// them.
     var availableDirections: Set<SwipeDirection> {
+        if let cachedDirections { return cachedDirections }
+
         // The whole company, so a phantom's diagonal shows up on the stick —
         // see `GameEngine.activeMovement`.
         let movement = engine.activePassives.adjustedMovement(
             base: engine.activeMovement,
             context: engine.passiveSnapshot
         )
-        return Set(SwipeDirection.allCases.filter { direction in
+        let found = Set(SwipeDirection.allCases.filter { direction in
             !movement.options(for: direction, facing: engine.piece.facing).isEmpty
         })
+        cachedDirections = found
+        return found
     }
 
     /// True when this piece can aim between the cardinals.

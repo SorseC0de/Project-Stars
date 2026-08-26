@@ -2400,13 +2400,22 @@ struct GameEngine {
     /// reflected in what the player is offered, rather than being shown a move
     /// that will not happen.
     func moveOptions(for direction: SwipeDirection) -> [MovementPattern.MoveOption] {
-        let movement = activePassives
-            .adjustedMovement(base: activeMovement, context: passiveContext)
+        // One snapshot for the whole answer, and nothing built at all when
+        // there is no option to test. Eleven of the twelve signs move in four
+        // directions, so half of what asks this is asking about a diagonal that
+        // does not exist — and it used to build a context and a passive list to
+        // find that out, then another pair for every option it did find.
+        let passives = activePassives
+        let context = passiveContext
+        let movement = passives.adjustedMovement(base: activeMovement, context: context)
 
-        return movement.options(for: direction, facing: piece.facing).filter { option in
+        let options = movement.options(for: direction, facing: piece.facing)
+        guard !options.isEmpty else { return [] }
+
+        return options.filter { option in
             let path = movement.path(from: piece.point, direction: direction, option: option)
-            return activePassives.allows(
-                option, direction: direction, path: path, context: passiveContext
+            return passives.allows(
+                option, direction: direction, path: path, context: context
             )
         }
     }
@@ -5372,8 +5381,7 @@ struct GameEngine {
             duringZodiaction: isFiringZodiaction,
             arrivalWasChosen: arrivalWasChosen,
             arrivedOnOpenGround: arrivedOnOpenGround,
-            pickupPoints: revealedPickups.filter { $0.plane == piece.plane }.map(\.point),
-            pickups: revealedPickups.filter { $0.plane == piece.plane },
+            allPickups: revealedPickups,
             sparkles: sparkles,
             signState: signState,
             luck: luck,
