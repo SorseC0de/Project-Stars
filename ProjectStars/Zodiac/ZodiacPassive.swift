@@ -829,20 +829,16 @@ struct PassiveContext {
     /// alone — a coin dropped into a hole by an ability that also removed
     /// everywhere a new one could spawn ends the hunt outright. Plural because
     /// Sagittarius can have two out at once.
-    /// Filtered on demand, not on construction.
+    /// The coins on this plane, and where they are.
     ///
-    /// A context is built to ask one question, and almost no question is about
-    /// coins — four of them, out of everything in here. Filtering the list
-    /// eagerly meant every context allocated two arrays for readers that were
-    /// not going to look, and contexts are built by the cursor's projection on
-    /// every frame the board draws.
-    var pickupPoints: [GridPoint] { pickups.map(\.point) }
+    /// **Filtered once, on construction.** Computing them on demand looks
+    /// cheaper — most questions are not about coins — but two of the four
+    /// readers ask inside a loop, so it turned one filter into one per square.
+    /// Contexts are built once a move now rather than once a frame, which is
+    /// what made the eager version affordable again.
+    let pickupPoints: [GridPoint]
 
-    var pickups: [RevealedPickup] { allPickups.filter { $0.plane == plane } }
-
-    /// Every revealed coin on either plane, held whole because holding it costs
-    /// nothing: an array handed across is a retain, not a copy.
-    let allPickups: [RevealedPickup]
+    let pickups: [RevealedPickup]
 
 
     /// What is currently lit, if a sparkle phase is running.

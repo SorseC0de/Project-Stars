@@ -107,7 +107,17 @@ final class GameSession {
     ///
     /// Cleared in `publish`, which is the one place the engine's state is
     /// handed out, so a stale answer cannot outlive the move that changed it.
+    /// **Ignored by observation, and that is not optional.**
+    ///
+    /// These are written from inside a getter that views call while they are
+    /// rendering. On an `@Observable` class a stored property write tells every
+    /// view reading this session that it is out of date — so the read
+    /// invalidated the reader, which re-rendered, which read again. A cache that
+    /// causes the work it is meant to save.
+    @ObservationIgnored
     private var cachedReachable: [GridPoint: (direction: SwipeDirection, reach: Int)]?
+
+    @ObservationIgnored
     private var cachedDirections: Set<SwipeDirection>?
 
     private func publish() {
