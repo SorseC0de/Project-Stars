@@ -193,3 +193,26 @@ measurement here, including why removing views never helps.
 The `publish()` pattern that would fix this already exists and was never
 finished: `zodiactionMeter`, `purse` and a few others are republished as narrow
 properties, while everything else reads the engine directly.
+
+## Answered (2026-08-26)
+
+| board | late | fps |
+|---|---|---|
+| SwiftUI | 28/35 | 35 |
+| SwiftUI, ground off (≈10 objects) | 20/45 | 45 |
+| **SpriteKit scene** | **3–10/58–60** | **60** |
+
+The scene draws *more* than the ground-off board — full ground on both planes,
+the island, the coins — and misses a twentieth of the frames instead of four
+fifths.
+
+**The cost was never what is drawn.** It was the view tree: described from
+scratch on every publish, then diffed and laid out. That is why removing the
+ground, the panel, the clouds, the trail, the glow and seven cloud canvases each
+bought a few frames and none of them fixed it, and why no counter ever saw it —
+every counter here measures view evaluations, and the cost is what SwiftUI does
+*with* them.
+
+The remaining three to ten late frames are almost certainly the panel and the
+overlays, which are still SwiftUI and still rebuild on every publish. Much
+smaller, and addressable separately from the port.

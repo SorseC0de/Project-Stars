@@ -40,6 +40,20 @@ more `update`. None changes the shape of the answer.
 Fidelity is approximate where it exists: the cursor has no flare or warning
 pulse, the clouds have no wake, the piece has no bob or squash.
 
+## The result
+
+Measured: SwiftUI 28/35 late at 35fps; the scene **3–10 late out of 58–60 at
+60fps**, while drawing more. The port is worth finishing.
+
+Two things it also taught, both worth keeping:
+
+- **SpriteKit does not complain about an absurd texture.** It crashes later, on
+  the render thread, when Metal validates the descriptor. The sky was baked at
+  its real size — 1179 by 10611 pixels — and took the app down. Bake small,
+  size the *node*.
+- **A scene built inside `body` is a new scene every time the body runs**, which
+  is exactly what the port exists to avoid. Hold it in `@State`.
+
 ## How to read the comparison
 
 On Astra, moving, read `late` with the toggle on and off.
