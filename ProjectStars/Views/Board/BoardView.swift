@@ -3146,7 +3146,7 @@ struct BoardView: View {
     /// Small and cheap to build, because it is built once per animated object
     /// per frame rather than once for the whole board — and a handful of
     /// objects move where forty-nine tiles do not.
-    struct BoardTick {
+    fileprivate struct BoardTick {
 
         let bob: CGFloat
         let pose: HopPose
@@ -3195,15 +3195,33 @@ struct BoardView: View {
             let _ = RenderTally.tick("tick.\(shown.rawValue)")
             let _ = RenderTally.tick("t:\(label).\(shown.rawValue)")
             #endif
-            #if DEBUG
-            let tick = RenderTally.span("tick") {
-                boardTick(at: timeline.date, metrics: metrics)
-            }
-            #else
-            let tick = boardTick(at: timeline.date, metrics: metrics)
-            #endif
-            content(tick)
+            content(sharedTick(at: timeline.date, metrics: metrics))
         }
+    }
+
+    /// The tick, computed once a frame however many objects ask for it.
+    ///
+    /// Ten of these clocks exist and roughly six run at a time on Astra, four on
+    /// Terra — and every one of them was rebuilding the *entire* tick: the hop
+    /// pose, the ascent pose, the island's travel, the sway, the flash, the
+    /// star, the rock. The same seven answers, six times, every frame.
+    ///
+    /// They all pass the same date, because they are all driven by the same
+    /// display. So the first to ask computes it and the rest get it back. Keyed
+    /// on the plane as well, since the two squares are different boards.
+    private func sharedTick(at date: Date, metrics: PixelArtMetrics) -> BoardTick {
+        if let held = TickCache.held, held.date == date, held.plane == shown {
+            return held.tick
+        }
+
+        #if DEBUG
+        let tick = RenderTally.span("tick") { boardTick(at: date, metrics: metrics) }
+        #else
+        let tick = boardTick(at: date, metrics: metrics)
+        #endif
+
+        TickCache.held = (date, shown, tick)
+        return tick
     }
 
     private func hopPose(at date: Date) -> HopPose {
@@ -3844,6 +3862,17 @@ struct BandRow: View, Equatable {
 ///
 /// A modifier rather than a pair of calls so both halves of the island take
 /// exactly the same thing — see `BoardView.islandTransform(metrics:ascent:travel:)`.
+/// The last tick computed, so the frame's other clocks can have it.
+///
+/// A bare static, deliberately: it must not be anything SwiftUI observes, or
+/// storing the answer would invalidate the views that asked for it — which is a
+/// mistake this file has already made once, with a cache that caused the work it
+/// was meant to save.
+@MainActor
+private enum TickCache {
+    static var held: (date: Date, plane: Plane, tick: BoardView.BoardTick)?
+}
+
 private struct IslandTransform<Placement: ViewModifier>: ViewModifier {
 
     let scale: CGFloat
