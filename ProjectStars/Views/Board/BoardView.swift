@@ -2179,6 +2179,9 @@ struct BoardView: View {
         }
         // The cursor and the facing arrow belong to the piece, so they follow
         // it rather than appearing on whichever board is being drawn.
+        #if DEBUG
+        RenderTally.gauge("obj.\(plane.rawValue)", objects.count)
+        #endif
         guard session.engine.piece.plane == plane else { return objects }
 
         // **Every square that has ordinary cover**, not only the ones wearing
@@ -2233,6 +2236,9 @@ struct BoardView: View {
         // list. With two coins out, taking one renumbers the other — and a view
         // whose identity is reused for a different coin *travels* to it, which
         // is how a destroyed Pentacle appeared to fly to the next glow phase.
+        #if DEBUG
+        RenderTally.gauge("obj.\(plane.rawValue)", objects.count)
+        #endif
         return objects
     }
 
