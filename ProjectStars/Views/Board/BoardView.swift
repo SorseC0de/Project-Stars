@@ -1145,7 +1145,11 @@ struct BoardView: View {
     ) -> some View {
 
         ZStack {
-            if LayerBench.shared.clouds, CloudSpriteField.hasArt {
+            // The scene draws the whole plane at once, so only the first row
+            // mounts it — see `LayerBench.spritekit`.
+            if LayerBench.shared.spritekit, row == nil || row == 0 {
+                CloudSceneView(board: board, metrics: metrics)
+            } else if LayerBench.shared.clouds, CloudSpriteField.hasArt {
                 CloudSpriteField(
                     board: board,
                     metrics: metrics,

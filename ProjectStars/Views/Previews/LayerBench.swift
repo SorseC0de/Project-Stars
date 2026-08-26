@@ -58,6 +58,17 @@ final class LayerBench {
     /// The screen-wide fracture shader wrapped around the whole board.
     var fracture = true
 
+    /// **The other experiment.** Astra's clouds drawn by SpriteKit.
+    ///
+    /// A retained scene against a redrawn canvas — see `CloudScene`. This is the
+    /// comparison that matters, and it is not the same question the one-canvas
+    /// toggle asks: a `Canvas` is still a full CPU redraw every frame, one
+    /// surface or seven. A scene is nodes that exist, drifted by the render
+    /// thread, with nothing woken per frame.
+    ///
+    /// Incomplete on purpose: no wake, no dip, no wear. Enough to measure.
+    var spritekit = false
+
     /// **The experiment.** Astra's ground drawn as ONE canvas instead of seven.
     ///
     /// The seven exist so clouds interleave with the objects standing on them,
@@ -87,6 +98,7 @@ final class LayerBench {
     let fracture = true
     let wash = true
     let oneCanvas = false
+    let spritekit = false
     let stars = true
 
     #endif
@@ -119,6 +131,7 @@ struct LayerBenchControls: View {
                 Text("astra").foregroundStyle(Palette.sky)
                 toggle("clouds", \.clouds)
                 toggle("ONE canvas", \.oneCanvas)
+                toggle("SPRITEKIT", \.spritekit)
                 toggle("stars", \.stars)
 
                 Text("terra").foregroundStyle(Palette.gold).padding(.top, 3)

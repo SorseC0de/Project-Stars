@@ -114,3 +114,30 @@ frames in the last second. That is headroom, and it is unambiguous:
 **Read `worst`, not `FPS`.** And take absolute numbers from a device, not the
 canvas — an earlier session already found the canvas lagging where the device
 did not.
+
+## Ruled out: the cloud surfaces (2026-08-26)
+
+`ONE canvas` — Astra's seven cloud canvases merged into one — measured **25/35
+late against 22/35**. No change. The surface count was never the cost, and both
+attempts to attack it were wrong.
+
+What it does not rule out is the *redraw*. A `Canvas` is immediate mode: the
+picture is discarded and remade every tick, one surface or seven. Merging them
+changed how many surfaces were remade, not that they were.
+
+Both planes drop frames while moving — Terra 20/45, Astra 25/35 — so this is not
+an Astra problem with a local fix. It is the cost of rendering a game as a view
+tree that is re-derived and diffed on every publish, ~24 times a second.
+
+## The SpriteKit proof
+
+`LayerBench.spritekit` swaps Astra's clouds for `CloudScene`, an `SKScene` hosted
+in a `SpriteView`. Forty-nine nodes built once, drifted by an `SKAction` the
+render thread interpolates, textures from the existing atlas with nearest
+filtering, `zPosition` carrying the board's own row order.
+
+Deliberately incomplete: no wake, no dip, no wear, no raised-square promotion. It
+exists to answer one question — does a retained scene cost meaningfully less than
+a redrawn one — and none of the missing parts change that answer.
+
+Read `late` with it on and off, on Astra, while moving.
