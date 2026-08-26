@@ -176,8 +176,6 @@ final class BoardScene: SKScene {
             (.foreground, 2, 0, Self.depth(row: GameRules.gridSize, layer: 0), true),
         ]
 
-        guard LayerBench.shared.scenery else { return }
-
         for (part, cells, drop, depth, atBottom) in pieces {
             guard let art = PaletteRecolour.image(
                 .terraScenery(part), frame: 0, swaps: []
@@ -206,9 +204,10 @@ final class BoardScene: SKScene {
         // And the fill under the board. Terra's ground floats over the sky,
         // which is right for a plane made of cloud and wrong for one made of
         // earth: below the front row you could see straight through the world.
+        // The tuned depth, in art pixels, exactly as the screen computes it.
         let floor = SKSpriteNode(
             color: UIColor(Palette.steel),
-            size: CGSize(width: side, height: side * 0.22)
+            size: CGSize(width: side, height: GameRules.terraFloorDepth * pixel)
         )
         floor.anchorPoint = CGPoint(x: 0.5, y: 0)
         floor.position = CGPoint(x: side / 2, y: -side)
@@ -537,6 +536,10 @@ final class BoardScene: SKScene {
         } else if follow.action(forKey: "travel") == nil {
             follow.position = want
         }
+
+        // **Shown, not built.** A scene is made once, so a build-time gate on a
+        // bench toggle can never take effect — the switch did nothing at all.
+        for land in scenery.values { land.isHidden = !LayerBench.shared.scenery }
 
         // Only when the squares themselves changed — see `built`.
         for plane in Plane.allCases where built[plane] != session.engine[plane] {
