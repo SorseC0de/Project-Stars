@@ -63,6 +63,9 @@ final class BoardScene: SKScene {
 
     private var island = SKSpriteNode()
     private var pillar = SKSpriteNode()
+    private var shadow = SKSpriteNode()
+    private var arrow = SKSpriteNode()
+    private var facing: SwipeDirection?
     private let follow = SKCameraNode()
 
     /// What the piece was last drawn wearing, so the texture is only rebuilt
@@ -363,6 +366,24 @@ final class BoardScene: SKScene {
         piece.zPosition = 500
         addChild(piece)
 
+        // The mark on the square, under the figure and outside it: the figure
+        // hops and the shadow stays on the ground, which is what anchors a
+        // two-cell sprite to a one-cell square.
+        shadow.texture = SKTexture(image: Self.shadowImage(
+            width: metrics.tileSize * 0.75,
+            height: metrics.tileSize * 0.75 * 0.34
+        ))
+        shadow.size = CGSize(
+            width: metrics.tileSize * 0.75,
+            height: metrics.tileSize * 0.75 * 0.34
+        )
+        shadow.alpha = 0.45
+        shadow.zPosition = -1
+        piece.addChild(shadow)
+
+        arrow.zPosition = -2
+        piece.addChild(arrow)
+
         figure.anchorPoint = CGPoint(x: 0.5, y: 0)
         piece.addChild(figure)
     }
@@ -479,6 +500,25 @@ final class BoardScene: SKScene {
         figure.xScale = hop.scaleX
         figure.yScale = hop.scaleY
 
+        // The shadow stays down and narrows as the figure leaves it.
+        shadow.isHidden = session.isChangingPlane || session.isFalling
+        shadow.setScale(max(1 - hop.lift / GameRules.hopArcHeight * 0.4, 0.35))
+
+        // And the arrow that says which way it is looking.
+        let looking = session.visibleFacing
+        if looking != facing,
+           let art = PaletteRecolour.image(.directionArrow(looking), frame: 0, swaps: []) {
+            let texture = SKTexture(image: art)
+            texture.filteringMode = .nearest
+            arrow.texture = texture
+            arrow.size = CGSize(
+                width: art.size.width * metrics.scale,
+                height: art.size.height * metrics.scale
+            )
+            facing = looking
+        }
+        arrow.isHidden = shadow.isHidden
+
         // The cursor, on the square the next move would land on.
         let aim = session.engine.cursor(
             direction: session.previewDirection,
@@ -499,8 +539,14 @@ final class BoardScene: SKScene {
             x: perch.position.x + inset,
             y: -CGFloat(World.row(of: home)) * side - perch.position.y - inset
         )
+        // The island floats, and everything standing on it floats with it.
+        let phase = session.ambientClock(at: Date().timeIntervalSinceReferenceDate)
+            / GameRules.nexysFloatPeriod
+        let bob = CGFloat(sin(phase * 2 * .pi))
+            * GameRules.nexysFloatAmplitude * metrics.scale
+
         for node in [island, pillar] {
-            node.position = base
+            node.position = CGPoint(x: base.x, y: base.y + bob)
             node.setScale(perch.scale)
             // Behind the piece, and the pillar in front of it: the piece stands
             // between the two halves of the same rock.
@@ -640,6 +686,18 @@ final class BoardScene: SKScene {
             .wait(forDuration: Double(seed % 17) / 17 * period),
             .repeatForever(.sequence([out, back])),
         ])
+    }
+
+    /// The pool under the figure: a flattened ellipse, baked once.
+    private static func shadowImage(width: CGFloat, height: CGFloat) -> UIImage {
+        let size = CGSize(width: max(width, 1), height: max(height, 1))
+        let format = UIGraphicsImageRendererFormat()
+        format.scale = 2
+
+        return UIGraphicsImageRenderer(size: size, format: format).image { context in
+            UIColor(Palette.shadow).setFill()
+            context.cgContext.fillEllipse(in: CGRect(origin: .zero, size: size))
+        }
     }
 
     /// The bracket frame: four corners, open in the middle.
