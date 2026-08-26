@@ -67,7 +67,7 @@ final class LayerBench {
     /// slice that answers whether a retained scene costs less than a rebuilt
     /// one, and everything missing from it is more nodes rather than a different
     /// answer.
-    var scene = false
+    var scene = true
 
     /// The whole control panel — the entire bottom half of the screen.
     ///
@@ -116,7 +116,7 @@ final class LayerBench {
     let sparkles = true
     let fracture = true
     let panel = true
-    let scene = false
+    let scene = true
     let wash = true
     let oneCanvas = false
     let spritekit = false

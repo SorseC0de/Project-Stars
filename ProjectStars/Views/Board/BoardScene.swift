@@ -384,6 +384,7 @@ final class BoardScene: SKScene {
     /// the other the child, and neither has to know about the other.
     private func addPiece() {
         piece.zPosition = 500
+        figure.size = CGSize(width: metrics.tileSize, height: metrics.tileSize * 2)
         addChild(piece)
 
         // The mark on the square, under the figure and outside it: the figure
@@ -442,13 +443,51 @@ final class BoardScene: SKScene {
             let texture = SKTexture(image: art)
             texture.filteringMode = .nearest
             node.texture = texture
-            node.size = CGSize(
-                width: art.size.width * metrics.scale,
-                height: art.size.height * metrics.scale
-            )
             addChild(node)
         }
         pillar.isHidden = !NexysStyle.foreshortened
+    }
+
+    // MARK: - Placement
+
+    /// **The one place anything on the board is sized and put.**
+    ///
+    /// Everything standing on a square obeys the same two rules, and they are
+    /// the board's rules rather than each sprite's:
+    ///
+    /// - **Size is measured in tiles.** A figure is one tile by two; a coin is
+    ///   `pentacleCellSpan`; the island is three by three. That is how every
+    ///   view in the SwiftUI board frames itself, because `tileSize` already
+    ///   carries the whole-pixel art scale — so a size in tiles is the same
+    ///   drawing at any board size.
+    /// - **The row supplies the rest.** `projected` answers where a square is
+    ///   and how much the perspective shrinks it, and everything standing there
+    ///   takes both. Nothing is scaled by its own art's dimensions, which is
+    ///   what made the coin and the arrow come out wrong while the piece looked
+    ///   right: three sprites, three accidental formulas.
+    ///
+    /// `lift` is in art pixels, the unit every tuned offset in `GameRules` is
+    /// written in.
+    private func place(
+        _ node: SKSpriteNode,
+        at point: GridPoint,
+        on plane: Plane,
+        tiles: CGSize,
+        lift: CGFloat = 0
+    ) {
+        let spot = metrics.projected(point)
+        let inset = (side - metrics.boardSize) / 2
+
+        node.size = CGSize(
+            width: tiles.width * metrics.tileSize,
+            height: tiles.height * metrics.tileSize
+        )
+        node.setScale(spot.scale)
+        node.position = CGPoint(
+            x: spot.position.x + inset,
+            y: -CGFloat(World.row(of: plane)) * side
+                - spot.position.y - inset + lift * metrics.scale
+        )
     }
 
     // MARK: - The loop
@@ -497,7 +536,6 @@ final class BoardScene: SKScene {
             let texture = SKTexture(image: art)
             texture.filteringMode = .nearest
             figure.texture = texture
-            figure.size = CGSize(width: metrics.tileSize, height: metrics.tileSize * 2)
             // East is west, mirrored: there is no east drawing on the sheet.
             // See `PieceView.isMirrored`.
             mirror = looking == .right && standing.zodiac != .gemini ? -1 : 1
@@ -566,10 +604,8 @@ final class BoardScene: SKScene {
             let texture = SKTexture(image: art)
             texture.filteringMode = .nearest
             arrow.texture = texture
-            arrow.size = CGSize(
-                width: art.size.width * metrics.scale,
-                height: art.size.height * metrics.scale
-            )
+            // One tile, as `FacingArrowView` frames it.
+            arrow.size = CGSize(width: metrics.tileSize, height: metrics.tileSize)
             facing = looking
         }
         arrow.isHidden = shadow.isHidden
@@ -579,37 +615,71 @@ final class BoardScene: SKScene {
             direction: session.previewDirection,
             reach: session.previewReach
         )
-        let mark = metrics.projected(aim.point)
-        cursor.position = CGPoint(
-            x: mark.position.x + inset,
-            y: -CGFloat(World.row(of: standing.plane)) * side - mark.position.y - inset
-        )
-        cursor.setScale(mark.scale)
+        place(cursor, at: aim.point, on: standing.plane,
+              tiles: CGSize(width: 1, height: 1))
         cursor.color = UIColor(Self.tint(for: aim.status))
 
-        // The island, on whichever plane it is currently part of.
+        // The island, on whichever plane it is currently part of. Three tiles
+        // by three, as `NexysView` frames it; the pillar is one.
         let home = session.engine.nexysPlane
-        let perch = metrics.projected(GameRules.nexysPoint)
-        let base = CGPoint(
-            x: perch.position.x + inset,
-            y: -CGFloat(World.row(of: home)) * side - perch.position.y - inset
-        )
-        // The island floats, and everything standing on it floats with it.
         let phase = session.ambientClock(at: Date().timeIntervalSinceReferenceDate)
             / GameRules.nexysFloatPeriod
         let bob = CGFloat(sin(phase * 2 * .pi))
-            * GameRules.nexysFloatAmplitude * metrics.scale
+            * GameRules.nexysFloatAmplitude
 
-        for node in [island, pillar] {
-            node.position = CGPoint(x: base.x, y: base.y + bob)
-            node.setScale(perch.scale)
-            // Behind the piece, and the pillar in front of it: the piece stands
-            // between the two halves of the same rock.
-            node.zPosition = node === pillar ? 600 : 300
-        }
+        place(island, at: GameRules.nexysPoint, on: home,
+              tiles: CGSize(width: 3, height: 3), lift: bob)
+        place(pillar, at: GameRules.nexysPoint, on: home,
+              tiles: CGSize(width: 1, height: 1), lift: bob)
+        // Behind the piece, and the pillar in front of it: the piece stands
+        // between the two halves of the same rock.
+        island.zPosition = 300
+        pillar.zPosition = 600
 
         syncCoins(on: standing.plane, inset: inset)
         syncEffects(inset: inset)
+        syncSmoke()
+    }
+
+    /// The dust a landing kicks up.
+    ///
+    /// Two tiles across times its magnitude, as `SmokeSpriteView` frames it,
+    /// and played once as a strip like every other effect.
+    private func syncSmoke() {
+        for puff in session.smoke where !playing.contains(puff.id) {
+            playing.insert(puff.id)
+
+            let count = SpriteSheetLoader.frameCount(for: .smoke(puff.plane))
+            guard count > 0 else { continue }
+
+            var frames: [SKTexture] = []
+            for index in 0..<count {
+                guard let art = PaletteRecolour.image(
+                    .smoke(puff.plane), frame: index, swaps: []
+                ) else { continue }
+                let texture = SKTexture(image: art)
+                texture.filteringMode = .nearest
+                frames.append(texture)
+            }
+            guard let first = frames.first else { continue }
+
+            let node = SKSpriteNode(texture: first)
+            let wide = 2 * puff.magnitude
+            place(node, at: puff.point, on: puff.plane,
+                  tiles: CGSize(width: wide, height: wide))
+            node.zPosition = 690
+            addChild(node)
+
+            let each = SpriteSheetLoader.frameDuration(for: .smoke(puff.plane))
+            node.run(.sequence([
+                .animate(with: frames, timePerFrame: each, resize: false, restore: false),
+                .removeFromParent(),
+            ]))
+        }
+
+        playing.formIntersection(
+            Set(session.effectBursts.map(\.id)).union(session.smoke.map(\.id))
+        )
     }
 
     /// The effect sprites, each played once and left to remove itself.
@@ -644,17 +714,15 @@ final class BoardScene: SKScene {
             // *art* — three or four tiles across — so a puff of dust covered a
             // quarter of the board.
             let node = SKSpriteNode(texture: first)
-            let span = metrics.tileSize * burst.effect.span * burst.scale
-            node.size = CGSize(
-                width: span,
-                height: span
-                    * burst.effect.frameSize.height / burst.effect.frameSize.width
-                    * burst.effect.spanScaleY
-            )
-            let spot = metrics.projected(burst.center)
-            node.position = CGPoint(
-                x: spot.position.x + inset,
-                y: -CGFloat(World.row(of: burst.plane)) * side - spot.position.y - inset
+            let wide = burst.effect.span * burst.scale
+            place(
+                node, at: burst.center, on: burst.plane,
+                tiles: CGSize(
+                    width: wide,
+                    height: wide
+                        * burst.effect.frameSize.height / burst.effect.frameSize.width
+                        * burst.effect.spanScaleY
+                )
             )
             node.zPosition = 700
             node.zRotation = CGFloat(burst.angle) * .pi / 180
@@ -673,10 +741,6 @@ final class BoardScene: SKScene {
             ]))
         }
 
-        // Forget the ones the session has finished with, so their ids can come
-        // round again without being mistaken for still playing.
-        let alive = Set(session.effectBursts.map(\.id))
-        playing.formIntersection(alive)
     }
 
     /// The Pentacles, added and removed as the hunt puts them out.
@@ -703,22 +767,15 @@ final class BoardScene: SKScene {
             texture.filteringMode = .nearest
 
             let node = SKSpriteNode(texture: texture)
-            node.size = CGSize(
-                width: art.size.width * metrics.scale,
-                height: art.size.height * metrics.scale
-            )
             node.zPosition = 450
             addChild(node)
             coins[pickup.point] = node
         }
 
         for (point, node) in coins {
-            let spot = metrics.projected(point)
-            node.position = CGPoint(
-                x: spot.position.x + inset,
-                y: -CGFloat(World.row(of: plane)) * side - spot.position.y - inset
-            )
-            node.setScale(spot.scale)
+            // A coin is `pentacleCellSpan` tiles across, as the view frames it.
+            let span = GameRules.pentacleCellSpan
+            place(node, at: point, on: plane, tiles: CGSize(width: span, height: span))
         }
     }
 
