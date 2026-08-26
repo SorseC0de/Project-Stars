@@ -71,6 +71,16 @@ enum RenderTally {
     private static var lastFrame: TimeInterval?
     private static var worstGap: TimeInterval = 0
 
+    /// How many frames in the last second arrived late, and how many at all.
+    ///
+    /// **The max gap alone cannot say what it means.** 66.7ms is one dropped
+    /// frame at 60Hz — and it is also exactly 15Hz, which is a refresh rate iOS
+    /// steps down to on its own. The shape of the distribution tells them apart:
+    /// a display running at 15Hz is late on *every* frame, while a stall is one
+    /// long gap among many short ones.
+    private static var lateFrames = 0
+    private static var allFrames = 0
+
     static func frame(at date: Date) {
         let now = date.timeIntervalSinceReferenceDate
         defer { lastFrame = now }
@@ -81,6 +91,9 @@ enum RenderTally {
         // somewhere, not a slow frame.
         guard gap < 0.25 else { return }
         worstGap = max(worstGap, gap)
+        allFrames += 1
+        // Later than a 60Hz frame, with a little room for jitter.
+        if gap > 0.020 { lateFrames += 1 }
     }
 
     /// The longest a named piece of work took in the last second, in ms.
@@ -141,8 +154,18 @@ enum RenderTally {
         counts.removeAll(keepingCapacity: true)
 
         // First, because it is the only line that says whether there is room.
+        let late = lateFrames, total = allFrames
+        lateFrames = 0
+        allFrames = 0
+
+        // Read these two together:
+        //   late ≈ frames  → every frame is late. The display is simply running
+        //                    slow — a step-down, or genuinely unable to keep up.
+        //   late 1–3       → occasional real stalls among healthy frames.
+        //   late 0         → nothing is wrong, whatever the rate says.
         let budget = String(format: "worst %.1fms", worst * 1000)
-        return [budget] + slow + busiest + held
+        let dropped = "late \(late)/\(total)"
+        return [budget, dropped] + slow + busiest + held
     }
 
 }

@@ -492,11 +492,35 @@ struct GameScreen: View {
             .offset(y: CGFloat(index) * side)
     }
 
+    @ViewBuilder
     private func planeSquare(_ plane: Plane, side: CGFloat) -> some View {
-        planeContents(plane, side: side)
+        // **A plane that cannot be seen builds nothing.**
+        //
+        // Both squares are mounted for the whole run, which is right — a board
+        // rebuilt from nothing every time the camera arrives is a board rebuilt
+        // at the one moment there is no frame to spare. But *mounted* was doing
+        // more work than it sounds: a view's body is re-evaluated whenever
+        // something it reads publishes, and the session publishes on every event
+        // of a move. So the off-screen plane rebuilt its whole tree twenty-four
+        // times a second — its object list, its rows, its fields — for a board
+        // nobody had ever visited.
+        //
+        // `planeIsAsleep` only ever stopped the *clocks*. This stops the
+        // building, which is the larger half.
+        //
+        // Swept rather than snapped, so both planes are built for the whole of a
+        // crossing and neither pops in half way — the same rule the sky's bands
+        // use. See `World.isVisible(row:sweeping:to:)`.
+        if World.isVisible(
+            row: World.row(of: plane),
+            sweeping: session.cameraFrom ?? session.cameraRow,
+            to: session.cameraRow
+        ) {
+            planeContents(plane, side: side)
             // Everything inside stops asking for frames while this plane is the
             // one off screen. See `EnvironmentValues.planeIsAsleep`.
-            .environment(\.planeIsAsleep, session.planeIsAsleep(plane))
+                .environment(\.planeIsAsleep, session.planeIsAsleep(plane))
+        }
     }
 
     private func planeContents(_ plane: Plane, side: CGFloat) -> some View {
