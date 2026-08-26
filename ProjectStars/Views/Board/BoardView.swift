@@ -1139,7 +1139,9 @@ struct BoardView: View {
         _ row: Int,
         board: Board,
         metrics: PixelArtMetrics,
-        popped: Set<GridPoint>
+        popped: Set<GridPoint>,
+        mending: Set<GridPoint>,
+        occupied: Set<GridPoint>
     ) -> some View {
 
         ZStack {
@@ -1151,7 +1153,7 @@ struct BoardView: View {
                     raised: popped.filter { $0.y == row },
                     // Whatever is being stood on or hovered over has to stay
                     // clear of its neighbours' overlap.
-                    mending: Set(healFlashes.keys).filter { $0.y == row },
+                    mending: mending.filter { $0.y == row },
                     // **This row's, not the board's.**
                     //
                     // A field only ever asks whether a point *on its own row* is
@@ -1161,8 +1163,7 @@ struct BoardView: View {
                     // seven canvases of forty-nine clusters to change the order
                     // of two of them. Narrowed, a lateral move dirties exactly
                     // the row it happens on.
-                    occupied: occupiedSquares(on: .astra, popped: popped)
-                        .filter { $0.y == row },
+                    occupied: occupied.filter { $0.y == row },
                     clock: session.ambientClock(at:),
                     wake: cloudWake,
                     bounce: surfaceBounce,
@@ -1594,6 +1595,8 @@ struct BoardView: View {
             // which runs seven times on Astra — and above the layer gate, so
             // turning the clouds off did not stop it being built.
             let popped = Set(session.visibleRaisedTiles.map(\.point))
+            let mending = Set(healFlashes.keys)
+            let occupied = occupiedSquares(on: plane, popped: popped)
 
             // Timed: this is the board's whole list, rebuilt and sorted every
             // time the body runs, and the body runs on every publish of a move.
@@ -1641,8 +1644,8 @@ struct BoardView: View {
                             bandRow(object.point.y, board: board, plane: plane, metrics: metrics)
                         } else {
                             cloudRow(
-                                object.point.y, board: board,
-                                metrics: metrics, popped: popped
+                                object.point.y, board: board, metrics: metrics,
+                                popped: popped, mending: mending, occupied: occupied
                             )
                         }
 
@@ -3182,7 +3185,14 @@ struct BoardView: View {
             let _ = RenderTally.tick("tick.\(shown.rawValue)")
             let _ = RenderTally.tick("t:\(label).\(shown.rawValue)")
             #endif
-            content(boardTick(at: timeline.date, metrics: metrics))
+            #if DEBUG
+            let tick = RenderTally.span("tick") {
+                boardTick(at: timeline.date, metrics: metrics)
+            }
+            #else
+            let tick = boardTick(at: timeline.date, metrics: metrics)
+            #endif
+            content(tick)
         }
     }
 
