@@ -1686,36 +1686,55 @@ enum PickupCatalog {
     ///
     /// - Parameter weighting: Lets the piece reweight the roll — see
     ///   `ZodiacPassive.pickupWeight`. Defaults to leaving every weight alone.
+    /// The coin that takes whatever the others leave.
+    ///
+    /// See `rollPickup` — it is what makes every other coin's number its real
+    /// rate rather than a weight.
+    static let floor: PickupID = .restoreTile
+
     static func rollPickup(
         weighting: (PickupID, Int) -> Int = { _, chance in chance },
         affinity: ZodiacElement? = nil,
         using generator: inout SeededRandom
     ) -> PickupID? {
 
-        // One roll across the whole table.
+        // One roll out of a hundred, with the Tear taking the remainder.
         //
-        // The chances are weights: exactly one Pentacle comes out of a hunt, so
-        // a coin's real odds are its number over whatever the table sums to.
-        // They do not have to reach a hundred, and nothing here asks them to —
-        // adding a coin changes what every other one is worth, which is why the
-        // sheet has an Actual % column rather than a target to balance against.
+        // Every other coin's chance is its **actual** rate: written 5, it comes
+        // up five hunts in a hundred. That only works because something absorbs
+        // whatever is left over, and a hunt must always pay — fighting the
+        // board's degradation is the loop — so the leftover cannot be nothing.
+        // The Tear is the floor: it repairs, which is the one payout that is
+        // never dead weight.
+        //
+        // It also means the table can be filtered without lying. On Astra the
+        // Terra-only coins drop out, the others keep their exact rates, and the
+        // Tear simply absorbs more.
         //
         // Filtered for testing, never in a shipped build — see
         // `PickupSpawnRule`.
         let rule = PickupSpawnRule.current
-        let table = allEffects.values
+        let eligible = allEffects.values
             .filter { rule.allows($0.id) }
             .map { (value: $0.id, chance: rule.weight(of: $0, after: weighting)) }
             .filter { $0.chance > 0 }
             .sorted { $0.value.rawValue < $1.value.rawValue }
 
-        guard !table.isEmpty else { return nil }
+        guard !eligible.isEmpty else { return nil }
 
-        // A passive may have added to the table or taken from it — Libra's
-        // Gavel is authored at zero and weighted in, Pisces trades one coin's
-        // chance for another's — so the total is whatever it is by the time it
-        // gets here, and the draw is taken out of that.
+        let others = eligible.filter { $0.value != floor }
+        let othersTotal = others.reduce(0) { $0 + $1.chance }
+        let authoredFloor = eligible.first { $0.value == floor }?.chance ?? 0
+
+        // Never below what it is authored at, so an over-subscribed table
+        // degrades to plain weights instead of dropping the floor out entirely.
+        let floorChance = max(authoredFloor, 100 - othersTotal)
+
+        let table = eligible.contains { $0.value == floor }
+            ? others + [(value: floor, chance: floorChance)]
+            : others
         let total = table.reduce(0) { $0 + $1.chance }
+        guard total > 0 else { return nil }
 
         var roll = Int(generator.next(upperBound: UInt64(total)))
 

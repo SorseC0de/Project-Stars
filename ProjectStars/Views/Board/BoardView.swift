@@ -1547,7 +1547,7 @@ struct BoardView: View {
                 + (NexysStyle.foreshortened ? NexysStyle.islandY * metrics.scale : 0)
         }
         if session.visibleRaisedTiles.contains(where: { $0.point == point }) {
-            return -GameRules.tilePopLift * metrics.scale
+            return -raisedLift(metrics: metrics)
         }
         return 0
     }
@@ -2320,7 +2320,7 @@ struct BoardView: View {
                 // worth is readable from across the board rather than remembered.
                 swaps: pickup.fromRing ? PentacleView.ringSwaps : []
             )
-            .offset(y: lifted ? -GameRules.tilePopLift * metrics.scale : 0)
+            .offset(y: lifted ? -raisedLift(metrics: metrics) : 0)
             // Thrown, not placed.
             //
             // A spilled bubble erupts from the piece — out of nothing, up over
@@ -2594,7 +2594,17 @@ struct BoardView: View {
                     // The deep sprite's surface is drawn a pixel higher than the
                     // flat one's — see `NexysStyle.rideLift`.
                     - NexysStyle.rideLift * metrics.scale
-                : 0) + launchLift(metrics: metrics),
+                : 0)
+                + launchLift(metrics: metrics)
+                // And standing on a square that has been raised. The piece is
+                // the one thing that does not come through
+                // `surfaceOffset(of:bob:metrics:)` — see the note there — so a
+                // popped square lifted the cloud, the coin and the cursor and
+                // left the figure standing at the old height, inside it.
+                + (session.visibleRaisedTiles.contains {
+                    $0.point == session.engine.piece.point
+                       && $0.plane == shown
+                   } ? -raisedLift(metrics: metrics) : 0),
             pose: pose,
             spin: session.fallSpin,
             shadowScale: shadowScale,
@@ -2715,6 +2725,20 @@ struct BoardView: View {
                     - GameRules.pieceShadowPerspectiveLift) * metrics.scale)
                 .modifier(placedOnPlaneModifier(session.engine.piece.point, metrics: metrics))
                 .allowsHitTesting(false)
+        }
+    }
+
+    /// How far a raised square stands proud of its neighbours, in points.
+    ///
+    /// Each plane raises differently — Terra lifts the tile, Astra lifts the
+    /// cloud and the cloud sits higher than a tile to begin with — so a coin
+    /// that used Terra's number on both floated over Astra rather than resting
+    /// on what it was supposedly standing on.
+    private func raisedLift(metrics: PixelArtMetrics) -> CGFloat {
+        switch shown {
+        case .terra: GameRules.tilePopLift * metrics.scale
+        case .astra: (GameRules.cloudSpriteRaiseLift + GameRules.astraCloudLift)
+            * metrics.scale
         }
     }
 

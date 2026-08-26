@@ -82,9 +82,9 @@ struct FallStreakControls: View {
     @Bindable var tuning = FallStreakTuning.shared
 
     var body: some View {
-        VStack(alignment: .leading, spacing: 3) {
+        BenchPanel("streaks") {
+            VStack(alignment: .leading, spacing: 3) {
             HStack(spacing: 6) {
-                Text("streaks").foregroundStyle(Palette.gold)
                 Button("print") { tuning.dump() }
                 Button("reset") { tuning.reset() }
             }
@@ -94,11 +94,10 @@ struct FallStreakControls: View {
             row("length", $tuning.length, 0.02 ... 1.5, 0.01, "%.2f")
             row("speed", $tuning.speed, 0.05 ... 6, 0.05, "%.2f")
             row("thick", $tuning.thickness, 0.5 ... 12, 0.5, "%.1f")
+            }
+            .font(.system(size: 9, weight: .semibold, design: .monospaced))
+            .foregroundStyle(Palette.stone)
         }
-        .font(.system(size: 9, weight: .semibold, design: .monospaced))
-        .foregroundStyle(Palette.stone)
-        .padding(6)
-        .background(Palette.midnight.opacity(0.9), in: RoundedRectangle(cornerRadius: 8))
     }
 
     private func row(
