@@ -1135,8 +1135,12 @@ struct BoardView: View {
     /// to shear or stretch. What it needs from the row is only that it be *drawn*
     /// with it, so the sort can put the row in front of it over the top.
     @ViewBuilder
-    private func cloudRow(_ row: Int, board: Board, metrics: PixelArtMetrics) -> some View {
-        let popped = Set(session.visibleRaisedTiles.map(\.point))
+    private func cloudRow(
+        _ row: Int,
+        board: Board,
+        metrics: PixelArtMetrics,
+        popped: Set<GridPoint>
+    ) -> some View {
 
         ZStack {
             if LayerBench.shared.clouds, CloudSpriteField.hasArt {
@@ -1585,6 +1589,11 @@ struct BoardView: View {
             // rest whatever the list said. So the row each object stands on is
             // stated outright, here, on the sibling — automatically, out of the
             // object itself, the same way for every kind there is.
+            // One per pass, handed down. It was rebuilt inside `cloudRow`,
+            // which runs seven times on Astra — and above the layer gate, so
+            // turning the clouds off did not stop it being built.
+            let popped = Set(session.visibleRaisedTiles.map(\.point))
+
             ForEach(
                 BoardObject.draw(
                     objectsOnBoard(plane: plane, board: board, includesGround: includesGround)
@@ -1618,7 +1627,10 @@ struct BoardView: View {
                         if plane == .terra {
                             bandRow(object.point.y, board: board, plane: plane, metrics: metrics)
                         } else {
-                            cloudRow(object.point.y, board: board, metrics: metrics)
+                            cloudRow(
+                                object.point.y, board: board,
+                                metrics: metrics, popped: popped
+                            )
                         }
 
                     case .pentacle:

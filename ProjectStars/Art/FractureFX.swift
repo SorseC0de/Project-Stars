@@ -49,8 +49,33 @@ struct FractureField<Content: View>: View {
     /// When the tear last opened or closed, for the ramp.
     @State private var changedAt = Date.distantPast
 
+    /// True while the ramp is still running after `isActive` changed.
+    ///
+    /// The closing ramp is the one case where this has to keep drawing with the
+    /// tear already off: `lean` is still falling toward zero and the frames
+    /// between are the fade. Cleared by a task that checks `changedAt` has not
+    /// moved, so a tear that opens again mid-close cannot have its ramp ended
+    /// early by the first one's timer.
+    @State private var isRamping = false
+
     var body: some View {
-        TimelineView(.animation) { timeline in
+        // **Paused when there is no tear and no ramp.**
+        //
+        // This wraps the entire board, and it had no pause gate and no interval
+        // — the only permanently mounted timeline in the game without one. So
+        // `content()` was reconstructed at display rate, on both planes, for
+        // ever, whether or not anything had moved: the object list, the sort,
+        // and on Astra seven `cloudRow` passes each building five `Set`s from
+        // scratch.
+        //
+        // Nothing here is lost by pausing. With the tear off and the ramp done,
+        // `lean` is zero and the branch taken is `content()` — the identical
+        // tree. Pausing changes which frames it is *rebuilt* on, not what it
+        // contains, and every child keeps its own clock.
+        TimelineView(.animation(paused: !isActive && !isRamping)) { timeline in
+            #if DEBUG
+            let _ = RenderTally.tick("fracture")
+            #endif
             // Wrapped before it is narrowed to `Float`.
             //
             // Seconds since 2001 is about 8×10⁸, and `Float` carries seven
@@ -107,7 +132,19 @@ struct FractureField<Content: View>: View {
                     .padding(-overhang)
             }
         }
-        .onChange(of: isActive) { changedAt = .now }
+        .onChange(of: isActive) {
+            changedAt = .now
+            isRamping = true
+
+            let mark = changedAt
+            Task { @MainActor in
+                try? await Task.sleep(
+                    nanoseconds: UInt64(GameRules.fractureRampDuration * 1_000_000_000)
+                )
+                // Only if nothing has changed since — see `isRamping`.
+                if changedAt == mark { isRamping = false }
+            }
+        }
     }
 
     /// How far the board is allowed to draw outside itself, in points.
