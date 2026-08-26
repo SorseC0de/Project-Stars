@@ -473,6 +473,13 @@ final class BoardScene: SKScene {
         CGFloat(row * 10 + layer)
     }
 
+    /// Above every row, for the things that are not standing on one.
+    ///
+    /// Smoke and effect strips are not objects on a square — they are what just
+    /// happened there — and sorted into a row's band they clip behind the row in
+    /// front, on every row but the nearest.
+    private static let effects: CGFloat = 10_000
+
     private func place(
         _ node: SKSpriteNode,
         at point: GridPoint,
@@ -572,8 +579,12 @@ final class BoardScene: SKScene {
         //
         // Placed at the tile's bottom edge unscaled instead, the piece sat low
         // everywhere and lower still at the back, where the row is smaller.
-        let stand = (metrics.tileSize / 2 - GameRules.pieceLift * metrics.scale)
-            * spot.scale
+        // How far the feet sit below the tile's centre, before the row scales it.
+        // The children below live inside a node the row has *already* scaled, so
+        // they want this unscaled — scaling it twice is what put the shadow and
+        // the arrow under the board.
+        let drop = metrics.tileSize / 2 - GameRules.pieceLift * metrics.scale
+        let stand = drop * spot.scale
         let seat = CGPoint(
             x: spot.position.x + inset,
             y: -CGFloat(World.row(of: standing.plane)) * side
@@ -629,8 +640,12 @@ final class BoardScene: SKScene {
         shadow.isHidden = session.isChangingPlane || session.isFalling
         // The mark on the ground, lifted back by what the perspective's seating
         // pushed down — the figure needed moving, the shadow did not.
-        shadow.position.y = (GameRules.pieceShadowPerspectiveLift
-            - GameRules.pieceShadowDrop) * metrics.scale
+        // The view puts the shadow at the tile's centre and pushes it down by
+        // its own drop. This node is at the feet, so the centre is `drop` back
+        // up from here.
+        shadow.position.y = drop
+            + (GameRules.pieceShadowPerspectiveLift - GameRules.pieceShadowDrop)
+            * metrics.scale
         shadow.setScale(max(1 - hop.lift / GameRules.hopArcHeight * 0.4, 0.35))
 
         // And the arrow that says which way it is looking.
@@ -644,14 +659,17 @@ final class BoardScene: SKScene {
             let reach = metrics.tileSize * GameRules.facingArrowScale
             arrow.size = CGSize(width: reach, height: reach)
             // And it sits out from the piece toward the square it points at.
-            arrow.position = CGPoint(
-                x: CGFloat(looking.unitOffset.dx) * metrics.tileSize
-                    * GameRules.facingArrowReach,
-                y: -CGFloat(looking.unitOffset.dy) * metrics.tileSize
-                    * GameRules.facingArrowReach
-            )
+
             facing = looking
         }
+        // A ground mark on the piece's own square, reaching toward the one it
+        // points at — measured from the tile's centre like the shadow.
+        arrow.position = CGPoint(
+            x: CGFloat(looking.unitOffset.dx) * metrics.tileSize
+                * GameRules.facingArrowReach,
+            y: drop - CGFloat(looking.unitOffset.dy) * metrics.tileSize
+                * GameRules.facingArrowReach
+        )
         arrow.isHidden = shadow.isHidden
 
         // The cursor, on the square the next move would land on.
@@ -708,6 +726,7 @@ final class BoardScene: SKScene {
             let wide = 2 * puff.magnitude
             place(node, at: puff.point, on: puff.plane,
                   tiles: CGSize(width: wide, height: wide))
+            node.zPosition = Self.effects
             addChild(node)
 
             let each = SpriteSheetLoader.frameDuration(for: .smoke(puff.plane))
@@ -762,9 +781,9 @@ final class BoardScene: SKScene {
                     height: wide
                         * burst.effect.frameSize.height / burst.effect.frameSize.width
                         * burst.effect.spanScaleY
-                ),
-                layer: 8
+                )
             )
+            node.zPosition = Self.effects
             node.zRotation = CGFloat(burst.angle) * .pi / 180
             node.xScale = burst.mirrored ? -1 : 1
             if let tint = burst.tint {
@@ -793,7 +812,7 @@ final class BoardScene: SKScene {
         let places = Set(wanted.map(\.point))
 
         for (point, node) in coins where !places.contains(point) {
-            node.removeFromParent()
+            node.parent?.removeFromParent()
             coins[point] = nil
         }
 
@@ -806,17 +825,35 @@ final class BoardScene: SKScene {
             let texture = SKTexture(image: art)
             texture.filteringMode = .nearest
 
+            let holder = SKSpriteNode()
+            addChild(holder)
+
             let node = SKSpriteNode(texture: texture)
-            node.zPosition = 450
-            addChild(node)
+            holder.addChild(node)
             coins[pickup.point] = node
+
+            // The hover, as an action the render thread owns. A coin bobs on
+            // its own clock and always has — nothing about it depends on the
+            // board, so nothing here has to be asked about it again.
+            let reach = GameRules.pentacleFloatAmplitude * metrics.scale
+            let half = GameRules.pentacleFloatPeriod / 2
+            let up = SKAction.moveBy(x: 0, y: reach, duration: half)
+            let down = SKAction.moveBy(x: 0, y: -reach, duration: half)
+            up.timingMode = SKActionTimingMode.easeInEaseOut
+            down.timingMode = SKActionTimingMode.easeInEaseOut
+            node.run(.repeatForever(.sequence([up, down])), withKey: "hover")
         }
 
         for (point, node) in coins {
-            // A coin is `pentacleCellSpan` tiles across, as the view frames it.
+            // **Placed by the parent, bobbing in the child.** `place` writes a
+            // position every frame; an action writing the same property would
+            // be overwritten by it every frame, which is why the coin sat
+            // still. The holder is placed, the coin hovers inside it.
+            guard let holder = node.parent as? SKSpriteNode else { continue }
             let span = GameRules.pentacleCellSpan
-            place(node, at: point, on: plane,
+            place(holder, at: point, on: plane,
                   tiles: CGSize(width: span, height: span), layer: 6)
+            node.size = holder.size
         }
     }
 
