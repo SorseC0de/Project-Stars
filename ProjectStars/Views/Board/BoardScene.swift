@@ -47,6 +47,8 @@ final class BoardScene: SKScene {
 
     /// One container per plane, parked at its row in the column.
     private var planes: [Plane: SKNode] = [:]
+    private var grounds: [Plane: SKNode] = [:]
+    private var scenery: [Plane: SKNode] = [:]
     private var piece = SKNode()
     private var figure = SKSpriteNode()
     private var cursor = SKSpriteNode()
@@ -66,7 +68,13 @@ final class BoardScene: SKScene {
     private var shadow = SKSpriteNode()
     private var arrow = SKSpriteNode()
     private var facing: SwipeDirection?
+
+    /// `-1` when the drawing is the mirror of one on the sheet, `1` otherwise.
+    private var mirror: CGFloat = 1
     private let follow = SKCameraNode()
+
+    /// Where the camera was last sent, so a journey is started once.
+    private var aimedAt: CGFloat = .greatestFiniteMagnitude
 
     /// What the piece was last drawn wearing, so the texture is only rebuilt
     /// when it actually changes rather than every frame.
@@ -136,8 +144,17 @@ final class BoardScene: SKScene {
         holder.position = CGPoint(x: 0, y: -CGFloat(World.row(of: plane)) * side)
         addChild(holder)
         planes[plane] = holder
+        // Its own child, so rebuilding the ground cannot take it with it.
+        let land = SKNode()
+        holder.addChild(land)
+        scenery[plane] = land
+
+        let floor = SKNode()
+        holder.addChild(floor)
+        grounds[plane] = floor
+
         rebuild(plane)
-        if plane == .terra { addScenery(to: holder) }
+        if plane == .terra { addScenery(to: land) }
     }
 
     /// Terra's land: two ridges behind the board, and the near rock in front.
@@ -200,7 +217,10 @@ final class BoardScene: SKScene {
     /// hole opened, a plane restored. Everything else moves; only this is ever
     /// remade, and only when the squares themselves changed.
     private func rebuild(_ plane: Plane) {
-        guard let holder = planes[plane] else { return }
+        // The ground's own node, not the plane's. `removeAllChildren` on the
+        // plane took the scenery with it — so Terra's ridges vanished the first
+        // time anything on the board changed and never came back.
+        guard let holder = grounds[plane] else { return }
         holder.removeAllChildren()
 
         let board = session.engine[plane]
@@ -439,10 +459,31 @@ final class BoardScene: SKScene {
     /// so nothing is observed and nothing is invalidated, and it writes two
     /// positions. Whatever else changed this frame, this is what it costs.
     override func update(_ currentTime: TimeInterval) {
-        follow.position = CGPoint(
-            x: side / 2,
-            y: -session.cameraRow * side - side / 2
-        )
+        // **Travelled, not read.**
+        //
+        // `cameraRow` is animated, which in SwiftUI means the *model* reaches
+        // its destination immediately and only the view takes the long way
+        // there. A view interpolates it; a scene reading the number gets the
+        // end of the journey on the first frame of it, which is why a plane
+        // change warped instead of falling.
+        let want = CGPoint(x: side / 2, y: -session.cameraRow * side - side / 2)
+        if abs(want.y - aimedAt) > 0.5 {
+            aimedAt = want.y
+            follow.removeAction(forKey: "travel")
+
+            let span = session.isChangingPlane || session.isDropping
+                ? GameRules.fallDuration
+                : 0
+            if span > 0 {
+                let go = SKAction.move(to: want, duration: span)
+                go.timingMode = SKActionTimingMode.linear
+                follow.run(go, withKey: "travel")
+            } else {
+                follow.position = want
+            }
+        } else if follow.action(forKey: "travel") == nil {
+            follow.position = want
+        }
 
         // Only when the squares themselves changed — see `built`.
         for plane in Plane.allCases where built[plane] != session.engine[plane] {
@@ -450,12 +491,16 @@ final class BoardScene: SKScene {
         }
 
         let standing = session.engine.piece
-        let id = SpriteID.pieceFacing(standing.zodiac, session.visibleFacing)
+        let looking = session.visibleFacing
+        let id = SpriteID.pieceFacing(standing.zodiac, looking)
         if id != wearing, let art = PaletteRecolour.image(id, frame: 0, swaps: []) {
             let texture = SKTexture(image: art)
             texture.filteringMode = .nearest
             figure.texture = texture
             figure.size = CGSize(width: metrics.tileSize, height: metrics.tileSize * 2)
+            // East is west, mirrored: there is no east drawing on the sheet.
+            // See `PieceView.isMirrored`.
+            mirror = looking == .right && standing.zodiac != .gemini ? -1 : 1
             wearing = id
         }
 
@@ -475,18 +520,26 @@ final class BoardScene: SKScene {
             sentOn = standing.plane
 
             piece.removeAction(forKey: "step")
+            piece.removeAction(forKey: "settle")
             let span = session.movement?.duration ?? GameRules.hopDuration
             if span > 0, piece.parent != nil, sentTo != nil {
                 let go = SKAction.move(to: seat, duration: span)
                 go.timingMode = SKActionTimingMode.easeInEaseOut
                 piece.run(go, withKey: "step")
-                piece.run(.scale(to: spot.scale, duration: span))
+                // **Keyed too.** Unkeyed, this survived the `removeAction` that
+                // cancels an interrupted step — so moving quickly and stopping
+                // left a half-finished scale running, and the piece kept
+                // whatever size the row it was passing through had given it.
+                piece.run(.scale(to: spot.scale, duration: span), withKey: "settle")
             } else {
                 piece.position = seat
                 piece.setScale(spot.scale)
             }
-        } else if piece.action(forKey: "step") == nil {
-            // Standing still, or carried by the camera: keep it seated.
+        } else if piece.action(forKey: "step") == nil,
+                  piece.action(forKey: "settle") == nil {
+            // Standing still, or carried by the camera: keep it seated. This is
+            // also the backstop for a scale that was interrupted — whatever
+            // happened on the way, the square it is on decides its size.
             piece.position = seat
             piece.setScale(spot.scale)
         }
@@ -497,7 +550,10 @@ final class BoardScene: SKScene {
         // which means a scene can read it exactly as a view did.
         let hop = session.hopPose(at: Date())
         figure.position.y = hop.lift * metrics.scale
-        figure.xScale = hop.scaleX
+        // **Multiplied, not assigned.** The squash and the mirror both want
+        // `xScale`, and written separately each wiped the other out — the hop
+        // straightened an east-facing piece, and the mirror froze the squash.
+        figure.xScale = hop.scaleX * mirror
         figure.yScale = hop.scaleY
 
         // The shadow stays down and narrows as the figure leaves it.
@@ -505,7 +561,6 @@ final class BoardScene: SKScene {
         shadow.setScale(max(1 - hop.lift / GameRules.hopArcHeight * 0.4, 0.35))
 
         // And the arrow that says which way it is looking.
-        let looking = session.visibleFacing
         if looking != facing,
            let art = PaletteRecolour.image(.directionArrow(looking), frame: 0, swaps: []) {
             let texture = SKTexture(image: art)
@@ -583,10 +638,18 @@ final class BoardScene: SKScene {
             guard let first = frames.first else { continue }
             if burst.reversed { frames.reverse() }
 
+            // **The tile's size times the effect's span**, which is how the
+            // view has always sized these. Taking the texture's own dimensions
+            // and multiplying by the pixel scale drew them at the size of the
+            // *art* — three or four tiles across — so a puff of dust covered a
+            // quarter of the board.
             let node = SKSpriteNode(texture: first)
+            let span = metrics.tileSize * burst.effect.span * burst.scale
             node.size = CGSize(
-                width: first.size().width * metrics.scale * burst.scale,
-                height: first.size().height * metrics.scale * burst.scale
+                width: span,
+                height: span
+                    * burst.effect.frameSize.height / burst.effect.frameSize.width
+                    * burst.effect.spanScaleY
             )
             let spot = metrics.projected(burst.center)
             node.position = CGPoint(
