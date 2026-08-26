@@ -22,6 +22,17 @@ final class AuraTuning {
 
     static let shared = AuraTuning()
 
+    /// How many afterimages are drawn behind a moving piece.
+    ///
+    /// Each one is a whole `PieceView` — the full assembly, because a ghost of
+    /// Pisces has to have the fish on it — so this is three more of the most
+    /// complicated view in the game, drawn only while something is moving,
+    /// which is the one time there is no frame to spare. Set it to zero and the
+    /// trail is gone; if the frame rate comes back, that was it.
+    var ghosts: Double = store.value("ghosts", Double(GameRules.afterimageCount)) {
+        didSet { AuraTuning.store.set("ghosts", ghosts) }
+    }
+
     /// How far the charged bloom spreads, in art pixels. Every sign but
     /// Aquarius wears this one.
     var glowRadius: Double = store.value("glowRadius", AuraStyle.defaultGlowRadius) {
@@ -55,11 +66,12 @@ final class AuraTuning {
         // an unstored key already falls back to its shipped default. Only a
         // changed default needs the old values thrown away.
         vintage: 1,
-        names: ["glowRadius", "glowTrail", "layers", "radius", "opacity"]
+        names: ["ghosts", "glowRadius", "glowTrail", "layers", "radius", "opacity"]
     )
 
     func reset() {
         AuraTuning.store.forget()
+        ghosts = Double(GameRules.afterimageCount)
         glowRadius = AuraStyle.defaultGlowRadius
         glowTrail = Double(AuraStyle.defaultGlowTrail)
         layers = Double(AuraStyle.defaultLayers)
@@ -68,6 +80,8 @@ final class AuraTuning {
     }
 
     func dump() {
+        print("── piece ──")
+        print("  static let afterimageCount = \(Int(ghosts))")
         print("── glow ──")
         print(String(format: "  static let gemGlowRadius: CGFloat = %.1f", glowRadius))
         print("  static let gemGlowTrail = \(Int(glowTrail))")
@@ -90,8 +104,9 @@ struct AuraControls: View {
                 Button("print") { tuning.dump() }
                 Button("reset") { tuning.reset() }
             }
+            row("ghosts", $tuning.ghosts, 0 ... 6, 1, "%.0f")
             row("glow r", $tuning.glowRadius, 0 ... 10, 0.5, "%.1f")
-            row("glow n", $tuning.glowTrail, 0 ... 4, 1, "%.0f")
+            row("trail", $tuning.glowTrail, 0 ... 4, 1, "%.0f")
             row("layers", $tuning.layers, 0 ... 3, 1, "%.0f")
             row("radius", $tuning.radius, 0.5 ... 12, 0.5, "%.1f")
             row("opacity", $tuning.opacity, 0 ... 1, 0.05, "%.2f")

@@ -1290,6 +1290,15 @@ enum AuraStyle {
         #endif
     }
 
+    /// How many ghosts a moving piece leaves. See `AuraTuning.ghosts`.
+    static var ghosts: Int {
+        #if DEBUG
+        max(Int(AuraTuning.shared.ghosts), 0)
+        #else
+        GameRules.afterimageCount
+        #endif
+    }
+
     static let defaultGlowRadius: Double = 2
     static let defaultGlowTrail = 2
 

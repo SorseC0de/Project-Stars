@@ -3015,7 +3015,13 @@ struct BoardView: View {
             let cycle = date.timeIntervalSinceReferenceDate / GameRules.starCyclePeriod
             let current = Int(cycle * Double(elements.count))
 
-            ForEach(Array(session.afterimages.enumerated()), id: \.element.id) { step, ghost in
+            // Trimmed as it is drawn rather than as it is recorded, so the
+            // knob takes effect on the next frame instead of waiting for the
+            // trail to refill. See `AuraStyle.ghosts`.
+            ForEach(
+                Array(session.afterimages.prefix(AuraStyle.ghosts).enumerated()),
+                id: \.element.id
+            ) { step, ghost in
                 let age = date.timeIntervalSince(ghost.born) / GameRules.afterimageLife
 
                 if ghost.plane == shown, age < 1 {
