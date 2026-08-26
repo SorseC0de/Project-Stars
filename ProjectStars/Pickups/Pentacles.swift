@@ -1570,10 +1570,6 @@ struct GaiaDropletEffect: PickupEffect {
 /// The registry of every Pentacle, and the roll that decides which one spawns.
 enum PickupCatalog {
 
-    /// Every implemented effect, keyed by id.
-    /// Said once a run, not once a draw.
-    nonisolated(unsafe) private static var warnedAboutTotal = false
-
     static let allEffects: [PickupID: any PickupEffect] = [
         .zCharge: ZChargeEffect(),
         .restoreTile: AstralTearEffect(),
@@ -1696,20 +1692,16 @@ enum PickupCatalog {
         using generator: inout SeededRandom
     ) -> PickupID? {
 
-        // **One roll, out of a hundred.**
+        // One roll across the whole table.
         //
-        // This was two rolls: a tier, then something inside the tier. What a
-        // coin was really worth was the product of two numbers written in
-        // different files, so nobody could read a rate off the source — and the
-        // arithmetic put Forced Fate at one coin in fifty while it sat in a tier
-        // labelled four percent, sharing it with one sibling.
+        // The chances are weights: exactly one Pentacle comes out of a hunt, so
+        // a coin's real odds are its number over whatever the table sums to.
+        // They do not have to reach a hundred, and nothing here asks them to —
+        // adding a coin changes what every other one is worth, which is why the
+        // sheet has an Actual % column rather than a target to balance against.
         //
-        // Now each effect states its own percentage and they sum to a hundred.
-        // The number in the file is the number in the game.
-        // Narrowed for testing, and never in a shipped build — see
-        // `PickupSpawnRule`. The chances inside whatever survives are the
-        // authored ones, so a filtered run is still a fair sample of the coins
-        // it is allowed to see.
+        // Filtered for testing, never in a shipped build — see
+        // `PickupSpawnRule`.
         let rule = PickupSpawnRule.current
         let table = allEffects.values
             .filter { rule.allows($0.id) }
@@ -1722,38 +1714,9 @@ enum PickupCatalog {
         // A passive may have added to the table or taken from it — Libra's
         // Gavel is authored at zero and weighted in, Pisces trades one coin's
         // chance for another's — so the total is whatever it is by the time it
-        // gets here, and the draw is taken out of that. Percentages that no
-        // longer sum to a hundred are still exact *relative* to each other,
-        // which is the most that can be true once a sign has had its say.
+        // gets here, and the draw is taken out of that.
         let total = table.reduce(0) { $0 + $1.chance }
 
-        #if DEBUG
-        // **Near a hundred on the table actually being drawn from**, which is
-        // the only total a player ever experiences.
-        //
-        // Not exactly a hundred, and not the authored sum either. Coins are
-        // locked to a plane — an Essence on Astra, the Tremor and the Shakedown
-        // on Terra — so the eligible table is never the whole catalogue; signs
-        // reweight it; and the catalogue is still being written, so part of the
-        // remainder belongs to coins that do not exist yet. A band says the
-        // authored numbers are close to the played ones without pretending the
-        // set is finished.
-        // **A warning, not a trap.**
-        //
-        // It was an assertion, which is the wrong shape while the catalogue is
-        // deliberately growing: adding five designed coins in one sitting put
-        // the table well past a hundred, and a check that takes the game down
-        // for that stops the very testing it exists to protect. It still says
-        // so, loudly, once, and the number it prints is the one to trim toward.
-        if !(85...115).contains(total), !Self.warnedAboutTotal {
-            Self.warnedAboutTotal = true
-            print(
-                "⚠︎ Pentacle chances total \(total) on this draw. Authored numbers "
-                    + "are scaled by \(String(format: "%.2f", 100.0 / Double(total))) "
-                    + "— see PickupEffect.chance"
-            )
-        }
-        #endif
         var roll = Int(generator.next(upperBound: UInt64(total)))
 
         var drawn = table[0].value

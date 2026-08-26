@@ -7,31 +7,11 @@
 
 import Foundation
 
-// MARK: - PickupRarity
 
 /// How often a tier of Pentacle turns up.
 ///
 /// Rolling happens in two stages — first a tier, then an effect within it — so
 /// that adding a new common effect does not silently dilute the legendaries.
-enum PickupRarity: String, CaseIterable, Codable {
-    case common
-    case uncommon
-    case rare
-    case legendary
-
-    var displayName: String { rawValue.capitalized }
-
-    /// The tier is a **label**, not a rate.
-    ///
-    /// It was both: a tier weight rolled first, then a weight inside the tier,
-    /// and what a coin was actually worth was the product of two numbers stated
-    /// in different files. Nobody could read a real chance off that, which is
-    /// how Forced Fate came to feel as common as a heal while looking rare on
-    /// paper. Each effect states its own percentage now — see
-    /// `PickupEffect.chance` — and this says how the banner should shout about
-    /// it and nothing else.
-}
-
 // MARK: - PentacleAppearance
 
 /// How a Pentacle looks on the board before it is opened.
@@ -197,10 +177,8 @@ struct PickupContext {
     let zodiactionMeter: Int
     let zodiactionMeterMax: Int
 
-
     /// True when holes hold this piece up and the border does not stop it.
     var floatsOverHoles: Bool = false
-
 
     /// What the sign remembers between moves. An effect that grants a lasting
     /// state — the Astral Bolt's star — amends this and returns it in a
@@ -240,22 +218,6 @@ protocol PickupEffect {
 
     /// Which Pentacle this implements.
     var id: PickupID { get }
-
-    /// How often it turns up.
-    var rarity: PickupRarity { get }
-
-    /// The tier this is *rolled* in, when that differs from what it is.
-    ///
-    /// For effects whose rarity is enforced by something other than the dice.
-    /// Polaris is pinned to one square, so it is only ever a candidate when a
-    /// sparkle set happens to cover the top-centre tile — that restriction is
-    /// already doing the work a legendary weight would do, and applying both
-    /// makes it something no player will ever see. It rolls as a common and
-    /// stays a legendary in everything the player is shown: the tier on its
-    /// banner, and its own radiant coin.
-    ///
-    /// Defaults to `rarity`, which is right for everything else.
-    var rollsAsRarity: PickupRarity { get }
 
     /// Name shown when opened.
     var displayName: String { get }
@@ -312,17 +274,16 @@ protocol PickupEffect {
     /// Relative weight against the other effects **in the same tier**.
     ///
     /// Set to `0` to keep an effect implemented but out of rotation.
-    /// How often this comes up, as a **percentage of all Pentacles drawn**.
+    /// How often this comes up, against every other coin that could appear.
     ///
-    /// A real number out of a hundred: `2` means two coins in a hundred, and
-    /// the whole catalogue sums to a hundred. Not a weight — a weight is only
-    /// true relative to whatever else happens to be in the table, so adding one
-    /// coin silently rewrote every other coin's odds and the authored number
-    /// meant nothing on its own.
+    /// A weight, not a percentage — exactly one Pentacle comes out of a hunt, so
+    /// the real odds are this over whatever the eligible table sums to. It does
+    /// not have to reach a hundred; `_Design/Pickups.xlsx` shows what each one
+    /// is actually worth.
     ///
-    /// `0` means it is never drawn at random. That is how a coin that is only
-    /// ever placed by something else is written, and how a sign's exclusive
-    /// waits to be weighted in — see `ZodiacPassive.pickupChance`.
+    /// `0` means it is never drawn at random: a coin only ever placed by
+    /// something else, or a sign's exclusive waiting to be weighted in — see
+    /// `ZodiacPassive.pickupChance`.
     var chance: Int { get }
 
     /// Whether this belongs to the Pentacle hunt or is something an ability left
@@ -418,11 +379,6 @@ struct PickupDescriptor {
     let summary: String
     let glyph: String
     let icon: String?
-    let rarity: PickupRarity
-
-    /// Blank in the sheet means "the same as `rarity`", which is why this is
-    /// optional here and resolved at the point of use.
-    let rollsAsRarity: PickupRarity?
 
     let chance: Int
     let spawnPlane: Plane?
@@ -445,8 +401,6 @@ extension PickupEffect {
             summary: "No row in Pickups.xlsx.",
             glyph: "?",
             icon: nil,
-            rarity: .common,
-            rollsAsRarity: nil,
             chance: 0,
             spawnPlane: nil,
             element: nil,
@@ -458,7 +412,6 @@ extension PickupEffect {
     var displayName: String { sheet.displayName }
     var summary: String { sheet.summary }
     var glyph: String { sheet.glyph }
-    var rarity: PickupRarity { sheet.rarity }
 
     /// The plain line, unless the coin says otherwise.
     func summary(in context: PickupSummaryContext) -> String { summary }
@@ -468,7 +421,6 @@ extension PickupEffect {
     var appearance: PentacleAppearance { sheet.appearance }
     var element: ZodiacElement? { sheet.element }
     var chance: Int { sheet.chance }
-    var rollsAsRarity: PickupRarity { sheet.rollsAsRarity ?? rarity }
     var choice: PickupChoice { .none }
     var arrivalWearsTile: Bool { true }
     var pickupClass: PickupClass { .pentacle }

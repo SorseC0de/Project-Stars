@@ -47,10 +47,6 @@ struct PentacleBannerView: View {
                         // banner sized for one.
                         .lineLimit(1)
                         .minimumScaleFactor(0.6)
-
-                    Text(effect.rarity.displayName.uppercased())
-                        .font(.system(size: 7, weight: .heavy, design: .monospaced))
-                        .foregroundStyle(tint(for: effect))
                 }
 
                 Text(effect.summary(in: context))
@@ -80,23 +76,13 @@ struct PentacleBannerView: View {
     /// What the icon is coloured by.
     ///
     /// An effect that belongs to an element wears that element's colour, taken
-    /// from the same ramp its burst is drawn from — Astral Brook is water, and
-    /// water is blue whatever tier it happens to sit in. Being told twice that
-    /// something is uncommon is worth less than being told what it *is*, and the
-    /// tier is already spelled out in words an inch to the right.
-    ///
-    /// Everything else falls back to rarity, which reads as colour so the tier
-    /// registers before the words do.
+    /// from the same ramp its burst is drawn from. Everything else is gold,
+    /// because a Pentacle is a Pentacle.
     private func tint(for effect: any PickupEffect) -> Color {
         if let element = effect.element {
             return ElementFX.ramp(for: element).mid
         }
 
-        return switch effect.rarity {
-        case .common: Palette.textSecondary
-        case .uncommon: Palette.pickupUncommon
-        case .rare: Palette.pickupRare
-        case .legendary: Palette.pickupLegendary
-        }
+        return Palette.gold
     }
 }

@@ -29,9 +29,8 @@ SHEET = ROOT / "_Design" / "Pickups.xlsx"
 SOURCE = ROOT / "ProjectStars" / "Pickups" / "Pentacles.swift"
 OUT = ROOT / "ProjectStars" / "Pickups" / "PickupDescriptors.generated.swift"
 
-COLUMNS = ["struct", "id", "displayName", "summary", "rarity", "rollsAsRarity",
-           "chance", "glyph", "icon", "spawnPlane", "element", "appearance",
-           "pickupClass", "notes"]
+COLUMNS = ["struct", "id", "displayName", "summary", "chance", "glyph", "icon",
+           "spawnPlane", "element", "appearance", "pickupClass", "notes"]
 
 
 def literal(text):
@@ -74,9 +73,9 @@ def read_rows():
     sheet = book["Pickups"]
 
     header = [c.value for c in sheet[1]]
-    if header[: len(COLUMNS)] != ["Struct", "ID", "Name", "Summary", "Rarity",
-                                  "Rolls As", "Chance", "Glyph", "Icon", "Plane",
-                                  "Element", "Appearance", "Class", "Notes"]:
+    if header[: len(COLUMNS)] != ["Struct", "ID", "Name", "Summary", "Chance",
+                                  "Glyph", "Icon", "Plane", "Element",
+                                  "Appearance", "Class", "Notes"]:
         sys.exit(f"{SHEET.name}: unexpected columns {header}")
 
     rows = []
@@ -136,8 +135,6 @@ def main():
             f'            summary: {literal(row["summary"])},',
             f'            glyph: {literal(row["glyph"])},',
             f'            icon: {literal(icon) if icon else "nil"},',
-            f'            rarity: {case(row["rarity"], "required")},',
-            f'            rollsAsRarity: {case(row["rollsAsRarity"], "optional")},',
             f'            chance: {chance},',
             f'            spawnPlane: {case(row["spawnPlane"], "optional")},',
             f'            element: {case(row["element"], "optional")},',
