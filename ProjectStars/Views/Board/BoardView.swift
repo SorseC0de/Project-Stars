@@ -1136,7 +1136,7 @@ struct BoardView: View {
     /// with it, so the sort can put the row in front of it over the top.
     @ViewBuilder
     private func cloudRow(
-        _ row: Int,
+        _ row: Int?,
         board: Board,
         metrics: PixelArtMetrics,
         popped: Set<GridPoint>,
@@ -1149,11 +1149,11 @@ struct BoardView: View {
                 CloudSpriteField(
                     board: board,
                     metrics: metrics,
-                    flashing: session.flashingTiles.filter { $0.y == row },
-                    raised: popped.filter { $0.y == row },
+                    flashing: session.flashingTiles.filter { row == nil || $0.y == row },
+                    raised: popped.filter { row == nil || $0.y == row },
                     // Whatever is being stood on or hovered over has to stay
                     // clear of its neighbours' overlap.
-                    mending: mending.filter { $0.y == row },
+                    mending: mending.filter { row == nil || $0.y == row },
                     // **This row's, not the board's.**
                     //
                     // A field only ever asks whether a point *on its own row* is
@@ -1163,7 +1163,7 @@ struct BoardView: View {
                     // seven canvases of forty-nine clusters to change the order
                     // of two of them. Narrowed, a lateral move dirties exactly
                     // the row it happens on.
-                    occupied: occupied.filter { $0.y == row },
+                    occupied: occupied.filter { row == nil || $0.y == row },
                     clock: session.ambientClock(at:),
                     wake: cloudWake,
                     bounce: surfaceBounce,
@@ -1644,7 +1644,8 @@ struct BoardView: View {
                             bandRow(object.point.y, board: board, plane: plane, metrics: metrics)
                         } else {
                             cloudRow(
-                                object.point.y, board: board, metrics: metrics,
+                                LayerBench.shared.oneCanvas ? nil : object.point.y,
+                                board: board, metrics: metrics,
                                 popped: popped, mending: mending, occupied: occupied
                             )
                         }
@@ -2118,7 +2119,12 @@ struct BoardView: View {
         // Astra's ground used to be a pass of its own, running before all of
         // this, which is why nothing up there could ever be occluded by the
         // ground in front of it — the island simply sat over the whole plane.
-        if includesGround, LayerBench.shared.ground {
+        if includesGround, LayerBench.shared.ground,
+           LayerBench.shared.oneCanvas, plane == .astra {
+            // One ground object for the whole plane — see `LayerBench.oneCanvas`.
+            // It sorts at the back, which is wrong and deliberate.
+            objects.append(BoardObject(kind: .tileRow, point: GridPoint(0, 0), slot: 0))
+        } else if includesGround, LayerBench.shared.ground {
             objects += (0..<board.size).map { row in
                 BoardObject(kind: .tileRow, point: GridPoint(0, row), slot: row)
             }

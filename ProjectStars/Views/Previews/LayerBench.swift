@@ -58,6 +58,16 @@ final class LayerBench {
     /// The screen-wide fracture shader wrapped around the whole board.
     var fracture = true
 
+    /// **The experiment.** Astra's ground drawn as ONE canvas instead of seven.
+    ///
+    /// The seven exist so clouds interleave with the objects standing on them,
+    /// so this is visually wrong while it is on — the piece will sort against
+    /// the whole field rather than row by row. That is expected and it is not
+    /// the point. The point is the number: if `late` improves sharply, the cost
+    /// is per-surface and the board wants to be drawn rather than assembled. If
+    /// it does not, that theory is dead for the price of one toggle.
+    var oneCanvas = false
+
     /// The wash that comes up while a move resolves — and the zIndex lift it
     /// puts on every object standing on the ground, which is the half of it
     /// that has never been measured.
@@ -76,6 +86,7 @@ final class LayerBench {
     let sparkles = true
     let fracture = true
     let wash = true
+    let oneCanvas = false
     let stars = true
 
     #endif
@@ -107,6 +118,7 @@ struct LayerBenchControls: View {
             VStack(alignment: .leading, spacing: 2) {
                 Text("astra").foregroundStyle(Palette.sky)
                 toggle("clouds", \.clouds)
+                toggle("ONE canvas", \.oneCanvas)
                 toggle("stars", \.stars)
 
                 Text("terra").foregroundStyle(Palette.gold).padding(.top, 3)
