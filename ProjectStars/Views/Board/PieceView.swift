@@ -304,7 +304,7 @@ struct PieceView: View {
         // light, and only the living figure is giving any off.
         let core = material.paletteSwap([PaletteSwap(gem.dim, gem.lit)])
 
-        if !emitsLight {
+        if !emitsLight || !AuraStyle.bloom {
             core
         } else {
             // The gold blooms, and the eyes with it. Both entries, not just the
@@ -1279,6 +1279,15 @@ enum AuraStyle {
         CGFloat(AuraTuning.shared.glowRadius)
         #else
         CGFloat(defaultGlowRadius)
+        #endif
+    }
+
+    /// Whether the charged bloom is drawn at all. See `AuraTuning.bloom`.
+    static var bloom: Bool {
+        #if DEBUG
+        AuraTuning.shared.bloom
+        #else
+        true
         #endif
     }
 

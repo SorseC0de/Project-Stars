@@ -22,6 +22,16 @@ final class AuraTuning {
 
     static let shared = AuraTuning()
 
+    /// Whether the charged piece blooms at all.
+    ///
+    /// A hard off, because `trail` cannot give one — a trail of zero is still
+    /// one copy through the shader and the blur. This is the only control that
+    /// answers the question outright: does the bloom cost the frames, or does
+    /// something else.
+    var bloom: Bool = store.flag("bloom", true) {
+        didSet { AuraTuning.store.set("bloom", bloom) }
+    }
+
     /// How many afterimages are drawn behind a moving piece.
     ///
     /// Each one is a whole `PieceView` — the full assembly, because a ghost of
@@ -66,11 +76,12 @@ final class AuraTuning {
         // an unstored key already falls back to its shipped default. Only a
         // changed default needs the old values thrown away.
         vintage: 1,
-        names: ["ghosts", "glowRadius", "glowTrail", "layers", "radius", "opacity"]
+        names: ["bloom", "ghosts", "glowRadius", "glowTrail", "layers", "radius", "opacity"]
     )
 
     func reset() {
         AuraTuning.store.forget()
+        bloom = true
         ghosts = Double(GameRules.afterimageCount)
         glowRadius = AuraStyle.defaultGlowRadius
         glowTrail = Double(AuraStyle.defaultGlowTrail)
@@ -101,6 +112,7 @@ struct AuraControls: View {
         BenchPanel("aura") {
             VStack(alignment: .leading, spacing: 3) {
             HStack(spacing: 6) {
+                Button(tuning.bloom ? "bloom: on" : "bloom: OFF") { tuning.bloom.toggle() }
                 Button("print") { tuning.dump() }
                 Button("reset") { tuning.reset() }
             }
