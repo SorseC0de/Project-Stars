@@ -1595,10 +1595,16 @@ struct BoardView: View {
             // turning the clouds off did not stop it being built.
             let popped = Set(session.visibleRaisedTiles.map(\.point))
 
-            ForEach(
+            // Timed: this is the board's whole list, rebuilt and sorted every
+            // time the body runs, and the body runs on every publish of a move.
+            let drawn = RenderTally.span("list.\(plane.rawValue)") {
                 BoardObject.draw(
                     objectsOnBoard(plane: plane, board: board, includesGround: includesGround)
                 )
+            }
+
+            ForEach(
+                drawn
             ) { object in
                 Group {
                     switch object.kind {

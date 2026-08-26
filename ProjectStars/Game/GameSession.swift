@@ -1683,7 +1683,13 @@ final class GameSession {
         // is a *pending* input, and once one has been answered the next belongs
         // to the turn after this one.
         bufferedMove = nil
+        #if DEBUG
+        // The moment a move starts: the phase change alone republishes the whole
+        // session, which rebuilds every view reading it.
+        RenderTally.span("start") { phase = .resolvingMove }
+        #else
         phase = .resolvingMove
+        #endif
         replayTask = Task { [weak self] in
             await self?.replay(events)
         }

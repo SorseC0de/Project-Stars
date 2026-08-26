@@ -131,9 +131,10 @@ enum RenderTally {
         let worst = worstGap
         worstGap = 0
 
-        // Anything that took longer than a frame at 120Hz is worth naming.
+        // Everything timed, however small. A span that is *absent* is
+        // ambiguous — it could be fast or it could be unreached — and that
+        // ambiguity has cost enough time already.
         let slow = spans
-            .filter { $0.value > 0.008 }
             .sorted { $0.value > $1.value }
             .map { String(format: "%@ %.0fms", $0.key, $0.value * 1000) }
         spans.removeAll(keepingCapacity: true)
