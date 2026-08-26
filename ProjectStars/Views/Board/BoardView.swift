@@ -1062,6 +1062,13 @@ struct BoardView: View {
         )
     }
 
+    /// The projection each plane places what stands on it by.
+    ///
+    /// **The same numbers `PixelArtMetrics.projected(_:on:)` uses**, and they
+    /// have to stay the same numbers: a thing and the ground it stands on
+    /// projected differently is a thing floating a tile above its own square,
+    /// which is what the SpriteKit board did until it asked this question the
+    /// same way.
     private func planeFraming(
         _ plane: Plane
     ) -> (emphasis: CGFloat, zoom: CGFloat, lift: CGFloat, pivot: CGFloat, spacing: CGSize) {

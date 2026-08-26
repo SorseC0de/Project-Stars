@@ -346,17 +346,7 @@ final class BoardScene: SKScene {
         let texture = SKTexture(image: art)
         texture.filteringMode = .nearest
 
-        let spot = plane == .astra
-            ? metrics.projected(
-                point,
-                zoom: GameRules.astraForeshortenScale,
-                lift: GameRules.astraForeshortenLift,
-                emphasis: GameRules.astraDepthEmphasis,
-                pivot: GameRules.astraDepthPivot,
-                spacing: CGSize(width: GameRules.cloudSpacingX,
-                                height: GameRules.cloudSpacingY)
-            )
-            : metrics.projected(point)
+        let spot = metrics.projected(point, on: plane)
 
         let span = plane == .astra
             ? metrics.tileSize
@@ -475,7 +465,7 @@ final class BoardScene: SKScene {
         tiles: CGSize,
         lift: CGFloat = 0
     ) {
-        let spot = metrics.projected(point)
+        let spot = metrics.projected(point, on: plane)
         let inset = (side - metrics.boardSize) / 2
 
         node.size = CGSize(
@@ -543,7 +533,7 @@ final class BoardScene: SKScene {
         }
 
         let inset = (side - metrics.boardSize) / 2
-        let spot = metrics.projected(standing.point)
+        let spot = metrics.projected(standing.point, on: standing.plane)
         let seat = CGPoint(
             x: spot.position.x + inset,
             y: -CGFloat(World.row(of: standing.plane)) * side
@@ -604,8 +594,17 @@ final class BoardScene: SKScene {
             let texture = SKTexture(image: art)
             texture.filteringMode = .nearest
             arrow.texture = texture
-            // One tile, as `FacingArrowView` frames it.
-            arrow.size = CGSize(width: metrics.tileSize, height: metrics.tileSize)
+            // A tile framed, then scaled by `facingArrowScale` — the view does
+            // both, and only the frame had been carried across.
+            let reach = metrics.tileSize * GameRules.facingArrowScale
+            arrow.size = CGSize(width: reach, height: reach)
+            // And it sits out from the piece toward the square it points at.
+            arrow.position = CGPoint(
+                x: CGFloat(looking.unitOffset.dx) * metrics.tileSize
+                    * GameRules.facingArrowReach,
+                y: -CGFloat(looking.unitOffset.dy) * metrics.tileSize
+                    * GameRules.facingArrowReach
+            )
             facing = looking
         }
         arrow.isHidden = shadow.isHidden

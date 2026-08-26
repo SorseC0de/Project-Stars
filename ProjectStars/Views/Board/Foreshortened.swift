@@ -63,6 +63,34 @@ extension PixelArtMetrics {
     /// it *is* a floor — and everything standing on it asks the floor where it
     /// should be and how big, then draws itself flat. Position and size come
     /// from the perspective; shape never does.
+    /// Where a thing standing on `point` **on `plane`** sits, and how much the
+    /// perspective shrinks it.
+    ///
+    /// **The two planes are not projected the same way.** Astra's clouds recede
+    /// harder, sit on their own spacing and pivot on a different row — that is
+    /// what `astraDepthEmphasis`, `cloudSpacingY` and the rest are for. So
+    /// anything standing on a plane has to be placed by *that* plane's geometry,
+    /// and placing an Astra object with Terra's numbers puts it about a tile
+    /// low, which is exactly what it did.
+    ///
+    /// One function, so a thing and the ground it stands on can never be
+    /// projected differently again.
+    func projected(_ point: GridPoint, on plane: Plane) -> (position: CGPoint, scale: CGFloat) {
+        plane == .astra
+            ? projected(
+                point,
+                zoom: GameRules.astraForeshortenScale,
+                lift: GameRules.astraForeshortenLift,
+                emphasis: GameRules.astraDepthEmphasis,
+                pivot: GameRules.astraDepthPivot,
+                spacing: CGSize(
+                    width: GameRules.cloudSpacingX,
+                    height: GameRules.cloudSpacingY
+                )
+            )
+            : projected(point)
+    }
+
     func projected(
         _ point: GridPoint,
         depth: CGFloat = GameRules.boardForeshorten,
