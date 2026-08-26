@@ -43,11 +43,21 @@ final class BoardScene: SKScene {
     /// One container per plane, parked at its row in the column.
     private var planes: [Plane: SKNode] = [:]
     private var piece = SKSpriteNode()
+    private var cursor = SKSpriteNode()
     private let follow = SKCameraNode()
 
     /// What the piece was last drawn wearing, so the texture is only rebuilt
     /// when it actually changes rather than every frame.
     private var wearing: SpriteID?
+
+    /// The board each plane was last built from.
+    ///
+    /// A scene is only cheap because it is not rebuilt — so it has to be told
+    /// when the thing it was built from has changed. Comparing the board is
+    /// forty-nine tile comparisons against rebuilding forty-nine nodes, and it
+    /// is the difference between a scene that is fast and a scene that is
+    /// wrong.
+    private var built: [Plane: Board] = [:]
 
     init(session: GameSession, side: CGFloat) {
         self.session = session
@@ -69,6 +79,7 @@ final class BoardScene: SKScene {
         addSky()
         for plane in Plane.allCases { addPlane(plane) }
         addPiece()
+        addCursor()
     }
 
     // MARK: - Building, once
@@ -93,6 +104,17 @@ final class BoardScene: SKScene {
         holder.position = CGPoint(x: 0, y: -CGFloat(World.row(of: plane)) * side)
         addChild(holder)
         planes[plane] = holder
+        rebuild(plane)
+    }
+
+    /// This plane's ground, from scratch.
+    ///
+    /// Called when the board it was built from stops matching — a tile worn, a
+    /// hole opened, a plane restored. Everything else moves; only this is ever
+    /// remade, and only when the squares themselves changed.
+    private func rebuild(_ plane: Plane) {
+        guard let holder = planes[plane] else { return }
+        holder.removeAllChildren()
 
         let board = session.engine[plane]
         let inset = (side - metrics.boardSize) / 2
@@ -103,6 +125,7 @@ final class BoardScene: SKScene {
             node.position.y -= inset
             holder.addChild(node)
         }
+        built[plane] = board
     }
 
     /// One square of ground: a cloud on Astra, a tile face on Terra.
@@ -158,6 +181,25 @@ final class BoardScene: SKScene {
         addChild(piece)
     }
 
+    /// Four corner brackets, baked once.
+    ///
+    /// Drawn into a texture rather than built from `SKShapeNode`s: a shape node
+    /// is re-triangulated whenever it changes and there is no reason to pay that
+    /// for a mark whose shape never changes. Only its colour and place do, and
+    /// both are free on a sprite.
+    private func addCursor() {
+        cursor.texture = SKTexture(image: Self.bracketImage(
+            side: metrics.tileSize,
+            thickness: max(metrics.scale, 1),
+            reach: metrics.tileSize * 0.28
+        ))
+        cursor.texture?.filteringMode = .nearest
+        cursor.size = CGSize(width: metrics.tileSize, height: metrics.tileSize)
+        cursor.zPosition = 400
+        cursor.colorBlendFactor = 1
+        addChild(cursor)
+    }
+
     // MARK: - The loop
 
     /// Called by SpriteKit, on its own clock.
@@ -170,6 +212,11 @@ final class BoardScene: SKScene {
             x: side / 2,
             y: -session.cameraRow * side - side / 2
         )
+
+        // Only when the squares themselves changed — see `built`.
+        for plane in Plane.allCases where built[plane] != session.engine[plane] {
+            rebuild(plane)
+        }
 
         let standing = session.engine.piece
         let id = SpriteID.pieceFacing(standing.zodiac, session.visibleFacing)
@@ -189,6 +236,30 @@ final class BoardScene: SKScene {
                 - spot.position.y - inset - metrics.tileSize / 2
         )
         piece.setScale(spot.scale)
+
+        // The cursor, on the square the next move would land on.
+        let aim = session.engine.cursor(
+            direction: session.previewDirection,
+            reach: session.previewReach
+        )
+        let mark = metrics.projected(aim.point)
+        cursor.position = CGPoint(
+            x: mark.position.x + inset,
+            y: -CGFloat(World.row(of: standing.plane)) * side - mark.position.y - inset
+        )
+        cursor.setScale(mark.scale)
+        cursor.color = UIColor(Self.tint(for: aim.status))
+    }
+
+    /// What the cursor says about where it is pointing.
+    private static func tint(for status: GameEngine.CursorStatus) -> Color {
+        switch status {
+        case .clear: Palette.white
+        case .damaged: Palette.gold
+        case .badlyDamaged: Palette.brown
+        case .open, .impossible: Palette.red
+        default: Palette.white
+        }
     }
 
     // MARK: - Made once
@@ -207,6 +278,30 @@ final class BoardScene: SKScene {
             .wait(forDuration: Double(seed % 17) / 17 * period),
             .repeatForever(.sequence([out, back])),
         ])
+    }
+
+    /// The bracket frame: four corners, open in the middle.
+    private static func bracketImage(
+        side: CGFloat,
+        thickness: CGFloat,
+        reach: CGFloat
+    ) -> UIImage {
+        let size = CGSize(width: side, height: side)
+        return UIGraphicsImageRenderer(size: size).image { context in
+            let ink = context.cgContext
+            ink.setFillColor(UIColor.white.cgColor)
+
+            for x in [CGFloat(0), side - reach] {
+                for y in [CGFloat(0), side - thickness] {
+                    ink.fill(CGRect(x: x, y: y, width: reach, height: thickness))
+                }
+            }
+            for x in [CGFloat(0), side - thickness] {
+                for y in [CGFloat(0), side - reach] {
+                    ink.fill(CGRect(x: x, y: y, width: thickness, height: reach))
+                }
+            }
+        }
     }
 
     /// The sky, drawn once into an image.
