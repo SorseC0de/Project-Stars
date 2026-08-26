@@ -58,6 +58,14 @@ final class LayerBench {
     /// The screen-wide fracture shader wrapped around the whole board.
     var fracture = true
 
+    /// The whole control panel — the entire bottom half of the screen.
+    ///
+    /// Never once isolated. It is a full SwiftUI tree of its own — meters,
+    /// buttons, the swipe surface, the grid — and it rebuilds on every publish
+    /// exactly as the board does. Half the screen, outside every measurement in
+    /// this hunt.
+    var panel = true
+
     /// **The other experiment.** Astra's clouds drawn by SpriteKit.
     ///
     /// A retained scene against a redrawn canvas — see `CloudScene`. This is the
@@ -96,6 +104,7 @@ final class LayerBench {
     let clouds = true
     let sparkles = true
     let fracture = true
+    let panel = true
     let wash = true
     let oneCanvas = false
     let spritekit = false
@@ -137,6 +146,9 @@ struct LayerBenchControls: View {
                 Text("terra").foregroundStyle(Palette.gold).padding(.top, 3)
                 toggle("scenery", \.scenery)
                 toggle("tile edges", \.tileEdges)
+
+                Text("screen").foregroundStyle(Palette.gold).padding(.top, 3)
+                toggle("PANEL", \.panel)
 
                 Text("both").foregroundStyle(Palette.stone).padding(.top, 3)
                 toggle("ground", \.ground)

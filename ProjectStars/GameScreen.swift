@@ -285,6 +285,10 @@ struct GameScreen: View {
                 // Lower square: information and the input zone.
                 ControlPanelView(session: session, side: side, onQuit: onQuit)
                     .frame(width: side, height: side)
+                    // Blanked rather than unmounted: unmounting takes the input
+                    // surface with it and there would be no way to move, which
+                    // is the one thing the test needs you to do.
+                    .opacity(LayerBench.shared.panel ? 1 : 0)
 
                     .overlay(alignment: .bottomLeading) {
                         #if DEBUG
