@@ -134,6 +134,13 @@ final class CloudScene: SKScene {
 
 /// The scene, in the view tree.
 ///
+/// **Built once and held.** A scene constructed inside `body` is a *new* scene
+/// every time the body runs — and the board's body runs on every publish of a
+/// move, roughly twenty-four times a second. That allocates a scene, rebuilds
+/// forty-nine nodes and re-uploads forty-nine textures, which is the exact
+/// opposite of what retaining a scene is for. Measured that way, SpriteKit came
+/// out slower than the canvas it was meant to beat.
+///
 /// Transparent, so the column's sky shows through it exactly as it does behind
 /// the canvas version.
 struct CloudSceneView: View {
@@ -141,12 +148,24 @@ struct CloudSceneView: View {
     let board: Board
     let metrics: PixelArtMetrics
 
+    @State private var scene: CloudScene?
+
     var body: some View {
-        SpriteView(
-            scene: CloudScene(board: board, metrics: metrics),
-            options: [.allowsTransparency]
-        )
+        Group {
+            if let scene {
+                SpriteView(scene: scene, options: [.allowsTransparency])
+            } else {
+                Color.clear
+            }
+        }
         .frame(width: metrics.boardSize, height: metrics.boardSize)
         .allowsHitTesting(false)
+        .onAppear {
+            // Once. Not on every board size change either — a resize would want
+            // a rebuild, but this is a proof and the board does not resize.
+            if scene == nil {
+                scene = CloudScene(board: board, metrics: metrics)
+            }
+        }
     }
 }

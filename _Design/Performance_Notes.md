@@ -141,3 +141,15 @@ exists to answer one question — does a retained scene cost meaningfully less t
 a redrawn one — and none of the missing parts change that answer.
 
 Read `late` with it on and off, on Astra, while moving.
+
+**First reading was invalid.** SpriteKit measured 25/30 against one-canvas'
+20/40 — worse — because the scene was constructed inside `body`. That makes a
+*new* scene on every body evaluation, and the board's body runs on every publish
+of a move: forty-nine nodes rebuilt and forty-nine textures re-uploaded, roughly
+twenty-four times a second. It measured the cost of building a scene, not of
+having one. The scene is held in `@State` now.
+
+**The lesson generalises.** Anything constructed in a SwiftUI `body` is
+constructed every time that body runs, and in this codebase that is far more
+often than it looks. It is the same fault as the caches that invalidated their
+own readers, and the same fault as the timers rebuilt per row.
