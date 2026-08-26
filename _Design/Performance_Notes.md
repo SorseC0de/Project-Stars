@@ -153,3 +153,43 @@ having one. The scene is held in `@State` now.
 constructed every time that body runs, and in this codebase that is far more
 often than it looks. It is the same fault as the caches that invalidated their
 own readers, and the same fault as the timers rebuilt per row.
+
+## The panel test was invalid, and so was the trail reading (2026-08-26)
+
+`.opacity(0)` hides a view; it does not stop it existing. The panel kept
+building its body and observing the session throughout, so blanking it measured
+nothing. It unmounts now — input survives, because the keyboard shortcuts live
+on `GameScreen` rather than on the panel. The instruments moved above it for the
+same reason: they hung off the panel's own overlay.
+
+`trail` cannot affect anything while `bloom` is off — `AuraStyle.glowTrail` is
+only read inside the `PaletteGlow` branch, which is not taken. A reading that
+moved when it was changed, and did not move back, was drift.
+
+## What is actually established
+
+**Idle is solved.** 0/61 late. Not one frame missed.
+
+**Moving misses roughly half its frames, and nothing removed changes it.**
+Ground off, clouds merged, clouds in SpriteKit, ghosts at zero, bloom off — each
+of them worth a few frames at most, none of them the cause. With the ground off
+the board is about ten objects and it is still 20/45.
+
+Ten views cannot be a view-count problem. The cost does not scale with what is
+drawn.
+
+## The unexamined structure
+
+`GameSession.engine` is a **struct** held as a property of an `@Observable`
+class, and views read `session.engine.…` in seventy places across eight files.
+With `@Observable` there is no granularity below the property: every
+`engine.apply(event)` is a write to `engine`, and every write invalidates every
+view that reads any part of it.
+
+`apply` runs 36 times a second while moving. That is 36 whole-tree
+invalidations a second, independent of what is on the board — which fits every
+measurement here, including why removing views never helps.
+
+The `publish()` pattern that would fix this already exists and was never
+finished: `zodiactionMeter`, `purse` and a few others are republished as narrow
+properties, while everything else reads the engine directly.

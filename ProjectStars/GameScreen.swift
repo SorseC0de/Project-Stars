@@ -283,45 +283,37 @@ struct GameScreen: View {
                 }
 
                 // Lower square: information and the input zone.
-                ControlPanelView(session: session, side: side, onQuit: onQuit)
-                    .frame(width: side, height: side)
-                    // Blanked rather than unmounted: unmounting takes the input
-                    // surface with it and there would be no way to move, which
-                    // is the one thing the test needs you to do.
-                    .opacity(LayerBench.shared.panel ? 1 : 0)
-
-                    .overlay(alignment: .bottomLeading) {
-                        #if DEBUG
-                        // **Both benches parked.** The counter is placed and the rift is
-                        // waiting for Gemini, so neither is being tuned — and a bench left
-                        // on screen after the tuning is done is just something covering the
-                        // panel. Uncomment the stack to bring either back; both control
-                        // types and every value they drive are untouched.
-                        //
-                        // Both benches are parked: the counter is placed and the rift is
-                        // waiting for Gemini. `TurnCounterTunerControls` and
-                        // `RiftPreviewControls` are intact — this is the mount.
-                        //
-                        // The layer switchboard is *not* parked, because what it is for is
-                        // not finished: it takes the board apart one layer at a time while
-                        // the frame counter is running. See `LayerBench`.
-                        // Over everything, including the death screen: the
-                        // frames that matter most are the ones being dropped
-                        // while something is covering the board.
-                        RenderTallyView(session: session)
-                            .frame(maxWidth: .infinity, maxHeight: .infinity,
-                                   alignment: .topTrailing)
-
-                        LayerBenchControls(session: session)
-                            .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .topLeading)
-                            .padding(.leading, 6)
-                            .padding(.top, 40)
-
-                        #endif
-                    }
+                //
+                // **Unmounted, not blanked, when the bench takes it away.**
+                // `.opacity(0)` hides a view; it does not stop it existing. It
+                // still builds its body, still observes the session, and still
+                // costs everything but the pixels — so blanking it measured
+                // nothing. Input survives: the keyboard shortcuts live on this
+                // screen rather than on the panel.
+                if LayerBench.shared.panel {
+                    ControlPanelView(session: session, side: side, onQuit: onQuit)
+                        .frame(width: side, height: side)
+                }
                 }
             }
             .frame(width: proxy.size.width, height: proxy.size.height)
+            // **Outside the panel.** They hung off its overlay, so unmounting
+            // the panel unmounted the instruments measuring it.
+            .overlay {
+                #if DEBUG
+                ZStack {
+                    RenderTallyView(session: session)
+                        .frame(maxWidth: .infinity, maxHeight: .infinity,
+                               alignment: .topTrailing)
+
+                    LayerBenchControls(session: session)
+                        .frame(maxWidth: .infinity, maxHeight: .infinity,
+                               alignment: .topLeading)
+                        .padding(.leading, 6)
+                        .padding(.top, 40)
+                }
+                #endif
+            }
             
         }
         .background(Palette.background)
