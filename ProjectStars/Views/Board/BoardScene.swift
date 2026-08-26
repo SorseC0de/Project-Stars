@@ -62,6 +62,10 @@ final class BoardScene: SKScene {
     /// What each of those coins is, so it can be drawn at its own size.
     private var coinLooks: [GridPoint: PentacleAppearance] = [:]
 
+    /// The mark each coin leaves on its tile, kept so it can be moved with the
+    /// coin without hunting through the holder's children for it.
+    private var coinPools: [GridPoint: SKSpriteNode] = [:]
+
     /// The bursts already playing, so one is started once rather than restarted
     /// every frame it is still alive.
     private var playing: Set<UUID> = []
@@ -488,6 +492,93 @@ final class BoardScene: SKScene {
     /// front, on every row but the nearest.
     private static let effects: CGFloat = 10_000
 
+    /// How high the surface of a square sits, in art pixels above the tile.
+    ///
+    /// `BoardView.surfaceOffset(of:bob:metrics:)` is the same rule, in the
+    /// opposite sign. The island hovers over its square and a popped tile
+    /// stands proud of its own, and in both cases everything on that square —
+    /// the piece, the cursor, a coin — has to come up with it or sink through.
+    private func surfaceLift(of point: GridPoint, on plane: Plane) -> CGFloat {
+        if session.engine.nexysPlane == plane, point == GameRules.nexysPoint {
+            let phase = session.ambientClock(
+                at: Date().timeIntervalSinceReferenceDate
+            ) / GameRules.nexysFloatPeriod
+            return CGFloat(sin(phase * 2 * .pi)) * GameRules.nexysFloatAmplitude
+                + GameRules.nexysRaise
+                - (NexysStyle.foreshortened ? NexysStyle.islandY : 0)
+        }
+        if session.visibleRaisedTiles.contains(where: { $0.point == point }) {
+            switch plane {
+            case .terra: return GameRules.tilePopLift
+            case .astra: return GameRules.cloudSpriteRaiseLift + GameRules.astraCloudLift
+            }
+        }
+        return 0
+    }
+
+    /// A mark drawn *on* the ground, as against something standing on it.
+    ///
+    /// `BoardView.asBoardSquare` is this rule. A mark lies in the plane of its
+    /// row, so it is scaled about the band's **bottom edge** and takes the
+    /// band's own `scale` across — which is not the `depthScale` a standing
+    /// object gets — and, unless it opts out, the ground's squash down it.
+    ///
+    /// Placing the arrow as though it stood on the square is what made north
+    /// and south want a different correction from east and west: the reach is
+    /// vertical on two of them and zero on the other two, so the wrong vertical
+    /// scale could only show up on half the compass.
+    ///
+    /// `offset` travels with the mark and is scaled by it. `outer` is applied
+    /// afterwards against the row, which is where the cursor's lifts go.
+    /// Both are in SwiftUI's sign, so down is positive.
+    private func placeMark(
+        _ node: SKSpriteNode,
+        at point: GridPoint,
+        on plane: Plane,
+        tiles: CGSize,
+        offset: CGSize = .zero,
+        outer: CGFloat = 0,
+        squashed: Bool = true,
+        layer: Int = 5
+    ) {
+        // Only Terra draws in bands. Astra's marks are shaped by
+        // `shapedAsGround`, and until that is ported they keep the old model.
+        guard plane == .terra else {
+            place(node, at: point, on: plane, tiles: tiles,
+                  lift: -(offset.height + outer) / metrics.scale, layer: layer)
+            return
+        }
+
+        node.zPosition = Self.depth(row: point.y, layer: layer)
+
+        let band = BoardBand.at(row: point.y, metrics: metrics)
+        let inset = (side - metrics.boardSize) / 2
+        let middle = metrics.boardSize / 2
+        let flat = metrics.center(of: point)
+        let down = squashed ? band.groundScale : band.scale
+
+        node.size = CGSize(
+            width: tiles.width * metrics.tileSize,
+            height: tiles.height * metrics.tileSize
+        )
+        node.xScale = band.scale
+        node.yScale = down
+
+        // Scaled about the bottom edge, so a full tile's frame keeps its floor
+        // on the band's floor and only its top comes down. That leaves the art
+        // centred half a tile up, less however much the squash took.
+        let centreY = band.groundCentreY + metrics.tileSize / 2 * (1 - down)
+        let drawnIn = 1 + band.lean / 2
+        let row = metrics.projected(point, on: plane).scale
+
+        node.position = CGPoint(
+            x: middle + (flat.x - middle) * band.scale / drawnIn
+                + inset + offset.width * band.scale,
+            y: -CGFloat(World.row(of: plane)) * side - centreY - inset
+                - offset.height * down - outer * row
+        )
+    }
+
     private func place(
         _ node: SKSpriteNode,
         at point: GridPoint,
@@ -495,9 +586,13 @@ final class BoardScene: SKScene {
         tiles: CGSize,
         lift: CGFloat = 0,
         shiftX: CGFloat = 0,
+        onSurface: Bool = true,
         layer: Int = 5
     ) {
         node.zPosition = Self.depth(row: point.y, layer: layer)
+
+        // Whatever this square's surface is doing, this rides it.
+        let lift = lift + (onSurface ? surfaceLift(of: point, on: plane) : 0)
 
         let spot = metrics.projected(point, on: plane)
         let inset = (side - metrics.boardSize) / 2
@@ -625,6 +720,8 @@ final class BoardScene: SKScene {
                 - Self.seatY(standing.point, on: standing.plane,
                              metrics: metrics, spot: spot)
                 - inset - stand
+                + surfaceLift(of: standing.point, on: standing.plane)
+                * metrics.scale * spot.scale
         )
 
         // **Sent, not set.** Only when the square actually changed, and as an
@@ -711,13 +808,21 @@ final class BoardScene: SKScene {
             + (standing.plane == .astra ? GameRules.facingArrowAstraLift : 0))
             * boost + GameRules.facingArrowDepthLift * back
 
-        place(arrow, at: standing.point, on: standing.plane,
-              tiles: CGSize(width: span, height: span), lift: reachLift)
+        // Its reach travels with the mark, so it takes the mark's own scale —
+        // and the mark declines the squash, because the art is drawn as
+        // something already lying on a tilted plane.
+        let out = metrics.tileSize * GameRules.facingArrowReach
+        placeMark(
+            arrow, at: standing.point, on: standing.plane,
+            tiles: CGSize(width: span, height: span),
+            offset: CGSize(
+                width: CGFloat(looking.unitOffset.dx) * out,
+                height: CGFloat(looking.unitOffset.dy) * out
+                    - reachLift * metrics.scale
+            ),
+            squashed: false
+        )
         arrow.zPosition = Self.effects
-        arrow.position.x += CGFloat(looking.unitOffset.dx) * metrics.tileSize
-            * GameRules.facingArrowReach * spot.scale
-        arrow.position.y -= CGFloat(looking.unitOffset.dy) * metrics.tileSize
-            * GameRules.facingArrowReach * spot.scale
         arrow.isHidden = shadow.isHidden
 
         // The cursor, on the square the next move would land on.
@@ -725,33 +830,38 @@ final class BoardScene: SKScene {
             direction: session.previewDirection,
             reach: session.previewReach
         )
-        place(cursor, at: aim.point, on: standing.plane,
-              tiles: CGSize(width: 1, height: 1), layer: 2)
+        let onIsland = session.engine.nexysPlane == standing.plane
+            && aim.point == GameRules.nexysPoint
+        placeMark(
+            cursor, at: aim.point, on: standing.plane,
+            tiles: CGSize(width: 1, height: 1),
+            outer: -GameRules.cursorLift * metrics.scale
+                - (onIsland ? NexysStyle.cursorLift * metrics.scale : 0)
+                - surfaceLift(of: aim.point, on: standing.plane) * metrics.scale,
+            layer: 2
+        )
         cursor.color = UIColor(Self.tint(for: aim.status))
 
         // The island, on whichever plane it is currently part of. Three tiles
         // by three, as `NexysView` frames it; the pillar is one.
         let home = session.engine.nexysPlane
-        let phase = session.ambientClock(at: Date().timeIntervalSinceReferenceDate)
-            / GameRules.nexysFloatPeriod
-        let bob = CGFloat(sin(phase * 2 * .pi))
-            * GameRules.nexysFloatAmplitude
 
         // **It does not sit on the square, it hovers over it.** `NexysView`
         // raises the island by `nexysRaise` and then again by the deep sprite's
         // own `islandY`, and neither of those was here — which is the whole of
         // why it read as sitting a good sixteen pixels too low.
+        // The island *is* the surface, so it takes the same lift it gives to
+        // everything standing on it, bob and all.
         let deep = NexysStyle.foreshortened
-        let hover = GameRules.nexysRaise - (deep ? NexysStyle.islandY : 0)
 
         // The piece stands between the two halves of the same rock.
         place(island, at: GameRules.nexysPoint, on: home,
-              tiles: CGSize(width: 3, height: 3), lift: bob + hover,
+              tiles: CGSize(width: 3, height: 3),
               shiftX: deep ? NexysStyle.islandX : 0, layer: 3)
         place(pillar, at: GameRules.nexysPoint, on: home,
               tiles: CGSize(width: 1, height: 1),
-              lift: bob + hover - NexysStyle.pillarY,
-              shiftX: deep ? NexysStyle.islandX : 0, layer: 7)
+              lift: -NexysStyle.pillarY,
+              shiftX: deep ? NexysStyle.islandX + NexysStyle.pillarX : 0, layer: 7)
 
         syncCoins(on: standing.plane, inset: inset)
         syncEffects(inset: inset)
@@ -873,16 +983,26 @@ final class BoardScene: SKScene {
             node.parent?.removeFromParent()
             coins[point] = nil
             coinLooks[point] = nil
+            coinPools[point] = nil
         }
 
         for pickup in wanted where coins[pickup.point] == nil {
             let look = PickupCatalog.effect(for: pickup.id).appearance(on: plane)
-            guard let art = PaletteRecolour.image(
-                .pentacle(look), frame: 0, swaps: []
-            ) else { continue }
+            let swaps = pickup.fromRing ? PentacleView.ringSwaps : []
 
-            let texture = SKTexture(image: art)
-            texture.filteringMode = .nearest
+            // **The coin is eight frames, not one.** The gold and shadow coins
+            // spin; drawing frame zero and leaving it there is what made them
+            // look like tokens lying on the board rather than Pentacles.
+            let id = SpriteID.pentacle(look)
+            let count = max(SpriteAtlas.slice(for: id)?.frames ?? 1, 1)
+            let frames: [SKTexture] = (0..<count).compactMap { frame in
+                guard let art = PaletteRecolour.image(id, frame: frame, swaps: swaps)
+                else { return nil }
+                let texture = SKTexture(image: art)
+                texture.filteringMode = .nearest
+                return texture
+            }
+            guard let first = frames.first else { continue }
             coinLooks[pickup.point] = look
 
             let holder = SKSpriteNode()
@@ -904,26 +1024,20 @@ final class BoardScene: SKScene {
             pool.alpha = GameRules.shadowSpriteOpacity
             pool.zPosition = -1
             holder.addChild(pool)
+            coinPools[pickup.point] = pool
 
-            let node = SKSpriteNode(texture: texture)
+            let node = SKSpriteNode(texture: first)
             holder.addChild(node)
             coins[pickup.point] = node
 
-            // The hover, as an action the render thread owns. A coin bobs on
-            // its own clock and always has — nothing about it depends on the
-            // board, so nothing here has to be asked about it again.
-            // It floats over the tile rather than resting on it, and that base
-            // height belongs to the coin rather than the holder — the holder
-            // carries the mark on the ground, which must not come up with it.
-            node.position.y = GameRules.pentacleLift * metrics.scale
-
-            let reach = GameRules.pentacleFloatAmplitude * metrics.scale
-            let half = GameRules.pentacleFloatPeriod / 2
-            let up = SKAction.moveBy(x: 0, y: reach, duration: half)
-            let down = SKAction.moveBy(x: 0, y: -reach, duration: half)
-            up.timingMode = SKActionTimingMode.easeInEaseOut
-            down.timingMode = SKActionTimingMode.easeInEaseOut
-            node.run(.repeatForever(.sequence([up, down])), withKey: "hover")
+            if frames.count > 1 {
+                node.run(.repeatForever(.animate(
+                    with: frames,
+                    timePerFrame: SpriteSheetLoader.frameDuration(for: id),
+                    resize: false,
+                    restore: false
+                )), withKey: "spin")
+            }
         }
 
         for (point, node) in coins {
@@ -939,6 +1053,42 @@ final class BoardScene: SKScene {
             place(holder, at: point, on: plane,
                   tiles: CGSize(width: span, height: span), layer: 6)
             node.size = holder.size
+
+            // **The coin's own motion, read off the same clock the view reads.**
+            // It orbits, it floats, and it shrinks a little at the top of that
+            // float; the mark on the ground tracks the orbit and swings the
+            // other way, because a coin further from the tile throws a smaller
+            // shadow. Written here rather than run as actions: `place` owns the
+            // holder's position and an action on the same property loses.
+            let beat = session.ambientClock(
+                at: Date().timeIntervalSinceReferenceDate
+            ) + TimeInterval(point.x * 3 + point.y * 5) * 0.37
+
+            let swing = beat / GameRules.pentacleFloatPeriod * 2 * .pi
+            let rise = CGFloat(sin(swing) + 1) / 2
+            let float = CGFloat(sin(swing))
+                * GameRules.pentacleFloatAmplitude * metrics.scale
+
+            let turns = beat / GameRules.pentacleOrbitPeriod * 2 * .pi
+            let radius = GameRules.pentacleOrbitRadius * metrics.scale
+            let orbit = CGPoint(
+                x: CGFloat(cos(turns)) * radius,
+                y: CGFloat(sin(turns)) * radius * 0.4
+            )
+
+            node.position = CGPoint(
+                x: orbit.x,
+                y: GameRules.pentacleLift * metrics.scale - float - orbit.y
+            )
+            node.setScale(1 - GameRules.pentacleRiseScaleSwing * rise)
+
+            if let pool = coinPools[point] {
+                pool.position = CGPoint(
+                    x: orbit.x,
+                    y: -orbit.y - GameRules.pentacleShadowDrop * metrics.scale
+                )
+                pool.setScale(1 - GameRules.pentacleShadowScaleSwing * rise)
+            }
         }
     }
 

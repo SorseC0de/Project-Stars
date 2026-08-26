@@ -1480,10 +1480,10 @@ enum GameRules {
     /// The sprite is anchored here rather than at the cell's centre so that
     /// shrinking it on a hop closes it in on the mark instead of dragging it
     /// down the tile.
-    static let shadowSpriteSeat: CGFloat = 5.5
+    static let shadowSpriteSeat: CGFloat = 6
 
     /// How dark the shadow drawing is drawn.
-    static let shadowSpriteOpacity: Double = 0.5
+    static let shadowSpriteOpacity: Double = 0.66
 
     /// Roughly how much of a stone piece's lower half is overgrown.
     static let pieceMossCoverage: Float = 0.32
