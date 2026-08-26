@@ -80,3 +80,15 @@ drawing *more*, that is conclusive.
 
 The panel, the overlays, the mode card and the death screen all stay SwiftUI.
 None of them is in the per-frame path.
+
+## Deferred: the perspective's true scale
+
+The front and back row scales were asked for as 1.25x and 0.75x, and by eye they
+are wrong in both directions — 1.25 too large in front, 0.75 too small behind.
+The right numbers are derivable from the perspective the board actually uses
+rather than guessed, and the eye's estimate is around 1.15 / 0.85.
+
+**Not while the port is mid-flight.** It is a global change to every position and
+size on both boards, and making it now would mean never knowing which of the two
+things moved something. Once the scene matches the SwiftUI board, this is the
+first thing to do after.

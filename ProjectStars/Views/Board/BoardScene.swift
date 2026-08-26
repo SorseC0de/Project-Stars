@@ -396,8 +396,12 @@ final class BoardScene: SKScene {
         shadow.zPosition = -1
         piece.addChild(shadow)
 
-        arrow.zPosition = -2
-        piece.addChild(arrow)
+        // **Not a child of the piece.** It is a mark on the *square*, and
+        // hanging it off a node that sits at the feet meant it inherited both
+        // the feet's offset and the piece's depth — which is why it drew under
+        // the tiles. Placed like anything else, on the layer effects use, so
+        // the row in front cannot clip it.
+        addChild(arrow)
 
         figure.anchorPoint = CGPoint(x: 0.5, y: 0)
         piece.addChild(figure)
@@ -506,8 +510,33 @@ final class BoardScene: SKScene {
         node.position = CGPoint(
             x: spot.position.x + inset,
             y: -CGFloat(World.row(of: plane)) * side
-                - spot.position.y - inset + lift * metrics.scale * spot.scale
+                - Self.seatY(point, on: plane, metrics: metrics, spot: spot)
+                - inset + lift * metrics.scale * spot.scale
         )
+    }
+
+    /// The height a thing standing on `point` is placed at, in board space.
+    ///
+    /// **Not the projected y**, on Terra. The view places anything standing on
+    /// a band at the band's *drawn* centre plus a share of how much taller that
+    /// band is than the scaled tile — `standOnBandShare` — because a square
+    /// drawn in perspective is not the same height as the tile it stands for,
+    /// and a thing standing on it splits the difference. Placed at the
+    /// projected centre instead, everything sat about six pixels low.
+    ///
+    /// Astra has no bands, so its objects are placed where they are projected.
+    private static func seatY(
+        _ point: GridPoint,
+        on plane: Plane,
+        metrics: PixelArtMetrics,
+        spot: (position: CGPoint, scale: CGFloat)
+    ) -> CGFloat {
+        guard plane == .terra else { return spot.position.y }
+
+        let band = BoardBand.at(row: point.y, metrics: metrics)
+        let mismatch = (band.heightY - metrics.tileSize * spot.scale)
+            / 2 * GameRules.standOnBandShare
+        return band.drawnCentreY + mismatch
     }
 
     // MARK: - The loop
@@ -588,7 +617,9 @@ final class BoardScene: SKScene {
         let seat = CGPoint(
             x: spot.position.x + inset,
             y: -CGFloat(World.row(of: standing.plane)) * side
-                - spot.position.y - inset - stand
+                - Self.seatY(standing.point, on: standing.plane,
+                             metrics: metrics, spot: spot)
+                - inset - stand
         )
 
         // **Sent, not set.** Only when the square actually changed, and as an
@@ -644,7 +675,7 @@ final class BoardScene: SKScene {
         // its own drop. This node is at the feet, so the centre is `drop` back
         // up from here.
         shadow.position.y = drop
-            + (GameRules.pieceShadowPerspectiveLift - GameRules.pieceShadowDrop)
+            + (GameRules.pieceShadowPerspectiveLift + 1 - GameRules.pieceShadowDrop)
             * metrics.scale
         shadow.setScale(max(1 - hop.lift / GameRules.hopArcHeight * 0.4, 0.35))
 
@@ -654,22 +685,21 @@ final class BoardScene: SKScene {
             let texture = SKTexture(image: art)
             texture.filteringMode = .nearest
             arrow.texture = texture
-            // A tile framed, then scaled by `facingArrowScale` — the view does
-            // both, and only the frame had been carried across.
-            let reach = metrics.tileSize * GameRules.facingArrowScale
-            arrow.size = CGSize(width: reach, height: reach)
             // And it sits out from the piece toward the square it points at.
 
             facing = looking
         }
-        // A ground mark on the piece's own square, reaching toward the one it
-        // points at — measured from the tile's centre like the shadow.
-        arrow.position = CGPoint(
-            x: CGFloat(looking.unitOffset.dx) * metrics.tileSize
-                * GameRules.facingArrowReach,
-            y: drop - CGFloat(looking.unitOffset.dy) * metrics.tileSize
-                * GameRules.facingArrowReach
-        )
+        // A ground mark on the piece's own square, reaching out toward the one
+        // it points at. `facingArrowReach` is a share of a tile, so it is in the
+        // row's scale like every other offset.
+        let span = GameRules.facingArrowScale
+        place(arrow, at: standing.point, on: standing.plane,
+              tiles: CGSize(width: span, height: span))
+        arrow.zPosition = Self.effects
+        arrow.position.x += CGFloat(looking.unitOffset.dx) * metrics.tileSize
+            * GameRules.facingArrowReach * spot.scale
+        arrow.position.y -= CGFloat(looking.unitOffset.dy) * metrics.tileSize
+            * GameRules.facingArrowReach * spot.scale
         arrow.isHidden = shadow.isHidden
 
         // The cursor, on the square the next move would land on.
