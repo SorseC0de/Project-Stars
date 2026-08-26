@@ -507,18 +507,6 @@ struct GameScreen: View {
             // sky is now the column's, drawn once behind all nine rows. See
             // `WorldSky`.
 
-            // **No faux Terra under Astra.**
-            //
-            // There used to be a picture of Terra's horizon painted into the
-            // bottom of Astra's square, seen through its holes — a stand-in for
-            // a plane that was not really below it, because nothing was really
-            // below anything.
-            //
-            // Terra *is* below it now, three rows down the column, and the
-            // stand-in was drawn at the wrong scale to be it: a horizon on the
-            // near edge of a square you are looking down into does not sit where
-            // a whole board three rows further away would.
-
             // The land behind the board — over the sky, under everything else.
             //
             // **Two ridges, both behind.** The second is the same drawing drawn

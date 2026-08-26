@@ -58,6 +58,10 @@ final class LayerBench {
     /// The screen-wide fracture shader wrapped around the whole board.
     var fracture = true
 
+
+    /// The star field in the sky behind Astra.
+    var stars = true
+
     #else
 
     let scenery = true
@@ -66,6 +70,7 @@ final class LayerBench {
     let clouds = true
     let sparkles = true
     let fracture = true
+    let stars = true
 
     #endif
 }
@@ -83,30 +88,50 @@ struct LayerBenchControls: View {
 
     let session: GameSession
 
-    @State private var isOpen = false
+    @Bindable private var bench = LayerBench.shared
 
+    /// Takes the board apart a layer at a time, with the frame counter running.
+    ///
+    /// The only honest way to find what a plane costs: turn one thing off, read
+    /// the number, turn it back on. Astra and Terra draw almost nothing in
+    /// common, so the answer to "why is Astra slower" is in here rather than in
+    /// anybody's reading of the code.
     var body: some View {
-        VStack(alignment: .leading, spacing: 0) {
-            // Folded away by default. A bench is for the thing being tuned right
-            // now, and one left open covers the board it is tuning against.
-            Button {
-                isOpen.toggle()
-            } label: {
-                Text(isOpen ? "nexys ▾" : "nexys ▸")
-                    .font(.system(size: 11, weight: .bold, design: .monospaced))
-                    .foregroundStyle(Palette.textPrimary)
-                    .padding(.horizontal, 8)
-                    .padding(.vertical, 4)
-                    .background(Palette.background.opacity(0.85))
-            }
-            .buttonStyle(.plain)
+        BenchPanel("layers") {
+            VStack(alignment: .leading, spacing: 2) {
+                Text("astra").foregroundStyle(Palette.sky)
+                toggle("clouds", \.clouds)
+                toggle("stars", \.stars)
 
-            // The island is settled — its numbers are written down in
-            // `NexysStyle` and its bench is parked in `NexysTuning`, intact for
-            // whenever it is next opened up. What is being looked at now is the
-            // underground's streaks.
-            if isOpen { FallStreakControls() }
+                Text("terra").foregroundStyle(Palette.gold).padding(.top, 3)
+                toggle("scenery", \.scenery)
+                toggle("tile edges", \.tileEdges)
+
+                Text("both").foregroundStyle(Palette.stone).padding(.top, 3)
+                toggle("ground", \.ground)
+                toggle("sparkles", \.sparkles)
+                toggle("fracture", \.fracture)
+            }
+            .font(.system(size: 9, weight: .semibold, design: .monospaced))
+            .foregroundStyle(Palette.stone)
         }
+    }
+
+    private func toggle(
+        _ label: String,
+        _ path: ReferenceWritableKeyPath<LayerBench, Bool>
+    ) -> some View {
+        Button {
+            bench[keyPath: path].toggle()
+        } label: {
+            HStack(spacing: 5) {
+                Text(bench[keyPath: path] ? "◉" : "○")
+                Text(label)
+            }
+            .foregroundStyle(bench[keyPath: path] ? Palette.stone : Palette.textSecondary)
+            .contentShape(Rectangle())
+        }
+        .buttonStyle(.plain)
     }
 }
 

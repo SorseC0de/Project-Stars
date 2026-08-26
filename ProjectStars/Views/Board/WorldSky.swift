@@ -58,7 +58,9 @@ struct WorldSky: View {
             // own row. Inside one, everything is drawn against `side` exactly as
             // it was when a sky *was* one square — which is the point: neither
             // field had to be re-tuned to move into the column.
-            band(row: World.row(of: .astra)) { stars }
+            if LayerBench.shared.stars {
+                band(row: World.row(of: .astra)) { stars }
+            }
             band(row: World.row(of: .terra)) { clouds }
         }
         .frame(width: side, height: side * CGFloat(World.rows), alignment: .top)

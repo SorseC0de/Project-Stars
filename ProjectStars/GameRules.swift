@@ -2113,7 +2113,7 @@ enum GameRules {
     /// How far down Astra's band a star has faded out entirely.
     ///
     /// It used to be where Astra's own sky finished turning into daylight,
-    /// pinned just above the faux Terra painted into the bottom of the square.
+    /// pinned just above the bottom of the square.
     /// Both of those are gone — the sky is one gradient the height of the world
     /// now, and the real Terra is three rows below — so what is left of it is
     /// the only thing still reading it: how deep into its band Astra's stars go.
