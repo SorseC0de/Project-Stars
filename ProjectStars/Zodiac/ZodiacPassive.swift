@@ -829,17 +829,14 @@ struct PassiveContext {
     /// alone — a coin dropped into a hole by an ability that also removed
     /// everywhere a new one could spawn ends the hunt outright. Plural because
     /// Sagittarius can have two out at once.
-    /// The coins on this plane, and where they are.
-    ///
-    /// **Filtered once, on construction.** Computing them on demand looks
-    /// cheaper — most questions are not about coins — but two of the four
-    /// readers ask inside a loop, so it turned one filter into one per square.
-    /// Contexts are built once a move now rather than once a frame, which is
-    /// what made the eager version affordable again.
     let pickupPoints: [GridPoint]
 
+    /// The same coins, with what they are.
+    ///
+    /// `pickupPoints` answers "is there one there"; this answers "which one",
+    /// which anything reaching out to *take* a coin needs — Scorpio's sting has
+    /// to name the Pentacle it drags back.
     let pickups: [RevealedPickup]
-
 
     /// What is currently lit, if a sparkle phase is running.
     ///

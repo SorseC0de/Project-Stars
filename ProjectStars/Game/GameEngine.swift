@@ -2400,22 +2400,13 @@ struct GameEngine {
     /// reflected in what the player is offered, rather than being shown a move
     /// that will not happen.
     func moveOptions(for direction: SwipeDirection) -> [MovementPattern.MoveOption] {
-        // One snapshot for the whole answer, and nothing built at all when
-        // there is no option to test. Eleven of the twelve signs move in four
-        // directions, so half of what asks this is asking about a diagonal that
-        // does not exist — and it used to build a context and a passive list to
-        // find that out, then another pair for every option it did find.
-        let passives = activePassives
-        let context = passiveContext
-        let movement = passives.adjustedMovement(base: activeMovement, context: context)
+        let movement = activePassives
+            .adjustedMovement(base: activeMovement, context: passiveContext)
 
-        let options = movement.options(for: direction, facing: piece.facing)
-        guard !options.isEmpty else { return [] }
-
-        return options.filter { option in
+        return movement.options(for: direction, facing: piece.facing).filter { option in
             let path = movement.path(from: piece.point, direction: direction, option: option)
-            return passives.allows(
-                option, direction: direction, path: path, context: context
+            return activePassives.allows(
+                option, direction: direction, path: path, context: passiveContext
             )
         }
     }
