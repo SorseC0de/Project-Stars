@@ -2083,9 +2083,21 @@ struct GameEngine {
     /// reverse it on the way in and again on the way out, arriving back where
     /// it started.
     func resolvedMove(for direction: SwipeDirection, reach: Int = 0) -> ResolvedMove? {
-        let movement = activePassives.adjustedMovement(
+        // **One snapshot and one passive list for the whole answer.**
+        //
+        // Asked for the cursor's projection, which the board does every frame —
+        // and it built a fresh context for the movement, another for each option
+        // it tested and another for the rim check, each rebuilding the passive
+        // list beside it. Standing perfectly still, that was most of the seven
+        // hundred a second the counter was reporting.
+        //
+        // Nothing here mutates, so neither can go stale inside the call.
+        let passives = activePassives
+        let context = passiveContext
+
+        let movement = passives.adjustedMovement(
             base: activeMovement,
-            context: passiveContext
+            context: context
         )
         guard let option = movement.option(
             for: direction,
@@ -2099,8 +2111,8 @@ struct GameEngine {
         if option.reachesWall {
             let path = pathToWall(from: piece.point, direction: direction)
             guard !path.isEmpty else { return nil }
-            guard activePassives.allows(
-                option, direction: direction, path: path, context: passiveContext
+            guard passives.allows(
+                option, direction: direction, path: path, context: context
             ) else { return nil }
             return ResolvedMove(
                 path: path, style: option.style, option: option, origin: piece.point
@@ -2127,7 +2139,7 @@ struct GameEngine {
         //
         // Checked here rather than per movement type so it holds for the slide,
         // the leap, the brook and the breeze alike: they all come through this.
-        if activePassives.mayLeaveTheBoard(context: passiveContext),
+        if passives.mayLeaveTheBoard(context: context),
            let last = path.last,
            !currentBoard.contains(last),
            path.dropLast().allSatisfy({ currentBoard.contains($0) }),
@@ -2146,10 +2158,10 @@ struct GameEngine {
             // Asked of the rifts too when they have been left standing, since
             // the sign holding the board no longer has the passive that owns
             // them.
-            let wrap = activePassives.wrappedMove(
+            let wrap = passives.wrappedMove(
                 from: piece.point,
                 direction: direction,
-                context: passiveContext
+                context: context
             ) ?? lingeringRift(from: piece.point, direction: direction)
 
             if let wrapped = wrap,
@@ -2169,8 +2181,8 @@ struct GameEngine {
         // A sign may refuse an option for reasons the pattern cannot see —
         // Scorpio's vault needs a hole under it. Checked after the path exists,
         // since that is the only thing that says what the move would cross.
-        guard activePassives.allows(
-            option, direction: direction, path: path, context: passiveContext
+        guard passives.allows(
+            option, direction: direction, path: path, context: context
         ) else { return nil }
 
         return ResolvedMove(path: path, style: option.style, option: option, origin: piece.point)
