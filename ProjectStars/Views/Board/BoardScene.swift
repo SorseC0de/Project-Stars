@@ -317,24 +317,52 @@ final class BoardScene: SKScene {
         format.scale = 1
 
         var drewAnything = false
-        let strip = UIGraphicsImageRenderer(size: size, format: format).image { _ in
+        let strip = UIGraphicsImageRenderer(size: size, format: format).image { context in
             for column in 0..<board.size {
                 let point = GridPoint(column, row)
                 let tile = board[point]
-                guard tile.kind == .normal, !tile.health.isHole else { continue }
-                guard let art = PaletteRecolour.image(
-                    .tileFace(.terra, .at(point), popped: false),
-                    frame: 0,
-                    swaps: []
-                ) else { continue }
-
-                drewAnything = true
-                art.draw(in: CGRect(
+                let shade = Palette.TileShade.at(point)
+                let cell = CGRect(
                     x: CGFloat(column) * metrics.tileSize,
                     y: 0,
                     width: metrics.tileSize,
                     height: metrics.tileSize
-                ))
+                )
+
+                if let art = PaletteRecolour.image(
+                    .tileFace(.terra, shade, popped: false), frame: 0, swaps: []
+                ) {
+                    drewAnything = true
+                    art.draw(in: cell)
+                }
+
+                // The cast a badly cracked tile takes, over its face and under
+                // its damage — `TileView` overlays the face with it.
+                if tile.health == .badlyCracked {
+                    context.cgContext.saveGState()
+                    context.cgContext.setBlendMode(.plusDarker)
+                    UIColor(Palette.khaki)
+                        .withAlphaComponent(GameRules.badlyCrackedTint)
+                        .setFill()
+                    context.fill(cell)
+                    context.cgContext.restoreGState()
+                }
+
+                // **And whatever has happened to it.** The bake drew every tile
+                // in mint condition and skipped the holes entirely, so a board
+                // could be worn to pieces and still read as new.
+                let wear: TileHealth? = switch tile.kind {
+                case .chasm, .nexys: .hole
+                case .normal: tile.health == .healthy ? nil : tile.health
+                case .pool: nil
+                }
+
+                if let wear, let art = PaletteRecolour.image(
+                    .tileDamage(.terra, wear), frame: 0, swaps: []
+                ) {
+                    drewAnything = true
+                    art.draw(in: cell)
+                }
             }
         }
         return drewAnything ? strip : nil
@@ -369,8 +397,20 @@ final class BoardScene: SKScene {
             texture: texture,
             size: CGSize(width: span * spot.scale, height: span * spot.scale)
         )
-        node.position = CGPoint(x: spot.position.x, y: -spot.position.y)
-        node.zPosition = CGFloat(point.y)
+        // **Clouds ride above the point they are projected at.** `CloudSpriteField`
+        // lifts each one by `astraCloudLift` and drops it back by
+        // `cloudSpriteDrop`; neither was here, so the whole sky sat low.
+        node.position = CGPoint(
+            x: spot.position.x,
+            y: -spot.position.y + (plane == .astra
+                ? (GameRules.astraCloudLift - GameRules.cloudSpriteDrop) * metrics.scale
+                : 0)
+        )
+
+        // **The same depth scheme as everything else.** A bare row index put
+        // every cloud below every object, so nothing on Astra could ever be
+        // hidden behind a cloud in front of it.
+        node.zPosition = Self.depth(row: point.y, layer: 0)
 
         if plane == .astra { node.run(Self.drift(seed: point.x * 7 + point.y * 13,
                                                  scale: metrics.scale)) }
@@ -714,6 +754,21 @@ final class BoardScene: SKScene {
         // the arrow under the board.
         let drop = metrics.tileSize / 2 - GameRules.pieceLift * metrics.scale
         let stand = drop * spot.scale
+
+        // **A falling piece rides the camera down.** `BoardView` gets this by
+        // moving the board under a piece that stays put — `fallOffset` — but
+        // the scene lays every plane out in world space and moves a real
+        // camera instead, so the piece has to be told to come along or it
+        // simply waits on the plane it is bound for while the camera travels.
+        //
+        // Only while it is actually falling: sweeping the camera to look at
+        // another plane must leave the piece where it is standing.
+        let travelling = session.isChangingPlane || session.isDropping
+            || session.isFalling
+        let ride = travelling
+            ? follow.position.y
+                + CGFloat(World.row(of: standing.plane)) * side + side / 2
+            : 0
         let seat = CGPoint(
             x: spot.position.x + inset,
             y: -CGFloat(World.row(of: standing.plane)) * side
@@ -722,6 +777,7 @@ final class BoardScene: SKScene {
                 - inset - stand
                 + surfaceLift(of: standing.point, on: standing.plane)
                 * metrics.scale * spot.scale
+                + ride
         )
 
         // **Sent, not set.** Only when the square actually changed, and as an
