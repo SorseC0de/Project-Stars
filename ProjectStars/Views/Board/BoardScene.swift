@@ -44,6 +44,8 @@ final class BoardScene: SKScene {
     private var planes: [Plane: SKNode] = [:]
     private var piece = SKSpriteNode()
     private var cursor = SKSpriteNode()
+    private var island = SKSpriteNode()
+    private var pillar = SKSpriteNode()
     private let follow = SKCameraNode()
 
     /// What the piece was last drawn wearing, so the texture is only rebuilt
@@ -80,6 +82,7 @@ final class BoardScene: SKScene {
         for plane in Plane.allCases { addPlane(plane) }
         addPiece()
         addCursor()
+        addIsland()
     }
 
     // MARK: - Building, once
@@ -200,6 +203,30 @@ final class BoardScene: SKScene {
         addChild(cursor)
     }
 
+    /// The island and the near corner that stands in front of whoever is on it.
+    ///
+    /// Two nodes because they are two drawings and the piece stands between
+    /// them — the same reason the SwiftUI board splits them. Their z is set in
+    /// `update`, since which of them is in front of the piece depends on where
+    /// the piece is standing.
+    private func addIsland() {
+        for (node, id) in [
+            (island, NexysStyle.foreshortened ? SpriteID.nexysDeep : SpriteID.nexys),
+            (pillar, SpriteID.nexysPillar),
+        ] {
+            guard let art = PaletteRecolour.image(id, frame: 0, swaps: []) else { continue }
+            let texture = SKTexture(image: art)
+            texture.filteringMode = .nearest
+            node.texture = texture
+            node.size = CGSize(
+                width: art.size.width * metrics.scale,
+                height: art.size.height * metrics.scale
+            )
+            addChild(node)
+        }
+        pillar.isHidden = !NexysStyle.foreshortened
+    }
+
     // MARK: - The loop
 
     /// Called by SpriteKit, on its own clock.
@@ -249,6 +276,21 @@ final class BoardScene: SKScene {
         )
         cursor.setScale(mark.scale)
         cursor.color = UIColor(Self.tint(for: aim.status))
+
+        // The island, on whichever plane it is currently part of.
+        let home = session.engine.nexysPlane
+        let seat = metrics.projected(GameRules.nexysPoint)
+        let base = CGPoint(
+            x: seat.position.x + inset,
+            y: -CGFloat(World.row(of: home)) * side - seat.position.y - inset
+        )
+        for node in [island, pillar] {
+            node.position = base
+            node.setScale(seat.scale)
+            // Behind the piece, and the pillar in front of it: the piece stands
+            // between the two halves of the same rock.
+            node.zPosition = node === pillar ? 600 : 300
+        }
     }
 
     /// What the cursor says about where it is pointing.
