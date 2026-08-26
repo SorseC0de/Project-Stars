@@ -1,7 +1,10 @@
 # Astra performance — what is known
 
-State: `3bcf810`. Debug and Release both build. This is the tree as it stood at
-`8f39389`, the last build measured at 120fps resting.
+State: `a745266`. Debug and Release both build.
+
+**Baseline: 60fps resting on Astra.** A 120fps reading was taken once, mid-
+revision, and could not be reproduced — treat it as noise, not as a state to
+get back to. Terra rests and runs far higher, which is the asymmetry to chase.
 
 ## Reproducible facts
 
