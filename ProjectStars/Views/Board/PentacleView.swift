@@ -452,13 +452,7 @@ struct PentacleView: View {
     ///
     /// The gold and shadow coins carry their own sparkle and need three; Polaris
     /// is a single star and supplies its motion from the view instead.
-    private var spriteSpan: CGFloat {
-        switch appearance {
-        // Authored 48 across — three cells — like the coins.
-        case .standard, .shadow, .gavel: GameRules.pentacleCellSpan
-        case .radiant, .dormant, .droplet, .bubble, .still: 1
-        }
-    }
+    private var spriteSpan: CGFloat { appearance.spriteSpan }
 
     /// The gold coin's entries paired with Shadow Work's, in order.
     private var shadowSwaps: [PaletteSwap] {

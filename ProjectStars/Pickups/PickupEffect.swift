@@ -5,6 +5,7 @@
 //  What a collected Pentacle does, and how the catalogue is organised.
 //
 
+import CoreGraphics
 import Foundation
 
 
@@ -51,6 +52,21 @@ enum PentacleAppearance: String, CaseIterable, Codable {
     /// Libra's gavel. A Pentacle in its own right rather than a coin with a
     /// glyph on it — see `PentacleView.gavel`.
     case gavel
+
+    /// How many cells this drawing covers.
+    ///
+    /// The gold and shadow coins carry their own sparkle and need three;
+    /// Polaris is a single star and supplies its motion from the view instead.
+    ///
+    /// Lives on the appearance rather than in the view because the board draws
+    /// these twice — once as views, once as sprite nodes — and a span known to
+    /// only one of them is a coin that changes size when the board does.
+    var spriteSpan: CGFloat {
+        switch self {
+        case .standard, .shadow, .gavel: GameRules.pentacleCellSpan
+        case .radiant, .dormant, .droplet, .bubble, .still: 1
+        }
+    }
 }
 
 // MARK: - PickupClass

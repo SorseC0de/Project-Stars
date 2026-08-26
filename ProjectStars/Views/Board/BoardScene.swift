@@ -59,6 +59,9 @@ final class BoardScene: SKScene {
     /// twice a minute.
     private var coins: [GridPoint: SKSpriteNode] = [:]
 
+    /// What each of those coins is, so it can be drawn at its own size.
+    private var coinLooks: [GridPoint: PentacleAppearance] = [:]
+
     /// The bursts already playing, so one is started once rather than restarted
     /// every frame it is still alive.
     private var playing: Set<UUID> = []
@@ -491,6 +494,7 @@ final class BoardScene: SKScene {
         on plane: Plane,
         tiles: CGSize,
         lift: CGFloat = 0,
+        shiftX: CGFloat = 0,
         layer: Int = 5
     ) {
         node.zPosition = Self.depth(row: point.y, layer: layer)
@@ -509,7 +513,7 @@ final class BoardScene: SKScene {
         // whole view *including* its offsets, about the point it then places.
         // Applied unscaled, every offset was a back-row error.
         node.position = CGPoint(
-            x: spot.position.x + inset,
+            x: spot.position.x + inset + shiftX * metrics.scale * spot.scale,
             y: -CGFloat(World.row(of: plane)) * side
                 - Self.seatY(point, on: plane, metrics: metrics, spot: spot)
                 - inset + lift * metrics.scale * spot.scale
@@ -690,8 +694,25 @@ final class BoardScene: SKScene {
         // it points at. `facingArrowReach` is a share of a tile, so it is in the
         // row's scale like every other offset.
         let span = GameRules.facingArrowScale
+
+        // **It rides above the square, and by how much depends on the row.**
+        // `FacingArrowView` lifts by `facingArrowLift`, boosts that lift back
+        // up as the rows shrink, and takes a depth term off the far ones. None
+        // of it was here, which is why it lay flat on the tile.
+        let last = CGFloat(max(GameRules.gridSize - 1, 1))
+        let back = 1 - CGFloat(standing.point.y) / last
+        let near = metrics.projected(
+            GridPoint(standing.point.x, GameRules.gridSize - 1), on: standing.plane
+        ).scale
+        let boost = spot.scale > 0
+            ? pow(near / spot.scale, GameRules.facingArrowRowPower)
+            : 1
+        let reachLift = (GameRules.facingArrowLift
+            + (standing.plane == .astra ? GameRules.facingArrowAstraLift : 0))
+            * boost + GameRules.facingArrowDepthLift * back
+
         place(arrow, at: standing.point, on: standing.plane,
-              tiles: CGSize(width: span, height: span))
+              tiles: CGSize(width: span, height: span), lift: reachLift)
         arrow.zPosition = Self.effects
         arrow.position.x += CGFloat(looking.unitOffset.dx) * metrics.tileSize
             * GameRules.facingArrowReach * spot.scale
@@ -716,11 +737,21 @@ final class BoardScene: SKScene {
         let bob = CGFloat(sin(phase * 2 * .pi))
             * GameRules.nexysFloatAmplitude
 
+        // **It does not sit on the square, it hovers over it.** `NexysView`
+        // raises the island by `nexysRaise` and then again by the deep sprite's
+        // own `islandY`, and neither of those was here — which is the whole of
+        // why it read as sitting a good sixteen pixels too low.
+        let deep = NexysStyle.foreshortened
+        let hover = GameRules.nexysRaise - (deep ? NexysStyle.islandY : 0)
+
         // The piece stands between the two halves of the same rock.
         place(island, at: GameRules.nexysPoint, on: home,
-              tiles: CGSize(width: 3, height: 3), lift: bob, layer: 3)
+              tiles: CGSize(width: 3, height: 3), lift: bob + hover,
+              shiftX: deep ? NexysStyle.islandX : 0, layer: 3)
         place(pillar, at: GameRules.nexysPoint, on: home,
-              tiles: CGSize(width: 1, height: 1), lift: bob, layer: 7)
+              tiles: CGSize(width: 1, height: 1),
+              lift: bob + hover - NexysStyle.pillarY,
+              shiftX: deep ? NexysStyle.islandX : 0, layer: 7)
 
         syncCoins(on: standing.plane, inset: inset)
         syncEffects(inset: inset)
@@ -841,6 +872,7 @@ final class BoardScene: SKScene {
         for (point, node) in coins where !places.contains(point) {
             node.parent?.removeFromParent()
             coins[point] = nil
+            coinLooks[point] = nil
         }
 
         for pickup in wanted where coins[pickup.point] == nil {
@@ -851,6 +883,7 @@ final class BoardScene: SKScene {
 
             let texture = SKTexture(image: art)
             texture.filteringMode = .nearest
+            coinLooks[pickup.point] = look
 
             let holder = SKSpriteNode()
             addChild(holder)
@@ -879,6 +912,11 @@ final class BoardScene: SKScene {
             // The hover, as an action the render thread owns. A coin bobs on
             // its own clock and always has — nothing about it depends on the
             // board, so nothing here has to be asked about it again.
+            // It floats over the tile rather than resting on it, and that base
+            // height belongs to the coin rather than the holder — the holder
+            // carries the mark on the ground, which must not come up with it.
+            node.position.y = GameRules.pentacleLift * metrics.scale
+
             let reach = GameRules.pentacleFloatAmplitude * metrics.scale
             let half = GameRules.pentacleFloatPeriod / 2
             let up = SKAction.moveBy(x: 0, y: reach, duration: half)
@@ -894,7 +932,10 @@ final class BoardScene: SKScene {
             // be overwritten by it every frame, which is why the coin sat
             // still. The holder is placed, the coin hovers inside it.
             guard let holder = node.parent as? SKSpriteNode else { continue }
-            let span = GameRules.pentacleCellSpan
+            // The span is the appearance's, not one number for all of them —
+            // a Polaris drawn at the gold coin's three cells is half again
+            // too big, which is most of what looked misplaced about it.
+            let span = (coinLooks[point] ?? .standard).spriteSpan
             place(holder, at: point, on: plane,
                   tiles: CGSize(width: span, height: span), layer: 6)
             node.size = holder.size
