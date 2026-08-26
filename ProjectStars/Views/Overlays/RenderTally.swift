@@ -48,6 +48,17 @@ enum RenderTally {
     /// Standing totals that are not evaluations — how many of a thing are alive.
     private static var gauges: [String: Int] = [:]
 
+    /// The same, from anywhere — including the engine, which is a plain struct
+    /// with no actor of its own.
+    ///
+    /// Unchecked because the count is an unobserved integer and the game is
+    /// single-threaded in practice: nothing here is worth a hop to the main
+    /// actor, and a diagnostic that changes the timing it is measuring is not a
+    /// diagnostic.
+    nonisolated static func count(_ key: String) {
+        MainActor.assumeIsolated { tick(key) }
+    }
+
     /// Records one evaluation of `key`.
     static func tick(_ key: String) {
         counts[key, default: 0] += 1

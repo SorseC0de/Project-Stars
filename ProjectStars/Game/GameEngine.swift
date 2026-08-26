@@ -477,6 +477,9 @@ struct GameEngine {
         // `piece.zodiac.passives`, spelled out. A rename swept the whole file
         // and rewrote this getter into a call to itself — which builds, warns,
         // and hangs the moment anything asks a passive a question.
+        #if DEBUG
+        RenderTally.count("psv")
+        #endif
         let own = piece.zodiac.passives
         guard !signState.retinue.isEmpty else { return own }
         return own + signState.retinue.flatMap(\.passives)
@@ -5326,7 +5329,12 @@ struct GameEngine {
     /// engine is involved at all — whether the controls are reversed — because
     /// that has to happen at the input boundary rather than inside a move.
     var passiveContext: PassiveContext {
-        PassiveContext(
+        #if DEBUG
+        // Built fresh on every read, and read from seventy-nine places in this
+        // file. Whether that matters is a number, not an opinion.
+        RenderTally.count("ctx")
+        #endif
+        return PassiveContext(
             zodiac: piece.zodiac,
             currentBoard: self[piece.plane],
             boardBelow: piece.plane.planeBelow.map { self[$0] },
