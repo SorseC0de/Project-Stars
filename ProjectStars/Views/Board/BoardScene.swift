@@ -57,6 +57,10 @@ final class BoardScene: SKScene {
     /// twice a minute.
     private var coins: [GridPoint: SKSpriteNode] = [:]
 
+    /// The bursts already playing, so one is started once rather than restarted
+    /// every frame it is still alive.
+    private var playing: Set<UUID> = []
+
     private var island = SKSpriteNode()
     private var pillar = SKSpriteNode()
     private let follow = SKCameraNode()
@@ -130,6 +134,61 @@ final class BoardScene: SKScene {
         addChild(holder)
         planes[plane] = holder
         rebuild(plane)
+        if plane == .terra { addScenery(to: holder) }
+    }
+
+    /// Terra's land: two ridges behind the board, and the near rock in front.
+    ///
+    /// Built once and never touched again — it is a backdrop, and the only
+    /// thing that ever moves it is the retreat when the board's edges have to
+    /// be clear, which is not in this slice.
+    private func addScenery(to holder: SKNode) {
+        let across: CGFloat = 7
+        let pixel = side / (across * CGFloat(GameRules.tilePixelSize))
+
+        // Behind the board, then in front of it, in the order they are drawn.
+        let pieces: [(TerraScenery, CGFloat, CGFloat, CGFloat, Bool)] = [
+            (.backdrop, 3, GameRules.terraBackdropDrop, -50, false),
+            (.midground, 3, GameRules.terraMidgroundDrop, -40, false),
+            (.foreground, 2, 0, 700, true),
+        ]
+
+        for (part, cells, drop, depth, atBottom) in pieces {
+            guard let art = PaletteRecolour.image(
+                .terraScenery(part), frame: 0, swaps: []
+            ) else { continue }
+
+            let texture = SKTexture(image: art)
+            texture.filteringMode = .nearest
+
+            let height = side * cells / across
+            let node = SKSpriteNode(
+                texture: texture,
+                size: CGSize(width: side, height: height)
+            )
+            // Aligned to the square's top or its bottom, as the view aligns it,
+            // then nudged by its own drop.
+            node.position = CGPoint(
+                x: side / 2,
+                y: atBottom
+                    ? -side + height / 2 - drop * pixel
+                    : -height / 2 - drop * pixel
+            )
+            node.zPosition = depth
+            holder.addChild(node)
+        }
+
+        // And the fill under the board. Terra's ground floats over the sky,
+        // which is right for a plane made of cloud and wrong for one made of
+        // earth: below the front row you could see straight through the world.
+        let floor = SKSpriteNode(
+            color: UIColor(Palette.steel),
+            size: CGSize(width: side, height: side * 0.22)
+        )
+        floor.anchorPoint = CGPoint(x: 0.5, y: 0)
+        floor.position = CGPoint(x: side / 2, y: -side)
+        floor.zPosition = 600
+        holder.addChild(floor)
     }
 
     /// This plane's ground, from scratch.
@@ -449,6 +508,66 @@ final class BoardScene: SKScene {
         }
 
         syncCoins(on: standing.plane, inset: inset)
+        syncEffects(inset: inset)
+    }
+
+    /// The effect sprites, each played once and left to remove itself.
+    ///
+    /// **Started, not driven.** A strip is an `SKAction.animate(with:)` handed
+    /// to a node — the render thread walks the frames and the node deletes
+    /// itself at the end. Nothing here is asked about it again, which is the
+    /// difference from a view that recomputes which frame it is on every time
+    /// it is drawn.
+    private func syncEffects(inset: CGFloat) {
+        for burst in session.effectBursts where !playing.contains(burst.id) {
+            playing.insert(burst.id)
+
+            let count = SpriteSheetLoader.frameCount(for: .effect(burst.effect))
+            guard count > 0 else { continue }
+
+            var frames: [SKTexture] = []
+            for index in 0..<count {
+                guard let art = PaletteRecolour.image(
+                    .effect(burst.effect), frame: index, swaps: []
+                ) else { continue }
+                let texture = SKTexture(image: art)
+                texture.filteringMode = .nearest
+                frames.append(texture)
+            }
+            guard let first = frames.first else { continue }
+            if burst.reversed { frames.reverse() }
+
+            let node = SKSpriteNode(texture: first)
+            node.size = CGSize(
+                width: first.size().width * metrics.scale * burst.scale,
+                height: first.size().height * metrics.scale * burst.scale
+            )
+            let spot = metrics.projected(burst.center)
+            node.position = CGPoint(
+                x: spot.position.x + inset,
+                y: -CGFloat(World.row(of: burst.plane)) * side - spot.position.y - inset
+            )
+            node.zPosition = 700
+            node.zRotation = CGFloat(burst.angle) * .pi / 180
+            node.xScale = burst.mirrored ? -1 : 1
+            if let tint = burst.tint {
+                node.color = UIColor(tint)
+                node.colorBlendFactor = 1
+            }
+            if burst.glows { node.blendMode = .add }
+            addChild(node)
+
+            let each = SpriteSheetLoader.frameDuration(for: .effect(burst.effect))
+            node.run(.sequence([
+                .animate(with: frames, timePerFrame: each, resize: false, restore: false),
+                .removeFromParent(),
+            ]))
+        }
+
+        // Forget the ones the session has finished with, so their ids can come
+        // round again without being mistaken for still playing.
+        let alive = Set(session.effectBursts.map(\.id))
+        playing.formIntersection(alive)
     }
 
     /// The Pentacles, added and removed as the hunt puts them out.
