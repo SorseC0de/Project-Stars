@@ -87,8 +87,14 @@ struct GameScreen: View {
                     // `World.wrapped(_:)`.
                     Palette.coolBlack
 
-                    worldColumn(side: side)
-                        .offset(y: -CGFloat(session.cameraRow) * side)
+                    if LayerBench.shared.scene {
+                        // The port: nodes that exist, moved on SpriteKit's own
+                        // loop. See `BoardScene`.
+                        BoardSceneView(session: session, side: side)
+                    } else {
+                        worldColumn(side: side)
+                            .offset(y: -CGFloat(session.cameraRow) * side)
+                    }
                 }
                 .frame(width: side, height: side * 2, alignment: .top)
                 .clipped()

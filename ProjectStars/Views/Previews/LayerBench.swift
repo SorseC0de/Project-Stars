@@ -58,6 +58,17 @@ final class LayerBench {
     /// The screen-wide fracture shader wrapped around the whole board.
     var fracture = true
 
+    /// **The port.** The whole top screen drawn by SpriteKit instead of SwiftUI.
+    ///
+    /// Not a layer toggle like the rest of these — it swaps the entire board for
+    /// `BoardScene`, which draws the sky, both planes' ground and the piece as
+    /// nodes that exist rather than a tree that is described. Incomplete on
+    /// purpose: no cursor, no arrow, no island, no coins, no effects. It is the
+    /// slice that answers whether a retained scene costs less than a rebuilt
+    /// one, and everything missing from it is more nodes rather than a different
+    /// answer.
+    var scene = false
+
     /// The whole control panel — the entire bottom half of the screen.
     ///
     /// Never once isolated. It is a full SwiftUI tree of its own — meters,
@@ -105,6 +116,7 @@ final class LayerBench {
     let sparkles = true
     let fracture = true
     let panel = true
+    let scene = false
     let wash = true
     let oneCanvas = false
     let spritekit = false
@@ -148,6 +160,7 @@ struct LayerBenchControls: View {
                 toggle("tile edges", \.tileEdges)
 
                 Text("screen").foregroundStyle(Palette.gold).padding(.top, 3)
+                toggle("SCENE (spritekit)", \.scene)
                 toggle("PANEL", \.panel)
 
                 Text("both").foregroundStyle(Palette.stone).padding(.top, 3)
