@@ -293,6 +293,16 @@ struct GameScreen: View {
                             .frame(maxWidth: .infinity, maxHeight: .infinity,
                                    alignment: .topTrailing)
 
+                        // Beside the frame counter on purpose: the aura is the
+                        // game's biggest single cost and the trade is a visual
+                        // one, so it is judged by moving a slider and watching
+                        // the number.
+                        AuraControls()
+                            .frame(maxWidth: .infinity, maxHeight: .infinity,
+                                   alignment: .bottomTrailing)
+                            .padding(.trailing, 6)
+                            .padding(.bottom, 6)
+
                         LayerBenchControls(session: session)
                             .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .topLeading)
                             .padding(.leading, 6)

@@ -269,13 +269,13 @@ struct PieceView: View {
     /// wash and cannot be both.
     private var aura: some View {
         ZStack {
-            ForEach(0..<2, id: \.self) { step in
+            ForEach(0..<AuraStyle.layers, id: \.self) { step in
                 material
                     .colorEffect(
                         ShaderLibrary.flatSilhouette(.color(GameRules.stormGlowTint))
                     )
-                    .blur(radius: GameRules.auraRadius * scale * CGFloat(step + 1))
-                    .opacity(GameRules.auraOpacity / Double(step + 1))
+                    .blur(radius: AuraStyle.radius * scale * CGFloat(step + 1))
+                    .opacity(AuraStyle.opacity / Double(step + 1))
             }
         }
         .allowsHitTesting(false)
@@ -1222,4 +1222,41 @@ enum FallStyle {
         defaultArrival
         #endif
     }
+}
+
+/// What the charged halo is made of.
+///
+/// On a bench because it is the game's biggest single cost — each layer is a
+/// silhouette through a shader and then a blur, and a blur is an offscreen
+/// pass. See `AuraTuning`.
+@MainActor
+enum AuraStyle {
+
+    static var layers: Int {
+        #if DEBUG
+        max(Int(AuraTuning.shared.layers), 0)
+        #else
+        defaultLayers
+        #endif
+    }
+
+    static var radius: CGFloat {
+        #if DEBUG
+        CGFloat(AuraTuning.shared.radius)
+        #else
+        CGFloat(defaultRadius)
+        #endif
+    }
+
+    static var opacity: Double {
+        #if DEBUG
+        AuraTuning.shared.opacity
+        #else
+        defaultOpacity
+        #endif
+    }
+
+    static let defaultLayers = 2
+    static let defaultRadius: Double = 3
+    static let defaultOpacity: Double = 0.85
 }

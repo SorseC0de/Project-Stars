@@ -1052,7 +1052,7 @@ enum GameRules {
     /// never came back down after the recolour took over the job. All it has to
     /// do now is say the square is *lit from within*, which is a suggestion, not
     /// an announcement.
-    static let cloudSpriteRaiseLift: CGFloat = 3
+    static let cloudSpriteRaiseLift: CGFloat = 11
     static let cloudSpriteGlowPeriod: TimeInterval = 1.5
     static let cloudSpriteGlowMin: Double = 0.10
     static let cloudSpriteGlowMax: Double = 0.24

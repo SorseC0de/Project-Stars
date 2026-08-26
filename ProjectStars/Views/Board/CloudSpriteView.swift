@@ -304,6 +304,7 @@ struct CloudMotion {
         offset = CGSize(
             width: wander.width + shove.width,
             height: wander.height + shove.height + give
+                - GameRules.astraCloudLift * metrics.scale
                 + GameRules.cloudSpriteDrop * metrics.scale
         )
     }
