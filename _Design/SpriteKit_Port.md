@@ -92,3 +92,33 @@ rather than guessed, and the eye's estimate is around 1.15 / 0.85.
 size on both boards, and making it now would mean never knowing which of the two
 things moved something. Once the scene matches the SwiftUI board, this is the
 first thing to do after.
+
+## Placement: the three terms
+
+Every object needs all three, and taking any one from the wrong place moves
+it a few pixels in a way that reads as a tuning problem and is not.
+
+1. **Which model.** *Standing on* a square → `PlacedOnPlane`: seated at
+   `band.drawnCentreY + mismatch`, scaled by `projected(...).scale`.
+   *Drawn on* the ground (arrow, cursor) → `asBoardSquare`: seated on the
+   band's bottom edge, scaled about that edge, `band.scale` across —
+   `zoom / edgeDivisor`, **not** `depthScale` — and `groundScale` down unless
+   it opts out (`squashed: false`, as the arrow does).
+   `BoardScene.place` and `BoardScene.placeMark` are the two.
+2. **The surface.** `surfaceOffset` in the view, `surfaceLift` in the scene:
+   the island hovers, a popped tile stands proud, and everything on that
+   square rides it.
+3. **The object's own lift**, inside its own view. `nexysRaise` + `islandY`,
+   `pentacleLift`, `facingArrowLift` × a row boost + a depth term.
+
+## Still missing from the scene
+
+Raised tiles (the pop lift and its edge sprite); Terra's grass cover; the
+cloud wake and dip, and the clouds' wear and breathing; the cursor's
+breathing, flare and warning pulse; the charged glow; afterimages; sparkles;
+the dim wash; the assembled signs (Gemini halves, Libra parts, Aquarius'
+storm, Pisces' fish); the sign-specific FX layer generally; Polaris' sparks.
+
+The row bake is invalidated by a board change only, so anything that changes
+without the board changing — the raised set, flashing, pressed — cannot live
+in it as it stands.
