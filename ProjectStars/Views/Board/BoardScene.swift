@@ -170,8 +170,13 @@ final class BoardScene: SKScene {
         let pieces: [(TerraScenery, CGFloat, CGFloat, CGFloat, Bool)] = [
             (.backdrop, 3, GameRules.terraBackdropDrop, -50, false),
             (.midground, 3, GameRules.terraMidgroundDrop, -40, false),
-            (.foreground, 2, 0, 700, true),
+            // The near rock is nearer than the front row and nothing else, so
+            // it takes the row after the last one — not a number above the whole
+            // board, which put it over half the front row.
+            (.foreground, 2, 0, Self.depth(row: GameRules.gridSize, layer: 0), true),
         ]
+
+        guard LayerBench.shared.scenery else { return }
 
         for (part, cells, drop, depth, atBottom) in pieces {
             guard let art = PaletteRecolour.image(
@@ -207,7 +212,7 @@ final class BoardScene: SKScene {
         )
         floor.anchorPoint = CGPoint(x: 0.5, y: 0)
         floor.position = CGPoint(x: side / 2, y: -side)
-        floor.zPosition = 600
+        floor.zPosition = Self.depth(row: GameRules.gridSize, layer: -1)
         holder.addChild(floor)
     }
 
@@ -291,7 +296,7 @@ final class BoardScene: SKScene {
             x: metrics.boardSize / 2,
             y: -(band.groundCentreY + metrics.tileSize / 2)
         )
-        node.zPosition = CGFloat(row)
+        node.zPosition = Self.depth(row: row, layer: 0)
         return node
     }
 
@@ -458,13 +463,27 @@ final class BoardScene: SKScene {
     ///
     /// `lift` is in art pixels, the unit every tuned offset in `GameRules` is
     /// written in.
+    /// The depth a thing standing on `row` draws at.
+    ///
+    /// The board's own painter's order: a row owns a band ten wide, the ground
+    /// sits at the bottom of it and everything standing on that ground sits
+    /// above — so a piece on row three is in front of row three's tiles and
+    /// behind row four's. The same scale `BoardObject.z` uses, for the same
+    /// reason.
+    private static func depth(row: Int, layer: Int) -> CGFloat {
+        CGFloat(row * 10 + layer)
+    }
+
     private func place(
         _ node: SKSpriteNode,
         at point: GridPoint,
         on plane: Plane,
         tiles: CGSize,
-        lift: CGFloat = 0
+        lift: CGFloat = 0,
+        layer: Int = 5
     ) {
+        node.zPosition = Self.depth(row: point.y, layer: layer)
+
         let spot = metrics.projected(point, on: plane)
         let inset = (side - metrics.boardSize) / 2
 
@@ -473,10 +492,15 @@ final class BoardScene: SKScene {
             height: tiles.height * metrics.tileSize
         )
         node.setScale(spot.scale)
+        // **The lift is scaled by the row.** Anything measured from a tile's
+        // centre lives in that tile's space, and a tile at the back of the
+        // board is smaller — SwiftUI gets this for free because it scales the
+        // whole view *including* its offsets, about the point it then places.
+        // Applied unscaled, every offset was a back-row error.
         node.position = CGPoint(
             x: spot.position.x + inset,
             y: -CGFloat(World.row(of: plane)) * side
-                - spot.position.y - inset + lift * metrics.scale
+                - spot.position.y - inset + lift * metrics.scale * spot.scale
         )
     }
 
@@ -534,10 +558,23 @@ final class BoardScene: SKScene {
 
         let inset = (side - metrics.boardSize) / 2
         let spot = metrics.projected(standing.point, on: standing.plane)
+        // **Where the feet go.**
+        //
+        // The view centres a frame two tiles tall on the tile's centre, offsets
+        // it up by half a tile plus `pieceLift`, and scales the whole thing —
+        // offsets included — about that centre. So the feet end up this far
+        // below the tile's centre, *in the row's own scale*:
+        //
+        //     (tileSize / 2 - pieceLift × scale) × row scale
+        //
+        // Placed at the tile's bottom edge unscaled instead, the piece sat low
+        // everywhere and lower still at the back, where the row is smaller.
+        let stand = (metrics.tileSize / 2 - GameRules.pieceLift * metrics.scale)
+            * spot.scale
         let seat = CGPoint(
             x: spot.position.x + inset,
             y: -CGFloat(World.row(of: standing.plane)) * side
-                - spot.position.y - inset - metrics.tileSize / 2
+                - spot.position.y - inset - stand
         )
 
         // **Sent, not set.** Only when the square actually changed, and as an
@@ -571,6 +608,7 @@ final class BoardScene: SKScene {
             piece.position = seat
             piece.setScale(spot.scale)
         }
+        piece.zPosition = Self.depth(row: standing.point.y, layer: 5)
 
         // **The hop, the squash and the bob, from the same clock the board
         // uses.** `HopPose` is already a pure function of elapsed time — it was
@@ -586,6 +624,10 @@ final class BoardScene: SKScene {
 
         // The shadow stays down and narrows as the figure leaves it.
         shadow.isHidden = session.isChangingPlane || session.isFalling
+        // The mark on the ground, lifted back by what the perspective's seating
+        // pushed down — the figure needed moving, the shadow did not.
+        shadow.position.y = (GameRules.pieceShadowPerspectiveLift
+            - GameRules.pieceShadowDrop) * metrics.scale
         shadow.setScale(max(1 - hop.lift / GameRules.hopArcHeight * 0.4, 0.35))
 
         // And the arrow that says which way it is looking.
@@ -615,7 +657,7 @@ final class BoardScene: SKScene {
             reach: session.previewReach
         )
         place(cursor, at: aim.point, on: standing.plane,
-              tiles: CGSize(width: 1, height: 1))
+              tiles: CGSize(width: 1, height: 1), layer: 2)
         cursor.color = UIColor(Self.tint(for: aim.status))
 
         // The island, on whichever plane it is currently part of. Three tiles
@@ -626,14 +668,11 @@ final class BoardScene: SKScene {
         let bob = CGFloat(sin(phase * 2 * .pi))
             * GameRules.nexysFloatAmplitude
 
+        // The piece stands between the two halves of the same rock.
         place(island, at: GameRules.nexysPoint, on: home,
-              tiles: CGSize(width: 3, height: 3), lift: bob)
+              tiles: CGSize(width: 3, height: 3), lift: bob, layer: 3)
         place(pillar, at: GameRules.nexysPoint, on: home,
-              tiles: CGSize(width: 1, height: 1), lift: bob)
-        // Behind the piece, and the pillar in front of it: the piece stands
-        // between the two halves of the same rock.
-        island.zPosition = 300
-        pillar.zPosition = 600
+              tiles: CGSize(width: 1, height: 1), lift: bob, layer: 7)
 
         syncCoins(on: standing.plane, inset: inset)
         syncEffects(inset: inset)
@@ -666,7 +705,6 @@ final class BoardScene: SKScene {
             let wide = 2 * puff.magnitude
             place(node, at: puff.point, on: puff.plane,
                   tiles: CGSize(width: wide, height: wide))
-            node.zPosition = 690
             addChild(node)
 
             let each = SpriteSheetLoader.frameDuration(for: .smoke(puff.plane))
@@ -721,9 +759,9 @@ final class BoardScene: SKScene {
                     height: wide
                         * burst.effect.frameSize.height / burst.effect.frameSize.width
                         * burst.effect.spanScaleY
-                )
+                ),
+                layer: 8
             )
-            node.zPosition = 700
             node.zRotation = CGFloat(burst.angle) * .pi / 180
             node.xScale = burst.mirrored ? -1 : 1
             if let tint = burst.tint {
@@ -774,7 +812,8 @@ final class BoardScene: SKScene {
         for (point, node) in coins {
             // A coin is `pentacleCellSpan` tiles across, as the view frames it.
             let span = GameRules.pentacleCellSpan
-            place(node, at: point, on: plane, tiles: CGSize(width: span, height: span))
+            place(node, at: point, on: plane,
+                  tiles: CGSize(width: span, height: span), layer: 6)
         }
     }
 
