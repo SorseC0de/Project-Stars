@@ -58,6 +58,11 @@ final class LayerBench {
     /// The screen-wide fracture shader wrapped around the whole board.
     var fracture = true
 
+    /// The wash that comes up while a move resolves — and the zIndex lift it
+    /// puts on every object standing on the ground, which is the half of it
+    /// that has never been measured.
+    var wash = true
+
 
     /// The star field in the sky behind Astra.
     var stars = true
@@ -70,6 +75,7 @@ final class LayerBench {
     let clouds = true
     let sparkles = true
     let fracture = true
+    let wash = true
     let stars = true
 
     #endif
@@ -111,6 +117,7 @@ struct LayerBenchControls: View {
                 toggle("ground", \.ground)
                 toggle("sparkles", \.sparkles)
                 toggle("fracture", \.fracture)
+                toggle("wash", \.wash)
             }
             .font(.system(size: 9, weight: .semibold, design: .monospaced))
             .foregroundStyle(Palette.stone)

@@ -123,6 +123,10 @@ struct CloudSpriteField: View, Equatable {
     /// is exactly what Terra already pays for the same reason — see `BandRow`.
     var row: Int?
 
+    /// Whether the game is paused. Every other clock on the board asks this;
+    /// this one did not, so seven fields drifted behind the pause menu.
+    var isPaused = false
+
     /// **Compared on its values, ignoring its clock.**
     ///
     /// The field is the most expensive thing on Astra — forty-nine clusters in
@@ -139,6 +143,7 @@ struct CloudSpriteField: View, Equatable {
     /// identity and never in what they answer.
     static func == (lhs: CloudSpriteField, rhs: CloudSpriteField) -> Bool {
         lhs.row == rhs.row
+            && lhs.isPaused == rhs.isPaused
             && lhs.board == rhs.board
             && lhs.metrics == rhs.metrics
             && lhs.flashing == rhs.flashing
@@ -156,7 +161,7 @@ struct CloudSpriteField: View, Equatable {
         // Forty-nine clusters, each a sprite with its own wander and breath —
         // the most expensive still thing on the board, and none of it moves
         // fast enough to need a frame a frame.
-        TimelineView(.animation(minimumInterval: 1 / GameRules.cloudFrameRate, paused: planeIsAsleep)) { timeline in
+        TimelineView(.animation(minimumInterval: 1 / GameRules.cloudFrameRate, paused: planeIsAsleep || isPaused)) { timeline in
             #if DEBUG
             let _ = RenderTally.tick("clouds")
             #endif

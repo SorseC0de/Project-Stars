@@ -1169,7 +1169,8 @@ struct BoardView: View {
                     emphasis: GameRules.astraDepthEmphasis,
                     zoom: GameRules.astraForeshortenScale,
                     lift: GameRules.astraForeshortenLift,
-                    row: row
+                    row: row,
+                    isPaused: session.isPaused
                 )
                 // Skipped entirely when nothing about it has changed — see
                 // `CloudSpriteField ==`, which compares the row too.
@@ -1993,6 +1994,7 @@ struct BoardView: View {
     /// which outranks which in one place keeps them from ever being up at once
     /// and adding together.
     private var washDepth: Double {
+        guard LayerBench.shared.wash else { return 0 }
         guard !session.isChangingPlane, !planeIsAsleep else { return 0 }
         if session.isDimmed { return GameRules.boardDim }
         if session.isResolvingAction { return GameRules.actionDim }
