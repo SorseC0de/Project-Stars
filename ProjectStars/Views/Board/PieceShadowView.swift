@@ -24,7 +24,7 @@ struct PieceShadowView: View {
     /// How flat it is, as a fraction of its own width.
     var flatness: CGFloat = 0.34
 
-    var opacity: Double = 0.45
+    var opacity: Double = GameRules.shadowSpriteOpacity
 
     /// What the shadow is made of.
     ///
@@ -36,14 +36,34 @@ struct PieceShadowView: View {
     var blendMode: BlendMode = .normal
 
     var body: some View {
-        Ellipse()
-            .fill(color)
-            .opacity(opacity)
-            .blendMode(blendMode)
-            .frame(
-                width: tileSize * widthFraction,
-                height: tileSize * widthFraction * flatness
-            )
-            .allowsHitTesting(false)
+        // An occluding shadow is a drawing on the sheet. A pool of light is
+        // not — it is tinted and additive, and no single drawing can be both,
+        // so the blend mode is what decides which of the two this is.
+        if blendMode == .normal,
+           let art = PaletteRecolour.image(.pieceShadow, frame: 0, swaps: []) {
+            let cell = tileSize * widthFraction / GameRules.shadowSpriteSpan
+            let seat = GameRules.shadowSpriteSeat / CGFloat(GameRules.tilePixelSize)
+
+            Image(uiImage: art)
+                .interpolation(.none)
+                .resizable()
+                .frame(width: cell, height: cell)
+                // The mark sits low in its cell. Centring the cell would seat
+                // every shadow that much further down the tile than the drawn
+                // ellipse did, so the difference comes back off here.
+                .offset(y: -cell * (0.5 - seat))
+                .opacity(opacity)
+                .allowsHitTesting(false)
+        } else {
+            Ellipse()
+                .fill(color)
+                .opacity(opacity)
+                .blendMode(blendMode)
+                .frame(
+                    width: tileSize * widthFraction,
+                    height: tileSize * widthFraction * flatness
+                )
+                .allowsHitTesting(false)
+        }
     }
 }

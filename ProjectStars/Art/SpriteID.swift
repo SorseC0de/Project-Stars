@@ -177,6 +177,13 @@ enum SpriteID: Hashable {
     /// One segment of that tail's shaft, repeated to make its length.
     case scorpioTailLink
 
+    /// The mark a solid thing leaves on the square it stands on.
+    ///
+    /// Drawn and placed for the piece, so aligning its cell with the piece's
+    /// lower cell puts it where it belongs. Anything smaller — a coin, a
+    /// fragment — uses the same drawing scaled down.
+    case pieceShadow
+
     /// One of Gemini's two halves. See `GeminiHalf`.
     case geminiHalf(GeminiHalf)
 
@@ -389,6 +396,8 @@ enum SpriteID: Hashable {
             "scorpio_stinger_\(facing.rawValue)"
         case .scorpioTailLink:
             "scorpio_tail_link"
+        case .pieceShadow:
+            "piece_shadow"
         case .piscesFish:
             "pisces_fish"
         case .piscesFishCharged:

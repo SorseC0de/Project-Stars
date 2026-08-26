@@ -384,15 +384,16 @@ final class BoardScene: SKScene {
         // The mark on the square, under the figure and outside it: the figure
         // hops and the shadow stays on the ground, which is what anchors a
         // two-cell sprite to a one-cell square.
-        shadow.texture = SKTexture(image: Self.shadowImage(
-            width: metrics.tileSize * 0.75,
-            height: metrics.tileSize * 0.75 * 0.34
-        ))
-        shadow.size = CGSize(
-            width: metrics.tileSize * 0.75,
-            height: metrics.tileSize * 0.75 * 0.34
+        //
+        // Drawn on the sheet at the piece's own scale, so its cell lines up
+        // with the piece's lower cell and the art does the seating.
+        shadow.texture = Self.shadowTexture
+        shadow.size = CGSize(width: metrics.tileSize, height: metrics.tileSize)
+        shadow.anchorPoint = CGPoint(
+            x: 0.5,
+            y: GameRules.shadowSpriteSeat / CGFloat(GameRules.tilePixelSize)
         )
-        shadow.alpha = 0.45
+        shadow.alpha = GameRules.shadowSpriteOpacity
         shadow.zPosition = -1
         piece.addChild(shadow)
 
@@ -669,14 +670,10 @@ final class BoardScene: SKScene {
 
         // The shadow stays down and narrows as the figure leaves it.
         shadow.isHidden = session.isChangingPlane || session.isFalling
-        // The mark on the ground, lifted back by what the perspective's seating
-        // pushed down — the figure needed moving, the shadow did not.
-        // The view puts the shadow at the tile's centre and pushes it down by
-        // its own drop. This node is at the feet, so the centre is `drop` back
-        // up from here.
-        shadow.position.y = drop
-            + (GameRules.pieceShadowPerspectiveLift + 1 - GameRules.pieceShadowDrop)
-            * metrics.scale
+        // Anchored on the mark itself, which sits a known height up its cell.
+        // This node is at the feet, and the cell's bottom edge is the feet, so
+        // that height is the whole offset — no tuning of mine in it.
+        shadow.position.y = GameRules.shadowSpriteSeat * metrics.scale
         shadow.setScale(max(1 - hop.lift / GameRules.hopArcHeight * 0.4, 0.35))
 
         // And the arrow that says which way it is looking.
@@ -858,6 +855,23 @@ final class BoardScene: SKScene {
             let holder = SKSpriteNode()
             addChild(holder)
 
+            // The mark it leaves on the tile. Hung on the holder rather than
+            // the coin so it stays on the ground while the coin bobs above it,
+            // and cut from the same drawing the piece casts — a smaller thing
+            // throwing a smaller version of the same shadow.
+            let mark = metrics.tileSize
+                * GameRules.pentacleShadowSpan / GameRules.shadowSpriteSpan
+            let pool = SKSpriteNode(texture: Self.shadowTexture)
+            pool.size = CGSize(width: mark, height: mark)
+            pool.anchorPoint = CGPoint(
+                x: 0.5,
+                y: GameRules.shadowSpriteSeat / CGFloat(GameRules.tilePixelSize)
+            )
+            pool.position.y = -GameRules.pentacleShadowDrop * metrics.scale
+            pool.alpha = GameRules.shadowSpriteOpacity
+            pool.zPosition = -1
+            holder.addChild(pool)
+
             let node = SKSpriteNode(texture: texture)
             holder.addChild(node)
             coins[pickup.point] = node
@@ -916,17 +930,14 @@ final class BoardScene: SKScene {
         ])
     }
 
-    /// The pool under the figure: a flattened ellipse, baked once.
-    private static func shadowImage(width: CGFloat, height: CGFloat) -> UIImage {
-        let size = CGSize(width: max(width, 1), height: max(height, 1))
-        let format = UIGraphicsImageRendererFormat()
-        format.scale = 2
-
-        return UIGraphicsImageRenderer(size: size, format: format).image { context in
-            UIColor(Palette.shadow).setFill()
-            context.cgContext.fillEllipse(in: CGRect(origin: .zero, size: size))
-        }
-    }
+    /// The shadow drawing, cut once and shared by everything that casts one.
+    private static let shadowTexture: SKTexture? = {
+        guard let art = PaletteRecolour.image(.pieceShadow, frame: 0, swaps: [])
+        else { return nil }
+        let texture = SKTexture(image: art)
+        texture.filteringMode = .nearest
+        return texture
+    }()
 
     /// The bracket frame: four corners, open in the middle.
     private static func bracketImage(

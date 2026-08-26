@@ -1466,6 +1466,25 @@ enum GameRules {
 
     static let pieceShadowLiftSwing: CGFloat = 0.4
 
+    // MARK: - The shadow sprite
+
+    /// How wide the shadow drawing's mark is inside its cell, as a fraction.
+    ///
+    /// Measured off the sheet: a 12-pixel ellipse in a 16-pixel cell. The old
+    /// drawn ellipse used the same 0.75, which is what "scaled for the piece"
+    /// means — the two are interchangeable at the same width.
+    static let shadowSpriteSpan: CGFloat = 12.0 / 16.0
+
+    /// Where that mark's middle sits, in art pixels up from the cell's bottom.
+    ///
+    /// The sprite is anchored here rather than at the cell's centre so that
+    /// shrinking it on a hop closes it in on the mark instead of dragging it
+    /// down the tile.
+    static let shadowSpriteSeat: CGFloat = 5.5
+
+    /// How dark the shadow drawing is drawn.
+    static let shadowSpriteOpacity: Double = 0.5
+
     /// Roughly how much of a stone piece's lower half is overgrown.
     static let pieceMossCoverage: Float = 0.32
 
@@ -1793,6 +1812,12 @@ enum GameRules {
 
     /// Opacity of the pool of light under the coin, at its brightest.
     static let pentacleShadowOpacity: Double = 0.3
+
+    /// How much of a cell a coin's mark spans.
+    ///
+    /// Less than half the piece's, because a coin is a fraction of its size and
+    /// a shadow that matched would read as something much larger hovering.
+    static let pentacleShadowSpan: CGFloat = 0.34
 
     /// How much smaller the pool gets at the top of the coin's float, as a
     /// fraction of its resting size. Shrinking as the coin rises is what sells

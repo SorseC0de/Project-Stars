@@ -466,6 +466,7 @@ enum SpriteAtlas {
         map[.scorpioStinger(.down)] = .cells(column: 14, row: 5)
         map[.scorpioStinger(.up)] = .cells(column: 15, row: 5)
         map[.scorpioTailLink] = .cells(column: 16, row: 5)
+        map[.pieceShadow] = .cells(column: 13, row: 6)
 
         map[.sagittariusArrowRest(.northSouth)] = .cells(column: 13, row: 3)
         map[.sagittariusArrowRest(.eastWest)] = .cells(column: 14, row: 3)

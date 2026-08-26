@@ -70,7 +70,7 @@ struct PentacleView: View {
                 // on that tile the way anything else resting on the ground does.
                 PieceShadowView(
                     tileSize: size,
-                    widthFraction: 0.34,
+                    widthFraction: GameRules.pentacleShadowSpan,
                     opacity: GameRules.pentacleShadowOpacity
                 )
                 .offset(y: GameRules.pentacleShadowDrop * scale)
@@ -103,7 +103,7 @@ struct PentacleView: View {
                 // than an occluding dark ellipse.
                 PieceShadowView(
                     tileSize: size,
-                    widthFraction: 0.34,
+                    widthFraction: GameRules.pentacleShadowSpan,
                     opacity: GameRules.pentacleShadowOpacity,
                     color: poolColor,
                     blendMode: .plusLighter
