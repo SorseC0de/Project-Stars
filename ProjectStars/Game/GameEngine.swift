@@ -4853,8 +4853,20 @@ struct GameEngine {
         // a step, in whichever direction. Summed here with everything else so a
         // step that earns nothing can still *cost* — the clamp below is what
         // stops a drain going past empty.
-        let gain = piece.zodiac.zodiaction.meterGain(from: move, context: passiveContext)
-            + activePassives.meterBonus(from: move, context: passiveContext)
+        // **One context, asked twice.**
+        //
+        // Not gated on the meter being short of full, which is the obvious move
+        // and the wrong one: `gain` runs negative as well. The Essences drain a
+        // pip a step and Aquarius fires at *empty*, so a full meter is exactly
+        // when his passives matter most — skipping the question there would
+        // freeze him at full for ever.
+        //
+        // What is safe is not asking for the same snapshot twice. Every call
+        // site in this file builds its own, and they are all built from the same
+        // unchanged state within a step.
+        let context = passiveContext
+        let gain = piece.zodiac.zodiaction.meterGain(from: move, context: context)
+            + activePassives.meterBonus(from: move, context: context)
             + starCharge
             + signState.essenceCharge
         guard gain != 0 else { return [] }
