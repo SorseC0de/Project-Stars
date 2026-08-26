@@ -125,7 +125,7 @@ struct PaletteGlow<Content: View>: View {
         content()
             .overlay {
                 ZStack {
-                    ForEach(0...max(trail, 0), id: \.self) { step in
+                    ForEach(Array(0...max(trail, 0)), id: \.self) { step in
                         let spread = radius * (1 + CGFloat(step) * 0.9)
                         let fade = intensity / Double(step + 1)
 
@@ -174,7 +174,7 @@ struct PaletteGlow<Content: View>: View {
                     if let tint {
                         tint.mask {
                             ZStack {
-                                ForEach(0...max(trail, 0), id: \.self) { step in
+                                ForEach(Array(0...max(trail, 0)), id: \.self) { step in
                                     mask
                                         .blur(radius: radius * (1 + CGFloat(step) * 0.9))
                                         .opacity(intensity / Double(step + 1))

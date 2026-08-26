@@ -255,6 +255,21 @@ struct GameScreen: View {
                 // naming a mode over a row of buttons. An overlay for the same
                 // reason the vignette is one: it takes the playfield's bounds
                 // without being able to move anything laid out inside them.
+                // **Benches go over the board, never over the panel.**
+                //
+                // The panel is one big drag surface, and a slider inside a drag
+                // surface loses the gesture to it every time — the knob does not
+                // move, whatever it is wired to. All touch input lives down
+                // there, which makes up here the one place a bench can be used.
+                .overlay(alignment: .bottomTrailing) {
+                    #if DEBUG
+                    VStack(alignment: .trailing, spacing: 4) {
+                        if session.phase == .gameOver { FallStreakControls() }
+                        AuraControls()
+                    }
+                    .padding(6)
+                    #endif
+                }
                 .overlay {
                     if let mode = session.modeCard {
                         GameModeSplashView(
@@ -292,16 +307,6 @@ struct GameScreen: View {
                         RenderTallyView(session: session)
                             .frame(maxWidth: .infinity, maxHeight: .infinity,
                                    alignment: .topTrailing)
-
-                        // Beside the frame counter on purpose: the aura is the
-                        // game's biggest single cost and the trade is a visual
-                        // one, so it is judged by moving a slider and watching
-                        // the number.
-                        AuraControls()
-                            .frame(maxWidth: .infinity, maxHeight: .infinity,
-                                   alignment: .bottomTrailing)
-                            .padding(.trailing, 6)
-                            .padding(.bottom, 6)
 
                         LayerBenchControls(session: session)
                             .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .topLeading)

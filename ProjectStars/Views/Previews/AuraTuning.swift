@@ -22,7 +22,18 @@ final class AuraTuning {
 
     static let shared = AuraTuning()
 
-    /// How many blurred copies sit behind the figure. Each one costs a pass.
+    /// How far the charged bloom spreads, in art pixels. Every sign but
+    /// Aquarius wears this one.
+    var glowRadius: Double = store.value("glowRadius", AuraStyle.defaultGlowRadius) {
+        didSet { AuraTuning.store.set("glowRadius", glowRadius) }
+    }
+
+    /// How many copies trail behind it. Two means three passes.
+    var glowTrail: Double = store.value("glowTrail", Double(AuraStyle.defaultGlowTrail)) {
+        didSet { AuraTuning.store.set("glowTrail", glowTrail) }
+    }
+
+    /// How many blurred copies sit behind Aquarius. Each one costs a pass.
     var layers: Double = store.value("layers", Double(AuraStyle.defaultLayers)) {
         didSet { AuraTuning.store.set("layers", layers) }
     }
@@ -39,19 +50,28 @@ final class AuraTuning {
 
     nonisolated static let store = BenchStore(
         prefix: "aura.",
+        // **Not bumped for the two knobs added beside these.** A bump forgets
+        // every stored value in the bench, and adding a key does not need one —
+        // an unstored key already falls back to its shipped default. Only a
+        // changed default needs the old values thrown away.
         vintage: 1,
-        names: ["layers", "radius", "opacity"]
+        names: ["glowRadius", "glowTrail", "layers", "radius", "opacity"]
     )
 
     func reset() {
         AuraTuning.store.forget()
+        glowRadius = AuraStyle.defaultGlowRadius
+        glowTrail = Double(AuraStyle.defaultGlowTrail)
         layers = Double(AuraStyle.defaultLayers)
         radius = AuraStyle.defaultRadius
         opacity = AuraStyle.defaultOpacity
     }
 
     func dump() {
-        print("── aura ──")
+        print("── glow ──")
+        print(String(format: "  static let gemGlowRadius: CGFloat = %.1f", glowRadius))
+        print("  static let gemGlowTrail = \(Int(glowTrail))")
+        print("── aura (Aquarius) ──")
         print("  static let defaultLayers = \(Int(layers))")
         print(String(format: "  static let defaultRadius: Double = %.1f", radius))
         print(String(format: "  static let defaultOpacity: Double = %.2f", opacity))
@@ -70,6 +90,8 @@ struct AuraControls: View {
                 Button("print") { tuning.dump() }
                 Button("reset") { tuning.reset() }
             }
+            row("glow r", $tuning.glowRadius, 0 ... 10, 0.5, "%.1f")
+            row("glow n", $tuning.glowTrail, 0 ... 4, 1, "%.0f")
             row("layers", $tuning.layers, 0 ... 3, 1, "%.0f")
             row("radius", $tuning.radius, 0.5 ... 12, 0.5, "%.1f")
             row("opacity", $tuning.opacity, 0 ... 1, 0.05, "%.2f")

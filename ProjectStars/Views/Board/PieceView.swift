@@ -268,14 +268,26 @@ struct PieceView: View {
     /// one wide enough to reach past him. A single blur is either a halo or a
     /// wash and cannot be both.
     private var aura: some View {
-        ZStack {
-            ForEach(0..<AuraStyle.layers, id: \.self) { step in
+        // Read here, into `let`s, and iterated over an array.
+        //
+        // `ForEach(0..<n)` is the *constant range* initialiser: SwiftUI captures
+        // it on the first build and never looks again, so a bench knob wired
+        // into it moves nothing. An array is the dynamic one — and taking all
+        // three values out as locals makes sure each is touched while the body
+        // is being evaluated, which is what registers the observation that
+        // redraws this when a slider moves.
+        let layers = AuraStyle.layers
+        let radius = AuraStyle.radius
+        let opacity = AuraStyle.opacity
+
+        return ZStack {
+            ForEach(Array(0..<layers), id: \.self) { step in
                 material
                     .colorEffect(
                         ShaderLibrary.flatSilhouette(.color(GameRules.stormGlowTint))
                     )
-                    .blur(radius: AuraStyle.radius * scale * CGFloat(step + 1))
-                    .opacity(AuraStyle.opacity / Double(step + 1))
+                    .blur(radius: radius * scale * CGFloat(step + 1))
+                    .opacity(opacity / Double(step + 1))
             }
         }
         .allowsHitTesting(false)
@@ -310,12 +322,12 @@ struct PieceView: View {
                 threshold: zodiac == .leo
                     ? GameRules.maneGlowThreshold
                     : GameRules.glowLuminanceThreshold,
-                radius: GameRules.gemGlowRadius * scale,
+                radius: AuraStyle.glowRadius * scale,
                 // And harder, because a gem blooms from two pixels and a mane
                 // from a hundred: the same intensity reads as a glow on one and
                 // nothing on the other.
                 intensity: zodiac == .leo ? GameRules.maneGlowIntensity : intensity,
-                trail: GameRules.gemGlowTrail
+                trail: AuraStyle.glowTrail
             ) {
                 // The eyes keep the old rule — the sign's element, on both
                 // planes — while the body stays gold.
@@ -1255,6 +1267,31 @@ enum AuraStyle {
         defaultOpacity
         #endif
     }
+
+    /// The charged bloom's spread and how many copies trail behind it.
+    ///
+    /// **This is the one that matters for most signs.** `aura` is Aquarius
+    /// only; every other charged piece is `PaletteGlow`, and a trail of two
+    /// means three copies, each rebuilding the sprite, running the palette
+    /// shader over it and blurring the result.
+    static var glowRadius: CGFloat {
+        #if DEBUG
+        CGFloat(AuraTuning.shared.glowRadius)
+        #else
+        CGFloat(defaultGlowRadius)
+        #endif
+    }
+
+    static var glowTrail: Int {
+        #if DEBUG
+        max(Int(AuraTuning.shared.glowTrail), 0)
+        #else
+        defaultGlowTrail
+        #endif
+    }
+
+    static let defaultGlowRadius: Double = 2
+    static let defaultGlowTrail = 2
 
     static let defaultLayers = 2
     static let defaultRadius: Double = 3
