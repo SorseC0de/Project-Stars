@@ -507,7 +507,14 @@ struct GameScreen: View {
         // Swept rather than snapped, so both planes are built for the whole of a
         // crossing and neither pops in half way — the same rule the sky's bands
         // use. See `World.isVisible(row:sweeping:to:)`.
-        if World.isVisible(
+        // **Both planes, unconditionally, for the whole of a crossing.**
+        //
+        // The sweep below is the right idea and it was not enough on its own:
+        // the plane being arrived at was appearing at the end of the journey
+        // rather than being travelled towards, so a fall read as a fade. A
+        // crossing is the one moment both squares must exist whatever any
+        // camera arithmetic says, so it is asked outright.
+        if session.isChangingPlane || session.isDropping || World.isVisible(
             row: World.row(of: plane),
             sweeping: session.cameraFrom ?? session.cameraRow,
             to: session.cameraRow
