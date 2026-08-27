@@ -175,7 +175,13 @@ struct GavelSlab: Equatable, Codable {
     static func roll(using generator: inout SeededRandom) -> GavelSlab {
         let shape = generator.pick(weighted: GavelShape.weightedChoices) ?? .single
         let rotation = Int.random(in: 0..<shape.orientations.count, using: &generator)
-        let health = TileHealth.allCases.randomElement(using: &generator) ?? .healthy
+        // **Not a hole.** `allCases` includes one, and a slab of holes is a
+        // slab that places damage with no tile under it — indistinguishable
+        // from having placed nothing, which is not a thing to hand someone as
+        // a reward.
+        let health = TileHealth.allCases
+            .filter { !$0.isHole }
+            .randomElement(using: &generator) ?? .healthy
         return GavelSlab(shape: shape, rotation: rotation, health: health)
     }
 }

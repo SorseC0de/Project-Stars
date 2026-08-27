@@ -71,13 +71,15 @@ struct TileChoiceOverlay: View {
     private func placement(_ slab: GavelSlab) -> some View {
         ZStack {
             ForEach(answeredBelow ? [] : GridPoint.allPoints(size: metrics.gridSize), id: \.self) { anchor in
-                let fits = slab.canBePlaced(anchoredAt: anchor, on: session.engine.currentBoard)
-
+                // **One colour for every square.** Green and red read as a
+                // rule about where the slab may go, and the gavel writes over
+                // whatever is already there — so the two colours were
+                // answering a question the player did not need to ask.
                 Rectangle()
-                    .fill((fits ? Palette.jade : Palette.red).opacity(pulse ? 0.30 : 0.14))
+                    .fill(Palette.yellow.opacity(pulse ? 0.30 : 0.14))
                     .overlay(
                         Rectangle().strokeBorder(
-                            (fits ? Palette.jade : Palette.red).opacity(0.85),
+                            Palette.yellow.opacity(0.85),
                             lineWidth: 1
                         )
                     )

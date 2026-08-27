@@ -1243,14 +1243,23 @@ final class BoardScene: SKScene {
             // quarter of the board.
             let node = SKSpriteNode(texture: first)
             let wide = burst.effect.span * burst.scale
+            let high = wide
+                * burst.effect.frameSize.height / burst.effect.frameSize.width
+                * burst.effect.spanScaleY
+
+            // **Where the effect thinks the floor is.** `EffectSpriteView`
+            // raises each one by its own `groundLift`, and a `.standing` one by
+            // half its height again so it sits on the square rather than
+            // through it. Neither was here, which is what dropped the snipe
+            // bonus down out of its overhead spot.
+            let stand = burst.effect.anchor == .standing
+                ? high * CGFloat(GameRules.tilePixelSize) / 2
+                : 0
+
             place(
                 node, at: burst.center, on: burst.plane,
-                tiles: CGSize(
-                    width: wide,
-                    height: wide
-                        * burst.effect.frameSize.height / burst.effect.frameSize.width
-                        * burst.effect.spanScaleY
-                )
+                tiles: CGSize(width: wide, height: high),
+                lift: burst.effect.groundLift + stand
             )
             node.zPosition = Self.effects
             node.zRotation = CGFloat(burst.angle) * .pi / 180
