@@ -77,6 +77,9 @@ final class BoardScene: SKScene {
     private var playing: Set<UUID> = []
 
     private var island = SKSpriteNode()
+
+    /// The streaks under Terra, held so they can be stilled when unseen.
+    private var streaks: SKNode?
     private var pillar = SKSpriteNode()
     private var shadow = SKSpriteNode()
     private var arrow = SKSpriteNode()
@@ -140,6 +143,7 @@ final class BoardScene: SKScene {
         guard children.isEmpty else { return }
         addChild(follow)
         addSky()
+        addDeath()
         for plane in Plane.allCases { addPlane(plane) }
         addPiece()
         addCursor()
@@ -153,14 +157,116 @@ final class BoardScene: SKScene {
     /// A texture rather than nine stacked nodes — it is one image, generated
     /// once, and SpriteKit will not touch it again.
     private func addSky() {
-        let height = side * CGFloat(World.rows)
+        // **A row beyond each end.** The world wraps: a fall runs off the
+        // bottom at row eight and the camera comes back on at minus one, which
+        // is a row the column does not have. It is sky at both ends, so the
+        // gradient simply reaches past them and the seam has nothing to show.
+        let height = side * CGFloat(World.rows + 2)
         let sky = SKSpriteNode(
             texture: SKTexture(image: Self.skyImage()),
             size: CGSize(width: side, height: height)
         )
-        sky.position = CGPoint(x: side / 2, y: -height / 2)
+        sky.position = CGPoint(x: side / 2, y: side - height / 2)
         sky.zPosition = -1000
         addChild(sky)
+    }
+
+    /// The room under Terra, where a fall ends.
+    ///
+    /// **A real row of the world, not an overlay.** It sits at
+    /// `World.underground` like anything else, so falling into it is the camera
+    /// travelling and nothing more — which is what makes the wrap seamless. The
+    /// scene stands in for the whole world column now, so a row the column had
+    /// and the scene did not is a row the camera arrives at to find nothing.
+    private func addDeath() {
+        let deep = CGFloat(World.underground)
+
+        let sky = SKSpriteNode(
+            texture: Self.art(gradient: [
+                (Palette.coffee, 0),
+                (Palette.coolBlack, DeathStyle.floor),
+                (Palette.coolBlack, 1),
+            ]),
+            size: CGSize(width: side, height: side)
+        )
+        sky.position = CGPoint(x: side / 2, y: -deep * side - side / 2)
+        sky.zPosition = -900
+        addChild(sky)
+
+        // The streaks a fall leaves behind it, travelling up the way the ground
+        // does when you are going down. Each on its own length, pace and
+        // brightness, and each started part-way along so they do not arrive in
+        // a rank — the same scatter the canvas uses, from the same seeds.
+        let holder = SKNode()
+        holder.position = CGPoint(x: 0, y: -deep * side)
+        holder.zPosition = -880
+        addChild(holder)
+        streaks = holder
+
+        for index in 0..<max(Int(FallStreakStyle.count), 1) {
+            let span = Self.scatter(index, 2)
+            let pace = Self.scatter(index, 3)
+            let glow = FallStreakStyle.glow
+                * (FallStreakStyle.faintest + Self.scatter(index, 4))
+
+            let long = side * FallStreakStyle.length
+                * (FallStreakStyle.shortest + span)
+            let speed = side * FallStreakStyle.speed
+                * (FallStreakStyle.slowest + pace)
+            let run = side + long
+
+            let streak = SKSpriteNode(
+                color: UIColor(Palette.coffee),
+                size: CGSize(width: FallStreakStyle.thickness, height: long)
+            )
+            streak.anchorPoint = CGPoint(x: 0.5, y: 0)
+            streak.alpha = glow
+            streak.blendMode = .add
+            streak.position = CGPoint(
+                x: Self.scatter(index, 1) * side,
+                y: -side - long
+            )
+            holder.addChild(streak)
+
+            // Started part-way up its own run, so the field is already going
+            // rather than beginning together the moment it is looked at.
+            let offset = (Double(index) * 97).truncatingRemainder(dividingBy: run)
+            streak.position.y += CGFloat(offset)
+
+            let climb = SKAction.moveBy(x: 0, y: run, duration: run / speed)
+            let back = SKAction.moveBy(x: 0, y: -run, duration: 0)
+            streak.run(.repeatForever(.sequence([climb, back])), withKey: "fall")
+        }
+    }
+
+    /// The scatter the streaks are laid out by, matching `FallStreaks`.
+    private static func scatter(_ index: Int, _ salt: Int) -> CGFloat {
+        let mixed = UInt64(index &* 2_654_435_761 &+ salt &* 40_503) &* 6_364_136_223
+        return CGFloat(mixed % 1_000) / 1_000
+    }
+
+    /// A vertical gradient, baked small and stretched.
+    private static func art(gradient stops: [(Color, CGFloat)]) -> SKTexture {
+        let format = UIGraphicsImageRendererFormat()
+        format.scale = 1
+        let size = CGSize(width: 8, height: 512)
+
+        let image = UIGraphicsImageRenderer(size: size, format: format).image { context in
+            let colours = stops.map { UIColor($0.0).cgColor } as CFArray
+            let places = stops.map { $0.1 }
+            if let ramp = CGGradient(
+                colorsSpace: CGColorSpaceCreateDeviceRGB(),
+                colors: colours, locations: places
+            ) {
+                context.cgContext.drawLinearGradient(
+                    ramp,
+                    start: .zero,
+                    end: CGPoint(x: 0, y: size.height),
+                    options: []
+                )
+            }
+        }
+        return SKTexture(image: image)
     }
 
     private func addPlane(_ plane: Plane) {
@@ -1343,10 +1449,17 @@ final class BoardScene: SKScene {
             y: -session.cameraRow * side - side / 2
         )
         if abs(want.y - aimedAt) > 0.5 {
+            // **A wrap is a jump, not a journey.** At the seam the camera goes
+            // from the bottom row to one above the top, which is the whole
+            // column's height in one step — travelled, it would sail back up
+            // through every plane it had just passed. Taken, it is invisible,
+            // because both ends of the seam are sky.
+            let leap = abs(want.y - aimedAt) > side * CGFloat(World.rows - 2)
+
             aimedAt = want.y
             follow.removeAction(forKey: "travel")
 
-            let span = session.isChangingPlane || session.isDropping
+            let span = !leap && (session.isChangingPlane || session.isDropping)
                 ? GameRules.fallDuration
                 : 0
             if span > 0 {
@@ -1612,6 +1725,15 @@ final class BoardScene: SKScene {
             1 + NexysStyle.rockSquash * CGFloat(sin(Double($0) * .pi))
                 / NexysStyle.islandArtWidth
         } ?? 1
+
+        // The underground is a permanent row, so its streaks are mounted for
+        // the whole run whether anyone has died or not. Stilled when the row is
+        // not being looked at, which is nearly always.
+        streaks?.isPaused = !World.isVisible(
+            row: World.underground,
+            sweeping: session.cameraFrom ?? session.cameraRow,
+            to: session.cameraRow
+        )
 
         syncCoins(on: standing.plane, inset: inset)
         syncSparkles()

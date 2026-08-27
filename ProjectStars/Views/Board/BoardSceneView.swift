@@ -25,6 +25,30 @@ struct BoardSceneView: View {
 
     @State private var scene: BoardScene?
 
+    /// The game over card.
+    ///
+    /// **Left in SwiftUI while the room around it moved into the scene.** The
+    /// room has to be a row of the world so that falling into it is the camera
+    /// travelling and nothing else; the card does not, because it is centred on
+    /// the screen rather than on a row. Keeping it here also keeps its entrance
+    /// and its exit — a splash view already knows how to arrive and leave, and
+    /// there is nothing to be gained by teaching a scene the same thing.
+    @ViewBuilder
+    private var card: some View {
+        if session.phase == .gameOver || session.deathCardIsLeaving {
+            GameModeSplashView(
+                title: DeathStyle.title,
+                subtitle: session.engine.gameOverReason?.displayText ?? "",
+                ink: Palette.red,
+                titleDrop: DeathStyle.titleDrop,
+                blurbDrop: DeathStyle.blurbDrop,
+                isLeaving: session.deathCardIsLeaving,
+                onLanded: {},
+                onFinished: {}
+            )
+        }
+    }
+
     var body: some View {
         Group {
             if let scene {
@@ -34,6 +58,7 @@ struct BoardSceneView: View {
             }
         }
         .frame(width: side, height: side)
+        .overlay { card }
         .allowsHitTesting(false)
         .onAppear {
             if scene == nil { scene = BoardScene(session: session, side: side) }
