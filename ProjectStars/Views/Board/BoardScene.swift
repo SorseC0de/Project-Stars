@@ -307,6 +307,34 @@ final class BoardScene: SKScene {
                 // — and draws it at the drawing's own proportions rather than
                 // stretching what it has.
                 if raised.contains(point) {
+                    // **The face, lifted toward the camera.** Drawn at the
+                    // width its own row has at the floor rather than at the
+                    // width of a row eight pixels further back, which is what
+                    // lifting it inside the warped strip was doing to it.
+                    if let art = PaletteRecolour.image(
+                        .tileFace(.terra, .at(point), popped: true),
+                        frame: 0, swaps: []
+                    ) {
+                        let face = SKTexture(image: art)
+                        face.filteringMode = .nearest
+
+                        let node = SKSpriteNode(
+                            texture: face,
+                            size: CGSize(
+                                width: across,
+                                height: metrics.tileSize * band.groundScale
+                            )
+                        )
+                        node.anchorPoint = CGPoint(x: 0.5, y: 0)
+                        node.position = CGPoint(
+                            x: plainX + set.popX * metrics.scale * band.scale,
+                            y: sitsAt
+                                + set.pop * metrics.scale * band.groundScale
+                        )
+                        node.zPosition = Self.depth(row: point.y, layer: 0)
+                        holder.addChild(node)
+                    }
+
                     // **Stacked, not stretched.** The drawing is four pixels
                     // tall and lives in the top four rows of its cell — the
                     // rest of the cell is empty, so cropping to the pop's
@@ -515,10 +543,19 @@ final class BoardScene: SKScene {
     }
 
     /// A row's seven tiles, composited into one strip.
-    /// How far above the tile row the strip reaches, in art pixels — the room
-    /// a popped tile needs to rise into. Follows the dial, so tuning the pop
-    /// does not clip the tile it is raising.
-    private static func stripAbove(_ pop: CGFloat) -> CGFloat { max(pop, 0) }
+    /// How far above the tile row the strip reaches, in art pixels.
+    ///
+    /// **Nothing, now that a popped tile is not in here.** Raising a face
+    /// inside the strip raised it in the strip's *source*, and up the strip is
+    /// back through the board — so the warp re-projected the lifted face as
+    /// though it had receded, narrowing it and drawing each column that much
+    /// nearer the middle. The edge under it, standing at the floor, kept its
+    /// full width. That is a mismatch that grows with the distance from the
+    /// middle, which is exactly the shape of the one being chased.
+    ///
+    /// A tile popping rises *toward the camera*. It does not recede, so it is
+    /// drawn at its own row's width and lifted in screen space instead.
+    private static func stripAbove(_ pop: CGFloat) -> CGFloat { 0 }
 
     /// And how far below — nothing, now that no edge is drawn in here.
     ///
@@ -561,15 +598,16 @@ final class BoardScene: SKScene {
                 // The tile's own place in the strip, and how far it has risen
                 // out of it. `BandRow` stacks the edge and the face bottom-
                 // aligned and then offsets each, which is what these two are.
-                let isRaised = raised.contains(point)
+                // A raised tile is drawn as its own node, not in here.
+                if raised.contains(point) { continue }
+
                 let box = CGRect(
-                    x: CGFloat(column) * cell,
-                    y: stripAbove(pop) - (isRaised ? pop : 0),
+                    x: CGFloat(column) * cell, y: stripAbove(pop),
                     width: cell, height: cell
                 )
 
                 if let art = PaletteRecolour.image(
-                    .tileFace(.terra, shade, popped: isRaised), frame: 0, swaps: []
+                    .tileFace(.terra, shade, popped: false), frame: 0, swaps: []
                 ) {
                     drewAnything = true
                     art.draw(in: box)
@@ -810,6 +848,7 @@ final class BoardScene: SKScene {
         var yScale: CGFloat
         var perColumn: CGFloat
         var spread: CGFloat
+        var popX: CGFloat
 
         /// **In here rather than read where it is used.** `rebuild` is what
         /// draws the edges, and `builtDials` is what decides whether to run it
@@ -824,10 +863,11 @@ final class BoardScene: SKScene {
         return Dials(pop: bench.popY, x: bench.edgeX, y: bench.edgeY,
                      xScale: bench.edgeXscale, yScale: bench.edgeYscale,
                      perColumn: bench.edgeXper, spread: bench.edgeXmul,
-                     turns: bench.stackTurns)
+                     popX: bench.popX, turns: bench.stackTurns)
         #else
         return Dials(pop: GameRules.tilePopLift, x: 0, y: 0,
-                     xScale: 1, yScale: 1, perColumn: 0, spread: 1, turns: false)
+                     xScale: 1, yScale: 1, perColumn: 0, spread: 1,
+                     popX: 0, turns: false)
         #endif
     }
 

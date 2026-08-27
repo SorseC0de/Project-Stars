@@ -32,6 +32,15 @@ final class TileEdgeTuning {
         }
     }
 
+    /// Sideways nudge for the popped **face**, in art pixels.
+    ///
+    /// Separate from `edgeX` because the face and the edge under it are drawn
+    /// by different means — the face is a tile of the board, the edge is the
+    /// side of one — and the whole question is whether they agree.
+    var popX: CGFloat = store.value("popX", 0) {
+        didSet { TileEdgeTuning.store.set("popX", popX) }
+    }
+
     /// Sideways nudge for the edge.
     var edgeX: CGFloat = store.value("edgeX", 0) {
         didSet { TileEdgeTuning.store.set("edgeX", edgeX) }
@@ -129,13 +138,14 @@ final class TileEdgeTuning {
     nonisolated static let store = BenchStore(
         prefix: "tileEdge.",
         vintage: 3,
-        names: ["popY", "edgeX", "edgeXper", "edgeXmul", "edgeY", "edgeXscale",
+        names: ["popY", "popX", "edgeX", "edgeXper", "edgeXmul", "edgeY", "edgeXscale",
                 "edgeYscale", "boardX", "raiseCentre", "stackTurns"]
     )
 
     func reset() {
         TileEdgeTuning.store.forget()
         popY = GameRules.tilePopLift
+        popX = 0
         edgeX = 0
         edgeXper = 0
         edgeXmul = 1
@@ -150,6 +160,7 @@ final class TileEdgeTuning {
     func dump() {
         print("── tile edge ──")
         print(String(format: "  popY        %.2f px", popY))
+        print(String(format: "  popX        %+.2f px", popX))
         print(String(format: "  edgeX       %+.2f px", edgeX))
         print(String(format: "  edgeXper    %+.2f px per column", edgeXper))
         print(String(format: "  edgeXmul    %.3f", edgeXmul))
@@ -177,6 +188,7 @@ struct TileEdgeControls: View {
             }
 
             row("popY", value: $tuning.popY, in: 0...24)
+            row("popX", value: $tuning.popX, in: -12...12, step: 0.05)
             row("edgeX", value: $tuning.edgeX, in: -12...12)
             row("edgeX/col", value: $tuning.edgeXper, in: -3...3, step: 0.05)
             row("edgeXmul", value: $tuning.edgeXmul, in: 0.9...1.1, step: 0.005)
