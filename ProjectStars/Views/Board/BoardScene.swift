@@ -254,12 +254,14 @@ final class BoardScene: SKScene {
         let board = session.engine[plane]
         let inset = (side - metrics.boardSize) / 2
         var raised = Set(session.visibleRaisedTiles.map(\.point))
+        var forced: Set<GridPoint> = []
         #if DEBUG
         if TileEdgeTuning.shared.raiseCentre {
             let pick = Int(TileEdgeTuning.shared.raiseRow)
             for column in 0..<GameRules.gridSize {
-                raised.insert(GridPoint(column, pick))
+                forced.insert(GridPoint(column, pick))
             }
+            raised.formUnion(forced)
         }
         #endif
 
@@ -384,7 +386,7 @@ final class BoardScene: SKScene {
 
             for row in 0..<board.size {
                 guard let node = terraRow(
-                    row, board: board, raised: raised,
+                    row, board: board, raised: raised, forced: forced,
                     pop: set.pop, popX: set.popX
                 ) else { continue }
                 node.position.x += inset
@@ -417,10 +419,10 @@ final class BoardScene: SKScene {
     /// linearly and a keystone is projective.
     private func terraRow(
         _ row: Int, board: Board, raised: Set<GridPoint>,
-        pop: CGFloat, popX: CGFloat
+        forced: Set<GridPoint>, pop: CGFloat, popX: CGFloat
     ) -> SKSpriteNode? {
         guard let strip = Self.rowImage(
-            row, board: board, raised: raised,
+            row, board: board, raised: raised, forced: forced,
             pop: pop, popX: popX, metrics: metrics
         ) else {
             return nil
@@ -473,9 +475,13 @@ final class BoardScene: SKScene {
         let ceilY = trued(BoardBand.edgeY(at: edge(tall), metrics: metrics))
         let deep = floorY - ceilY
 
+        // The node carries the margin too, so the extra art has somewhere to
+        // land. It stays centred on the board — the margin hangs off each side.
+        let margin = Self.stripSide * metrics.scale
+        let wideNode = metrics.boardSize + 2 * margin
         let node = SKSpriteNode(
             texture: texture,
-            size: CGSize(width: metrics.boardSize, height: deep)
+            size: CGSize(width: wideNode, height: deep)
         )
         node.anchorPoint = CGPoint(x: 0.5, y: 0)
 
@@ -490,7 +496,7 @@ final class BoardScene: SKScene {
         // tile boundary, so the places a seam could show are the places the map
         // is exact.
         let slices = 16
-        let columns = board.size
+        let columns = board.size + 2
         var source: [SIMD2<Float>] = []
         var destination: [SIMD2<Float>] = []
 
@@ -505,8 +511,17 @@ final class BoardScene: SKScene {
 
             for column in 0...columns {
                 let u = CGFloat(column) / CGFloat(columns)
+
+                // The row's scale is about the **board's** middle, not the
+                // node's — the margin is not part of the board and must not be
+                // foreshortened as though it were. So the sample is taken into
+                // board space, scaled there, and put back.
+                let onBoard = (u * wideNode - margin) / metrics.boardSize
+                let thrown = 0.5 + (onBoard - 0.5) * wide
+                let back = (margin + thrown * metrics.boardSize) / wideNode
+
                 source.append(.init(Float(u), Float(v)))
-                destination.append(.init(Float(0.5 + (u - 0.5) * wide), Float(up)))
+                destination.append(.init(Float(back), Float(up)))
             }
         }
 
@@ -530,6 +545,14 @@ final class BoardScene: SKScene {
     /// does not clip the tile it is raising.
     private static func stripAbove(_ pop: CGFloat) -> CGFloat { max(pop, 0) }
 
+    /// How much room the strip keeps either side of the board, in art pixels.
+    ///
+    /// A tile thrown outward by the perspective, or by the bench, runs off the
+    /// end of a strip cut to the board's exact width and is simply cut off
+    /// there. A tile of margin costs one texture row either side and means the
+    /// thing being looked at is never the clipping.
+    private static let stripSide = CGFloat(GameRules.tilePixelSize)
+
     /// And how far below — nothing, now that no edge is drawn in here.
     ///
     /// **An edge stands, it does not lie.** It is the side of the board's
@@ -544,6 +567,7 @@ final class BoardScene: SKScene {
         _ row: Int,
         board: Board,
         raised: Set<GridPoint>,
+        forced: Set<GridPoint>,
         pop: CGFloat,
         popX: CGFloat,
         metrics: PixelArtMetrics
@@ -556,7 +580,7 @@ final class BoardScene: SKScene {
         // many pixels as the art is, and SpriteKit does the enlarging.
         let cell = CGFloat(GameRules.tilePixelSize)
         let size = CGSize(
-            width: CGFloat(board.size) * cell,
+            width: CGFloat(board.size) * cell + 2 * stripSide,
             height: stripAbove(pop) + cell + stripBelow
         )
         let format = UIGraphicsImageRendererFormat()
@@ -600,7 +624,8 @@ final class BoardScene: SKScene {
                 let outward = ((CGFloat(column) + 0.5) * cell - middle)
                     * (spread - 1)
                 let box = CGRect(
-                    x: CGFloat(column) * cell + (isRaised ? outward + popX : 0),
+                    x: stripSide + CGFloat(column) * cell
+                        + (isRaised ? outward + popX : 0),
                     y: stripAbove(pop) - (isRaised ? pop : 0),
                     width: cell, height: cell
                 )
@@ -611,6 +636,10 @@ final class BoardScene: SKScene {
                     drewAnything = true
                     art.draw(in: box)
                 }
+
+                // A tile the bench put up is a whole one. Raising a hole
+                // shows the hole, which is nothing to measure a shift against.
+                if forced.contains(point) { drewAnything = true; continue }
 
                 // The cast a badly cracked tile takes, over its face and under
                 // its damage — `TileView` overlays the face with it.
