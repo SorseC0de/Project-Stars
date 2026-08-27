@@ -713,15 +713,20 @@ final class BoardScene: SKScene {
                 let top = isRaised ? head + cell - rise.far : head
                 let bottom = isRaised ? head + cell - rise.near : head + cell
 
-                let wide = isRaised ? cell * widen : cell
-                let centre = middle
-                    + ((CGFloat(column) + 0.5) * cell - middle)
-                    * (isRaised ? widen : 1)
+                // **Moved, not scaled.** Scaling a sprite into a fractional
+                // width resamples every column of it, which is a smear; a
+                // translation only shifts which source pixel each destination
+                // one takes, so it stays crisp. The width the widening asked
+                // for was 16.33 against 16 — a sixth of a pixel each side, well
+                // under one — so all that is worth keeping from it is where the
+                // tile's middle lands.
+                let shift = ((CGFloat(column) + 0.5) * cell - middle) * (widen - 1)
 
                 let box = CGRect(
-                    x: stripSide + centre - wide / 2 + (isRaised ? popX : 0),
+                    x: stripSide + CGFloat(column) * cell
+                        + (isRaised ? shift + popX : 0),
                     y: top + (isRaised ? popY : 0),
-                    width: wide,
+                    width: cell,
                     height: bottom - top
                 )
 
