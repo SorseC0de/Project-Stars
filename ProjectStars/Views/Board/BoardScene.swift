@@ -265,20 +265,30 @@ final class BoardScene: SKScene {
 
                 let spot = metrics.projected(point, on: plane)
 
-                // **A popped tile's edge meets the face that rose off it.**
-                // Its drop is the tile's own height less however far it went
-                // up — which is what `tileEdgeDrop` already is for a tile that
-                // has not moved, 16 less the 4 it used to pop by. Leaving the
-                // two to be set independently is what opens a seam under a
-                // popped tile the moment either one changes.
-                var drops: [CGFloat] = raised.contains(point)
-                    ? [CGFloat(GameRules.tilePixelSize) - GameRules.tilePopLift]
-                    : [GameRules.tileEdgeDrop]
+                // **The edge hangs off its row's floor, not off a constant.**
+                //
+                // A popped tile's face is lifted inside the warped strip, so
+                // its rise is scaled by the band's `groundScale`; the edge
+                // stands, so it is scaled by `depthScale`. Those two diverge
+                // row by row, which is why any fixed drop is correct on one
+                // row and leaves a gap on all the others — and why the gap
+                // grew when the pop did.
+                //
+                // Hanging it from `band.groundCentreY` instead asks the row
+                // itself where its floor is. The edge's bottom sits on that
+                // floor, so whatever the pop reveals above it is covered, and
+                // the front row takes a second one a whole tile below for the
+                // board's front lip.
+                let band = BoardBand.at(row: point.y, metrics: metrics)
+                let floorY = band.groundCentreY + metrics.tileSize / 2
+                let tall = metrics.tileSize * spot.scale
+
+                var seats: [CGFloat] = [floorY - tall / 2]
                 if point.y == board.size - 1 {
-                    drops.append(GameRules.tileFrontEdgeDrop)
+                    seats.append(floorY + tall / 2)
                 }
 
-                for drop in drops {
+                for seat in seats {
                     let node = SKSpriteNode(
                         texture: texture,
                         size: CGSize(width: metrics.tileSize, height: metrics.tileSize)
@@ -286,8 +296,7 @@ final class BoardScene: SKScene {
                     node.setScale(spot.scale)
                     node.position = CGPoint(
                         x: spot.position.x + inset,
-                        y: -Self.seatY(point, on: plane, metrics: metrics, spot: spot)
-                            - inset - drop * metrics.scale
+                        y: -seat - inset
                     )
                     node.zPosition = Self.depth(row: point.y, layer: -1)
                     holder.addChild(node)
@@ -1389,22 +1398,34 @@ final class BoardScene: SKScene {
                 * GameRules.pentacleFloatAmplitude * metrics.scale
 
             let turns = beat / GameRules.pentacleOrbitPeriod * 2 * .pi
+            #if DEBUG
+            let radius = PentacleTuning.shared.orbit * metrics.scale
+            #else
             let radius = GameRules.pentacleOrbitRadius * metrics.scale
+            #endif
             let orbit = CGPoint(
                 x: CGFloat(cos(turns)) * radius,
                 y: CGFloat(sin(turns)) * radius * 0.4
             )
 
+            #if DEBUG
+            let lift = -PentacleTuning.shared.coinY
+            let mark = PentacleTuning.shared.markY
+            #else
+            let lift = GameRules.pentacleLift
+            let mark = GameRules.pentacleShadowDrop
+            #endif
+
             node.position = CGPoint(
                 x: orbit.x,
-                y: GameRules.pentacleLift * metrics.scale - float - orbit.y
+                y: lift * metrics.scale - float - orbit.y
             )
             node.setScale(1 - GameRules.pentacleRiseScaleSwing * rise)
 
             if let pool = coinPools[point] {
                 pool.position = CGPoint(
                     x: orbit.x,
-                    y: -orbit.y - GameRules.pentacleShadowDrop * metrics.scale
+                    y: -orbit.y - mark * metrics.scale
                 )
                 pool.setScale(1 - GameRules.pentacleShadowScaleSwing * rise)
             }

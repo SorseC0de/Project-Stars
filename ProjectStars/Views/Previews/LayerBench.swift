@@ -147,6 +147,13 @@ struct LayerBenchControls: View {
     /// common, so the answer to "why is Astra slower" is in here rather than in
     /// anybody's reading of the code.
     var body: some View {
+        VStack(alignment: .leading, spacing: 4) {
+            BenchPanel("pentacle") { PentacleControls() }
+            panel
+        }
+    }
+
+    private var panel: some View {
         BenchPanel("layers") {
             VStack(alignment: .leading, spacing: 2) {
                 Text("astra").foregroundStyle(Palette.sky)
