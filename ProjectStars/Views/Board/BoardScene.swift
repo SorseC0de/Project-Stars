@@ -585,9 +585,13 @@ final class BoardScene: SKScene {
         let near = BoardBand.edgeY(at: front, metrics: metrics) - rise(front)
         let far = BoardBand.edgeY(at: front - 1, metrics: metrics) - rise(front - 1)
 
+        // Clamped: a strip is a texture, and a bad number here is a texture
+        // the size of a wall rather than a tile out of place.
+        let top = (front - Self.edgeOf(near, metrics: metrics)) * cell
+        let bottom = (front - Self.edgeOf(far, metrics: metrics)) * cell
         return (
-            (front - Self.edgeOf(near, metrics: metrics)) * cell,
-            (front - Self.edgeOf(far, metrics: metrics)) * cell
+            min(max(top, 0), cell * 4),
+            min(max(bottom, top + 1), cell * 5)
         )
     }
 
@@ -598,11 +602,15 @@ final class BoardScene: SKScene {
     /// once a row when the board changes, so the closed form would buy nothing
     /// but a chance to get the algebra wrong.
     private static func edgeOf(_ y: CGFloat, metrics: PixelArtMetrics) -> CGFloat {
+        // `edgeY` **increases** with the edge: nought is the far edge and sits
+        // highest on screen. Comparing it the other way round converges on the
+        // bound rather than the answer, which is a strip of absurd height and a
+        // board with no rows left in it.
         var low = CGFloat(-4)
         var high = CGFloat(metrics.gridSize + 4)
         for _ in 0..<40 {
             let mid = (low + high) / 2
-            if BoardBand.edgeY(at: mid, metrics: metrics) > y { low = mid } else { high = mid }
+            if BoardBand.edgeY(at: mid, metrics: metrics) > y { high = mid } else { low = mid }
         }
         return (low + high) / 2
     }
