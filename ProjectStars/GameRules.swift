@@ -1821,7 +1821,7 @@ enum GameRules {
 
     /// How far the coin's shadow sits below the tile centre, in art pixels.
     /// Negative is up.
-    static let pentacleShadowDrop: CGFloat = 4
+    static let pentacleShadowDrop: CGFloat = 5
 
     /// Opacity of the pool of light under the coin, at its brightest.
     static let pentacleShadowOpacity: Double = 0.3
@@ -1849,7 +1849,7 @@ enum GameRules {
     ///
     /// The coin circles as it hovers; its light circles with it. Zero pins the
     /// pool to the centre.
-    static let pentacleOrbitRadius: CGFloat = 3
+    static let pentacleOrbitRadius: CGFloat = 2.5
 
     /// Seconds for one full orbit.
     static let pentacleOrbitPeriod: TimeInterval = 3
