@@ -1550,7 +1550,7 @@ enum GameRules {
     /// Peak height of a hop's arc, above the straight line between squares.
     /// At six the piece skimmed the board and the hop read as a slide with a
     /// wobble on it. A step should leave the ground like a step.
-    static let hopArcHeight: CGFloat = 10
+    static let hopArcHeight: CGFloat = 14
 
     /// Extra arc height per tile travelled beyond the first, as a fraction of
     /// `hopArcHeight`.
@@ -1798,7 +1798,7 @@ enum GameRules {
     static let pentacleCellSpan: CGFloat = 1.5
 
     /// How far the coin itself floats above its shadow, in art pixels.
-    static let pentacleLift: CGFloat = 8
+    static let pentacleLift: CGFloat = 6
 
     /// How far a Pentacle drifts either side of its resting height.
     static let pentacleFloatAmplitude: CGFloat = 1.5
@@ -1808,7 +1808,7 @@ enum GameRules {
 
     /// How far the coin's shadow sits below the tile centre, in art pixels.
     /// Negative is up.
-    static let pentacleShadowDrop: CGFloat = 0
+    static let pentacleShadowDrop: CGFloat = 5
 
     /// Opacity of the pool of light under the coin, at its brightest.
     static let pentacleShadowOpacity: Double = 0.3

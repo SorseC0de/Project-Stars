@@ -23,7 +23,7 @@ import SwiftUI
 /// moves.
 ///
 /// - TODO: **Debug only.** Never read in a shipped build.
-let debugStartingSign: Zodiac = .aries
+let debugStartingSign: Zodiac = .libra
 
 /// Whether the ground wears out under the piece.
 ///
@@ -103,7 +103,7 @@ struct GameScreen: View {
                 // Upper square: everything the playfield is labelled with.
                 ZStack {
                     // Names what is being looked at, so it belongs with the
-                    // thing being looked at rather than among the controls.
+                    // thing being looked at rather than among the controls
                     // The fragment you are carrying, immediately left of the
                     // plane's name.
                     //
