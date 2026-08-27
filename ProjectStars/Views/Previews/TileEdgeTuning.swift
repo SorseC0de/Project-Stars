@@ -37,6 +37,35 @@ final class TileEdgeTuning {
         didSet { TileEdgeTuning.store.set("edgeX", edgeX) }
     }
 
+    /// Sideways nudge **per column away from the middle**, in art pixels.
+    ///
+    /// Positive pulls the outer columns toward the centre. A single number
+    /// here is a horizontal scale on the edges as a whole, so whatever value
+    /// reads right is a measurement of how much the edge row is drawn wider
+    /// than the tiles above it — which is a thing with a formula, once its
+    /// size is known.
+    ///
+    /// Steps in twentieths, because the difference being looked for is under
+    /// a pixel a column.
+    var edgeXper: CGFloat = store.value("edgeXper", 0) {
+        didSet { TileEdgeTuning.store.set("edgeXper", edgeXper) }
+    }
+
+    /// A multiplier on how far the edge sits from the board's middle.
+    ///
+    /// **The one to reach for first.** The front lip is right, and it is placed
+    /// by the same expression as every other edge — so if a single number here
+    /// squares the rest of them up, the edges and the tiles above them differ
+    /// by a constant ratio, and a ratio has a closed form. If instead it needs
+    /// a different value per row, they do not, and `edgeX/col` is the way to
+    /// measure what they do differ by.
+    ///
+    /// Steps in two-hundredths: a column out at the board's edge is roughly
+    /// forty pixels from the middle, so this is a tenth of a pixel there.
+    var edgeXmul: CGFloat = store.value("edgeXmul", 1) {
+        didSet { TileEdgeTuning.store.set("edgeXmul", edgeXmul) }
+    }
+
     /// Vertical nudge for the edge. Positive is down.
     var edgeY: CGFloat = store.value("edgeY", 0) {
         didSet { TileEdgeTuning.store.set("edgeY", edgeY) }
@@ -89,14 +118,16 @@ final class TileEdgeTuning {
     nonisolated static let store = BenchStore(
         prefix: "tileEdge.",
         vintage: 3,
-        names: ["popY", "edgeX", "edgeY", "edgeXscale", "edgeYscale", "boardX",
-                "raiseCentre"]
+        names: ["popY", "edgeX", "edgeXper", "edgeXmul", "edgeY", "edgeXscale",
+                "edgeYscale", "boardX", "raiseCentre"]
     )
 
     func reset() {
         TileEdgeTuning.store.forget()
         popY = GameRules.tilePopLift
         edgeX = 0
+        edgeXper = 0
+        edgeXmul = 1
         edgeY = 0
         edgeXscale = 1
         edgeYscale = 1
@@ -108,6 +139,8 @@ final class TileEdgeTuning {
         print("── tile edge ──")
         print(String(format: "  popY        %.2f px", popY))
         print(String(format: "  edgeX       %+.2f px", edgeX))
+        print(String(format: "  edgeXper    %+.2f px per column", edgeXper))
+        print(String(format: "  edgeXmul    %.3f", edgeXmul))
         print(String(format: "  edgeY       %+.2f px (down)", edgeY))
         print(String(format: "  edgeXscale  %.2f", edgeXscale))
         print(String(format: "  edgeYscale  %.2f", edgeYscale))
@@ -131,6 +164,8 @@ struct TileEdgeControls: View {
 
             row("popY", value: $tuning.popY, in: 0...24)
             row("edgeX", value: $tuning.edgeX, in: -12...12)
+            row("edgeX/col", value: $tuning.edgeXper, in: -3...3, step: 0.05)
+            row("edgeXmul", value: $tuning.edgeXmul, in: 0.9...1.1, step: 0.005)
             row("edgeY", value: $tuning.edgeY, in: -12...12)
             row("edgeXs", value: $tuning.edgeXscale, in: 0...3)
             row("edgeYs", value: $tuning.edgeYscale, in: 0...4)
@@ -143,13 +178,14 @@ struct TileEdgeControls: View {
     private func row(
         _ label: String,
         value: Binding<CGFloat>,
-        in range: ClosedRange<CGFloat>
+        in range: ClosedRange<CGFloat>,
+        step: CGFloat = 0.25
     ) -> some View {
         HStack(spacing: 6) {
-            Text(label).frame(width: 48, alignment: .leading)
-            Button("−") { value.wrappedValue -= 0.25 }
-            Slider(value: value, in: range, step: 0.25).frame(width: 150)
-            Button("+") { value.wrappedValue += 0.25 }
+            Text(label).frame(width: 58, alignment: .leading)
+            Button("−") { value.wrappedValue -= step }
+            Slider(value: value, in: range, step: step).frame(width: 140)
+            Button("+") { value.wrappedValue += step }
             Text(String(format: "%.2f", value.wrappedValue))
                 .frame(width: 40, alignment: .trailing)
         }

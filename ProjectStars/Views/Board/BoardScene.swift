@@ -287,10 +287,18 @@ final class BoardScene: SKScene {
                 let floorY = band.groundCentreY + metrics.tileSize / 2
                 let across = metrics.tileSize * band.scale
                 let middle = metrics.boardSize / 2
-                let plainX = middle
-                    + (metrics.center(of: point).x - middle) * band.scale
-                    + inset
-                let originX = plainX + set.x * metrics.scale * band.scale
+                // How far out from the middle the edge sits, and the dial
+                // that scales that distance. The front lip declines it, since
+                // it is already right — see below.
+                let outward = (metrics.center(of: point).x - middle) * band.scale
+                let plainX = middle + outward + inset
+                // The nudge, plus however much each column away from the
+                // middle has to come in. One number describing the whole row,
+                // rather than one per tile.
+                let fromMiddle = CGFloat(point.x) - CGFloat(metrics.gridSize - 1) / 2
+                let originX = middle + outward * set.spread + inset
+                    + (set.x - set.perColumn * fromMiddle)
+                    * metrics.scale * band.scale
                 let sitsAt = -floorY - inset
                     - set.y * metrics.scale * band.groundScale
 
@@ -299,29 +307,36 @@ final class BoardScene: SKScene {
                 // — and draws it at the drawing's own proportions rather than
                 // stretching what it has.
                 if raised.contains(point) {
-                    // **The slice is what the pop uncovered; the scale stretches
-                    // it.** Growing both together moved the top while the bottom
-                    // stayed on the floor, which read as a nudge — and there is
-                    // already a dial for nudging.
+                    // **Stacked, not stretched.** The drawing is four pixels
+                    // tall and lives in the top four rows of its cell — the
+                    // rest of the cell is empty, so cropping to the pop's
+                    // height took four pixels of art and four of nothing. A
+                    // pop deeper than the drawing is covered by laying copies
+                    // of it end to end, which is what the art is for; pulling
+                    // one to twice its height is visible.
+                    let art = GameRules.tileEdgeHeight
                     let slice = min(
-                        max(set.pop / CGFloat(GameRules.tilePixelSize), 0), 1
+                        max(art / CGFloat(GameRules.tilePixelSize), 0), 1
                     )
+                    let each = art * set.yScale * metrics.scale * band.groundScale
+                    let copies = max(Int((set.pop / art).rounded(.up)), 1)
 
-                    let node = SKSpriteNode(
-                        texture: SKTexture(
-                            rect: CGRect(x: 0, y: 1 - slice, width: 1, height: slice),
-                            in: texture
-                        ),
-                        size: CGSize(
-                            width: across * set.xScale,
-                            height: set.pop * set.yScale
-                                * metrics.scale * band.groundScale
+                    for copy in 0..<copies {
+                        let node = SKSpriteNode(
+                            texture: SKTexture(
+                                rect: CGRect(x: 0, y: 1 - slice, width: 1, height: slice),
+                                in: texture
+                            ),
+                            size: CGSize(width: across * set.xScale, height: each)
                         )
-                    )
-                    node.anchorPoint = CGPoint(x: 0.5, y: 0)
-                    node.position = CGPoint(x: originX, y: sitsAt)
-                    node.zPosition = Self.depth(row: point.y, layer: -1)
-                    holder.addChild(node)
+                        node.anchorPoint = CGPoint(x: 0.5, y: 0)
+                        node.position = CGPoint(
+                            x: originX,
+                            y: sitsAt + CGFloat(copy) * each
+                        )
+                        node.zPosition = Self.depth(row: point.y, layer: -1)
+                        holder.addChild(node)
+                    }
                 }
 
                 // And the board's front lip — the one edge that shows without
@@ -780,15 +795,19 @@ final class BoardScene: SKScene {
         var y: CGFloat
         var xScale: CGFloat
         var yScale: CGFloat
+        var perColumn: CGFloat
+        var spread: CGFloat
     }
 
     private var set: Dials {
         #if DEBUG
         let bench = TileEdgeTuning.shared
         return Dials(pop: bench.popY, x: bench.edgeX, y: bench.edgeY,
-                     xScale: bench.edgeXscale, yScale: bench.edgeYscale)
+                     xScale: bench.edgeXscale, yScale: bench.edgeYscale,
+                     perColumn: bench.edgeXper, spread: bench.edgeXmul)
         #else
-        return Dials(pop: GameRules.tilePopLift, x: 0, y: 0, xScale: 1, yScale: 1)
+        return Dials(pop: GameRules.tilePopLift, x: 0, y: 0,
+                     xScale: 1, yScale: 1, perColumn: 0, spread: 1)
         #endif
     }
 

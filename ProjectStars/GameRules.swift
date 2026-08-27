@@ -695,7 +695,20 @@ enum GameRules {
 
     /// How far a tile lifts when a Pentacle sits on it, revealing the edge
     /// strip drawn underneath.
-    static let tilePopLift: CGFloat = 5
+    /// How far a popped tile rises, in art pixels.
+    ///
+    /// **Twice the four it looks like.** The board's rows are squashed by the
+    /// perspective, so a rise measured in art pixels arrives on screen at
+    /// roughly half of itself; eight is what it takes to read as the four the
+    /// edges were drawn for. See `tileEdgeHeight`.
+    static let tilePopLift: CGFloat = 8
+
+    /// How tall the edge drawing is, in art pixels — measured off the sheet,
+    /// where it occupies the top four rows of its cell and nothing else.
+    ///
+    /// A pop taller than this is covered by **stacking** copies of it, never by
+    /// stretching one: four pixels pulled to eight is visibly pulled.
+    static let tileEdgeHeight: CGFloat = 4
 
     /// Spring response for a tile rising as a Pentacle appears on it.
     static let tilePopRiseResponse: Double = 0.26
