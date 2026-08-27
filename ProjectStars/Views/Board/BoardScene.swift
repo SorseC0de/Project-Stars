@@ -344,39 +344,28 @@ final class BoardScene: SKScene {
                     let copies = max(Int((wall / (art * metrics.scale)).rounded(.up)), 1)
                     let each = copies > 0 ? wall / CGFloat(copies) : wall
 
-                    // **The flank the shift exposes.**
+                    // **The flank: two uprights and two parallels.**
                     //
-                    // The top face is thrown outward, so its inward edge no
-                    // longer sits over the footprint's, and the side of the
-                    // slab shows between them. A tile right of the middle
-                    // shows its left flank and one left of the middle its
-                    // right — the side of a box that faces the camera.
+                    // Built as a shape that can only ever be that — a vertical
+                    // at each end and its two ends joined — so no setting of
+                    // the dials can make it something else. Everything about it
+                    // is a multiple of what the board's own geometry gives, so
+                    // one is the derived answer and the dials say how far off
+                    // that answer is.
                     //
-                    // **It runs the tile's whole depth**, near corner to far,
-                    // not just the width of the front wall. And it is a
-                    // parallelogram, not a rectangle: the tile's inward edge
-                    // moves sideways by about a point across one row, which is
-                    // the same order as the flank's own thickness, so a
-                    // rectangle would meet the tile at one end and miss at the
-                    // other.
+                    // `wide` is the board's convergence across one tile: a
+                    // tile's inward edge sits nearer the middle at its far end
+                    // than its near one. `drop` is how much further back that
+                    // far end sits. `tall` is the wall's own height.
                     let cellArt = CGFloat(GameRules.tilePixelSize)
                     let rose = Self.riser(
                         row: point.y, lift: set.popLift, metrics: metrics
                     )
-                    let widen = BoardBand.edgeDivisor(
-                        at: CGFloat(point.y + 1) - rose.near / cellArt,
-                        gridSize: metrics.gridSize
-                    ) / BoardBand.edgeDivisor(
-                        at: CGFloat(point.y + 1), gridSize: metrics.gridSize
-                    )
                     let middleArt = CGFloat(board.size) * cellArt / 2
-                    let flank = (((CGFloat(point.x) + 0.5) * cellArt - middleArt)
-                        * (widen - 1)).rounded()
+                    let outward = (CGFloat(point.x) + 0.5) * cellArt - middleArt
 
-                    if flank != 0 {
-                        // Its inward boundary, in flat board coordinates, then
-                        // projected at each of the row's two edges.
-                        let flat = (flank > 0
+                    if outward != 0, set.flankOn {
+                        let flat = (outward > 0
                             ? CGFloat(point.x)
                             : CGFloat(point.x + 1)) * metrics.tileSize
                         let mid = metrics.boardSize / 2
@@ -388,51 +377,27 @@ final class BoardScene: SKScene {
                         }
 
                         let backY = BoardBand.edgeY(point.y, metrics: metrics)
-                        let nearX = at(CGFloat(point.y + 1))
-                        let farX = at(CGFloat(point.y))
-                        let nearTop = screenY(artAbove: rose.near, row: point.y)
-                        let farTop = screenY(artAbove: rose.far, row: point.y)
+                        let near = at(CGFloat(point.y + 1))
 
-                        // **Thinner at the far end than the near one.** The
-                        // flank is a shift measured in the strip's art, and the
-                        // strip is narrower the further back it is read — so a
-                        // constant width would be a flank that fails to close
-                        // the corner at one end. Taken at each corner's own
-                        // height, which is where each corner actually sits.
-                        let pixel = metrics.scale
-                        let across: (CGFloat) -> CGFloat = { high in
-                            flank * pixel * GameRules.boardForeshortenScale
-                                / BoardBand.edgeDivisor(
-                                    at: CGFloat(point.y + 1) - high / cellArt,
-                                    gridSize: grid
-                                )
-                        }
-                        let thickNear = across(rose.near)
-                        let thickFar = across(rose.far)
+                        let wide = (at(CGFloat(point.y)) - near) * set.flankWide
+                        let drop = (floorY - backY) * set.flankDrop
+                        let tall = (floorY - screenY(artAbove: rose.near, row: point.y))
+                            * set.flankTall
 
-                        // The quad, in scene coordinates: the footprint's
-                        // inward edge, and the same edge on the face above it.
-                        // Four corners, in order round the quad: the
-                        // footprint's inward edge, and the same edge on the
-                        // face above it.
-                        //
-                        // **Drawn as a shape, not a warped sprite.** A flank is
-                        // a pixel or two across, and a sliver cut from a
-                        // three-tone drawing is whichever tone the sampling
-                        // lands on — which is why it kept coming out wrong even
-                        // where it was in the right place. One flat colour is
-                        // both what it should look like and one fewer thing to
-                        // get wrong.
+                        let x = near + set.flankX * metrics.scale * band.scale
+                        let y = -floorY - inset
+                            - set.flankY * metrics.scale * band.groundScale
+
                         let path = CGMutablePath()
-                        path.move(to: CGPoint(x: nearX, y: -floorY - inset))
-                        path.addLine(to: CGPoint(x: farX, y: -backY - inset))
-                        path.addLine(to: CGPoint(x: farX + thickFar, y: -farTop - inset))
-                        path.addLine(to: CGPoint(x: nearX + thickNear, y: -nearTop - inset))
+                        path.move(to: CGPoint(x: x, y: y))
+                        path.addLine(to: CGPoint(x: x, y: y + tall))
+                        path.addLine(to: CGPoint(x: x + wide, y: y + drop + tall))
+                        path.addLine(to: CGPoint(x: x + wide, y: y + drop))
                         path.closeSubpath()
 
                         let node = SKShapeNode(path: path)
                         node.fillColor = UIColor(Palette.tileFlank)
-                        node.strokeColor = UIColor(Palette.tileFlank)
+                        node.strokeColor = .clear
                         node.lineWidth = 0
                         node.isAntialiased = false
                         node.zPosition = Self.depth(row: point.y, layer: 1)
@@ -1103,6 +1068,12 @@ final class BoardScene: SKScene {
         var spread: CGFloat
         var popX: CGFloat
         var popLift: CGFloat
+        var flankOn: Bool
+        var flankWide: CGFloat
+        var flankDrop: CGFloat
+        var flankTall: CGFloat
+        var flankX: CGFloat
+        var flankY: CGFloat
 
         /// **In here rather than read where it is used.** `rebuild` is what
         /// draws the edges, and `builtDials` is what decides whether to run it
@@ -1118,11 +1089,16 @@ final class BoardScene: SKScene {
                      xScale: bench.edgeXscale, yScale: bench.edgeYscale,
                      perColumn: bench.edgeXper, spread: bench.edgeXmul,
                      popX: bench.popX, popLift: bench.popLift,
+                     flankOn: bench.flankOn, flankWide: bench.flankWide,
+                     flankDrop: bench.flankDrop, flankTall: bench.flankTall,
+                     flankX: bench.flankX, flankY: bench.flankY,
                      turns: bench.stackTurns)
         #else
         return Dials(pop: GameRules.tilePopLift, x: 0, y: 0,
                      xScale: 1, yScale: 1, perColumn: 0, spread: 1,
-                     popX: 0, popLift: 1, turns: false)
+                     popX: 0, popLift: 1,
+                     flankOn: true, flankWide: 1, flankDrop: 1, flankTall: 1,
+                     flankX: 0, flankY: 0, turns: false)
         #endif
     }
 

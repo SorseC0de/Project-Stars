@@ -145,6 +145,41 @@ final class TileEdgeTuning {
         didSet { TileEdgeTuning.store.set("stackTurns", stackTurns) }
     }
 
+    /// Whether a raised tile shows the side of its slab at all.
+    var flankOn: Bool = store.flag("flankOn", true) {
+        didSet { TileEdgeTuning.store.set("flankOn", flankOn) }
+    }
+
+    /// How wide that side is, against the board's own convergence across one
+    /// tile — which is the width the geometry says it should be, so one is the
+    /// derived answer and anything else says by how much that is wrong.
+    var flankWide: CGFloat = store.value("flankWide", 1) {
+        didSet { TileEdgeTuning.store.set("flankWide", flankWide) }
+    }
+
+    /// How far the far upright sits below the near one, against how far back
+    /// the tile's far edge actually is. **This is the lean**: at one the two
+    /// joining lines run as steeply as the tile's own edge does; at nought they
+    /// are level.
+    var flankDrop: CGFloat = store.value("flankDrop", 1) {
+        didSet { TileEdgeTuning.store.set("flankDrop", flankDrop) }
+    }
+
+    /// How tall the uprights are, against the wall's own height.
+    var flankTall: CGFloat = store.value("flankTall", 1) {
+        didSet { TileEdgeTuning.store.set("flankTall", flankTall) }
+    }
+
+    /// Sideways nudge, in art pixels.
+    var flankX: CGFloat = store.value("flankX", 0) {
+        didSet { TileEdgeTuning.store.set("flankX", flankX) }
+    }
+
+    /// Vertical nudge, in art pixels. Positive is down.
+    var flankY: CGFloat = store.value("flankY", 0) {
+        didSet { TileEdgeTuning.store.set("flankY", flankY) }
+    }
+
     /// Forces a whole row to stand proud, so popped tiles can be looked at
     /// without waiting for the board to produce one.
     ///
@@ -165,7 +200,9 @@ final class TileEdgeTuning {
         prefix: "tileEdge.",
         vintage: 3,
         names: ["popY", "popX", "popLift", "edgeX", "edgeXper", "edgeXmul", "edgeY", "edgeXscale",
-                "edgeYscale", "boardX", "raiseCentre", "raiseRow", "stackTurns"]
+                "edgeYscale", "boardX", "raiseCentre", "raiseRow", "stackTurns",
+                "flankOn", "flankWide", "flankDrop", "flankTall",
+                "flankX", "flankY"]
     )
 
     func reset() {
@@ -182,6 +219,12 @@ final class TileEdgeTuning {
         boardX = 0
         raiseCentre = false
         raiseRow = 3
+        flankOn = true
+        flankWide = 1
+        flankDrop = 1
+        flankTall = 1
+        flankX = 0
+        flankY = 0
         stackTurns = false
     }
 
@@ -198,6 +241,9 @@ final class TileEdgeTuning {
         print(String(format: "  edgeXscale  %.2f", edgeXscale))
         print(String(format: "  edgeYscale  %.2f", edgeYscale))
         print(String(format: "  boardX      %+.2f px (view only)", boardX))
+        print("── flank ──")
+        print(String(format: "  wide %.2f  drop %.2f  tall %.2f  x %+.2f  y %+.2f",
+                     flankWide, flankDrop, flankTall, flankX, flankY))
         print("  → tilePopLift \(popY)")
     }
 }
@@ -228,6 +274,16 @@ struct TileEdgeControls: View {
             row("edgeXs", value: $tuning.edgeXscale, in: 0...3)
             row("edgeYs", value: $tuning.edgeYscale, in: 0...4)
             row("boardX", value: $tuning.boardX, in: -160...160)
+
+            HStack(spacing: 6) {
+                Text("flank").foregroundStyle(Palette.gold)
+                Toggle("on", isOn: $tuning.flankOn).toggleStyle(.button)
+            }
+            row("wide", value: $tuning.flankWide, in: 0...8, step: 0.05)
+            row("drop", value: $tuning.flankDrop, in: -2...2, step: 0.05)
+            row("tall", value: $tuning.flankTall, in: 0...4, step: 0.05)
+            row("flankX", value: $tuning.flankX, in: -12...12, step: 0.25)
+            row("flankY", value: $tuning.flankY, in: -12...12, step: 0.25)
         }
         .font(.system(size: 10, weight: .semibold, design: .monospaced))
         .foregroundStyle(Palette.stone)
