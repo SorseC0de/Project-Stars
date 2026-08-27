@@ -388,56 +388,53 @@ final class BoardScene: SKScene {
                         }
 
                         let backY = BoardBand.edgeY(point.y, metrics: metrics)
-                        let thick = flank * metrics.scale * band.scale
                         let nearX = at(CGFloat(point.y + 1))
                         let farX = at(CGFloat(point.y))
                         let nearTop = screenY(artAbove: rose.near, row: point.y)
                         let farTop = screenY(artAbove: rose.far, row: point.y)
 
+                        // **Thinner at the far end than the near one.** The
+                        // flank is a shift measured in the strip's art, and the
+                        // strip is narrower the further back it is read — so a
+                        // constant width would be a flank that fails to close
+                        // the corner at one end. Taken at each corner's own
+                        // height, which is where each corner actually sits.
+                        let pixel = metrics.scale
+                        let across: (CGFloat) -> CGFloat = { high in
+                            flank * pixel * GameRules.boardForeshortenScale
+                                / BoardBand.edgeDivisor(
+                                    at: CGFloat(point.y + 1) - high / cellArt,
+                                    gridSize: grid
+                                )
+                        }
+                        let thickNear = across(rose.near)
+                        let thickFar = across(rose.far)
+
                         // The quad, in scene coordinates: the footprint's
                         // inward edge, and the same edge on the face above it.
-                        let corners = [
-                            CGPoint(x: nearX, y: -floorY - inset),
-                            CGPoint(x: nearX + thick, y: -nearTop - inset),
-                            CGPoint(x: farX, y: -backY - inset),
-                            CGPoint(x: farX + thick, y: -farTop - inset),
-                        ]
-                        let lows = corners.map(\.x), highs = corners.map(\.y)
-                        let left = lows.min() ?? 0, right = lows.max() ?? 0
-                        let down = highs.min() ?? 0, up = highs.max() ?? 0
-                        let box = CGSize(
-                            width: max(right - left, 0.01),
-                            height: max(up - down, 0.01)
-                        )
+                        // Four corners, in order round the quad: the
+                        // footprint's inward edge, and the same edge on the
+                        // face above it.
+                        //
+                        // **Drawn as a shape, not a warped sprite.** A flank is
+                        // a pixel or two across, and a sliver cut from a
+                        // three-tone drawing is whichever tone the sampling
+                        // lands on — which is why it kept coming out wrong even
+                        // where it was in the right place. One flat colour is
+                        // both what it should look like and one fewer thing to
+                        // get wrong.
+                        let path = CGMutablePath()
+                        path.move(to: CGPoint(x: nearX, y: -floorY - inset))
+                        path.addLine(to: CGPoint(x: farX, y: -backY - inset))
+                        path.addLine(to: CGPoint(x: farX + thickFar, y: -farTop - inset))
+                        path.addLine(to: CGPoint(x: nearX + thickNear, y: -nearTop - inset))
+                        path.closeSubpath()
 
-                        let node = SKSpriteNode(
-                            texture: SKTexture(
-                                rect: CGRect(
-                                    x: flank > 0 ? 0 : 1 - 1 / cellArt,
-                                    y: 1 - slice,
-                                    width: 1 / cellArt, height: slice
-                                ),
-                                in: texture
-                            ),
-                            size: box
-                        )
-                        node.anchorPoint = .zero
-                        node.position = CGPoint(x: left, y: down)
-
-                        let unit: (CGPoint) -> SIMD2<Float> = { spot in
-                            .init(Float((spot.x - left) / box.width),
-                                  Float((spot.y - down) / box.height))
-                        }
-                        node.warpGeometry = SKWarpGeometryGrid(
-                            __columns: 1, rows: 1,
-                            sourcePositions: [
-                                .init(0, 0), .init(1, 0), .init(0, 1), .init(1, 1),
-                            ],
-                            destPositions: [
-                                unit(corners[2]), unit(corners[3]),
-                                unit(corners[0]), unit(corners[1]),
-                            ]
-                        )
+                        let node = SKShapeNode(path: path)
+                        node.fillColor = UIColor(Palette.tileFlank)
+                        node.strokeColor = UIColor(Palette.tileFlank)
+                        node.lineWidth = 0
+                        node.isAntialiased = false
                         node.zPosition = Self.depth(row: point.y, layer: 1)
                         holder.addChild(node)
                     }

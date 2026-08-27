@@ -125,6 +125,14 @@ enum Palette {
     /// The island's rim, and the glow under it.
     static let nexysEdge = Color(hex: 0x8A7A4E)
 
+    /// The side of a raised tile.
+    ///
+    /// The dark tone out of the dark tile's edge drawing, sampled from the
+    /// sheet: a flank is a sliver a pixel or two across, and a sliver of a
+    /// three-tone sprite is whichever tone the sampling happens to land on.
+    /// Naming the one it should be makes it the same sliver every time.
+    static let tileFlank = Color(hex: 0x5A5353)
+
     /// The gap the Nexys leaves behind — darker than an ordinary hole, because
     /// it is permanent and cannot be repaired.
     static let chasm = Color(hex: 0x05060B)
