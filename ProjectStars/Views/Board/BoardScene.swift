@@ -1370,17 +1370,21 @@ final class BoardScene: SKScene {
             // column's height in one step — travelled, it would sail back up
             // through every plane it had just passed. Taken, it is invisible,
             // because both ends of the seam are sky.
-            let leap = abs(want.y - aimedAt) > side * CGFloat(World.rows - 2)
+            // **Both measured before the target moves.** `aimedAt` is the leg
+            // being left; once it has been overwritten the distance to it is
+            // nought, and a leg of no length is a leg of no duration — which is
+            // every plane change happening instantly.
+            let far = abs(want.y - aimedAt)
+            let leap = far > side * CGFloat(World.rows - 2)
+            let rows = far / side
 
             aimedAt = want.y
             follow.removeAction(forKey: "travel")
 
-            // **Paced by the distance, as the session paces it.** Every move
-            // took one fixed duration here while the session gives each leg the
-            // time its own length earns, so a two-row leg and a three-row leg
-            // arrived at different moments in the two — and anything riding the
-            // camera arrived with the wrong one.
-            let rows = abs(want.y - aimedAt) / side
+            // Paced by the distance, as the session paces it: one fixed
+            // duration here against its per-row pace meant a two-row leg and a
+            // three-row leg arrived at different moments in the two, and
+            // anything riding the camera arrived with the wrong one.
             let pace = (GameRules.fallDuration + GameRules.fallArrivalDuration)
                 / Double(World.row(of: .terra) - World.row(of: .astra))
             let span = !leap && (session.isChangingPlane || session.isDropping)
@@ -1909,20 +1913,28 @@ final class BoardScene: SKScene {
         }
     }
 
-    /// Libra's arms and the scales hanging from them.
+    /// Libra's arms, the scales hanging from them, and the shadows they drop.
     ///
-    /// `LibraPieceView` stacks these around the body rather than on top of it:
-    /// in profile the far arm and its pan go behind the figure and the near arm
-    /// in front, with the near pan further forward still; facing the camera
-    /// both arms go behind and both pans in front. Getting that order wrong is
-    /// a piece holding its scales through its own chest.
+    /// `LibraPieceView` is the reference and its own documentation is the part
+    /// that matters: **every offset is in art pixels measured from the body's
+    /// bottom edge**, which works because the art was authored for it — an arm's
+    /// lowest pixel sits at the same height in its cell as Libra's does in his.
+    /// The scene's piece node *is* that bottom edge, so the numbers go in as
+    /// they are written rather than being converted through a frame's middle.
     ///
-    /// Each part sits at `armLift` for its side, and the whole assembly
-    /// breathes on `libraArmSway`. Charged, the pans run their own three
-    /// frames — which is what "the scales are not animated" was.
+    /// The hanging parts **take the hop's lift and decline its squash** — the
+    /// view says so in as many words, and that is why they hung still while she
+    /// hopped: they were children of the piece, which does not carry the lift,
+    /// rather than of anything that does.
     ///
-    /// Hung off the piece so they take its row scale and travel with it, and
-    /// outside the figure so the hop's squash does not stretch them.
+    /// Two drawings serve four directions. North is south from behind, so one
+    /// arm drawing does both and the left is the right mirrored; in profile the
+    /// far arm is the near one turned upside down. None of that depends on
+    /// whether she faces east or west, so none of it takes the piece's own
+    /// mirror either.
+    ///
+    /// Not yet here: the carriage — the swing that rocks the pans while she
+    /// moves and rotates them about the horizontal — and the moss shading.
     private func syncScales() {
         let standing = session.engine.piece
         let facing = session.visibleFacing
@@ -1935,68 +1947,105 @@ final class BoardScene: SKScene {
             return
         }
 
-        while limbs.count < 4 {
+        while limbs.count < 6 {
             let part = SKSpriteNode()
+            part.anchorPoint = CGPoint(x: 0.5, y: 0)
             piece.addChild(part)
             limbs.append(part)
         }
 
         let pixel = metrics.scale
-        let cell = CGFloat(GameRules.tilePixelSize)
         let charged = session.isZodiactionCharged
+        let hop = session.hopPose(at: Date()).lift * pixel
         let breath = CGFloat(sin(
             session.ambientClock(at: Date().timeIntervalSinceReferenceDate)
                 / GameRules.libraArmSwayPeriod * 2 * .pi
         )) * GameRules.libraArmSway
 
-        // Where a part hangs, measured up from the feet. `LibraPieceView` gives
-        // its offsets from the middle of a two-cell frame, so the figure's own
-        // height is the difference between the two.
-        let hang: (CGFloat, CGFloat, CGFloat) -> CGFloat = { lift, sway, gap in
-            (cell / 2 + lift - sway - GameRules.libraArmFootInCell - gap) * pixel
-        }
-
-        for (index, part) in limbs.enumerated() {
-            let isPan = index >= 2
-            let back = index % 2 == 0
+        // The two sides: far and near in profile, left and right facing the
+        // camera. The first of each pair leads — it is the one behind.
+        for slot in 0..<6 {
+            let part = limbs[slot]
+            let back = slot % 2 == 0
+            let kind = slot / 2                     // 0 arm, 1 pan, 2 shadow
             let sway = back ? -breath : breath
 
             let lift: CGFloat = profile
                 ? (back ? GameRules.libraArmLiftEWBack : GameRules.libraArmLiftEW)
                 : GameRules.libraArmLiftNS
-            let gap: CGFloat = isPan
-                ? (profile
-                    ? (back ? GameRules.libraScalesGapEWBack : GameRules.libraScalesGapEW)
-                    : GameRules.libraScalesGapNS)
-                : 0
-            let inset: CGFloat = profile
-                ? 0
-                : (back ? 1 : -1) * (GameRules.libraArmInsetNS
-                    + (isPan ? GameRules.libraScalesInsetX : 0))
+            let gap: CGFloat = profile
+                ? (back ? GameRules.libraScalesGapEWBack : GameRules.libraScalesGapEW)
+                : GameRules.libraScalesGapNS
+
+            // Sideways: nothing in profile, where the two arms stack in depth
+            // rather than spreading — which is the view's own reason for the
+            // insets being zero there.
+            let arm = profile ? 0 : (back ? 1 : -1) * GameRules.libraArmInsetNS
+            let outward = arm + (profile ? 0 : (back ? 1 : -1) * GameRules.libraScalesInsetX)
 
             part.isHidden = false
+
+            if kind == 2 {
+                // The shadow belongs on the square the pan hangs over, a whole
+                // tile out along whichever axis she is facing across — and it
+                // shrinks as the pan rises away from it.
+                let flank: CGFloat = back ? -1 : 1
+                let raised = -sway
+                let shrink = 1 - min(max(raised / GameRules.libraPanShadowRange, -1), 1)
+                    * GameRules.libraPanShadowSpread
+
+                part.texture = Self.shadowTexture
+                part.anchorPoint = CGPoint(
+                    x: 0.5,
+                    y: GameRules.shadowSpriteSeat / CGFloat(GameRules.tilePixelSize)
+                )
+                part.size = CGSize(
+                    width: metrics.tileSize * GameRules.libraPanShadowWidth
+                        / GameRules.shadowSpriteSpan,
+                    height: metrics.tileSize * GameRules.libraPanShadowWidth
+                        / GameRules.shadowSpriteSpan
+                )
+                part.setScale(shrink)
+                part.alpha = GameRules.libraPanShadowOpacity * Double(shrink)
+                part.position = CGPoint(
+                    x: profile ? 0 : flank * metrics.tileSize,
+                    y: hop - GameRules.pieceShadowDrop * pixel
+                        - (profile
+                            ? flank * metrics.tileSize * GameRules.libraPanShadowFlankRise
+                            : 0)
+                )
+                part.zPosition = -4
+                continue
+            }
+
+            let isPan = kind == 1
+            part.anchorPoint = CGPoint(x: 0.5, y: 0)
+            part.alpha = 1
+            part.setScale(1)
             part.size = CGSize(width: metrics.tileSize, height: metrics.tileSize)
+
+            // Straight off the body's bottom edge, in art pixels, exactly as
+            // the view writes them.
             part.position = CGPoint(
-                x: inset * pixel * CGFloat(mirror),
-                y: hang(lift, sway, gap)
+                x: (isPan ? outward : arm) * pixel,
+                y: (lift - sway - (isPan ? GameRules.libraArmFootInCell + gap : 0)) * pixel
+                    + hop
             )
 
-            // Facing the camera the two sides are mirrors of each other; in
-            // profile the far arm is flipped head over heels instead, which is
-            // how one drawing serves as both of them.
-            part.xScale = (profile ? 1 : (back ? -1 : 1)) * CGFloat(mirror)
+            part.xScale = !profile && back ? -1 : 1
             part.yScale = !isPan && profile && back ? -1 : 1
 
-            // Behind the figure or in front of it, which is the whole of what
-            // makes it read as carrying them.
+            // Behind her or in front, and in profile the near pan sorts a whole
+            // row ahead — it hangs out over the square in front, and drawn with
+            // the rest of her that square's tile buried it.
             part.zPosition = profile
-                ? (back ? -1 : (isPan ? 2 : 1))
+                ? (back ? (isPan ? -2 : -1) : (isPan ? 10 : 1))
                 : (isPan ? 1 : -1)
 
             if isPan, charged {
                 if part.action(forKey: "weigh") == nil {
-                    let frames = (0..<3).compactMap {
-                        PaletteRecolour.image(.libraScales, frame: $0, swaps: [])
+                    let frames = (0..<3).compactMap { frame in
+                        PaletteRecolour.image(.libraScales, frame: frame, swaps: [])
                             .map { art -> SKTexture in
                                 let texture = SKTexture(image: art)
                                 texture.filteringMode = .nearest
@@ -2015,9 +2064,7 @@ final class BoardScene: SKScene {
                 part.removeAction(forKey: "weigh")
                 part.texture = Self.art(.libraScalesPlain)
             } else {
-                part.texture = Self.art(
-                    .libraArm(profile ? .eastWest : .northSouth)
-                )
+                part.texture = Self.art(.libraArm(profile ? .eastWest : .northSouth))
             }
         }
     }
