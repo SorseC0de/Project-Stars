@@ -1438,6 +1438,11 @@ enum GameRules {
     /// How far a pan has to rise before its shadow has shrunk as far as it
     /// will, in art pixels. A hop is the thing that actually moves them.
     static let libraPanShadowLiftRange: CGFloat = 10
+
+    /// Art pixels the pan shadows come up by, and how big they are against the
+    /// piece's own mark. Both by eye.
+    static let libraPanShadowRise: CGFloat = 2
+    static let libraPanShadowSize: CGFloat = 0.75
     /// The same as any other piece's — a pan is a solid object standing over a
     /// tile and occludes it exactly as much as the piece does. It was darker,
     /// which made the scales read as heavier than the sign carrying them.

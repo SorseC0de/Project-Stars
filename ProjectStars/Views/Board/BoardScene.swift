@@ -115,6 +115,9 @@ final class BoardScene: SKScene {
     /// when it actually changes rather than every frame.
     private var wearing: SpriteID?
 
+    /// And whether it was lit when that was cut, since the gems change with it.
+    private var litUp = false
+
     /// The square the piece was last sent to.
     ///
     /// A step changes `piece.point` in one go — the model does not travel, it
@@ -998,6 +1001,8 @@ final class BoardScene: SKScene {
     private func addPiece() {
         piece.zPosition = 500
         figure.size = CGSize(width: metrics.tileSize, height: metrics.tileSize * 2)
+        // The real height is set each frame from the sign's own drawing — see
+        // `cells(_:)`. This is only what it starts as.
         addChild(piece)
 
         // The mark on the square, under the figure and outside it: the figure
@@ -1491,7 +1496,24 @@ final class BoardScene: SKScene {
         let standing = session.engine.piece
         let looking = session.visibleFacing
         let id = SpriteID.pieceFacing(standing.zodiac, looking)
-        if id != wearing, let art = PaletteRecolour.image(id, frame: 0, swaps: []) {
+        figure.size = CGSize(
+            width: metrics.tileSize,
+            height: metrics.tileSize * Self.cells(id)
+        )
+
+        // **The gems.** `PieceView` swaps the element's dim gem for its lit one
+        // while the meter is full, and for its resting tone when it is not —
+        // the drawing itself only ever holds the dim colour, so a piece drawn
+        // with no swaps at all is a piece whose gems never light. Virgo's hair
+        // is four pixels of it.
+        let gem = GemTones.forElement(standing.zodiac.element)
+        let swaps: [PaletteSwap] = session.isZodiactionCharged
+            ? [PaletteSwap(gem.dim, gem.lit)]
+            : (gem.resting.map { [PaletteSwap(gem.dim, $0)] } ?? [])
+
+        if id != wearing || session.isZodiactionCharged != litUp,
+           let art = PaletteRecolour.image(id, frame: 0, swaps: swaps) {
+            litUp = session.isZodiactionCharged
             let texture = SKTexture(image: art)
             texture.filteringMode = .nearest
             figure.texture = texture
@@ -2098,7 +2120,10 @@ final class BoardScene: SKScene {
         let inset = (side - metrics.boardSize) / 2
         let centre = metrics.center(of: shot.point)
 
+        // Asked for each frame rather than once at birth: a texture that came
+        // back nil the first time would otherwise stay nil for the run.
         node.isHidden = false
+        node.texture = Self.art(.effect(.sagittariusArrow))
         node.size = CGSize(width: metrics.tileSize * 2, height: metrics.tileSize * 2)
         node.position = CGPoint(
             x: centre.x + inset,
@@ -2146,7 +2171,10 @@ final class BoardScene: SKScene {
 
             let art = SKSpriteNode()
             art.anchorPoint = CGPoint(x: 0.5, y: 0)
-            art.size = CGSize(width: metrics.tileSize, height: metrics.tileSize * 2)
+            art.size = CGSize(
+                width: metrics.tileSize,
+                height: metrics.tileSize * Self.cells(.piece(standing.zodiac))
+            )
             blur.addChild(art)
             gems.append(blur)
         }
@@ -2309,9 +2337,10 @@ final class BoardScene: SKScene {
                     x: 0.5,
                     y: GameRules.shadowSpriteSeat / CGFloat(GameRules.tilePixelSize)
                 )
-                // The piece's own mark, at the piece's own size — it is the
-                // same drawing under the same kind of thing.
-                part.size = CGSize(width: metrics.tileSize, height: metrics.tileSize)
+                // The piece's own drawing, three quarters the size — a pan is
+                // smaller than she is.
+                let mark = metrics.tileSize * GameRules.libraPanShadowSize
+                part.size = CGSize(width: mark, height: mark)
                 part.setScale(shrink)
                 part.alpha = GameRules.shadowSpriteOpacity
                 // Half a tile up from the body's bottom edge: the view offsets
@@ -2321,12 +2350,17 @@ final class BoardScene: SKScene {
                 part.position = CGPoint(
                     x: profile ? 0 : flank * metrics.tileSize,
                     y: metrics.tileSize / 2 - perch
+                        + GameRules.libraPanShadowRise * pixel
                         - GameRules.pieceShadowDrop * pixel
                         - (profile
                             ? flank * metrics.tileSize * GameRules.libraPanShadowFlankRise
                             : 0)
                 )
-                part.zPosition = -4
+                // **On the square it falls on, in front of that square's tile.**
+                // In profile the two shadows land a row apart — the far one
+                // behind her and the near one in front — and the near one was
+                // being buried by the tile of the row it had been pushed onto.
+                part.zPosition = profile ? (back ? -8 : 9) : -4
                 continue
             }
 
@@ -2354,15 +2388,23 @@ final class BoardScene: SKScene {
                     + hop
             )
 
-            part.xScale = !profile && back ? -1 : 1
+            // **They squash with her.** The body is scaled about its feet as
+            // she lands, and parts that hang at fixed heights while it does are
+            // arms left floating over a shoulder that has dropped away from
+            // them. Their heights and their own drawings take the same scale,
+            // which closes the gap because it is the same movement.
+            let squish = session.hopPose(at: Date())
+            part.position.x *= squish.scaleX
+            part.position.y *= squish.scaleY
 
-            // **Turned over about its own box, not about its foot.** The view
-            // flips the far arm about its centre, so it keeps the space it had;
-            // flipping about a bottom anchor hangs it below instead, which is
-            // where the east-west back arm had gone.
+            part.xScale = (!profile && back ? -1 : 1) * squish.scaleX
+
+            // Turned over about its own box, not about its foot: the view flips
+            // the far arm about its centre so it keeps the space it had, where
+            // flipping about a bottom anchor hangs it below instead.
             let over = !isPan && profile && back
-            part.yScale = over ? -1 : 1
-            if over { part.position.y += metrics.tileSize }
+            part.yScale = (over ? -1 : 1) * squish.scaleY
+            if over { part.position.y += metrics.tileSize * squish.scaleY }
 
             // Behind her or in front, and in profile the near pan sorts a whole
             // row ahead — it hangs out over the square in front, and drawn with
@@ -2646,6 +2688,17 @@ final class BoardScene: SKScene {
     /// cache means the same `SKTexture` too, so a sprite that changes with the
     /// game's state can simply ask each frame rather than being told.
     private static var cut: [SpriteID: SKTexture] = [:]
+
+    /// How many cells tall a drawing is, asked of the atlas rather than assumed.
+    ///
+    /// **Pisces is one cell.** His body was redrawn short — it sits on the
+    /// bottom cell of his block so his feet line up with everyone else's, and
+    /// his top half became the fish. Every other sign is two, and a piece drawn
+    /// at two that is one comes out stretched to twice its height.
+    private static func cells(_ id: SpriteID) -> CGFloat {
+        guard let slice = SpriteAtlas.slice(for: id) else { return 2 }
+        return CGFloat(slice.height) / CGFloat(GameRules.tilePixelSize)
+    }
 
     private static func art(_ id: SpriteID) -> SKTexture? {
         if let kept = cut[id] { return kept }
