@@ -344,6 +344,58 @@ final class BoardScene: SKScene {
                     let copies = max(Int((wall / (art * metrics.scale)).rounded(.up)), 1)
                     let each = copies > 0 ? wall / CGFloat(copies) : wall
 
+                    // **The flank the shift exposes.**
+                    //
+                    // The top face is thrown outward, so its inward edge no
+                    // longer sits over the footprint's — and what shows between
+                    // the two is the side of the slab. A tile right of the
+                    // middle exposes its left flank and one left of the middle
+                    // its right, which is simply the side of a box that faces
+                    // the camera.
+                    //
+                    // As wide as the shift and as tall as the front wall, cut
+                    // from the same drawing: it is the same surface seen from
+                    // ninety degrees round, and a column of it carries the
+                    // right palette and the right lighting for its height.
+                    let cellArt = CGFloat(GameRules.tilePixelSize)
+                    let riseNear = Self.riser(
+                        row: point.y, lift: set.popLift, metrics: metrics
+                    ).near
+                    let widen = BoardBand.edgeDivisor(
+                        at: CGFloat(point.y + 1) - riseNear / cellArt,
+                        gridSize: metrics.gridSize
+                    ) / BoardBand.edgeDivisor(
+                        at: CGFloat(point.y + 1), gridSize: metrics.gridSize
+                    )
+                    let middleArt = CGFloat(board.size) * cellArt / 2
+                    let flank = (((CGFloat(point.x) + 0.5) * cellArt - middleArt)
+                        * (widen - 1)).rounded()
+
+                    if flank != 0 {
+                        let thick = abs(flank) * metrics.scale * band.scale
+                        let inward: CGFloat = flank > 0 ? -1 : 1
+                        let column = CGFloat(1) / cellArt
+
+                        let node = SKSpriteNode(
+                            texture: SKTexture(
+                                rect: CGRect(
+                                    x: flank > 0 ? 0 : 1 - column,
+                                    y: 1 - slice,
+                                    width: column, height: slice
+                                ),
+                                in: texture
+                            ),
+                            size: CGSize(width: thick, height: wall)
+                        )
+                        node.anchorPoint = CGPoint(x: 0.5, y: 0)
+                        node.position = CGPoint(
+                            x: originX + inward * (across - thick) / 2,
+                            y: sitsAt
+                        )
+                        node.zPosition = Self.depth(row: point.y, layer: -1)
+                        holder.addChild(node)
+                    }
+
                     for copy in 0..<copies {
                         let node = SKSpriteNode(
                             texture: SKTexture(
