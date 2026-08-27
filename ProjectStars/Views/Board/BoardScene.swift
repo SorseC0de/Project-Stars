@@ -82,8 +82,15 @@ final class BoardScene: SKScene {
     private var twin: SKSpriteNode?
     private var retinue: [SKSpriteNode] = []
 
-    /// Libra's two arms and two pans, in that order.
+    /// Libra's two arms, two pans and two pan shadows, in that order.
     private var limbs: [SKSpriteNode] = []
+
+    /// How far the surface under the piece has lifted it, in points.
+    ///
+    /// Kept so that anything hung off the piece which belongs on the *ground*
+    /// can take it back off again — a shadow rides up with its caster
+    /// otherwise, which is the one thing a shadow must never do.
+    private var perch: CGFloat = 0
     private var pillar = SKSpriteNode()
     private var shadow = SKSpriteNode()
     private var arrow = SKSpriteNode()
@@ -1514,6 +1521,13 @@ final class BoardScene: SKScene {
         let drop = metrics.tileSize / 2 - GameRules.pieceLift * metrics.scale
         let stand = drop * spot.scale
 
+        // Whatever it is standing on, and how far that has lifted it.
+        let stood = (session.engine.isOnNexys
+            ? carryLift()
+            : surfaceLift(of: standing.point, on: footing))
+            * metrics.scale * spot.scale
+        perch = stood
+
         // **A falling piece rides the camera down.** `BoardView` gets this by
         // moving the board under a piece that stays put — `fallOffset` — but
         // the scene lays every plane out in world space and moves a real
@@ -1533,10 +1547,7 @@ final class BoardScene: SKScene {
                 - Self.seatY(standing.point, on: footing,
                              metrics: metrics, spot: spot)
                 - inset - stand
-                + (session.engine.isOnNexys
-                    ? carryLift()
-                    : surfaceLift(of: standing.point, on: footing))
-                * metrics.scale * spot.scale
+                + stood
                 + ride - carryGive()
         )
 
@@ -1695,14 +1706,20 @@ final class BoardScene: SKScene {
         //
         // The travel pose is what carries it off one plane and onto the next
         // under its own power, for the times it is not riding the camera.
+        // **Carried or travelling, never both.** `nexysTravelPose` answers
+        // `.rest` while the island is riding the camera, because then the
+        // camera is doing the moving — and an island given the camera's travel
+        // *and* its own arrival lift is an island a whole board off the top of
+        // the screen. That is the one going down to Terra.
+        //
+        // The ride outlasts its own flag on purpose: the flag drops before the
+        // camera has finished arriving, and without this the island snapped
+        // back to where its plane sits, which is off screen until the camera
+        // catches up.
         let journey = travelPose()
-        // **While the camera is moving, not only while it is flagged.** The
-        // flag drops before the camera has finished arriving, and the moment it
-        // does the island snaps back to where its plane sits — which is off
-        // screen until the camera catches up. That is the blink coming into
-        // Terra.
-        let carried = session.nexysRidesCamera
-            || session.isChangingPlane || session.isDropping
+        let carried = journey == .rest
+            && (session.nexysRidesCamera
+                || session.isChangingPlane || session.isDropping)
             ? cameraRide(on: home)
             : 0
         let settle = dip(at: GameRules.nexysPoint, on: home)
@@ -2046,12 +2063,20 @@ final class BoardScene: SKScene {
             part.isHidden = false
 
             if kind == 2 {
-                // The shadow belongs on the square the pan hangs over, a whole
-                // tile out along whichever axis she is facing across — and it
-                // shrinks as the pan rises away from it.
+                // **It stays on the ground while the pan leaves it.** Which is
+                // the whole point of drawing one: the shadow is what says the
+                // pan is above the tile rather than painted on it, so it takes
+                // neither the hop nor the lift the island gives — both of which
+                // reach it through the piece, and both of which come back off
+                // here. Reverse-inheriting the island's carry is what keeps it
+                // on the rock she is standing on.
+                //
+                // And it shrinks by how far the pan has gone, the way a coin's
+                // does: near the ground it is full size, and it draws in as the
+                // pan rises away from it.
                 let flank: CGFloat = back ? -1 : 1
-                let raised = -sway
-                let shrink = 1 - min(max(raised / GameRules.libraPanShadowRange, -1), 1)
+                let raised = hop / pixel + perch / pixel - sway
+                let shrink = 1 - min(max(raised / GameRules.libraPanShadowLiftRange, 0), 1)
                     * GameRules.libraPanShadowSpread
 
                 part.texture = Self.shadowTexture
@@ -2059,21 +2084,18 @@ final class BoardScene: SKScene {
                     x: 0.5,
                     y: GameRules.shadowSpriteSeat / CGFloat(GameRules.tilePixelSize)
                 )
-                part.size = CGSize(
-                    width: metrics.tileSize * GameRules.libraPanShadowWidth
-                        / GameRules.shadowSpriteSpan,
-                    height: metrics.tileSize * GameRules.libraPanShadowWidth
-                        / GameRules.shadowSpriteSpan
-                )
+                // The piece's own mark, at the piece's own size — it is the
+                // same drawing under the same kind of thing.
+                part.size = CGSize(width: metrics.tileSize, height: metrics.tileSize)
                 part.setScale(shrink)
-                part.alpha = GameRules.libraPanShadowOpacity * Double(shrink)
+                part.alpha = GameRules.shadowSpriteOpacity
                 // Half a tile up from the body's bottom edge: the view offsets
                 // it from the middle of a two-cell frame, and the difference
                 // between that middle and this edge is a whole cell — of which
                 // the drop and the flank rise then take their share back.
                 part.position = CGPoint(
                     x: profile ? 0 : flank * metrics.tileSize,
-                    y: metrics.tileSize / 2 + hop
+                    y: metrics.tileSize / 2 - perch
                         - GameRules.pieceShadowDrop * pixel
                         - (profile
                             ? flank * metrics.tileSize * GameRules.libraPanShadowFlankRise
@@ -2091,9 +2113,19 @@ final class BoardScene: SKScene {
 
             // Straight off the body's bottom edge, in art pixels, exactly as
             // the view writes them.
+            // Hung by eye on top of the drawing's own numbers: the pans come
+            // up facing the camera, and in profile the two part company — the
+            // front one up, the back one down, and the back arm with it.
+            let nudge: CGFloat = isPan
+                ? (profile
+                    ? (back ? GameRules.libraPanRiseEWBack : GameRules.libraPanRiseEWFront)
+                    : GameRules.libraPanRiseNS)
+                : (profile && back ? GameRules.libraArmDropEWBack : 0)
+
             part.position = CGPoint(
                 x: (isPan ? outward : arm) * pixel,
-                y: (lift - sway - (isPan ? GameRules.libraArmFootInCell + gap : 0)) * pixel
+                y: (lift + nudge - sway
+                    - (isPan ? GameRules.libraArmFootInCell + gap : 0)) * pixel
                     + hop
             )
 

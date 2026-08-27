@@ -1423,6 +1423,21 @@ enum GameRules {
     /// is claiming ground the scales are not standing on — and those squares are
     /// exactly the ones the player is reading for what the trenches will hit.
     static let libraPanShadowWidth: CGFloat = 1
+
+    // MARK: - Libra, hung by eye
+
+    /// Art pixels the pans come up by, facing the camera.
+    static let libraPanRiseNS: CGFloat = 1
+
+    /// And in profile, where the near and far pans part company: the front one
+    /// comes up, the back one goes down, and the back arm goes with it.
+    static let libraPanRiseEWFront: CGFloat = 1
+    static let libraPanRiseEWBack: CGFloat = -1
+    static let libraArmDropEWBack: CGFloat = -1
+
+    /// How far a pan has to rise before its shadow has shrunk as far as it
+    /// will, in art pixels. A hop is the thing that actually moves them.
+    static let libraPanShadowLiftRange: CGFloat = 10
     /// The same as any other piece's — a pan is a solid object standing over a
     /// tile and occludes it exactly as much as the piece does. It was darker,
     /// which made the scales read as heavier than the sign carrying them.
