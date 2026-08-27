@@ -115,6 +115,10 @@ final class BoardScene: SKScene {
     /// board alone does not say, and a tile popping changes the strip.
     private var builtRaised: [Plane: Set<GridPoint>] = [:]
 
+    /// And how far a pop was lifting when it was drawn, since that is baked
+    /// into the strip and the bench can move it.
+    private var builtPop: [Plane: CGFloat] = [:]
+
     init(session: GameSession, side: CGFloat) {
         self.session = session
         self.metrics = PixelArtMetrics(availableSide: side)
@@ -263,49 +267,74 @@ final class BoardScene: SKScene {
                 let texture = SKTexture(image: art)
                 texture.filteringMode = .nearest
 
-                let spot = metrics.projected(point, on: plane)
-
-                // **The edge hangs off its row's floor, not off a constant.**
+                // **The edge belongs to the band, not to the standing frame.**
                 //
-                // A popped tile's face is lifted inside the warped strip, so
-                // its rise is scaled by the band's `groundScale`; the edge
-                // stands, so it is scaled by `depthScale`. Those two diverge
-                // row by row, which is why any fixed drop is correct on one
-                // row and leaves a gap on all the others — and why the gap
-                // grew when the pop did.
-                //
-                // Hanging it from `band.groundCentreY` instead asks the row
-                // itself where its floor is. The edge's bottom sits on that
-                // floor, so whatever the pop reveals above it is covered, and
-                // the front row takes a second one a whole tile below for the
-                // board's front lip.
+                // Its tile is drawn inside the warped strip, which is laid out
+                // against `band.scale` across and `band.groundScale` down. The
+                // edge was being placed against `depthScale` — the scale a
+                // thing *standing on* the square gets — and those two part
+                // company row by row, so it could never line up with the tile
+                // it belongs to however far it was nudged. Everything below is
+                // in the band's frame, which is also what makes a dial found on
+                // one row the right dial on all of them.
                 let band = BoardBand.at(row: point.y, metrics: metrics)
                 let floorY = band.groundCentreY + metrics.tileSize / 2
-                let tall = metrics.tileSize * spot.scale
+                let across = metrics.tileSize * band.scale
+                let middle = metrics.boardSize / 2
+                let originX = middle
+                    + (metrics.center(of: point).x - middle) * band.scale
+                    + inset + set.x * metrics.scale * band.scale
+                let sitsAt = -floorY - inset
+                    - set.y * metrics.scale * band.groundScale
 
-                var seats: [CGFloat] = [floorY - tall / 2]
-                if point.y == board.size - 1 {
-                    seats.append(floorY + tall / 2)
+                // An edge is only ever what a lift uncovered, so it takes that
+                // much of the drawing — the top of it, where it meets the face
+                // — and draws it at the drawing's own proportions rather than
+                // stretching what it has.
+                if raised.contains(point) {
+                    let shown = set.pop * set.yScale
+                    let slice = min(
+                        max(shown / CGFloat(GameRules.tilePixelSize), 0), 1
+                    )
+
+                    let node = SKSpriteNode(
+                        texture: SKTexture(
+                            rect: CGRect(x: 0, y: 1 - slice, width: 1, height: slice),
+                            in: texture
+                        ),
+                        size: CGSize(
+                            width: across * set.xScale,
+                            height: shown * metrics.scale * band.groundScale
+                        )
+                    )
+                    node.anchorPoint = CGPoint(x: 0.5, y: 0)
+                    node.position = CGPoint(x: originX, y: sitsAt)
+                    node.zPosition = Self.depth(row: point.y, layer: -1)
+                    holder.addChild(node)
                 }
 
-                for seat in seats {
+                // And the board's front lip — the one edge that shows without
+                // anything having been lifted. Only the last row has no band in
+                // front of it to cover this.
+                if point.y == board.size - 1 {
                     let node = SKSpriteNode(
                         texture: texture,
-                        size: CGSize(width: metrics.tileSize, height: metrics.tileSize)
+                        size: CGSize(
+                            width: across * set.xScale,
+                            height: metrics.tileSize * band.groundScale
+                        )
                     )
-                    node.setScale(spot.scale)
-                    node.position = CGPoint(
-                        x: spot.position.x + inset,
-                        y: -seat - inset
-                    )
+                    node.anchorPoint = CGPoint(x: 0.5, y: 1)
+                    node.position = CGPoint(x: originX, y: sitsAt)
                     node.zPosition = Self.depth(row: point.y, layer: -1)
                     holder.addChild(node)
                 }
             }
 
             for row in 0..<board.size {
-                guard let node = terraRow(row, board: board, raised: raised)
-                else { continue }
+                guard let node = terraRow(
+                    row, board: board, raised: raised, pop: set.pop
+                ) else { continue }
                 node.position.x += inset
                 node.position.y -= inset
                 holder.addChild(node)
@@ -320,6 +349,7 @@ final class BoardScene: SKScene {
         }
         built[plane] = board
         builtRaised[plane] = raised
+        builtPop[plane] = set.pop
     }
 
     /// One row of Terra: seven tiles in a single sprite, warped into its band.
@@ -330,9 +360,11 @@ final class BoardScene: SKScene {
     /// rows rather than tiles. `SKWarpGeometryGrid` is the same trapezoid: the
     /// bottom corners stay and the top two come in by `1 / (1 + lean)`, which is
     /// exactly what the projective transform in `Foreshortened` works out to.
-    private func terraRow(_ row: Int, board: Board, raised: Set<GridPoint>) -> SKSpriteNode? {
+    private func terraRow(
+        _ row: Int, board: Board, raised: Set<GridPoint>, pop: CGFloat
+    ) -> SKSpriteNode? {
         guard let strip = Self.rowImage(
-            row, board: board, raised: raised, metrics: metrics
+            row, board: board, raised: raised, pop: pop, metrics: metrics
         ) else {
             return nil
         }
@@ -345,7 +377,7 @@ final class BoardScene: SKScene {
         // is taller than a tile and its anchor sits at the tile row's floor
         // rather than its own — that floor is what lands on the band.
         let cell = CGFloat(GameRules.tilePixelSize)
-        let tall = Self.stripAbove + cell + Self.stripBelow
+        let tall = Self.stripAbove(pop) + cell + Self.stripBelow
         let node = SKSpriteNode(
             texture: texture,
             size: CGSize(
@@ -401,8 +433,9 @@ final class BoardScene: SKScene {
 
     /// A row's seven tiles, composited into one strip.
     /// How far above the tile row the strip reaches, in art pixels — the room
-    /// a popped tile needs to rise into.
-    private static let stripAbove = GameRules.tilePopLift
+    /// a popped tile needs to rise into. Follows the dial, so tuning the pop
+    /// does not clip the tile it is raising.
+    private static func stripAbove(_ pop: CGFloat) -> CGFloat { max(pop, 0) }
 
     /// And how far below — nothing, now that no edge is drawn in here.
     ///
@@ -418,6 +451,7 @@ final class BoardScene: SKScene {
         _ row: Int,
         board: Board,
         raised: Set<GridPoint>,
+        pop: CGFloat,
         metrics: PixelArtMetrics
     ) -> UIImage? {
         // **Baked at the art's own resolution.** Drawing 16-pixel tiles into a
@@ -429,7 +463,7 @@ final class BoardScene: SKScene {
         let cell = CGFloat(GameRules.tilePixelSize)
         let size = CGSize(
             width: CGFloat(board.size) * cell,
-            height: stripAbove + cell + stripBelow
+            height: stripAbove(pop) + cell + stripBelow
         )
         let format = UIGraphicsImageRendererFormat()
         format.scale = 1
@@ -447,7 +481,7 @@ final class BoardScene: SKScene {
                 let isRaised = raised.contains(point)
                 let box = CGRect(
                     x: CGFloat(column) * cell,
-                    y: stripAbove - (isRaised ? GameRules.tilePopLift : 0),
+                    y: stripAbove(pop) - (isRaised ? pop : 0),
                     width: cell, height: cell
                 )
 
@@ -681,6 +715,28 @@ final class BoardScene: SKScene {
             + NexysStyle.rideLift
     }
 
+    /// The pop and edge numbers: the bench's while tuning, the rules' when not.
+    ///
+    /// All in art pixels at row scale — applied inside the band's own frame, so
+    /// a value found on one row is the same value on every other.
+    struct Dials {
+        var pop: CGFloat
+        var x: CGFloat
+        var y: CGFloat
+        var xScale: CGFloat
+        var yScale: CGFloat
+    }
+
+    private var set: Dials {
+        #if DEBUG
+        let bench = TileEdgeTuning.shared
+        return Dials(pop: bench.popY, x: bench.edgeX, y: bench.edgeY,
+                     xScale: bench.edgeXscale, yScale: bench.edgeYscale)
+        #else
+        return Dials(pop: GameRules.tilePopLift, x: 0, y: 0, xScale: 1, yScale: 1)
+        #endif
+    }
+
     private func surfaceLift(of point: GridPoint, on plane: Plane) -> CGFloat {
         if session.engine.nexysPlane == plane, point == GameRules.nexysPoint {
             let phase = session.ambientClock(
@@ -863,7 +919,8 @@ final class BoardScene: SKScene {
         // Only when the squares themselves changed — see `built`.
         let risen = Set(session.visibleRaisedTiles.map(\.point))
         for plane in Plane.allCases
-        where built[plane] != session.engine[plane] || builtRaised[plane] != risen {
+        where built[plane] != session.engine[plane] || builtRaised[plane] != risen
+            || builtPop[plane] != set.pop {
             rebuild(plane)
         }
 

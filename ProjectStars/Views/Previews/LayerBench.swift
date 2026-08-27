@@ -148,6 +148,7 @@ struct LayerBenchControls: View {
     /// anybody's reading of the code.
     var body: some View {
         VStack(alignment: .leading, spacing: 4) {
+            BenchPanel("tile edge") { TileEdgeControls() }
             BenchPanel("pentacle") { PentacleControls() }
             panel
         }
