@@ -66,6 +66,12 @@ final class BoardScene: SKScene {
     /// coin without hunting through the holder's children for it.
     private var coinPools: [GridPoint: SKSpriteNode] = [:]
 
+    /// The sparkles on the board, by the square they are marking.
+    private var sparkles: [GridPoint: SKSpriteNode] = [:]
+
+    /// Which set drew them, so a changed pattern redraws rather than lingers.
+    private var sparkleSet: SparkleSet?
+
     /// The bursts already playing, so one is started once rather than restarted
     /// every frame it is still alive.
     private var playing: Set<UUID> = []
@@ -1051,6 +1057,7 @@ final class BoardScene: SKScene {
               shiftX: deep ? NexysStyle.islandX + NexysStyle.pillarX : 0, layer: 7)
 
         syncCoins(on: standing.plane, inset: inset)
+        syncSparkles()
         syncEffects(inset: inset)
         syncSmoke()
     }
@@ -1155,6 +1162,124 @@ final class BoardScene: SKScene {
             ]))
         }
 
+    }
+
+    /// The sparkle, rasterised once from the drawing the view uses.
+    ///
+    /// Rebuilding a four-layer blur stack in Core Graphics would be a second
+    /// implementation of the same bloom, and the two would drift. Rendering
+    /// the real one and keeping the picture is one implementation.
+    ///
+    /// Drawn into a box twice the tile so the blur has somewhere to spread;
+    /// anything tighter clips the glow at the edges.
+    private static func sparkleImage(
+        size: CGFloat, plane: Plane, tint: Color?
+    ) -> UIImage? {
+        let glow = tint ?? Palette.sparkleGlow(on: plane)
+        let bloom = plane == .terra ? GameRules.sparkleGlowTerraDamping : 1
+        let side = size * 0.45
+
+        let art = ZStack {
+            Circle()
+                .fill(glow)
+                .frame(
+                    width: size * GameRules.sparkleTileGlowSize,
+                    height: size * GameRules.sparkleTileGlowSize
+                )
+                .blur(radius: size * GameRules.sparkleTileGlowBlur)
+                .opacity(GameRules.sparkleTileGlowOpacity * bloom)
+                .blendMode(.plusLighter)
+                .offset(
+                    x: -GameRules.sparkleNudge.width,
+                    y: -GameRules.sparkleNudge.height
+                )
+
+            ZStack {
+                ZStack {
+                    ForEach(Array(0..<GameRules.sparkleGlowLayers), id: \.self) { step in
+                        SparkleGlyph()
+                            .fill(glow)
+                            .frame(width: side, height: side)
+                            .blur(
+                                radius: size * GameRules.sparkleGlowRadius
+                                    * (1 + CGFloat(step) * 0.9)
+                            )
+                            .opacity(
+                                GameRules.sparkleGlowIntensity * bloom
+                                    / Double(step + 1)
+                            )
+                    }
+                }
+                .blendMode(.plusLighter)
+
+                SparkleGlyph()
+                    .fill(Palette.sparkleCore)
+                    .frame(
+                        width: side * GameRules.sparkleCoreScale,
+                        height: side * GameRules.sparkleCoreScale
+                    )
+            }
+        }
+        .frame(width: size * 2, height: size * 2)
+
+        let renderer = ImageRenderer(content: art)
+        renderer.scale = 2
+        renderer.isOpaque = false
+        return renderer.uiImage
+    }
+
+    /// The sparkles a set puts out, and the pulse each one keeps.
+    ///
+    /// Every sparkle runs on its own period, spread by its index — a board of
+    /// them beating in step reads as one thing blinking rather than many.
+    private func syncSparkles() {
+        let set = session.visibleSparkles
+
+        if set != sparkleSet {
+            for (_, node) in sparkles { node.removeFromParent() }
+            sparkles.removeAll()
+            sparkleSet = set
+
+            if let set {
+                let tint: Color? = set.pattern == .ring ? Palette.pink : nil
+                guard let art = Self.sparkleImage(
+                    size: metrics.tileSize, plane: set.plane, tint: tint
+                ) else { return }
+
+                let texture = SKTexture(image: art)
+                for point in set.points {
+                    let node = SKSpriteNode(texture: texture)
+                    node.blendMode = .add
+                    addChild(node)
+                    sparkles[point] = node
+                }
+            }
+        }
+
+        guard let set else { return }
+
+        let now = session.ambientClock(at: Date().timeIntervalSinceReferenceDate)
+        for (index, point) in set.points.enumerated() {
+            guard let node = sparkles[point] else { continue }
+
+            place(
+                node, at: point, on: set.plane,
+                tiles: CGSize(width: 2, height: 2),
+                shiftX: GameRules.sparkleNudge.width / metrics.scale,
+                layer: 7
+            )
+
+            let spread = Double((index &* 2_654_435_761 &+ 12_345) % 1_000) / 1_000
+            let period = GameRules.sparklePulseFastest
+                + (GameRules.sparklePulseSlowest - GameRules.sparklePulseFastest)
+                * spread
+            let turns = now / period * 2 * .pi + spread * 2 * .pi
+            let pulse = CGFloat(sin(turns) + 1) / 2
+
+            node.setScale(node.xScale * (0.72 + 0.28 * pulse))
+            node.alpha = (0.55 + 0.45 * pulse) * GameRules.sparkleOpacity
+            node.zPosition = Self.effects - 1
+        }
     }
 
     /// The Pentacles, added and removed as the hunt puts them out.
