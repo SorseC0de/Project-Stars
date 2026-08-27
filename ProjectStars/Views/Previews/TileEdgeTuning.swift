@@ -109,6 +109,17 @@ final class TileEdgeTuning {
         didSet { TileEdgeTuning.store.set("boardX", boardX) }
     }
 
+    /// Whether the mirrored copy in a stacked edge is turned over as well as
+    /// flipped.
+    ///
+    /// Two identical strips stacked read as one drawing repeated. Mirroring
+    /// hides that; mirroring *and* turning over hides it further, at the cost
+    /// of putting the drawing's lit edge at the bottom. Which reads better is
+    /// a matter for the eye, so it is a toggle rather than a decision.
+    var stackTurns: Bool = store.flag("stackTurns", false) {
+        didSet { TileEdgeTuning.store.set("stackTurns", stackTurns) }
+    }
+
     /// Forces 3,3 to stand proud, so a popped tile can be looked at without
     /// waiting for the board to produce one.
     var raiseCentre: Bool = store.flag("raiseCentre", false) {
@@ -119,7 +130,7 @@ final class TileEdgeTuning {
         prefix: "tileEdge.",
         vintage: 3,
         names: ["popY", "edgeX", "edgeXper", "edgeXmul", "edgeY", "edgeXscale",
-                "edgeYscale", "boardX", "raiseCentre"]
+                "edgeYscale", "boardX", "raiseCentre", "stackTurns"]
     )
 
     func reset() {
@@ -133,6 +144,7 @@ final class TileEdgeTuning {
         edgeYscale = 1
         boardX = 0
         raiseCentre = false
+        stackTurns = false
     }
 
     func dump() {
@@ -159,6 +171,8 @@ struct TileEdgeControls: View {
                 Button("print") { tuning.dump() }
                 Button("reset") { tuning.reset() }
                 Toggle("raise 3,3", isOn: $tuning.raiseCentre)
+                    .toggleStyle(.button)
+                Toggle("flip H+V", isOn: $tuning.stackTurns)
                     .toggleStyle(.button)
             }
 

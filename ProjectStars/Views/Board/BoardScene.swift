@@ -320,6 +320,11 @@ final class BoardScene: SKScene {
                     )
                     let each = art * set.yScale * metrics.scale * band.groundScale
                     let copies = max(Int((set.pop / art).rounded(.up)), 1)
+                    #if DEBUG
+                    let turns = TileEdgeTuning.shared.stackTurns
+                    #else
+                    let turns = false
+                    #endif
 
                     for copy in 0..<copies {
                         let node = SKSpriteNode(
@@ -330,9 +335,22 @@ final class BoardScene: SKScene {
                             size: CGSize(width: across * set.xScale, height: each)
                         )
                         node.anchorPoint = CGPoint(x: 0.5, y: 0)
+
+                        // Every other one mirrored. Two identical four pixel
+                        // strips stacked read as one drawing repeated, which is
+                        // exactly what it is; flipping the alternates hides the
+                        // repeat without asking for a second drawing. Whether
+                        // it is turned over as well is the bench's to say.
+                        let odd = !copy.isMultiple(of: 2)
+                        node.xScale = odd ? -1 : 1
+                        node.yScale = odd && turns ? -1 : 1
+
+                        // Turned over about a bottom anchor, a copy hangs
+                        // below its own slot; the shift puts it back in it.
                         node.position = CGPoint(
                             x: originX,
                             y: sitsAt + CGFloat(copy) * each
+                                + (node.yScale < 0 ? each : 0)
                         )
                         node.zPosition = Self.depth(row: point.y, layer: -1)
                         holder.addChild(node)
