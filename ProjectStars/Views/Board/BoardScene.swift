@@ -370,9 +370,12 @@ final class BoardScene: SKScene {
     /// **A row, not seven squares.** Terra's ground is a keystone — each band's
     /// top edge narrower than its bottom — and squares placed individually
     /// inside one open seams, which is the whole reason the SwiftUI board draws
-    /// rows rather than tiles. `SKWarpGeometryGrid` is the same trapezoid: the
-    /// bottom corners stay and the top two come in by `1 / (1 + lean)`, which is
-    /// exactly what the projective transform in `Foreshortened` works out to.
+    /// rows rather than tiles.
+    ///
+    /// The warp is **sampled from the board's own map**, not fitted to it. A
+    /// trapezoid with the top corners pulled in by `1 / (1 + lean)` has the
+    /// right corners and the wrong middle, because a warp cell interpolates
+    /// linearly and a keystone is projective.
     private func terraRow(
         _ row: Int, board: Board, raised: Set<GridPoint>, pop: CGFloat
     ) -> SKSpriteNode? {
@@ -385,61 +388,69 @@ final class BoardScene: SKScene {
         let texture = SKTexture(image: strip)
         texture.filteringMode = .nearest
 
-        let band = BoardBand.at(row: row, metrics: metrics)
-        // The strip carries room above and below the tile row now, so its box
-        // is taller than a tile and its anchor sits at the tile row's floor
-        // rather than its own — that floor is what lands on the band.
+        // **The board's own curve, sampled — not a straight line between the
+        // band's two edges.**
+        //
+        // A one-cell warp interpolates its texture linearly, and a keystone is
+        // projective: the two agree exactly at the corners and diverge most in
+        // the middle, by an amount that changes with the row's lean. That is
+        // why the edge under a tile could not be made to line up by any
+        // constant — the tiles themselves were not quite where the arithmetic
+        // said they were, and by a different amount on every row and column.
+        //
+        // So the strip is cut into slices of its own and every seam is placed
+        // by `BoardBand.edgeY(at:)`, the same map the ground is drawn with,
+        // read at fractional edges. Nothing here approximates anything.
         let cell = CGFloat(GameRules.tilePixelSize)
         let tall = Self.stripAbove(pop) + cell + Self.stripBelow
+
+        // The strip's floor is this row's front edge; climbing it walks back
+        // through the board, a tile of art to a row of board.
+        let front = CGFloat(row + 1)
+        let edge: (CGFloat) -> CGFloat = { up in front - up / cell }
+
+        let floorY = BoardBand.edgeY(row + 1, metrics: metrics)
+        let ceilY = BoardBand.edgeY(at: edge(tall), metrics: metrics)
+        let deep = floorY - ceilY
+
         let node = SKSpriteNode(
             texture: texture,
-            size: CGSize(
-                width: metrics.boardSize,
-                height: metrics.tileSize * tall / cell
-            )
+            size: CGSize(width: metrics.boardSize, height: deep)
         )
-        node.anchorPoint = CGPoint(x: 0.5, y: Self.stripBelow / tall)
+        node.anchorPoint = CGPoint(x: 0.5, y: 0)
 
-        // The keystone. Normalised, origin bottom-left; the top edge is pulled
-        // in and down by the same divisor the perspective applies.
-        // **The same keystone, read off further than a tile.** The map is
-        // linear, so the trapezoid the tile row sits in simply continues into
-        // the room above and below it: the strip's own corners are that line
-        // evaluated at its floor and ceiling rather than at the tile's.
-        //
-        // Anchored so the tile row's floor still lands on the band's floor and
-        // its ceiling still pinches to `pinch`, whatever the strip does either
-        // side of it.
-        let pinch = 1 / (1 + band.lean)
-        let below = Self.stripBelow
-        let width: (CGFloat) -> CGFloat = { y in
-            1 + (pinch - 1) * (y - below) / cell
-        }
-        let height: (CGFloat) -> CGFloat = { y in
-            (below + (y - below) * pinch) / tall
+        // Sixteen slices: enough that what is left of the linear error inside
+        // any one of them is far under a pixel, and cheap — a strip is built
+        // when the board changes, not per frame.
+        let slices = 16
+        var source: [SIMD2<Float>] = []
+        var destination: [SIMD2<Float>] = []
+
+        for step in 0...slices {
+            let v = CGFloat(step) / CGFloat(slices)
+            let here = edge(v * tall)
+            let wide = GameRules.boardForeshortenScale
+                / BoardBand.edgeDivisor(at: here, gridSize: metrics.gridSize)
+            let up = deep > 0
+                ? (floorY - BoardBand.edgeY(at: here, metrics: metrics)) / deep
+                : v
+
+            source.append(.init(0, Float(v)))
+            source.append(.init(1, Float(v)))
+            destination.append(.init(Float(0.5 - wide / 2), Float(up)))
+            destination.append(.init(Float(0.5 + wide / 2), Float(up)))
         }
 
-        let source: [SIMD2<Float>] = [
-            .init(0, 0), .init(1, 0), .init(0, 1), .init(1, 1),
-        ]
-        let destination: [SIMD2<Float>] = [
-            .init(Float(0.5 - width(0) / 2), Float(height(0))),
-            .init(Float(0.5 + width(0) / 2), Float(height(0))),
-            .init(Float(0.5 - width(tall) / 2), Float(height(tall))),
-            .init(Float(0.5 + width(tall) / 2), Float(height(tall))),
-        ]
         node.warpGeometry = SKWarpGeometryGrid(
-            __columns: 1, rows: 1,
+            __columns: 1, rows: slices,
             sourcePositions: source,
             destPositions: destination
         )
 
-        node.xScale = band.scale
-        node.yScale = band.groundScale
-        node.position = CGPoint(
-            x: metrics.boardSize / 2,
-            y: -(band.groundCentreY + metrics.tileSize / 2)
-        )
+        // No scaling of its own: the warp already carries both the row's width
+        // and its depth, taken from the board's map rather than from a pair of
+        // scale factors that only agree with it at the edges.
+        node.position = CGPoint(x: metrics.boardSize / 2, y: -floorY)
         node.zPosition = Self.depth(row: row, layer: 0)
         return node
     }

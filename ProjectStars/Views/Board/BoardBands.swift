@@ -206,7 +206,22 @@ struct BoardBand {
         gridSize: Int = GameRules.gridSize,
         depth: CGFloat = GameRules.boardForeshorten
     ) -> CGFloat {
-        1 + depth * (1 - CGFloat(edge) / CGFloat(max(gridSize, 1)))
+        edgeDivisor(at: CGFloat(edge), gridSize: gridSize, depth: depth)
+    }
+
+    /// The same, anywhere between two edges.
+    ///
+    /// The map was always continuous; only its callers were whole-numbered.
+    /// Sampling *inside* a band is what a keystone needs — a straight line
+    /// between a band's two edges is not the curve the board is drawn with, and
+    /// the gap between the two is largest in the middle and varies by row,
+    /// which is exactly how it shows up.
+    static func edgeDivisor(
+        at edge: CGFloat,
+        gridSize: Int = GameRules.gridSize,
+        depth: CGFloat = GameRules.boardForeshorten
+    ) -> CGFloat {
+        1 + depth * (1 - edge / CGFloat(max(gridSize, 1)))
     }
 
     /// Where an edge lands on screen, through the same map the ground itself is
@@ -218,18 +233,30 @@ struct BoardBand {
         zoom: CGFloat = GameRules.boardForeshortenScale,
         lift: CGFloat = GameRules.boardForeshortenLift
     ) -> CGFloat {
+        // Rounded, unlike `edgeY(at:)` — see the note below.
+        edgeY(at: CGFloat(edge), metrics: metrics,
+              depth: depth, zoom: zoom, lift: lift).rounded()
+    }
+
+    /// Where a **fractional** edge lands, unrounded.
+    ///
+    /// The rounding on the whole-numbered version is there so two neighbouring
+    /// bands share an integer boundary and leave no hairline of sky between
+    /// them. A point sampled *inside* a band has no neighbour to agree with,
+    /// and rounding it would quantise the very curve being sampled.
+    static func edgeY(
+        at edge: CGFloat,
+        metrics: PixelArtMetrics,
+        depth: CGFloat = GameRules.boardForeshorten,
+        zoom: CGFloat = GameRules.boardForeshortenScale,
+        lift: CGFloat = GameRules.boardForeshortenLift
+    ) -> CGFloat {
         let board = metrics.boardSize
-        let up = board - CGFloat(edge) * metrics.tileSize
-        let w = edgeDivisor(edge, gridSize: metrics.gridSize, depth: depth)
+        let up = board - edge * metrics.tileSize
+        let w = edgeDivisor(at: edge, gridSize: metrics.gridSize, depth: depth)
         let y = board - GameRules.boardCamera * depth * up / w
 
-        // Rounded to a whole point, because a band is rasterised, not merely
-        // computed. Two neighbours already share this exact edge as a `CGFloat`
-        // — but a band whose height lands on a fraction has its last row of
-        // pixels blended to half coverage, and half coverage over sky is a
-        // hairline of sky. Integer edges make every band an integer number of
-        // points tall, so there is nothing left to blend.
-        return ((board + (y - board) * zoom - board * lift)).rounded()
+        return board + (y - board) * zoom - board * lift
     }
 
 }
