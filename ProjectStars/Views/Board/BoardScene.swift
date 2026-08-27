@@ -347,22 +347,24 @@ final class BoardScene: SKScene {
                     // **The flank the shift exposes.**
                     //
                     // The top face is thrown outward, so its inward edge no
-                    // longer sits over the footprint's — and what shows between
-                    // the two is the side of the slab. A tile right of the
-                    // middle exposes its left flank and one left of the middle
-                    // its right, which is simply the side of a box that faces
-                    // the camera.
+                    // longer sits over the footprint's, and the side of the
+                    // slab shows between them. A tile right of the middle
+                    // shows its left flank and one left of the middle its
+                    // right — the side of a box that faces the camera.
                     //
-                    // As wide as the shift and as tall as the front wall, cut
-                    // from the same drawing: it is the same surface seen from
-                    // ninety degrees round, and a column of it carries the
-                    // right palette and the right lighting for its height.
+                    // **It runs the tile's whole depth**, near corner to far,
+                    // not just the width of the front wall. And it is a
+                    // parallelogram, not a rectangle: the tile's inward edge
+                    // moves sideways by about a point across one row, which is
+                    // the same order as the flank's own thickness, so a
+                    // rectangle would meet the tile at one end and miss at the
+                    // other.
                     let cellArt = CGFloat(GameRules.tilePixelSize)
-                    let riseNear = Self.riser(
+                    let rose = Self.riser(
                         row: point.y, lift: set.popLift, metrics: metrics
-                    ).near
+                    )
                     let widen = BoardBand.edgeDivisor(
-                        at: CGFloat(point.y + 1) - riseNear / cellArt,
+                        at: CGFloat(point.y + 1) - rose.near / cellArt,
                         gridSize: metrics.gridSize
                     ) / BoardBand.edgeDivisor(
                         at: CGFloat(point.y + 1), gridSize: metrics.gridSize
@@ -372,27 +374,71 @@ final class BoardScene: SKScene {
                         * (widen - 1)).rounded()
 
                     if flank != 0 {
-                        let thick = abs(flank) * metrics.scale * band.scale
-                        let inward: CGFloat = flank > 0 ? -1 : 1
-                        let column = CGFloat(1) / cellArt
+                        // Its inward boundary, in flat board coordinates, then
+                        // projected at each of the row's two edges.
+                        let flat = (flank > 0
+                            ? CGFloat(point.x)
+                            : CGFloat(point.x + 1)) * metrics.tileSize
+                        let mid = metrics.boardSize / 2
+                        let grid = metrics.gridSize
+                        let at: (CGFloat) -> CGFloat = { edge in
+                            mid + (flat - mid) * GameRules.boardForeshortenScale
+                                / BoardBand.edgeDivisor(at: edge, gridSize: grid)
+                                + inset
+                        }
+
+                        let backY = BoardBand.edgeY(point.y, metrics: metrics)
+                        let thick = flank * metrics.scale * band.scale
+                        let nearX = at(CGFloat(point.y + 1))
+                        let farX = at(CGFloat(point.y))
+                        let nearTop = screenY(artAbove: rose.near, row: point.y)
+                        let farTop = screenY(artAbove: rose.far, row: point.y)
+
+                        // The quad, in scene coordinates: the footprint's
+                        // inward edge, and the same edge on the face above it.
+                        let corners = [
+                            CGPoint(x: nearX, y: -floorY - inset),
+                            CGPoint(x: nearX + thick, y: -nearTop - inset),
+                            CGPoint(x: farX, y: -backY - inset),
+                            CGPoint(x: farX + thick, y: -farTop - inset),
+                        ]
+                        let lows = corners.map(\.x), highs = corners.map(\.y)
+                        let left = lows.min() ?? 0, right = lows.max() ?? 0
+                        let down = highs.min() ?? 0, up = highs.max() ?? 0
+                        let box = CGSize(
+                            width: max(right - left, 0.01),
+                            height: max(up - down, 0.01)
+                        )
 
                         let node = SKSpriteNode(
                             texture: SKTexture(
                                 rect: CGRect(
-                                    x: flank > 0 ? 0 : 1 - column,
+                                    x: flank > 0 ? 0 : 1 - 1 / cellArt,
                                     y: 1 - slice,
-                                    width: column, height: slice
+                                    width: 1 / cellArt, height: slice
                                 ),
                                 in: texture
                             ),
-                            size: CGSize(width: thick, height: wall)
+                            size: box
                         )
-                        node.anchorPoint = CGPoint(x: 0.5, y: 0)
-                        node.position = CGPoint(
-                            x: originX + inward * (across - thick) / 2,
-                            y: sitsAt
+                        node.anchorPoint = .zero
+                        node.position = CGPoint(x: left, y: down)
+
+                        let unit: (CGPoint) -> SIMD2<Float> = { spot in
+                            .init(Float((spot.x - left) / box.width),
+                                  Float((spot.y - down) / box.height))
+                        }
+                        node.warpGeometry = SKWarpGeometryGrid(
+                            __columns: 1, rows: 1,
+                            sourcePositions: [
+                                .init(0, 0), .init(1, 0), .init(0, 1), .init(1, 1),
+                            ],
+                            destPositions: [
+                                unit(corners[2]), unit(corners[3]),
+                                unit(corners[0]), unit(corners[1]),
+                            ]
                         )
-                        node.zPosition = Self.depth(row: point.y, layer: -1)
+                        node.zPosition = Self.depth(row: point.y, layer: 1)
                         holder.addChild(node)
                     }
 
