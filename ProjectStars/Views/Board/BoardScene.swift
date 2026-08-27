@@ -557,6 +557,27 @@ final class BoardScene: SKScene {
         let format = UIGraphicsImageRendererFormat()
         format.scale = 1
 
+        // **A popped tile stands nearer the camera, so it is drawn wider of the
+        // middle.**
+        //
+        // Not by a tuned amount — by the one the board's own projection gives.
+        // A row's horizontal scale is `1 / w(edge)`, so a tile that has risen
+        // toward the camera is a tile whose `w` has got smaller, and every
+        // column is thrown outward in proportion to how far from the middle it
+        // already was. Which is why it shows as nothing in the centre column
+        // and a pixel at the rim.
+        //
+        // The rise is `tileEdgeHeight`, **not** `tilePopLift`. The pop is eight
+        // because the rows are squashed to about half and it takes eight to
+        // read as four; what the eye is given is four, and it is what the eye
+        // is given that decides how much nearer the tile looks. Four pixels of
+        // a sixteen pixel row is a quarter of a row.
+        let front = CGFloat(row + 1)
+        let nearer = GameRules.tileEdgeHeight / CGFloat(GameRules.tilePixelSize)
+        let spread = BoardBand.edgeDivisor(at: front, gridSize: metrics.gridSize)
+            / BoardBand.edgeDivisor(at: front + nearer, gridSize: metrics.gridSize)
+        let middle = CGFloat(board.size) * cell / 2
+
         var drewAnything = false
         let strip = UIGraphicsImageRenderer(size: size, format: format).image { context in
             context.cgContext.interpolationQuality = .none
@@ -571,8 +592,10 @@ final class BoardScene: SKScene {
                 // out of it. `BandRow` stacks the edge and the face bottom-
                 // aligned and then offsets each, which is what these two are.
                 let isRaised = raised.contains(point)
+                let outward = ((CGFloat(column) + 0.5) * cell - middle)
+                    * (spread - 1)
                 let box = CGRect(
-                    x: CGFloat(column) * cell + (isRaised ? popX : 0),
+                    x: CGFloat(column) * cell + (isRaised ? outward + popX : 0),
                     y: stripAbove(pop) - (isRaised ? pop : 0),
                     width: cell, height: cell
                 )
