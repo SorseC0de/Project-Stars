@@ -617,8 +617,14 @@ final class BoardScene: SKScene {
 
     /// How far above the tile row the strip reaches, in art pixels — the room
     /// a popped tile needs to rise into.
+    /// Rounded up to a whole art row, because the strip is **rasterised**. A
+    /// fractional height leaves the renderer to round it on its own, and a
+    /// texture a fraction taller than the geometry expects is a hairline along
+    /// every row. The extra is transparent and costs nothing.
     private static func stripAbove(row: Int, lift: CGFloat, metrics: PixelArtMetrics) -> CGFloat {
-        max(riser(row: row, lift: lift, metrics: metrics).far - CGFloat(GameRules.tilePixelSize), 0)
+        let head = riser(row: row, lift: lift, metrics: metrics).far
+            - CGFloat(GameRules.tilePixelSize)
+        return max(head, 0).rounded(.up)
     }
 
     /// How much room the strip keeps either side of the board, in art pixels.
@@ -658,6 +664,24 @@ final class BoardScene: SKScene {
         let cell = CGFloat(GameRules.tilePixelSize)
         let rise = riser(row: row, lift: lift, metrics: metrics)
         let head = stripAbove(row: row, lift: lift, metrics: metrics)
+
+        // **Undoing what the warp does to a face drawn higher in the source.**
+        //
+        // The walls are vertical, so the top face keeps its footprint's columns
+        // exactly. But it is drawn further up the strip, and up the strip is
+        // back through the board — so the warp narrows it on the way out. The
+        // fix is to widen it here by precisely what the warp will take off,
+        // which lands it on the columns it started with.
+        //
+        // The same ratio at the near edge as at the far one, so it is a plain
+        // scale rather than a keystone: the rise is a constant world height, so
+        // the depth it stands in is a constant too. And the same on every row,
+        // which is why one number held up wherever it was tried.
+        let front = CGFloat(row + 1)
+        let widen = BoardBand.edgeDivisor(
+            at: front - rise.near / cell, gridSize: metrics.gridSize
+        ) / BoardBand.edgeDivisor(at: front, gridSize: metrics.gridSize)
+        let middle = CGFloat(board.size) * cell / 2
         let size = CGSize(
             width: CGFloat(board.size) * cell + 2 * stripSide,
             height: head + cell + stripBelow
@@ -689,10 +713,15 @@ final class BoardScene: SKScene {
                 let top = isRaised ? head + cell - rise.far : head
                 let bottom = isRaised ? head + cell - rise.near : head + cell
 
+                let wide = isRaised ? cell * widen : cell
+                let centre = middle
+                    + ((CGFloat(column) + 0.5) * cell - middle)
+                    * (isRaised ? widen : 1)
+
                 let box = CGRect(
-                    x: stripSide + CGFloat(column) * cell + (isRaised ? popX : 0),
+                    x: stripSide + centre - wide / 2 + (isRaised ? popX : 0),
                     y: top + (isRaised ? popY : 0),
-                    width: cell,
+                    width: wide,
                     height: bottom - top
                 )
 
