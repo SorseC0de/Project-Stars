@@ -5,6 +5,7 @@
 //  The top screen as a retained scene rather than a rebuilt view tree.
 //
 
+import CoreImage
 import SpriteKit
 import SwiftUI
 
@@ -91,6 +92,13 @@ final class BoardScene: SKScene {
     /// can take it back off again — a shadow rides up with its caster
     /// otherwise, which is the one thing a shadow must never do.
     private var perch: CGFloat = 0
+
+    /// The lit gems trailing behind a charged piece.
+    private var gems: [SKEffectNode] = []
+
+    /// Pisces' fish, and Sagittarius' arrow in flight.
+    private var fish: SKSpriteNode?
+    private var loosed: SKSpriteNode?
     private var pillar = SKSpriteNode()
     private var shadow = SKSpriteNode()
     private var arrow = SKSpriteNode()
@@ -1747,6 +1755,9 @@ final class BoardScene: SKScene {
         syncHalf()
         syncRetinue(on: standing.plane)
         syncScales()
+        syncGems()
+        syncFish()
+        syncArrow()
         syncEffects(inset: inset)
         syncSmoke()
     }
@@ -1988,6 +1999,220 @@ final class BoardScene: SKScene {
             // everything in front of it.
             node.zPosition = Self.depth(row: point.y, layer: 7)
         }
+    }
+
+    /// The fish that swims over Pisces' head.
+    ///
+    /// `PieceView` overlays it on the *top* of her two-cell frame, so it takes
+    /// the upper cell. It turns to face where she faces, squashes when she is
+    /// in profile — the drawing is seen edge-on then — and when the meter is
+    /// full it swaps for the lit one and takes the star's hover, the same drift
+    /// and spin Polaris has.
+    private func syncFish() {
+        let standing = session.engine.piece
+
+        guard standing.zodiac == .pisces else {
+            fish?.isHidden = true
+            return
+        }
+
+        let node = fish ?? {
+            let made = SKSpriteNode()
+            made.anchorPoint = CGPoint(x: 0.5, y: 0.5)
+            piece.addChild(made)
+            fish = made
+            return made
+        }()
+
+        let facing = session.visibleFacing
+        let pixel = metrics.scale
+        let charged = session.isZodiactionCharged
+        let now = session.ambientClock(at: Date().timeIntervalSinceReferenceDate)
+
+        node.isHidden = false
+        node.texture = Self.art(charged ? .piscesFishCharged : .piscesFish)
+        node.size = CGSize(width: metrics.tileSize, height: metrics.tileSize)
+
+        // Turned to her heading. SwiftUI counts a turn clockwise and SpriteKit
+        // counts it the other way, so the sign flips on the way across.
+        let turn: CGFloat = switch facing {
+        case .right: -90
+        case .up: -180
+        case .left: -270
+        default: 0
+        }
+
+        let squash: CGFloat = facing == .left || facing == .right
+            ? GameRules.piscesFishSideSquash
+            : 1
+        let sink = (1 - squash) * metrics.tileSize / 2
+
+        let drift = charged
+            ? CGSize(
+                width: -cos(now / GameRules.polarisBobPeriod * 2 * .pi)
+                    * GameRules.polarisBobRadius,
+                height: sin(now / GameRules.polarisBobPeriod * 2 * .pi)
+                    * GameRules.polarisBobRise
+            )
+            : .zero
+
+        node.zRotation = -turn * .pi / 180
+            + (charged ? CGFloat(now / GameRules.polarisSpinPeriod * 2 * .pi) : 0)
+        node.xScale = 1
+        node.yScale = squash
+        node.position = CGPoint(
+            x: drift.width * pixel,
+            y: metrics.tileSize * 1.5 - sink
+                - GameRules.piscesFishDrop * pixel
+                + (charged ? GameRules.piscesFishLift * pixel : 0)
+                - drift.height * pixel
+                + session.hopPose(at: Date()).lift * pixel
+        )
+        node.zPosition = 1
+    }
+
+    /// Sagittarius' arrow, once it is loosed.
+    ///
+    /// It leaves from the square it was fired at and climbs off the top of the
+    /// board, accelerating — the drawing is drawn on a diagonal, so it is
+    /// turned back upright before it goes.
+    private func syncArrow() {
+        guard let shot = session.loosedArrow else {
+            loosed?.isHidden = true
+            return
+        }
+
+        let node = loosed ?? {
+            let made = SKSpriteNode(texture: Self.art(.effect(.sagittariusArrow)))
+            made.zPosition = Self.effects
+            made.zRotation = GameRules.arrowArtRotation * .pi / 180
+            addChild(made)
+            loosed = made
+            return made
+        }()
+
+        let progress = min(max(
+            Date().timeIntervalSince(shot.start) / GameRules.arrowRiseDuration, 0
+        ), 1)
+        let eased = CGFloat(progress * progress)
+        let inset = (side - metrics.boardSize) / 2
+        let centre = metrics.center(of: shot.point)
+
+        node.isHidden = false
+        node.size = CGSize(width: metrics.tileSize * 2, height: metrics.tileSize * 2)
+        node.position = CGPoint(
+            x: centre.x + inset,
+            y: -CGFloat(World.row(of: shot.plane)) * side - inset
+                - (centre.y - metrics.tileSize
+                    - eased * (metrics.boardSize + metrics.tileSize * 2))
+        )
+    }
+
+    /// The gems, lit and trailing, while the meter is full.
+    ///
+    /// `GemTrailView` is the reference. It is not a ghost of the piece: the
+    /// shader masks everything except the element's *lit* gem colour, so what
+    /// trails behind is the stones on her and nothing else. Doing it as a faded
+    /// copy of the whole sprite would be a different effect wearing its name.
+    ///
+    /// The mask is done once per sign, in the image, since a swap and a keep
+    /// are both per-pixel and neither changes while she is charged. Each copy
+    /// is then blurred further and dimmed further than the one before it, and
+    /// each lags a little more — a spring in the view, an ease here, but the
+    /// same shape: the tail rounds a corner after the head has taken it.
+    private func syncGems() {
+        let standing = session.engine.piece
+        let lit = session.isZodiactionCharged && !session.isFalling
+
+        guard lit else {
+            for gem in gems { gem.isHidden = true }
+            return
+        }
+
+        while gems.count < GameRules.gemTrailCount {
+            let step = gems.count
+            let blur = SKEffectNode()
+            blur.shouldEnableEffects = true
+            blur.shouldRasterize = true
+            blur.blendMode = .add
+            blur.filter = CIFilter(
+                name: "CIGaussianBlur",
+                parameters: [kCIInputRadiusKey: GameRules.gemTrailRadius
+                    * metrics.scale * (1 + CGFloat(step) * 0.45)]
+            )
+            blur.alpha = pow(GameRules.gemTrailFalloff, Double(step + 1))
+            blur.zPosition = Self.depth(row: 0, layer: 0) - CGFloat(step) - 2
+            addChild(blur)
+
+            let art = SKSpriteNode()
+            art.anchorPoint = CGPoint(x: 0.5, y: 0)
+            art.size = CGSize(width: metrics.tileSize, height: metrics.tileSize * 2)
+            blur.addChild(art)
+            gems.append(blur)
+        }
+
+        let stones = Self.gemsOnly(standing.zodiac)
+
+        for (step, blur) in gems.enumerated() {
+            blur.isHidden = false
+            (blur.children.first as? SKSpriteNode)?.texture = stones
+            blur.zPosition = piece.zPosition - CGFloat(step) - 2
+
+            // Each one eases toward where the piece is, a little slower than
+            // the one in front of it.
+            let lag = CGFloat(1) / CGFloat(step + 2)
+            if blur.position == .zero {
+                blur.position = piece.position
+            } else {
+                blur.position.x += (piece.position.x - blur.position.x) * lag
+                blur.position.y += (piece.position.y - blur.position.y) * lag
+            }
+            blur.setScale(piece.xScale)
+        }
+    }
+
+    /// The piece with everything but its lit gems taken out.
+    ///
+    /// Kept per sign: the swap and the mask are both fixed for a given element,
+    /// so this is cut once and handed to every copy in the trail.
+    private static var gemCuts: [Zodiac: SKTexture] = [:]
+
+    private static func gemsOnly(_ zodiac: Zodiac) -> SKTexture? {
+        if let kept = gemCuts[zodiac] { return kept }
+
+        let gem = GemTones.forElement(zodiac.element)
+        guard let art = PaletteRecolour.image(
+            .piece(zodiac), frame: 0, swaps: [PaletteSwap(gem.dim, gem.lit)]
+        ), let source = art.cgImage else { return nil }
+
+        let wide = source.width, high = source.height
+        var pixels = [UInt8](repeating: 0, count: wide * high * 4)
+        guard let context = CGContext(
+            data: &pixels, width: wide, height: high,
+            bitsPerComponent: 8, bytesPerRow: wide * 4,
+            space: CGColorSpaceCreateDeviceRGB(),
+            bitmapInfo: CGImageAlphaInfo.premultipliedLast.rawValue
+        ) else { return nil }
+        context.draw(source, in: CGRect(x: 0, y: 0, width: wide, height: high))
+
+        // Keep only what the shader keeps: the lit gem colour itself.
+        let want = UIColor(gem.lit)
+        var red: CGFloat = 0, green: CGFloat = 0, blue: CGFloat = 0, alpha: CGFloat = 0
+        want.getRed(&red, green: &green, blue: &blue, alpha: &alpha)
+        let target = (UInt8(red * 255), UInt8(green * 255), UInt8(blue * 255))
+
+        for index in stride(from: 0, to: pixels.count, by: 4) {
+            let near = abs(Int(pixels[index]) - Int(target.0)) < 12
+                && abs(Int(pixels[index + 1]) - Int(target.1)) < 12
+                && abs(Int(pixels[index + 2]) - Int(target.2)) < 12
+            if !near { pixels[index + 3] = 0 }
+        }
+
+        guard let cut = context.makeImage() else { return nil }
+        let texture = SKTexture(image: UIImage(cgImage: cut))
+        texture.filteringMode = .nearest
+        gemCuts[zodiac] = texture
+        return texture
     }
 
     /// Libra's arms, the scales hanging from them, and the shadows they drop.
