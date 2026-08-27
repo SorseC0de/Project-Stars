@@ -211,6 +211,55 @@ final class BoardScene: SKScene {
             (.foreground, 2, 0, Self.depth(row: GameRules.gridSize, layer: 0), true),
         ]
 
+        // **The four overhanging rocks**, two sets of a left and a right.
+        //
+        // They sit between the board's floor and the foreground, hanging in
+        // over the edges — the far pair smaller and further in, the near pair
+        // full size and further out. `TerraMidRocks` pins each to the top
+        // corner it belongs to and pushes it back in by its set's spread, so
+        // the same two drawings serve both sets at two depths.
+        //
+        // Their numbers come from the bench in debug, as everything else in
+        // this scenery does, so the sliders still move them.
+        let span = side * 2 / across
+        for set in [1, 0] {
+            #if DEBUG
+            let bench = TerraSceneryTuning.shared
+            let spread = set == 0 ? bench.nearSpread : bench.farSpread
+            let drop = set == 0 ? bench.nearRockY : bench.farRockY
+            #else
+            let spread = set == 0
+                ? GameRules.terraRocksNearSpread : GameRules.terraRocksFarSpread
+            let drop = set == 0 ? GameRules.terraRocksNearY : GameRules.terraRocksFarY
+            #endif
+
+            let size = span * (set == 0 ? 1 : GameRules.terraRocksFarScale)
+
+            for part in [TerraScenery.midLeft, .midRight] {
+                guard let art = PaletteRecolour.image(
+                    .terraScenery(part), frame: 0, swaps: []
+                ) else { continue }
+
+                let texture = SKTexture(image: art)
+                texture.filteringMode = .nearest
+
+                let node = SKSpriteNode(
+                    texture: texture,
+                    size: CGSize(width: size, height: size)
+                )
+                let out = part == .midLeft ? spread : -spread
+                node.position = CGPoint(
+                    x: part == .midLeft
+                        ? size / 2 + out * pixel
+                        : side - size / 2 + out * pixel,
+                    y: -size / 2 - drop * pixel
+                )
+                node.zPosition = Self.depth(row: GameRules.gridSize, layer: -2)
+                    + CGFloat(set)
+                holder.addChild(node)
+            }
+        }
+
         for (part, cells, drop, depth, atBottom) in pieces {
             guard let art = PaletteRecolour.image(
                 .terraScenery(part), frame: 0, swaps: []
@@ -949,8 +998,11 @@ final class BoardScene: SKScene {
             y: GameRules.shadowSpriteSeat / CGFloat(GameRules.tilePixelSize)
         )
         shadow.alpha = GameRules.shadowSpriteOpacity
-        // Below the far arm as well as the figure — see `syncScales`.
-        shadow.zPosition = -3
+        // **Above the island, below the figure.** The piece sits at layer five
+        // of its row and the island at layer three, so a shadow three below the
+        // piece lands at layer two — under the island, which is why it vanished
+        // the moment she stood on one. One below keeps it clear of both.
+        shadow.zPosition = -1
         piece.addChild(shadow)
 
         // **Not a child of the piece.** It is a mark on the *square*, and
@@ -1644,7 +1696,15 @@ final class BoardScene: SKScene {
         // The travel pose is what carries it off one plane and onto the next
         // under its own power, for the times it is not riding the camera.
         let journey = travelPose()
-        let carried = session.nexysRidesCamera ? cameraRide(on: home) : 0
+        // **While the camera is moving, not only while it is flagged.** The
+        // flag drops before the camera has finished arriving, and the moment it
+        // does the island snaps back to where its plane sits — which is off
+        // screen until the camera catches up. That is the blink coming into
+        // Terra.
+        let carried = session.nexysRidesCamera
+            || session.isChangingPlane || session.isDropping
+            ? cameraRide(on: home)
+            : 0
         let settle = dip(at: GameRules.nexysPoint, on: home)
 
         for node in [island, pillar] {
@@ -2007,9 +2067,14 @@ final class BoardScene: SKScene {
                 )
                 part.setScale(shrink)
                 part.alpha = GameRules.libraPanShadowOpacity * Double(shrink)
+                // Half a tile up from the body's bottom edge: the view offsets
+                // it from the middle of a two-cell frame, and the difference
+                // between that middle and this edge is a whole cell — of which
+                // the drop and the flank rise then take their share back.
                 part.position = CGPoint(
                     x: profile ? 0 : flank * metrics.tileSize,
-                    y: hop - GameRules.pieceShadowDrop * pixel
+                    y: metrics.tileSize / 2 + hop
+                        - GameRules.pieceShadowDrop * pixel
                         - (profile
                             ? flank * metrics.tileSize * GameRules.libraPanShadowFlankRise
                             : 0)
@@ -2033,14 +2098,26 @@ final class BoardScene: SKScene {
             )
 
             part.xScale = !profile && back ? -1 : 1
-            part.yScale = !isPan && profile && back ? -1 : 1
+
+            // **Turned over about its own box, not about its foot.** The view
+            // flips the far arm about its centre, so it keeps the space it had;
+            // flipping about a bottom anchor hangs it below instead, which is
+            // where the east-west back arm had gone.
+            let over = !isPan && profile && back
+            part.yScale = over ? -1 : 1
+            if over { part.position.y += metrics.tileSize }
 
             // Behind her or in front, and in profile the near pan sorts a whole
             // row ahead — it hangs out over the square in front, and drawn with
             // the rest of her that square's tile buried it.
+            // In profile the far pan hangs behind its own arm and both behind
+            // her; the near arm is in front and the near pan a whole row ahead,
+            // since it overhangs the square in front. Facing the camera both
+            // arms are behind and both pans in front. Minus one is spoken for
+            // by her own shadow.
             part.zPosition = profile
-                ? (back ? (isPan ? -2 : -1) : (isPan ? 10 : 1))
-                : (isPan ? 1 : -1)
+                ? (back ? (isPan ? -3 : -2) : (isPan ? 10 : 1))
+                : (isPan ? 1 : -2)
 
             if isPan, charged {
                 if part.action(forKey: "weigh") == nil {
