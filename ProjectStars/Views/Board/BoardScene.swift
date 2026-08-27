@@ -387,7 +387,7 @@ final class BoardScene: SKScene {
             for row in 0..<board.size {
                 guard let node = terraRow(
                     row, board: board, raised: raised, forced: forced,
-                    pop: set.pop, popX: set.popX
+                    pop: set.pop, popX: set.popX, lift: set.popLift
                 ) else { continue }
                 node.position.x += inset
                 node.position.y -= inset
@@ -419,11 +419,11 @@ final class BoardScene: SKScene {
     /// linearly and a keystone is projective.
     private func terraRow(
         _ row: Int, board: Board, raised: Set<GridPoint>,
-        forced: Set<GridPoint>, pop: CGFloat, popX: CGFloat
+        forced: Set<GridPoint>, pop: CGFloat, popX: CGFloat, lift: CGFloat
     ) -> SKSpriteNode? {
         guard let strip = Self.rowImage(
             row, board: board, raised: raised, forced: forced,
-            pop: pop, popX: popX, metrics: metrics
+            pop: pop, popX: popX, lift: lift, metrics: metrics
         ) else {
             return nil
         }
@@ -570,6 +570,7 @@ final class BoardScene: SKScene {
         forced: Set<GridPoint>,
         pop: CGFloat,
         popX: CGFloat,
+        lift: CGFloat,
         metrics: PixelArtMetrics
     ) -> UIImage? {
         // **Baked at the art's own resolution.** Drawing 16-pixel tiles into a
@@ -603,8 +604,13 @@ final class BoardScene: SKScene {
         // a sixteen pixel row is a quarter of a row.
         let front = CGFloat(row + 1)
         let nearer = GameRules.tileEdgeHeight / CGFloat(GameRules.tilePixelSize)
-        let spread = BoardBand.edgeDivisor(at: front, gridSize: metrics.gridSize)
+        let ratio = BoardBand.edgeDivisor(at: front, gridSize: metrics.gridSize)
             / BoardBand.edgeDivisor(at: front + nearer, gridSize: metrics.gridSize)
+
+        // The bench scales how much of that ratio is applied, so the rise
+        // behind it can be measured rather than guessed: whatever value reads
+        // right, times `tileEdgeHeight`, is how tall the pop actually looks.
+        let spread = 1 + (ratio - 1) * lift
         let middle = CGFloat(board.size) * cell / 2
 
         var drewAnything = false
@@ -620,14 +626,27 @@ final class BoardScene: SKScene {
                 // The tile's own place in the strip, and how far it has risen
                 // out of it. `BandRow` stacks the edge and the face bottom-
                 // aligned and then offsets each, which is what these two are.
+                // **A nearer tile is bigger as well as wider of the middle.**
+                // Both fall out of the one ratio: scaling a tile about the
+                // board's centre moves it outward *and* grows it, and the two
+                // are not separable. Shifting without growing leaves a tile the
+                // wrong size, and a tile the wrong size has no position where
+                // both its corners line up — which is what "crisp or flush,
+                // never both" is.
+                //
+                // Grown from its bottom edge, since that is the corner it has
+                // to share with the wall under it.
                 let isRaised = raised.contains(point)
-                let outward = ((CGFloat(column) + 0.5) * cell - middle)
-                    * (spread - 1)
+                let grown = isRaised ? cell * spread : cell
+                let centreX = middle
+                    + ((CGFloat(column) + 0.5) * cell - middle)
+                    * (isRaised ? spread : 1)
+                let floor = stripAbove(pop) + cell - (isRaised ? pop : 0)
+
                 let box = CGRect(
-                    x: stripSide + CGFloat(column) * cell
-                        + (isRaised ? outward + popX : 0),
-                    y: stripAbove(pop) - (isRaised ? pop : 0),
-                    width: cell, height: cell
+                    x: stripSide + centreX - grown / 2 + (isRaised ? popX : 0),
+                    y: floor - grown,
+                    width: grown, height: grown
                 )
 
                 if let art = PaletteRecolour.image(
@@ -877,6 +896,7 @@ final class BoardScene: SKScene {
         var perColumn: CGFloat
         var spread: CGFloat
         var popX: CGFloat
+        var popLift: CGFloat
 
         /// **In here rather than read where it is used.** `rebuild` is what
         /// draws the edges, and `builtDials` is what decides whether to run it
@@ -891,11 +911,12 @@ final class BoardScene: SKScene {
         return Dials(pop: bench.popY, x: bench.edgeX, y: bench.edgeY,
                      xScale: bench.edgeXscale, yScale: bench.edgeYscale,
                      perColumn: bench.edgeXper, spread: bench.edgeXmul,
-                     popX: bench.popX, turns: bench.stackTurns)
+                     popX: bench.popX, popLift: bench.popLift,
+                     turns: bench.stackTurns)
         #else
         return Dials(pop: GameRules.tilePopLift, x: 0, y: 0,
                      xScale: 1, yScale: 1, perColumn: 0, spread: 1,
-                     popX: 0, turns: false)
+                     popX: 0, popLift: 1, turns: false)
         #endif
     }
 

@@ -32,6 +32,22 @@ final class TileEdgeTuning {
         }
     }
 
+    /// How much of the derived perspective ratio a popped tile takes.
+    ///
+    /// **One is the ratio the board's own projection gives**, for a tile risen
+    /// by `tileEdgeHeight`. Two would be a tile that reads twice as tall.
+    /// Whatever value looks right, times four pixels, is how tall the pop
+    /// actually appears — so this measures the rise rather than guessing it,
+    /// and the number it lands on is a number with a meaning.
+    ///
+    /// It moves the tile outward *and* grows it, because those are one thing:
+    /// a tile scaled about the board's centre does both, and a tile that is
+    /// moved without being grown is the wrong size — which is why no position
+    /// makes both its corners line up at once.
+    var popLift: CGFloat = store.value("popLift", 1) {
+        didSet { TileEdgeTuning.store.set("popLift", popLift) }
+    }
+
     /// Sideways nudge for the popped **face**, in art pixels.
     ///
     /// Separate from `edgeX` because the face and the edge under it are drawn
@@ -148,7 +164,7 @@ final class TileEdgeTuning {
     nonisolated static let store = BenchStore(
         prefix: "tileEdge.",
         vintage: 3,
-        names: ["popY", "popX", "edgeX", "edgeXper", "edgeXmul", "edgeY", "edgeXscale",
+        names: ["popY", "popX", "popLift", "edgeX", "edgeXper", "edgeXmul", "edgeY", "edgeXscale",
                 "edgeYscale", "boardX", "raiseCentre", "raiseRow", "stackTurns"]
     )
 
@@ -156,6 +172,7 @@ final class TileEdgeTuning {
         TileEdgeTuning.store.forget()
         popY = GameRules.tilePopLift
         popX = 0
+        popLift = 1
         edgeX = 0
         edgeXper = 0
         edgeXmul = 1
@@ -172,6 +189,8 @@ final class TileEdgeTuning {
         print("── tile edge ──")
         print(String(format: "  popY        %.2f px", popY))
         print(String(format: "  popX        %+.2f px", popX))
+        print(String(format: "  popLift     %.2f  (rise reads as %.2f px)",
+                     popLift, popLift * GameRules.tileEdgeHeight))
         print(String(format: "  edgeX       %+.2f px", edgeX))
         print(String(format: "  edgeXper    %+.2f px per column", edgeXper))
         print(String(format: "  edgeXmul    %.3f", edgeXmul))
@@ -200,6 +219,7 @@ struct TileEdgeControls: View {
 
             row("popY", value: $tuning.popY, in: 0...24)
             row("popX", value: $tuning.popX, in: -12...12, step: 0.05)
+            row("popLift", value: $tuning.popLift, in: 0...4, step: 0.05)
             row("raiseRow", value: $tuning.raiseRow, in: 0...6, step: 1)
             row("edgeX", value: $tuning.edgeX, in: -12...12)
             row("edgeX/col", value: $tuning.edgeXper, in: -3...3, step: 0.05)
