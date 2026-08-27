@@ -331,14 +331,16 @@ final class BoardScene: SKScene {
                         )
                         node.anchorPoint = CGPoint(x: 0.5, y: 0)
 
-                        // Every other one mirrored. Two identical four pixel
-                        // strips stacked read as one drawing repeated, which is
-                        // exactly what it is; flipping the alternates hides the
-                        // repeat without asking for a second drawing. Whether
-                        // it is turned over as well is the bench's to say.
-                        let odd = !copy.isMultiple(of: 2)
-                        node.xScale = odd ? -1 : 1
-                        node.yScale = odd && set.turns ? -1 : 1
+                        // **The bottom one is the one that flips.** Two
+                        // identical four pixel strips stacked read as one
+                        // drawing repeated; mirroring alternates hides that.
+                        // Which alternate matters on the front row, where the
+                        // lip sits directly under the lowest of these and is
+                        // never mirrored — so it is the lowest that has to
+                        // differ from it, not the highest.
+                        let mirrored = copy.isMultiple(of: 2)
+                        node.xScale = mirrored ? -1 : 1
+                        node.yScale = mirrored && set.turns ? -1 : 1
 
                         // Turned over about a bottom anchor, a copy hangs
                         // below its own slot; the shift puts it back in it.
