@@ -684,7 +684,9 @@ final class BoardScene: SKScene {
                 // arrives squashed, by however much more its near edge rose
                 // than its far one.
                 let isRaised = raised.contains(point)
-                let top = isRaised ? head + cell - rise.far : 0
+                // An ordinary tile sits on the strip's floor and is one cell
+                // tall. Only a raised one reaches up into the headroom.
+                let top = isRaised ? head + cell - rise.far : head
                 let bottom = isRaised ? head + cell - rise.near : head + cell
 
                 let box = CGRect(
