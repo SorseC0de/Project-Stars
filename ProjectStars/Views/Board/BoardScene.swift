@@ -379,7 +379,9 @@ final class BoardScene: SKScene {
                         let backY = BoardBand.edgeY(point.y, metrics: metrics)
                         let near = at(CGFloat(point.y + 1))
 
-                        let wide = (at(CGFloat(point.y)) - near) * set.flankWide
+                        let column = min(max(point.x, 0), set.flankWides.count - 1)
+                        let wide = (at(CGFloat(point.y)) - near)
+                            * set.flankWides[column]
                         let drop = (floorY - backY) * set.flankDrop
                         let tall = (floorY - screenY(artAbove: rose.near, row: point.y))
                             * set.flankTall
@@ -1069,7 +1071,7 @@ final class BoardScene: SKScene {
         var popX: CGFloat
         var popLift: CGFloat
         var flankOn: Bool
-        var flankWide: CGFloat
+        var flankWides: [CGFloat]
         var flankDrop: CGFloat
         var flankTall: CGFloat
         var flankX: CGFloat
@@ -1089,7 +1091,7 @@ final class BoardScene: SKScene {
                      xScale: bench.edgeXscale, yScale: bench.edgeYscale,
                      perColumn: bench.edgeXper, spread: bench.edgeXmul,
                      popX: bench.popX, popLift: bench.popLift,
-                     flankOn: bench.flankOn, flankWide: bench.flankWide,
+                     flankOn: bench.flankOn, flankWides: bench.flankWides,
                      flankDrop: bench.flankDrop, flankTall: bench.flankTall,
                      flankX: bench.flankX, flankY: bench.flankY,
                      turns: bench.stackTurns)
@@ -1097,7 +1099,9 @@ final class BoardScene: SKScene {
         return Dials(pop: GameRules.tilePopLift, x: 0, y: 0,
                      xScale: 1, yScale: 1, perColumn: 0, spread: 1,
                      popX: 0, popLift: 1,
-                     flankOn: true, flankWide: 1, flankDrop: 1, flankTall: 1,
+                     flankOn: true,
+                     flankWides: Array(repeating: 1, count: GameRules.gridSize),
+                     flankDrop: 1, flankTall: 1,
                      flankX: 0, flankY: 0, turns: false)
         #endif
     }

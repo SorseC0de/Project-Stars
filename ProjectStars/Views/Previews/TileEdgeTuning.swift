@@ -150,11 +150,36 @@ final class TileEdgeTuning {
         didSet { TileEdgeTuning.store.set("flankOn", flankOn) }
     }
 
-    /// How wide that side is, against the board's own convergence across one
-    /// tile — which is the width the geometry says it should be, so one is the
-    /// derived answer and anything else says by how much that is wrong.
-    var flankWide: CGFloat = store.value("flankWide", 1) {
-        didSet { TileEdgeTuning.store.set("flankWide", flankWide) }
+    /// How wide that side is, **per column**, against the board's own
+    /// convergence across one tile.
+    ///
+    /// One is what the geometry says, so each of these is a measurement of how
+    /// wrong the derivation is on that column. Seven of them rather than one
+    /// because the answer is expected to differ column by column — and if it
+    /// does, the shape of *how* it differs is the thing worth having: a width
+    /// that does not scale with distance from the middle is a different
+    /// derivation, not a different number.
+    var flankWides: [CGFloat] = TileEdgeTuning.storedWides() {
+        didSet {
+            for (column, value) in flankWides.enumerated() {
+                TileEdgeTuning.store.set("flankW\(column)", Double(value))
+            }
+        }
+    }
+
+    /// Which column the width slider is editing.
+    var flankCol: CGFloat = store.value("flankCol", 6) {
+        didSet { TileEdgeTuning.store.set("flankCol", flankCol) }
+    }
+
+    /// That column's width, as a binding the slider can hold.
+    var flankWide: CGFloat {
+        get { flankWides[safeColumn] }
+        set { flankWides[safeColumn] = newValue }
+    }
+
+    private var safeColumn: Int {
+        min(max(Int(flankCol), 0), flankWides.count - 1)
     }
 
     /// How far the far upright sits below the near one, against how far back
@@ -196,13 +221,23 @@ final class TileEdgeTuning {
         didSet { TileEdgeTuning.store.set("raiseRow", raiseRow) }
     }
 
+    /// The stored widths, read back one per column.
+    ///
+    /// A function rather than an expression on the property: a `map` with a
+    /// trailing closure sitting next to a `didSet` block reads as two trailing
+    /// closures and will not compile.
+    nonisolated static func storedWides() -> [CGFloat] {
+        (0..<GameRules.gridSize).map { CGFloat(store.value("flankW\($0)", 1)) }
+    }
+
     nonisolated static let store = BenchStore(
         prefix: "tileEdge.",
         vintage: 3,
         names: ["popY", "popX", "popLift", "edgeX", "edgeXper", "edgeXmul", "edgeY", "edgeXscale",
                 "edgeYscale", "boardX", "raiseCentre", "raiseRow", "stackTurns",
-                "flankOn", "flankWide", "flankDrop", "flankTall",
-                "flankX", "flankY"]
+                "flankOn", "flankDrop", "flankTall", "flankX", "flankY",
+                "flankCol", "flankW0", "flankW1", "flankW2", "flankW3",
+                "flankW4", "flankW5", "flankW6"]
     )
 
     func reset() {
@@ -220,7 +255,8 @@ final class TileEdgeTuning {
         raiseCentre = false
         raiseRow = 3
         flankOn = true
-        flankWide = 1
+        flankWides = Array(repeating: 1, count: GameRules.gridSize)
+        flankCol = 6
         flankDrop = 1
         flankTall = 1
         flankX = 0
@@ -242,8 +278,10 @@ final class TileEdgeTuning {
         print(String(format: "  edgeYscale  %.2f", edgeYscale))
         print(String(format: "  boardX      %+.2f px (view only)", boardX))
         print("── flank ──")
-        print(String(format: "  wide %.2f  drop %.2f  tall %.2f  x %+.2f  y %+.2f",
-                     flankWide, flankDrop, flankTall, flankX, flankY))
+        print(String(format: "  drop %.2f  tall %.2f  x %+.2f  y %+.2f",
+                     flankDrop, flankTall, flankX, flankY))
+        print("  wide per column: "
+            + flankWides.map { String(format: "%.2f", $0) }.joined(separator: "  "))
         print("  → tilePopLift \(popY)")
     }
 }
@@ -274,22 +312,12 @@ struct TileEdgeControls: View {
             row("edgeXs", value: $tuning.edgeXscale, in: 0...3)
             row("edgeYs", value: $tuning.edgeYscale, in: 0...4)
             row("boardX", value: $tuning.boardX, in: -160...160)
-
-            HStack(spacing: 6) {
-                Text("flank").foregroundStyle(Palette.gold)
-                Toggle("on", isOn: $tuning.flankOn).toggleStyle(.button)
-            }
-            row("wide", value: $tuning.flankWide, in: 0...8, step: 0.05)
-            row("drop", value: $tuning.flankDrop, in: -2...2, step: 0.05)
-            row("tall", value: $tuning.flankTall, in: 0...4, step: 0.05)
-            row("flankX", value: $tuning.flankX, in: -12...12, step: 0.25)
-            row("flankY", value: $tuning.flankY, in: -12...12, step: 0.25)
         }
         .font(.system(size: 10, weight: .semibold, design: .monospaced))
         .foregroundStyle(Palette.stone)
     }
 
-    private func row(
+    fileprivate func row(
         _ label: String,
         value: Binding<CGFloat>,
         in range: ClosedRange<CGFloat>,
@@ -304,6 +332,51 @@ struct TileEdgeControls: View {
                 .frame(width: 40, alignment: .trailing)
         }
         .buttonStyle(.plain)
+    }
+}
+
+
+/// The side of a raised slab, on its own so it can be opened without the pop
+/// and edge dials filling both screens.
+struct FlankControls: View {
+
+    @Bindable var tuning = TileEdgeTuning.shared
+
+    var body: some View {
+        VStack(alignment: .leading, spacing: 5) {
+            HStack(spacing: 6) {
+                Toggle("on", isOn: $tuning.flankOn).toggleStyle(.button)
+                Text("col \(Int(tuning.flankCol))")
+                Button("−") { tuning.flankCol = max(tuning.flankCol - 1, 0) }
+                Button("+") {
+                    tuning.flankCol = min(
+                        tuning.flankCol + 1, CGFloat(GameRules.gridSize - 1)
+                    )
+                }
+            }
+
+            TileEdgeControls().row(
+                "wide", value: $tuning.flankWide, in: 0...2, step: 0.05
+            )
+            TileEdgeControls().row(
+                "drop", value: $tuning.flankDrop, in: -2...2, step: 0.05
+            )
+            TileEdgeControls().row(
+                "tall", value: $tuning.flankTall, in: 0...4, step: 0.05
+            )
+            TileEdgeControls().row(
+                "x", value: $tuning.flankX, in: -12...12, step: 0.25
+            )
+            TileEdgeControls().row(
+                "y", value: $tuning.flankY, in: -12...12, step: 0.25
+            )
+
+            Text(tuning.flankWides.map { String(format: "%.2f", $0) }
+                .joined(separator: " "))
+                .foregroundStyle(Palette.gold)
+        }
+        .font(.system(size: 10, weight: .semibold, design: .monospaced))
+        .foregroundStyle(Palette.stone)
     }
 }
 
