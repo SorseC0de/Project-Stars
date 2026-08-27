@@ -82,8 +82,8 @@ final class BoardScene: SKScene {
     private var twin: SKSpriteNode?
     private var retinue: [SKSpriteNode] = []
 
-    /// Libra's two pans.
-    private var scales: [SKSpriteNode] = []
+    /// Libra's two arms and two pans, in that order.
+    private var limbs: [SKSpriteNode] = []
     private var pillar = SKSpriteNode()
     private var shadow = SKSpriteNode()
     private var arrow = SKSpriteNode()
@@ -949,7 +949,8 @@ final class BoardScene: SKScene {
             y: GameRules.shadowSpriteSeat / CGFloat(GameRules.tilePixelSize)
         )
         shadow.alpha = GameRules.shadowSpriteOpacity
-        shadow.zPosition = -1
+        // Below the far arm as well as the figure — see `syncScales`.
+        shadow.zPosition = -3
         piece.addChild(shadow)
 
         // **Not a child of the piece.** It is a mark on the *square*, and
@@ -1430,7 +1431,15 @@ final class BoardScene: SKScene {
         }
 
         let inset = (side - metrics.boardSize) / 2
-        let spot = metrics.projected(standing.point, on: standing.plane)
+
+        // **Placed by the plane it is made of, not the one the engine has put
+        // it on.** Those differ for the length of a fall, and the two planes
+        // seat a piece by different rules — Terra on its band, Astra where the
+        // projection puts it — so taking the engine's answer moved the piece's
+        // footing the instant it was said to have arrived, part-way down.
+        // `BoardView` draws it on `materialPlane` for the same reason.
+        let footing = session.materialPlane ?? standing.plane
+        let spot = metrics.projected(standing.point, on: footing)
         // **Where the feet go.**
         //
         // The view centres a frame two tiles tall on the tile's centre, offsets
@@ -1461,16 +1470,16 @@ final class BoardScene: SKScene {
         // disagree with the view, and did on the leg out of the underground,
         // where the piece hung at Astra's row and read as being pulled up into
         // it rather than dropped down into it.
-        let ride = cameraRide(on: standing.plane)
+        let ride = cameraRide(on: footing)
         let seat = CGPoint(
             x: spot.position.x + inset,
             y: -CGFloat(World.row(of: standing.plane)) * side
-                - Self.seatY(standing.point, on: standing.plane,
+                - Self.seatY(standing.point, on: footing,
                              metrics: metrics, spot: spot)
                 - inset - stand
                 + (session.engine.isOnNexys
                     ? carryLift()
-                    : surfaceLift(of: standing.point, on: standing.plane))
+                    : surfaceLift(of: standing.point, on: footing))
                 * metrics.scale * spot.scale
                 + ride - carryGive()
         )
@@ -1900,17 +1909,20 @@ final class BoardScene: SKScene {
         }
     }
 
-    /// Libra's scales, hanging either side of the piece.
+    /// Libra's arms and the scales hanging from them.
     ///
-    /// **A first pass: the pans at rest, and the idle sway.** `LibraPieceView`
-    /// also gives them a carriage — a swing that rotates each pan about the
-    /// horizontal, growing as it comes forward and pinching as it goes back —
-    /// and the arms that hold them. Those want their own pass; without them the
-    /// piece at least has its scales rather than being a figure that has
-    /// evidently put them down.
+    /// `LibraPieceView` stacks these around the body rather than on top of it:
+    /// in profile the far arm and its pan go behind the figure and the near arm
+    /// in front, with the near pan further forward still; facing the camera
+    /// both arms go behind and both pans in front. Getting that order wrong is
+    /// a piece holding its scales through its own chest.
     ///
-    /// Attached to the piece so they take its row scale and travel with it, and
-    /// sitting outside the figure so the hop's squash does not stretch them.
+    /// Each part sits at `armLift` for its side, and the whole assembly
+    /// breathes on `libraArmSway`. Charged, the pans run their own three
+    /// frames — which is what "the scales are not animated" was.
+    ///
+    /// Hung off the piece so they take its row scale and travel with it, and
+    /// outside the figure so the hop's squash does not stretch them.
     private func syncScales() {
         let standing = session.engine.piece
         let facing = session.visibleFacing
@@ -1919,52 +1931,94 @@ final class BoardScene: SKScene {
             || facing == .downLeft || facing == .downRight
 
         guard standing.zodiac == .libra else {
-            for pan in scales { pan.isHidden = true }
+            for part in limbs { part.isHidden = true }
             return
         }
 
-        while scales.count < 2 {
-            let pan = SKSpriteNode()
-            pan.zPosition = 1
-            piece.addChild(pan)
-            scales.append(pan)
+        while limbs.count < 4 {
+            let part = SKSpriteNode()
+            piece.addChild(part)
+            limbs.append(part)
         }
 
-        let charged = session.isZodiactionCharged
-        let art = Self.art(charged ? .libraScales : .libraScalesPlain)
         let pixel = metrics.scale
-        let sway = CGFloat(sin(
+        let cell = CGFloat(GameRules.tilePixelSize)
+        let charged = session.isZodiactionCharged
+        let breath = CGFloat(sin(
             session.ambientClock(at: Date().timeIntervalSinceReferenceDate)
                 / GameRules.libraArmSwayPeriod * 2 * .pi
         )) * GameRules.libraArmSway
 
-        for (index, pan) in scales.enumerated() {
-            // Near and far when the piece is in profile, left and right when it
-            // faces the camera — the same two sides named for what they are in
-            // each pose.
-            let leading = index == 0
-            let breath = leading ? -sway : sway
+        // Where a part hangs, measured up from the feet. `LibraPieceView` gives
+        // its offsets from the middle of a two-cell frame, so the figure's own
+        // height is the difference between the two.
+        let hang: (CGFloat, CGFloat, CGFloat) -> CGFloat = { lift, sway, gap in
+            (cell / 2 + lift - sway - GameRules.libraArmFootInCell - gap) * pixel
+        }
+
+        for (index, part) in limbs.enumerated() {
+            let isPan = index >= 2
+            let back = index % 2 == 0
+            let sway = back ? -breath : breath
 
             let lift: CGFloat = profile
-                ? (leading ? GameRules.libraArmLiftEWBack : GameRules.libraArmLiftEW)
+                ? (back ? GameRules.libraArmLiftEWBack : GameRules.libraArmLiftEW)
                 : GameRules.libraArmLiftNS
-            let gap: CGFloat = profile
-                ? (leading ? GameRules.libraScalesGapEWBack : GameRules.libraScalesGapEW)
-                : GameRules.libraScalesGapNS
-            let out: CGFloat = profile
+            let gap: CGFloat = isPan
+                ? (profile
+                    ? (back ? GameRules.libraScalesGapEWBack : GameRules.libraScalesGapEW)
+                    : GameRules.libraScalesGapNS)
+                : 0
+            let inset: CGFloat = profile
                 ? 0
-                : (leading ? 1 : -1)
-                    * (GameRules.libraArmInsetNS + GameRules.libraScalesInsetX)
+                : (back ? 1 : -1) * (GameRules.libraArmInsetNS
+                    + (isPan ? GameRules.libraScalesInsetX : 0))
 
-            pan.isHidden = false
-            pan.texture = art
-            pan.size = CGSize(width: metrics.tileSize, height: metrics.tileSize)
-            pan.xScale = (profile || leading ? 1 : -1) * mirror
-            pan.position = CGPoint(
-                x: out * pixel * CGFloat(mirror),
-                y: metrics.tileSize / 2 - lift * pixel
-                    - (breath + GameRules.libraArmFootInCell + gap) * pixel
+            part.isHidden = false
+            part.size = CGSize(width: metrics.tileSize, height: metrics.tileSize)
+            part.position = CGPoint(
+                x: inset * pixel * CGFloat(mirror),
+                y: hang(lift, sway, gap)
             )
+
+            // Facing the camera the two sides are mirrors of each other; in
+            // profile the far arm is flipped head over heels instead, which is
+            // how one drawing serves as both of them.
+            part.xScale = (profile ? 1 : (back ? -1 : 1)) * CGFloat(mirror)
+            part.yScale = !isPan && profile && back ? -1 : 1
+
+            // Behind the figure or in front of it, which is the whole of what
+            // makes it read as carrying them.
+            part.zPosition = profile
+                ? (back ? -1 : (isPan ? 2 : 1))
+                : (isPan ? 1 : -1)
+
+            if isPan, charged {
+                if part.action(forKey: "weigh") == nil {
+                    let frames = (0..<3).compactMap {
+                        PaletteRecolour.image(.libraScales, frame: $0, swaps: [])
+                            .map { art -> SKTexture in
+                                let texture = SKTexture(image: art)
+                                texture.filteringMode = .nearest
+                                return texture
+                            }
+                    }
+                    if frames.count > 1 {
+                        part.run(.repeatForever(.animate(
+                            with: frames,
+                            timePerFrame: SpriteSheetLoader.frameDuration(for: .libraScales),
+                            resize: false, restore: false
+                        )), withKey: "weigh")
+                    }
+                }
+            } else if isPan {
+                part.removeAction(forKey: "weigh")
+                part.texture = Self.art(.libraScalesPlain)
+            } else {
+                part.texture = Self.art(
+                    .libraArm(profile ? .eastWest : .northSouth)
+                )
+            }
         }
     }
 
