@@ -129,17 +129,27 @@ final class TileEdgeTuning {
         didSet { TileEdgeTuning.store.set("stackTurns", stackTurns) }
     }
 
-    /// Forces 3,3 to stand proud, so a popped tile can be looked at without
-    /// waiting for the board to produce one.
+    /// Forces a whole row to stand proud, so popped tiles can be looked at
+    /// without waiting for the board to produce one.
+    ///
+    /// **A row, not a tile.** Anything that varies with distance from the
+    /// middle shows as nothing at all in the centre column, so a single raised
+    /// tile at 3,3 is the one place such a thing cannot be seen. A full row
+    /// puts the whole gradient on screen at once.
     var raiseCentre: Bool = store.flag("raiseCentre", false) {
         didSet { TileEdgeTuning.store.set("raiseCentre", raiseCentre) }
+    }
+
+    /// Which row that is.
+    var raiseRow: CGFloat = store.value("raiseRow", 3) {
+        didSet { TileEdgeTuning.store.set("raiseRow", raiseRow) }
     }
 
     nonisolated static let store = BenchStore(
         prefix: "tileEdge.",
         vintage: 3,
         names: ["popY", "popX", "edgeX", "edgeXper", "edgeXmul", "edgeY", "edgeXscale",
-                "edgeYscale", "boardX", "raiseCentre", "stackTurns"]
+                "edgeYscale", "boardX", "raiseCentre", "raiseRow", "stackTurns"]
     )
 
     func reset() {
@@ -154,6 +164,7 @@ final class TileEdgeTuning {
         edgeYscale = 1
         boardX = 0
         raiseCentre = false
+        raiseRow = 3
         stackTurns = false
     }
 
@@ -181,7 +192,7 @@ struct TileEdgeControls: View {
             HStack(spacing: 6) {
                 Button("print") { tuning.dump() }
                 Button("reset") { tuning.reset() }
-                Toggle("raise 3,3", isOn: $tuning.raiseCentre)
+                Toggle("raise row", isOn: $tuning.raiseCentre)
                     .toggleStyle(.button)
                 Toggle("flip H+V", isOn: $tuning.stackTurns)
                     .toggleStyle(.button)
@@ -189,6 +200,7 @@ struct TileEdgeControls: View {
 
             row("popY", value: $tuning.popY, in: 0...24)
             row("popX", value: $tuning.popX, in: -12...12, step: 0.05)
+            row("raiseRow", value: $tuning.raiseRow, in: 0...6, step: 1)
             row("edgeX", value: $tuning.edgeX, in: -12...12)
             row("edgeX/col", value: $tuning.edgeXper, in: -3...3, step: 0.05)
             row("edgeXmul", value: $tuning.edgeXmul, in: 0.9...1.1, step: 0.005)

@@ -255,7 +255,12 @@ final class BoardScene: SKScene {
         let inset = (side - metrics.boardSize) / 2
         var raised = Set(session.visibleRaisedTiles.map(\.point))
         #if DEBUG
-        if TileEdgeTuning.shared.raiseCentre { raised.insert(GridPoint(3, 3)) }
+        if TileEdgeTuning.shared.raiseCentre {
+            let pick = Int(TileEdgeTuning.shared.raiseRow)
+            for column in 0..<GameRules.gridSize {
+                raised.insert(GridPoint(column, pick))
+            }
+        }
         #endif
 
         if plane == .terra {
@@ -1057,7 +1062,12 @@ final class BoardScene: SKScene {
         // Only when the squares themselves changed — see `built`.
         var risen = Set(session.visibleRaisedTiles.map(\.point))
         #if DEBUG
-        if TileEdgeTuning.shared.raiseCentre { risen.insert(GridPoint(3, 3)) }
+        if TileEdgeTuning.shared.raiseCentre {
+            let pick = Int(TileEdgeTuning.shared.raiseRow)
+            for column in 0..<GameRules.gridSize {
+                risen.insert(GridPoint(column, pick))
+            }
+        }
         #endif
         for plane in Plane.allCases
         where built[plane] != session.engine[plane] || builtRaised[plane] != risen
