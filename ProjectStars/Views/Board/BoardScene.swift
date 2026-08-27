@@ -264,9 +264,19 @@ final class BoardScene: SKScene {
                 texture.filteringMode = .nearest
 
                 let spot = metrics.projected(point, on: plane)
-                let drops = point.y == board.size - 1
-                    ? [GameRules.tileEdgeDrop, GameRules.tileFrontEdgeDrop]
+
+                // **A popped tile's edge meets the face that rose off it.**
+                // Its drop is the tile's own height less however far it went
+                // up — which is what `tileEdgeDrop` already is for a tile that
+                // has not moved, 16 less the 4 it used to pop by. Leaving the
+                // two to be set independently is what opens a seam under a
+                // popped tile the moment either one changes.
+                var drops: [CGFloat] = raised.contains(point)
+                    ? [CGFloat(GameRules.tilePixelSize) - GameRules.tilePopLift]
                     : [GameRules.tileEdgeDrop]
+                if point.y == board.size - 1 {
+                    drops.append(GameRules.tileFrontEdgeDrop)
+                }
 
                 for drop in drops {
                     let node = SKSpriteNode(

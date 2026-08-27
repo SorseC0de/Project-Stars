@@ -695,7 +695,7 @@ enum GameRules {
 
     /// How far a tile lifts when a Pentacle sits on it, revealing the edge
     /// strip drawn underneath.
-    static let tilePopLift: CGFloat = 4
+    static let tilePopLift: CGFloat = 5
 
     /// Spring response for a tile rising as a Pentacle appears on it.
     static let tilePopRiseResponse: Double = 0.26
@@ -1836,10 +1836,10 @@ enum GameRules {
     ///
     /// The coin circles as it hovers; its light circles with it. Zero pins the
     /// pool to the centre.
-    static let pentacleOrbitRadius: CGFloat = 2.5
+    static let pentacleOrbitRadius: CGFloat = 3
 
     /// Seconds for one full orbit.
-    static let pentacleOrbitPeriod: TimeInterval = 3.1
+    static let pentacleOrbitPeriod: TimeInterval = 3
 
     /// How far the coin's bright entries bloom, in art pixels.
     static let pentacleGlowRadius: CGFloat = 1.0
