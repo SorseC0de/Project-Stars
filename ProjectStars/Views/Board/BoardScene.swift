@@ -1043,6 +1043,75 @@ final class BoardScene: SKScene {
     /// rather than by `nexysRaise` — and the drawn-in-perspective sprite has
     /// its surface a pixel higher again, which belongs to that drawing rather
     /// than to the placement.
+    /// The island's own journey between planes.
+    ///
+    /// `BoardView.nexysTravelPose` is the same rule. It answers `.rest` while
+    /// the island is riding the camera, because then the camera is doing the
+    /// moving and the island only has to stay where it is relative to it.
+    private func travelPose() -> AscentPose {
+        guard !session.nexysRidesCamera else { return .rest }
+        let now = Date()
+        let up = session.nexysTravellingUp
+        let board = metrics.boardSize
+
+        if let leaving = session.nexysDepartStartedAt {
+            let progress = now.timeIntervalSince(leaving)
+                / (up ? GameRules.ascentRiseDuration : GameRules.nexysTravelDepartDuration)
+            return up
+                ? .rising(progress: min(max(progress, 0), 1), boardSize: board)
+                : .departing(progress: progress, boardSize: board, goingUp: false)
+        }
+
+        if let arriving = session.nexysArriveStartedAt {
+            let progress = now.timeIntervalSince(arriving)
+                / (up ? GameRules.ascentGrowDuration : GameRules.fallArrivalDuration)
+            return up
+                ? .risingIn(progress: progress, boardSize: board)
+                : .fallingIn(progress: progress, boardSize: board)
+        }
+        return .rest
+    }
+
+    /// How far the camera has travelled from where a plane sits at rest.
+    ///
+    /// Read off the camera node rather than off `cameraRow`, because the row is
+    /// the *destination* — an animated value in the model is at its target from
+    /// the first frame, and only the node is actually part-way there.
+    private func cameraRide(on plane: Plane) -> CGFloat {
+        follow.position.y + CGFloat(World.row(of: plane)) * side + side / 2
+    }
+
+    /// The give under something that has just landed on a square.
+    private func dip(at point: GridPoint, on plane: Plane) -> CGFloat {
+        guard let bounce = session.surfaceBounce, bounce.plane == plane else { return 0 }
+        return CloudMotion.dip(
+            point,
+            bounce: CloudMotion.Bounce(
+                point: bounce.point,
+                start: bounce.start.timeIntervalSinceReferenceDate
+            ),
+            now: Date().timeIntervalSinceReferenceDate,
+            scale: metrics.scale,
+            over: NexysStyle.bounceHold,
+            depth: NexysStyle.bounceDepth,
+            attack: NexysStyle.bounceAttack,
+            rebound: NexysStyle.rebound
+        )
+    }
+
+    /// How far into its settling rock the island is, if it is in one.
+    private func rocking() -> CGFloat? {
+        guard NexysStyle.foreshortened,
+              let bounce = session.surfaceBounce,
+              bounce.point == GameRules.nexysPoint
+        else { return nil }
+
+        let since = Date().timeIntervalSinceReferenceDate
+            - bounce.start.timeIntervalSinceReferenceDate
+        guard since >= 0, since < NexysStyle.rockHold else { return nil }
+        return CGFloat(since / NexysStyle.rockHold)
+    }
+
     private func carryLift() -> CGFloat {
         guard session.engine.isOnNexys else { return 0 }
         let phase = session.ambientClock(
@@ -1354,10 +1423,7 @@ final class BoardScene: SKScene {
         // another plane must leave the piece where it is standing.
         let travelling = session.isChangingPlane || session.isDropping
             || session.isFalling
-        let ride = travelling
-            ? follow.position.y
-                + CGFloat(World.row(of: standing.plane)) * side + side / 2
-            : 0
+        let ride = travelling ? cameraRide(on: standing.plane) : 0
         let seat = CGPoint(
             x: spot.position.x + inset,
             y: -CGFloat(World.row(of: standing.plane)) * side
@@ -1516,6 +1582,37 @@ final class BoardScene: SKScene {
               lift: -NexysStyle.pillarY,
               shiftX: deep ? NexysStyle.islandX + NexysStyle.pillarX : 0, layer: 7)
 
+        // **The island's journey, and the give under it when it lands.**
+        //
+        // It went missing between planes because it was pinned to the plane it
+        // belonged to while the camera travelled without it. The piece already
+        // rides the camera down; this is the same ride, and the same reason —
+        // the scene keeps every plane in world space, so anything crossing
+        // between them has to be told to come along.
+        //
+        // The travel pose is what carries it off one plane and onto the next
+        // under its own power, for the times it is not riding the camera.
+        let journey = travelPose()
+        let carried = session.nexysRidesCamera ? cameraRide(on: home) : 0
+        let settle = dip(at: GameRules.nexysPoint, on: home)
+
+        for node in [island, pillar] {
+            node.position.y += carried - journey.lift - settle
+            node.setScale(node.xScale * journey.scale)
+        }
+
+        // Landing swaps the drawn-in-perspective island for the flat one and
+        // swells it a little as it settles — the two only read as a landing
+        // together, which is why the sprite is chosen here rather than once.
+        let rock = rocking()
+        island.texture = Self.art(
+            NexysStyle.foreshortened && rock == nil ? .nexysDeep : .nexys
+        )
+        island.xScale *= rock.map {
+            1 + NexysStyle.rockSquash * CGFloat(sin(Double($0) * .pi))
+                / NexysStyle.islandArtWidth
+        } ?? 1
+
         syncCoins(on: standing.plane, inset: inset)
         syncSparkles()
         syncEffects(inset: inset)
@@ -1614,7 +1711,13 @@ final class BoardScene: SKScene {
                 tiles: CGSize(width: wide, height: high),
                 lift: burst.effect.groundLift + stand
             )
-            node.zPosition = Self.effects
+            // **The row it happened on**, unless the drawing is one that
+            // reads as being over the board rather than on it. `BoardLayer`
+            // makes the same distinction: `.effect` is the one layer that does
+            // not sort by row, and everything else does.
+            node.zPosition = burst.effect.anchor == .standing
+                ? Self.depth(row: burst.center.y, layer: 8)
+                : Self.effects
             node.zRotation = CGFloat(burst.angle) * .pi / 180
             node.xScale = burst.mirrored ? -1 : 1
             if let tint = burst.tint {
@@ -1747,7 +1850,11 @@ final class BoardScene: SKScene {
 
             node.setScale(node.xScale * (0.72 + 0.28 * pulse))
             node.alpha = (0.55 + 0.45 * pulse) * GameRules.sparkleOpacity
-            node.zPosition = Self.effects - 1
+            // **On its own row, not over the board.** A sparkle marks a
+            // square; it belongs to that square's depth the way a coin or a
+            // cursor does, and putting it on the effects layer drew it over
+            // everything in front of it.
+            node.zPosition = Self.depth(row: point.y, layer: 7)
         }
     }
 
@@ -1912,6 +2019,23 @@ final class BoardScene: SKScene {
             .wait(forDuration: Double(seed % 17) / 17 * period),
             .repeatForever(.sequence([out, back])),
         ])
+    }
+
+    /// A sprite's texture, cut once and kept.
+    ///
+    /// Cheap to call every frame: the atlas hands back the same image, and the
+    /// cache means the same `SKTexture` too, so a sprite that changes with the
+    /// game's state can simply ask each frame rather than being told.
+    private static var cut: [SpriteID: SKTexture] = [:]
+
+    private static func art(_ id: SpriteID) -> SKTexture? {
+        if let kept = cut[id] { return kept }
+        guard let image = PaletteRecolour.image(id, frame: 0, swaps: [])
+        else { return nil }
+        let texture = SKTexture(image: image)
+        texture.filteringMode = .nearest
+        cut[id] = texture
+        return texture
     }
 
     /// The shadow drawing, cut once and shared by everything that casts one.
