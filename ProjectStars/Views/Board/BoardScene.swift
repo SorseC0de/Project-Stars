@@ -115,9 +115,12 @@ final class BoardScene: SKScene {
     /// board alone does not say, and a tile popping changes the strip.
     private var builtRaised: [Plane: Set<GridPoint>] = [:]
 
-    /// And how far a pop was lifting when it was drawn, since that is baked
-    /// into the strip and the bench can move it.
-    private var builtPop: [Plane: CGFloat] = [:]
+    /// And what the dials said when it was drawn.
+    ///
+    /// **All of them, not just the pop.** The edges are built in `rebuild`, so
+    /// a dial that does not invalidate is a slider that does nothing — which is
+    /// what the four edge dials were until they were checked here too.
+    private var builtDials: [Plane: Dials] = [:]
 
     init(session: GameSession, side: CGFloat) {
         self.session = session
@@ -281,9 +284,10 @@ final class BoardScene: SKScene {
                 let floorY = band.groundCentreY + metrics.tileSize / 2
                 let across = metrics.tileSize * band.scale
                 let middle = metrics.boardSize / 2
-                let originX = middle
+                let plainX = middle
                     + (metrics.center(of: point).x - middle) * band.scale
-                    + inset + set.x * metrics.scale * band.scale
+                    + inset
+                let originX = plainX + set.x * metrics.scale * band.scale
                 let sitsAt = -floorY - inset
                     - set.y * metrics.scale * band.groundScale
 
@@ -292,9 +296,12 @@ final class BoardScene: SKScene {
                 // — and draws it at the drawing's own proportions rather than
                 // stretching what it has.
                 if raised.contains(point) {
-                    let shown = set.pop * set.yScale
+                    // **The slice is what the pop uncovered; the scale stretches
+                    // it.** Growing both together moved the top while the bottom
+                    // stayed on the floor, which read as a nudge — and there is
+                    // already a dial for nudging.
                     let slice = min(
-                        max(shown / CGFloat(GameRules.tilePixelSize), 0), 1
+                        max(set.pop / CGFloat(GameRules.tilePixelSize), 0), 1
                     )
 
                     let node = SKSpriteNode(
@@ -304,7 +311,8 @@ final class BoardScene: SKScene {
                         ),
                         size: CGSize(
                             width: across * set.xScale,
-                            height: shown * metrics.scale * band.groundScale
+                            height: set.pop * set.yScale
+                                * metrics.scale * band.groundScale
                         )
                     )
                     node.anchorPoint = CGPoint(x: 0.5, y: 0)
@@ -317,15 +325,20 @@ final class BoardScene: SKScene {
                 // anything having been lifted. Only the last row has no band in
                 // front of it to cover this.
                 if point.y == board.size - 1 {
+                    // **Untied from the dials.** This one has been right since
+                    // the edges came back, and it is a different problem from
+                    // the popped edge — nothing has been lifted here, so there
+                    // is no uncovered strip to match. Tuning the two together
+                    // would only break the one that works.
                     let node = SKSpriteNode(
                         texture: texture,
                         size: CGSize(
-                            width: across * set.xScale,
+                            width: across,
                             height: metrics.tileSize * band.groundScale
                         )
                     )
                     node.anchorPoint = CGPoint(x: 0.5, y: 1)
-                    node.position = CGPoint(x: originX, y: sitsAt)
+                    node.position = CGPoint(x: plainX, y: -floorY - inset)
                     node.zPosition = Self.depth(row: point.y, layer: -1)
                     holder.addChild(node)
                 }
@@ -349,7 +362,7 @@ final class BoardScene: SKScene {
         }
         built[plane] = board
         builtRaised[plane] = raised
-        builtPop[plane] = set.pop
+        builtDials[plane] = set
     }
 
     /// One row of Terra: seven tiles in a single sprite, warped into its band.
@@ -719,7 +732,7 @@ final class BoardScene: SKScene {
     ///
     /// All in art pixels at row scale — applied inside the band's own frame, so
     /// a value found on one row is the same value on every other.
-    struct Dials {
+    struct Dials: Equatable {
         var pop: CGFloat
         var x: CGFloat
         var y: CGFloat
@@ -893,7 +906,17 @@ final class BoardScene: SKScene {
         // there. A view interpolates it; a scene reading the number gets the
         // end of the journey on the first frame of it, which is why a plane
         // change warped instead of falling.
-        let want = CGPoint(x: side / 2, y: -session.cameraRow * side - side / 2)
+        // The bench can walk the camera sideways, which is the only way to
+        // look at the board's corners — they sit outside the viewport.
+        #if DEBUG
+        let pan = TileEdgeTuning.shared.boardX * metrics.scale
+        #else
+        let pan: CGFloat = 0
+        #endif
+        let want = CGPoint(
+            x: side / 2 - pan,
+            y: -session.cameraRow * side - side / 2
+        )
         if abs(want.y - aimedAt) > 0.5 {
             aimedAt = want.y
             follow.removeAction(forKey: "travel")
@@ -920,7 +943,7 @@ final class BoardScene: SKScene {
         let risen = Set(session.visibleRaisedTiles.map(\.point))
         for plane in Plane.allCases
         where built[plane] != session.engine[plane] || builtRaised[plane] != risen
-            || builtPop[plane] != set.pop {
+            || builtDials[plane] != set {
             rebuild(plane)
         }
 

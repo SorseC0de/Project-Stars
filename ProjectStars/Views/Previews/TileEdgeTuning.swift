@@ -43,18 +43,31 @@ final class TileEdgeTuning {
         didSet { TileEdgeTuning.store.set("edgeXscale", edgeXscale) }
     }
 
-    /// How much of the edge drawing is shown, against what the pop uncovered.
+    /// Stretches the uncovered strip of the drawing, against what the pop
+    /// uncovered.
     ///
-    /// Not a stretch — it takes more or less of the sprite and draws it at its
-    /// own proportions, so the art never smears.
+    /// **The slice is `popY`'s to decide; this only scales it.** Letting the
+    /// scale take a bigger slice as well grew the top while the bottom stayed
+    /// on the floor, which reads as a nudge rather than a scale — and `edgeY`
+    /// is already the nudge.
     var edgeYscale: CGFloat = store.value("edgeYscale", 1) {
         didSet { TileEdgeTuning.store.set("edgeYscale", edgeYscale) }
     }
 
+    /// Walks the camera sideways, in art pixels, so the board's corners can be
+    /// looked at. They sit outside the viewport, which is the one thing that
+    /// cannot be checked by eye without moving something.
+    ///
+    /// Not part of the board's layout — it moves the view, not the board, so
+    /// nothing measured while it is off centre is measured wrongly.
+    var boardX: CGFloat = store.value("boardX", 0) {
+        didSet { TileEdgeTuning.store.set("boardX", boardX) }
+    }
+
     nonisolated static let store = BenchStore(
         prefix: "tileEdge.",
-        vintage: 1,
-        names: ["popY", "edgeX", "edgeY", "edgeXscale", "edgeYscale"]
+        vintage: 2,
+        names: ["popY", "edgeX", "edgeY", "edgeXscale", "edgeYscale", "boardX"]
     )
 
     func reset() {
@@ -64,6 +77,7 @@ final class TileEdgeTuning {
         edgeY = 0
         edgeXscale = 1
         edgeYscale = 1
+        boardX = 0
     }
 
     func dump() {
@@ -73,6 +87,7 @@ final class TileEdgeTuning {
         print(String(format: "  edgeY       %+.2f px (down)", edgeY))
         print(String(format: "  edgeXscale  %.2f", edgeXscale))
         print(String(format: "  edgeYscale  %.2f", edgeYscale))
+        print(String(format: "  boardX      %+.2f px (view only)", boardX))
         print("  → tilePopLift \(popY)")
     }
 }
@@ -93,6 +108,7 @@ struct TileEdgeControls: View {
             row("edgeY", value: $tuning.edgeY, in: -12...12)
             row("edgeXs", value: $tuning.edgeXscale, in: 0...3)
             row("edgeYs", value: $tuning.edgeYscale, in: 0...4)
+            row("boardX", value: $tuning.boardX, in: -160...160)
         }
         .font(.system(size: 10, weight: .semibold, design: .monospaced))
         .foregroundStyle(Palette.stone)
