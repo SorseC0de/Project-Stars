@@ -253,7 +253,10 @@ final class BoardScene: SKScene {
 
         let board = session.engine[plane]
         let inset = (side - metrics.boardSize) / 2
-        let raised = Set(session.visibleRaisedTiles.map(\.point))
+        var raised = Set(session.visibleRaisedTiles.map(\.point))
+        #if DEBUG
+        if TileEdgeTuning.shared.raiseCentre { raised.insert(GridPoint(3, 3)) }
+        #endif
 
         if plane == .terra {
             // **The edge under every tile**, which is what gives the board its
@@ -409,8 +412,27 @@ final class BoardScene: SKScene {
         let front = CGFloat(row + 1)
         let edge: (CGFloat) -> CGFloat = { up in front - up / cell }
 
+        // **Pinned to the rounded boundaries.** `edgeY(_:)` rounds so that two
+        // neighbouring bands share an integer edge and leave no hairline of sky
+        // between them. Sampling the *unrounded* curve inside the strip ignored
+        // that: a row's top landed up to half a point off the bottom of the row
+        // behind it, on every row, by a different amount each time — which is a
+        // seam that varies by row and looks like a tuning problem.
+        //
+        // So the curve is stretched to meet the rounded values at the two whole
+        // edges it spans. Its shape between them is untouched.
         let floorY = BoardBand.edgeY(row + 1, metrics: metrics)
-        let ceilY = BoardBand.edgeY(at: edge(tall), metrics: metrics)
+        let backY = BoardBand.edgeY(row, metrics: metrics)
+        let looseFront = BoardBand.edgeY(at: front, metrics: metrics)
+        let looseBack = BoardBand.edgeY(at: front - 1, metrics: metrics)
+        let loose = looseBack - looseFront
+
+        let trued: (CGFloat) -> CGFloat = { y in
+            guard loose != 0 else { return y }
+            return floorY + (y - looseFront) * (backY - floorY) / loose
+        }
+
+        let ceilY = trued(BoardBand.edgeY(at: edge(tall), metrics: metrics))
         let deep = floorY - ceilY
 
         let node = SKSpriteNode(
@@ -422,7 +444,15 @@ final class BoardScene: SKScene {
         // Sixteen slices: enough that what is left of the linear error inside
         // any one of them is far under a pixel, and cheap — a strip is built
         // when the board changes, not per frame.
+        // **A column per tile.** A warp cell interpolates its texture across
+        // its own quad, and a quad whose top is narrower than its bottom cannot
+        // do that the way perspective does — the error is nothing at the cell's
+        // corners and most in its middle, which is how it came out as seams
+        // that moved with the column. One cell per tile puts a corner on every
+        // tile boundary, so the places a seam could show are the places the map
+        // is exact.
         let slices = 16
+        let columns = board.size
         var source: [SIMD2<Float>] = []
         var destination: [SIMD2<Float>] = []
 
@@ -432,17 +462,18 @@ final class BoardScene: SKScene {
             let wide = GameRules.boardForeshortenScale
                 / BoardBand.edgeDivisor(at: here, gridSize: metrics.gridSize)
             let up = deep > 0
-                ? (floorY - BoardBand.edgeY(at: here, metrics: metrics)) / deep
+                ? (floorY - trued(BoardBand.edgeY(at: here, metrics: metrics))) / deep
                 : v
 
-            source.append(.init(0, Float(v)))
-            source.append(.init(1, Float(v)))
-            destination.append(.init(Float(0.5 - wide / 2), Float(up)))
-            destination.append(.init(Float(0.5 + wide / 2), Float(up)))
+            for column in 0...columns {
+                let u = CGFloat(column) / CGFloat(columns)
+                source.append(.init(Float(u), Float(v)))
+                destination.append(.init(Float(0.5 + (u - 0.5) * wide), Float(up)))
+            }
         }
 
         node.warpGeometry = SKWarpGeometryGrid(
-            __columns: 1, rows: slices,
+            __columns: columns, rows: slices,
             sourcePositions: source,
             destPositions: destination
         )
@@ -951,7 +982,10 @@ final class BoardScene: SKScene {
         for land in scenery.values { land.isHidden = !LayerBench.shared.scenery }
 
         // Only when the squares themselves changed — see `built`.
-        let risen = Set(session.visibleRaisedTiles.map(\.point))
+        var risen = Set(session.visibleRaisedTiles.map(\.point))
+        #if DEBUG
+        if TileEdgeTuning.shared.raiseCentre { risen.insert(GridPoint(3, 3)) }
+        #endif
         for plane in Plane.allCases
         where built[plane] != session.engine[plane] || builtRaised[plane] != risen
             || builtDials[plane] != set {
