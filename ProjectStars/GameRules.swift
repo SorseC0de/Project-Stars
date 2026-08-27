@@ -1808,7 +1808,7 @@ enum GameRules {
 
     /// How far the coin's shadow sits below the tile centre, in art pixels.
     /// Negative is up.
-    static let pentacleShadowDrop: CGFloat = 5
+    static let pentacleShadowDrop: CGFloat = 4
 
     /// Opacity of the pool of light under the coin, at its brightest.
     static let pentacleShadowOpacity: Double = 0.3

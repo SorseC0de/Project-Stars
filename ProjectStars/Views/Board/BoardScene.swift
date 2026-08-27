@@ -385,8 +385,15 @@ final class BoardScene: SKScene {
     /// a popped tile needs to rise into.
     private static let stripAbove = GameRules.tilePopLift
 
-    /// And how far below, for the edge a popped tile stands on.
-    private static let stripBelow = GameRules.tileEdgeDrop
+    /// And how far below — nothing, now that no edge is drawn in here.
+    ///
+    /// **An edge stands, it does not lie.** It is the side of the board's
+    /// thickness, facing the camera, so it is placed like the piece rather than
+    /// sheared into the ground the way the faces are. Drawing it inside the
+    /// row's keystone put a skewed copy exactly where the standing one already
+    /// was, which is what has been wrong with the edges since the revamp.
+    /// See `BoardLayer.lies` and `OnBoard.isStanding`.
+    private static let stripBelow: CGFloat = 0
 
     private static func rowImage(
         _ row: Int,
@@ -424,16 +431,6 @@ final class BoardScene: SKScene {
                     y: stripAbove - (isRaised ? GameRules.tilePopLift : 0),
                     width: cell, height: cell
                 )
-
-                if isRaised, let art = PaletteRecolour.image(
-                    .tileEdge(.terra, shade), frame: 0, swaps: []
-                ) {
-                    drewAnything = true
-                    art.draw(in: box.offsetBy(
-                        dx: 0,
-                        dy: GameRules.tilePopLift + GameRules.tileEdgeDrop
-                    ))
-                }
 
                 if let art = PaletteRecolour.image(
                     .tileFace(.terra, shade, popped: isRaised), frame: 0, swaps: []
