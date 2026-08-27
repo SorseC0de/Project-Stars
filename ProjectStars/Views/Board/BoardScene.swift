@@ -332,12 +332,15 @@ final class BoardScene: SKScene {
                     let slice = min(
                         max(art / CGFloat(GameRules.tilePixelSize), 0), 1
                     )
-                    let wall = art * max(set.popLift, 0)
-                        * GameRules.boardForeshortenScale
-                        / BoardBand.edgeDivisor(
-                            at: CGFloat(point.y + 1), gridSize: metrics.gridSize
-                        )
-                        * metrics.scale * set.yScale
+                    // Measured to where the strip actually put the face's
+                    // underside, not worked out again from the same rise. The
+                    // strip rounds that to a whole art row; matching its answer
+                    // is what closes the hairline between them.
+                    let lifted = Self.riser(
+                        row: point.y, lift: set.popLift, metrics: metrics
+                    ).near
+                    let wall = (floorY - screenY(artAbove: lifted, row: point.y))
+                        * set.yScale
                     let copies = max(Int((wall / (art * metrics.scale)).rounded(.up)), 1)
                     let each = copies > 0 ? wall / CGFloat(copies) : wall
 
@@ -554,6 +557,28 @@ final class BoardScene: SKScene {
     }
 
     /// A row's seven tiles, composited into one strip.
+    /// Where a height above a row's floor lands on screen, in points.
+    ///
+    /// Through the **same pinned curve the strip is warped by** — sampled off
+    /// `edgeY(at:)` and stretched to meet the rounded values at the row's two
+    /// whole edges. Anything placed against the strip has to ask this rather
+    /// than work it out for itself, or the two disagree by a fraction of a
+    /// pixel and leave a hairline where they meet.
+    private func screenY(artAbove: CGFloat, row: Int) -> CGFloat {
+        let cell = CGFloat(GameRules.tilePixelSize)
+        let front = CGFloat(row + 1)
+
+        let floorY = BoardBand.edgeY(row + 1, metrics: metrics)
+        let backY = BoardBand.edgeY(row, metrics: metrics)
+        let looseFront = BoardBand.edgeY(at: front, metrics: metrics)
+        let looseBack = BoardBand.edgeY(at: front - 1, metrics: metrics)
+        let loose = looseBack - looseFront
+
+        let here = BoardBand.edgeY(at: front - artAbove / cell, metrics: metrics)
+        guard loose != 0 else { return here }
+        return floorY + (here - looseFront) * (backY - floorY) / loose
+    }
+
     /// Where a popped tile's two edges end up, in art pixels above the strip's
     /// floor.
     ///
@@ -587,8 +612,12 @@ final class BoardScene: SKScene {
 
         // Clamped: a strip is a texture, and a bad number here is a texture
         // the size of a wall rather than a tile out of place.
-        let top = (front - Self.edgeOf(near, metrics: metrics)) * cell
-        let bottom = (front - Self.edgeOf(far, metrics: metrics)) * cell
+        // **Whole art rows.** A sprite drawn at a fraction of a pixel is
+        // resampled, and resampled pixel art is a smear — the eye picks that up
+        // long before it picks up a third of a pixel of geometry. Rounding also
+        // means the wall below can meet this exactly rather than nearly.
+        let top = ((front - Self.edgeOf(near, metrics: metrics)) * cell).rounded()
+        let bottom = ((front - Self.edgeOf(far, metrics: metrics)) * cell).rounded()
         return (
             min(max(top, 0), cell * 4),
             min(max(bottom, top + 1), cell * 5)
@@ -720,7 +749,8 @@ final class BoardScene: SKScene {
                 // for was 16.33 against 16 — a sixth of a pixel each side, well
                 // under one — so all that is worth keeping from it is where the
                 // tile's middle lands.
-                let shift = ((CGFloat(column) + 0.5) * cell - middle) * (widen - 1)
+                let shift = (((CGFloat(column) + 0.5) * cell - middle)
+                    * (widen - 1)).rounded()
 
                 let box = CGRect(
                     x: stripSide + CGFloat(column) * cell
