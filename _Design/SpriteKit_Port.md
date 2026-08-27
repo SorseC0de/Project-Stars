@@ -113,12 +113,33 @@ it a few pixels in a way that reads as a tuning problem and is not.
 
 ## Still missing from the scene
 
-Raised tiles (the pop lift and its edge sprite); Terra's grass cover; the
-cloud wake and dip, and the clouds' wear and breathing; the cursor's
-breathing, flare and warning pulse; the charged glow; afterimages; sparkles;
-the dim wash; the assembled signs (Gemini halves, Libra parts, Aquarius'
-storm, Pisces' fish); the sign-specific FX layer generally; Polaris' sparks.
+Astra's placement audit and its cloud wake, dip, wear and breathing; the dim
+wash; the cursor's breathing, flare and warning pulse; the charged glow;
+afterimages; Terra's grass cover.
 
-The row bake is invalidated by a board change only, so anything that changes
-without the board changing — the raised set, flashing, pressed — cannot live
-in it as it stands.
+**Sign parts.** Gemini's waiting half, Virgo's retinue and Libra's pans are in.
+Still out: Libra's *carriage* — the swing that rotates a pan about the
+horizontal so it grows coming forward and pinches going back — and the arms
+that hold the pans; Aquarius' storm; Pisces' fish; and the long tail of
+sign-specific marks that `BoardView` draws (`crystal`, `prong`, `sigil`,
+`sanctuary`, `constellation`, `faces`, `mirrors`, `shadowDouble`, `shedSkin`,
+`stingLance`, `loosedArrow`, `bankArc`, `balk`, `reeledCoin`, `gemTrail`).
+
+The row bake is invalidated by a board change, the raised set and the bench's
+dials. Anything that changes without one of those changing cannot live in it.
+
+## What the scene draws that the column used to
+
+The scene stands in for the **whole** world column, not just the two planes —
+so any row the column had and the scene does not is a row the camera arrives
+at to find nothing. `World.underground` is in for that reason. `World.umbra`
+is not, and will need the same treatment when it exists.
+
+The seam wraps from row eight to row minus one. The camera **jumps** that
+rather than travelling it, and the sky reaches a row past each end so there is
+nothing to see at the join.
+
+The game over card is still SwiftUI, overlaid on the scene. The room has to be
+a row of the world so that falling into it is the camera travelling and
+nothing else; the card is centred on the screen rather than on a row, and a
+splash view already knows how to arrive and leave.
