@@ -321,12 +321,25 @@ final class BoardScene: SKScene {
                     // pop deeper than the drawing is covered by laying copies
                     // of it end to end, which is what the art is for; pulling
                     // one to twice its height is visible.
+                    // **As tall as the face above it actually rose.** The
+                    // wall joins the footprint's near corners to the top
+                    // face's, and the top face's near edge lifts by its own
+                    // corner's amount — so the wall's height is that rise, not
+                    // a constant put through the row's squash. Squashing it
+                    // would be treating the wall as though it lay on the
+                    // ground, and it is the one thing here that does not.
                     let art = GameRules.tileEdgeHeight
                     let slice = min(
                         max(art / CGFloat(GameRules.tilePixelSize), 0), 1
                     )
-                    let each = art * set.yScale * metrics.scale * band.groundScale
-                    let copies = max(Int((set.pop / art).rounded(.up)), 1)
+                    let wall = art * max(set.popLift, 0)
+                        * GameRules.boardForeshortenScale
+                        / BoardBand.edgeDivisor(
+                            at: CGFloat(point.y + 1), gridSize: metrics.gridSize
+                        )
+                        * metrics.scale * set.yScale
+                    let copies = max(Int((wall / (art * metrics.scale)).rounded(.up)), 1)
+                    let each = copies > 0 ? wall / CGFloat(copies) : wall
 
                     for copy in 0..<copies {
                         let node = SKSpriteNode(
@@ -387,7 +400,7 @@ final class BoardScene: SKScene {
             for row in 0..<board.size {
                 guard let node = terraRow(
                     row, board: board, raised: raised, forced: forced,
-                    pop: set.pop, popX: set.popX, lift: set.popLift
+                    popY: set.pop, popX: set.popX, lift: set.popLift
                 ) else { continue }
                 node.position.x += inset
                 node.position.y -= inset
@@ -419,11 +432,11 @@ final class BoardScene: SKScene {
     /// linearly and a keystone is projective.
     private func terraRow(
         _ row: Int, board: Board, raised: Set<GridPoint>,
-        forced: Set<GridPoint>, pop: CGFloat, popX: CGFloat, lift: CGFloat
+        forced: Set<GridPoint>, popY: CGFloat, popX: CGFloat, lift: CGFloat
     ) -> SKSpriteNode? {
         guard let strip = Self.rowImage(
             row, board: board, raised: raised, forced: forced,
-            pop: pop, popX: popX, lift: lift, metrics: metrics
+            popY: popY, popX: popX, lift: lift, metrics: metrics
         ) else {
             return nil
         }
@@ -445,7 +458,8 @@ final class BoardScene: SKScene {
         // by `BoardBand.edgeY(at:)`, the same map the ground is drawn with,
         // read at fractional edges. Nothing here approximates anything.
         let cell = CGFloat(GameRules.tilePixelSize)
-        let tall = Self.stripAbove(pop) + cell + Self.stripBelow
+        let tall = Self.stripAbove(row: row, lift: lift, metrics: metrics)
+            + cell + Self.stripBelow
 
         // The strip's floor is this row's front edge; climbing it walks back
         // through the board, a tile of art to a row of board.
@@ -540,10 +554,64 @@ final class BoardScene: SKScene {
     }
 
     /// A row's seven tiles, composited into one strip.
+    /// Where a popped tile's two edges end up, in art pixels above the strip's
+    /// floor.
+    ///
+    /// **Each corner rises by its own amount.** A vertical of a given world
+    /// height is longer nearer the camera, so a tile's near edge lifts further
+    /// than its far edge and the face arrives squashed in depth — by a
+    /// different amount on every row. Its corners keep their x, because in this
+    /// perspective the walls are vertical and a top corner sits directly above
+    /// the footprint corner it belongs to.
+    ///
+    /// Worked in screen points and then put back into the strip's own art rows,
+    /// since the strip's vertical is not linear — that is the whole reason a
+    /// tile lifted *inside* it came out wrong.
+    private static func riser(
+        row: Int, lift: CGFloat, metrics: PixelArtMetrics
+    ) -> (near: CGFloat, far: CGFloat) {
+        let front = CGFloat(row + 1)
+        let cell = CGFloat(GameRules.tilePixelSize)
+        let tall = GameRules.tileEdgeHeight * max(lift, 0)
+        guard tall > 0 else { return (0, cell) }
+
+        let zoom = GameRules.boardForeshortenScale
+        let rise: (CGFloat) -> CGFloat = { edge in
+            tall * zoom
+                / BoardBand.edgeDivisor(at: edge, gridSize: metrics.gridSize)
+                * metrics.scale
+        }
+
+        let near = BoardBand.edgeY(at: front, metrics: metrics) - rise(front)
+        let far = BoardBand.edgeY(at: front - 1, metrics: metrics) - rise(front - 1)
+
+        return (
+            (front - Self.edgeOf(near, metrics: metrics)) * cell,
+            (front - Self.edgeOf(far, metrics: metrics)) * cell
+        )
+    }
+
+    /// Which edge lands on a given screen y — `BoardBand.edgeY(at:)` run
+    /// backwards.
+    ///
+    /// Bisected rather than solved. The forward map is monotonic and this runs
+    /// once a row when the board changes, so the closed form would buy nothing
+    /// but a chance to get the algebra wrong.
+    private static func edgeOf(_ y: CGFloat, metrics: PixelArtMetrics) -> CGFloat {
+        var low = CGFloat(-4)
+        var high = CGFloat(metrics.gridSize + 4)
+        for _ in 0..<40 {
+            let mid = (low + high) / 2
+            if BoardBand.edgeY(at: mid, metrics: metrics) > y { low = mid } else { high = mid }
+        }
+        return (low + high) / 2
+    }
+
     /// How far above the tile row the strip reaches, in art pixels — the room
-    /// a popped tile needs to rise into. Follows the dial, so tuning the pop
-    /// does not clip the tile it is raising.
-    private static func stripAbove(_ pop: CGFloat) -> CGFloat { max(pop, 0) }
+    /// a popped tile needs to rise into.
+    private static func stripAbove(row: Int, lift: CGFloat, metrics: PixelArtMetrics) -> CGFloat {
+        max(riser(row: row, lift: lift, metrics: metrics).far - CGFloat(GameRules.tilePixelSize), 0)
+    }
 
     /// How much room the strip keeps either side of the board, in art pixels.
     ///
@@ -568,7 +636,7 @@ final class BoardScene: SKScene {
         board: Board,
         raised: Set<GridPoint>,
         forced: Set<GridPoint>,
-        pop: CGFloat,
+        popY: CGFloat,
         popX: CGFloat,
         lift: CGFloat,
         metrics: PixelArtMetrics
@@ -580,38 +648,14 @@ final class BoardScene: SKScene {
         // while the flat faces looked passable. The strip is now exactly as
         // many pixels as the art is, and SpriteKit does the enlarging.
         let cell = CGFloat(GameRules.tilePixelSize)
+        let rise = riser(row: row, lift: lift, metrics: metrics)
+        let head = stripAbove(row: row, lift: lift, metrics: metrics)
         let size = CGSize(
             width: CGFloat(board.size) * cell + 2 * stripSide,
-            height: stripAbove(pop) + cell + stripBelow
+            height: head + cell + stripBelow
         )
         let format = UIGraphicsImageRendererFormat()
         format.scale = 1
-
-        // **A popped tile stands nearer the camera, so it is drawn wider of the
-        // middle.**
-        //
-        // Not by a tuned amount — by the one the board's own projection gives.
-        // A row's horizontal scale is `1 / w(edge)`, so a tile that has risen
-        // toward the camera is a tile whose `w` has got smaller, and every
-        // column is thrown outward in proportion to how far from the middle it
-        // already was. Which is why it shows as nothing in the centre column
-        // and a pixel at the rim.
-        //
-        // The rise is `tileEdgeHeight`, **not** `tilePopLift`. The pop is eight
-        // because the rows are squashed to about half and it takes eight to
-        // read as four; what the eye is given is four, and it is what the eye
-        // is given that decides how much nearer the tile looks. Four pixels of
-        // a sixteen pixel row is a quarter of a row.
-        let front = CGFloat(row + 1)
-        let nearer = GameRules.tileEdgeHeight / CGFloat(GameRules.tilePixelSize)
-        let ratio = BoardBand.edgeDivisor(at: front, gridSize: metrics.gridSize)
-            / BoardBand.edgeDivisor(at: front + nearer, gridSize: metrics.gridSize)
-
-        // The bench scales how much of that ratio is applied, so the rise
-        // behind it can be measured rather than guessed: whatever value reads
-        // right, times `tileEdgeHeight`, is how tall the pop actually looks.
-        let spread = 1 + (ratio - 1) * lift
-        let middle = CGFloat(board.size) * cell / 2
 
         var drewAnything = false
         let strip = UIGraphicsImageRenderer(size: size, format: format).image { context in
@@ -626,27 +670,20 @@ final class BoardScene: SKScene {
                 // The tile's own place in the strip, and how far it has risen
                 // out of it. `BandRow` stacks the edge and the face bottom-
                 // aligned and then offsets each, which is what these two are.
-                // **A nearer tile is bigger as well as wider of the middle.**
-                // Both fall out of the one ratio: scaling a tile about the
-                // board's centre moves it outward *and* grows it, and the two
-                // are not separable. Shifting without growing leaves a tile the
-                // wrong size, and a tile the wrong size has no position where
-                // both its corners line up — which is what "crisp or flush,
-                // never both" is.
-                //
-                // Grown from its bottom edge, since that is the corner it has
-                // to share with the wall under it.
+                // **Its x is untouched; only its depth changes.** The walls
+                // are vertical, so a top corner is directly above the footprint
+                // corner it belongs to — the face keeps its columns exactly and
+                // arrives squashed, by however much more its near edge rose
+                // than its far one.
                 let isRaised = raised.contains(point)
-                let grown = isRaised ? cell * spread : cell
-                let centreX = middle
-                    + ((CGFloat(column) + 0.5) * cell - middle)
-                    * (isRaised ? spread : 1)
-                let floor = stripAbove(pop) + cell - (isRaised ? pop : 0)
+                let top = isRaised ? head + cell - rise.far : 0
+                let bottom = isRaised ? head + cell - rise.near : head + cell
 
                 let box = CGRect(
-                    x: stripSide + centreX - grown / 2 + (isRaised ? popX : 0),
-                    y: floor - grown,
-                    width: grown, height: grown
+                    x: stripSide + CGFloat(column) * cell + (isRaised ? popX : 0),
+                    y: top + (isRaised ? popY : 0),
+                    width: cell,
+                    height: bottom - top
                 )
 
                 if let art = PaletteRecolour.image(
