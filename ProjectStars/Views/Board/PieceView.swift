@@ -1023,7 +1023,7 @@ struct PieceView: View {
     /// each spends one drawing on the pair and mirrors it. Side-on there is no
     /// symmetry to spend: one gem is behind her, one is in front, and the
     /// middle sits further out than either.
-    private struct GemCast {
+    struct GemCast {
         /// The gem drawn first — her left, or the one behind her side-on.
         let back: VirgoGem
 
@@ -1082,15 +1082,27 @@ struct PieceView: View {
         var pairSwingX = GameRules.virgoGemSwingX
     }
 
-    private var gemCast: GemCast {
-        switch facing {
+    private var gemCast: GemCast { .wearing(facing) }
+}
+
+extension PieceView.GemCast {
+
+    /// Which three gems a facing wears, and how they move.
+    ///
+    /// **On the type rather than on the view**, because the board draws these
+    /// twice now — once as views, once as sprite nodes — and every offset in
+    /// here was placed by eye. A second copy of the switch is a second set of
+    /// numbers to drift.
+    static func wearing(_ facing: SwipeDirection) -> Self {
+        typealias GemCast = PieceView.GemCast
+        return switch facing {
         case .up:
             GemCast(
                 back: .northWest, front: .northWest, frontIsMirrored: true,
                 middle: .north,
-                backAt: CGSize(width: -northPair.width, height: northPair.height),
-                frontAt: northPair,
-                middleAt: northMiddle,
+                backAt: CGSize(width: -GameRules.virgoGemNorthPair.width, height: GameRules.virgoGemNorthPair.height),
+                frontAt: GameRules.virgoGemNorthPair,
+                middleAt: GameRules.virgoGemNorthMiddle,
                 backBehind: true, frontBehind: true, middleBehind: true,
                 middleOrbits: false, pairOrbits: true, pairSwingsWide: true,
                 pairInPhase: true, pairRise: GameRules.virgoGemNorthRise,
@@ -1100,7 +1112,9 @@ struct PieceView: View {
             GemCast(
                 back: .northWest, front: .southWest, frontIsMirrored: false,
                 middle: .west,
-                backAt: westBack, frontAt: westFront, middleAt: westMiddle,
+                backAt: GameRules.virgoGemWestBack,
+                frontAt: GameRules.virgoGemWestFront,
+                middleAt: GameRules.virgoGemWestMiddle,
                 backBehind: true, frontBehind: false, middleBehind: false,
                 middleOrbits: true, pairOrbits: true, pairSwingsWide: false,
                 frontDepthSwing: GameRules.virgoGemFrontDepthSwing,
@@ -1118,6 +1132,9 @@ struct PieceView: View {
             )
         }
     }
+}
+
+extension PieceView {
 
     private var gem: GemTones { .forElement(zodiac.element) }
 
