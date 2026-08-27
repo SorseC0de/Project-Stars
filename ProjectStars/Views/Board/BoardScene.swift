@@ -320,11 +320,6 @@ final class BoardScene: SKScene {
                     )
                     let each = art * set.yScale * metrics.scale * band.groundScale
                     let copies = max(Int((set.pop / art).rounded(.up)), 1)
-                    #if DEBUG
-                    let turns = TileEdgeTuning.shared.stackTurns
-                    #else
-                    let turns = false
-                    #endif
 
                     for copy in 0..<copies {
                         let node = SKSpriteNode(
@@ -343,7 +338,7 @@ final class BoardScene: SKScene {
                         // it is turned over as well is the bench's to say.
                         let odd = !copy.isMultiple(of: 2)
                         node.xScale = odd ? -1 : 1
-                        node.yScale = odd && turns ? -1 : 1
+                        node.yScale = odd && set.turns ? -1 : 1
 
                         // Turned over about a bottom anchor, a copy hangs
                         // below its own slot; the shift puts it back in it.
@@ -815,6 +810,12 @@ final class BoardScene: SKScene {
         var yScale: CGFloat
         var perColumn: CGFloat
         var spread: CGFloat
+
+        /// **In here rather than read where it is used.** `rebuild` is what
+        /// draws the edges, and `builtDials` is what decides whether to run it
+        /// — so anything the edges depend on that is not in this struct is a
+        /// control that changes nothing until the board happens to move.
+        var turns: Bool
     }
 
     private var set: Dials {
@@ -822,10 +823,11 @@ final class BoardScene: SKScene {
         let bench = TileEdgeTuning.shared
         return Dials(pop: bench.popY, x: bench.edgeX, y: bench.edgeY,
                      xScale: bench.edgeXscale, yScale: bench.edgeYscale,
-                     perColumn: bench.edgeXper, spread: bench.edgeXmul)
+                     perColumn: bench.edgeXper, spread: bench.edgeXmul,
+                     turns: bench.stackTurns)
         #else
         return Dials(pop: GameRules.tilePopLift, x: 0, y: 0,
-                     xScale: 1, yScale: 1, perColumn: 0, spread: 1)
+                     xScale: 1, yScale: 1, perColumn: 0, spread: 1, turns: false)
         #endif
     }
 
