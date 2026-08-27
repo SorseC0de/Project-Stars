@@ -80,6 +80,13 @@ final class BoardScene: SKScene {
 
     /// The streaks under Terra, held so they can be stilled when unseen.
     private var streaks: SKNode?
+
+    /// The half a split sign left behind, and the line walking after it.
+    private var twin: SKSpriteNode?
+    private var retinue: [SKSpriteNode] = []
+
+    /// Libra's two pans.
+    private var scales: [SKSpriteNode] = []
     private var pillar = SKSpriteNode()
     private var shadow = SKSpriteNode()
     private var arrow = SKSpriteNode()
@@ -1737,6 +1744,9 @@ final class BoardScene: SKScene {
 
         syncCoins(on: standing.plane, inset: inset)
         syncSparkles()
+        syncHalf()
+        syncRetinue(on: standing.plane)
+        syncScales()
         syncEffects(inset: inset)
         syncSmoke()
     }
@@ -1977,6 +1987,148 @@ final class BoardScene: SKScene {
             // cursor does, and putting it on the effects layer drew it over
             // everything in front of it.
             node.zPosition = Self.depth(row: point.y, layer: 7)
+        }
+    }
+
+    /// Libra's scales, hanging either side of the piece.
+    ///
+    /// **A first pass: the pans at rest, and the idle sway.** `LibraPieceView`
+    /// also gives them a carriage — a swing that rotates each pan about the
+    /// horizontal, growing as it comes forward and pinching as it goes back —
+    /// and the arms that hold them. Those want their own pass; without them the
+    /// piece at least has its scales rather than being a figure that has
+    /// evidently put them down.
+    ///
+    /// Attached to the piece so they take its row scale and travel with it, and
+    /// sitting outside the figure so the hop's squash does not stretch them.
+    private func syncScales() {
+        let standing = session.engine.piece
+        let facing = session.visibleFacing
+        let profile = facing == .left || facing == .right
+            || facing == .upLeft || facing == .upRight
+            || facing == .downLeft || facing == .downRight
+
+        guard standing.zodiac == .libra else {
+            for pan in scales { pan.isHidden = true }
+            return
+        }
+
+        while scales.count < 2 {
+            let pan = SKSpriteNode()
+            pan.zPosition = 1
+            piece.addChild(pan)
+            scales.append(pan)
+        }
+
+        let charged = session.isZodiactionCharged
+        let art = Self.art(charged ? .libraScales : .libraScalesPlain)
+        let pixel = metrics.scale
+        let sway = CGFloat(sin(
+            session.ambientClock(at: Date().timeIntervalSinceReferenceDate)
+                / GameRules.libraArmSwayPeriod * 2 * .pi
+        )) * GameRules.libraArmSway
+
+        for (index, pan) in scales.enumerated() {
+            // Near and far when the piece is in profile, left and right when it
+            // faces the camera — the same two sides named for what they are in
+            // each pose.
+            let leading = index == 0
+            let breath = leading ? -sway : sway
+
+            let lift: CGFloat = profile
+                ? (leading ? GameRules.libraArmLiftEWBack : GameRules.libraArmLiftEW)
+                : GameRules.libraArmLiftNS
+            let gap: CGFloat = profile
+                ? (leading ? GameRules.libraScalesGapEWBack : GameRules.libraScalesGapEW)
+                : GameRules.libraScalesGapNS
+            let out: CGFloat = profile
+                ? 0
+                : (leading ? 1 : -1)
+                    * (GameRules.libraArmInsetNS + GameRules.libraScalesInsetX)
+
+            pan.isHidden = false
+            pan.texture = art
+            pan.size = CGSize(width: metrics.tileSize, height: metrics.tileSize)
+            pan.xScale = (profile || leading ? 1 : -1) * mirror
+            pan.position = CGPoint(
+                x: out * pixel * CGFloat(mirror),
+                y: metrics.tileSize / 2 - lift * pixel
+                    - (breath + GameRules.libraArmFootInCell + gap) * pixel
+            )
+        }
+    }
+
+    /// The other half of a split sign, waiting on its own square.
+    ///
+    /// Gemini leaves one behind; anything else that splits leaves a cropped
+    /// copy of itself. `SplitHalfView` decides which by whether the sign has
+    /// halves drawn for it, and this asks the same question.
+    private func syncHalf() {
+        guard let half = session.otherHalf else {
+            twin?.isHidden = true
+            return
+        }
+
+        let id: SpriteID = half.zodiac.hasOwnHalves && half.twin != nil
+            ? .geminiHalf(half.twin!)
+            : .piece(half.zodiac)
+
+        let node = twin ?? {
+            let made = SKSpriteNode()
+            addChild(made)
+            twin = made
+            return made
+        }()
+
+        node.isHidden = false
+        node.texture = Self.art(id)
+
+        // Seated like the piece: a half stands on its square the same way a
+        // whole one does, feet on the tile rather than centred in it.
+        let spot = metrics.projected(half.point, on: half.plane)
+        let drop = metrics.tileSize / 2 - GameRules.pieceLift * metrics.scale
+        place(node, at: half.point, on: half.plane,
+              tiles: CGSize(width: 1, height: 2), layer: 5)
+        node.position.y -= drop * spot.scale
+    }
+
+    /// Virgo's retinue: the followers walking the squares behind the piece.
+    ///
+    /// Each keeps its own place in the line, so one added or lost does not
+    /// shuffle the rest along — the engine already answers which square a given
+    /// step stands on.
+    private func syncRetinue(on plane: Plane) {
+        let walking = session.retinue
+
+        while retinue.count > walking.count {
+            retinue.removeLast().removeFromParent()
+        }
+        while retinue.count < walking.count {
+            let node = SKSpriteNode()
+            let cast = SKSpriteNode(texture: Self.shadowTexture)
+            cast.size = CGSize(width: metrics.tileSize, height: metrics.tileSize)
+            cast.anchorPoint = CGPoint(
+                x: 0.5, y: GameRules.shadowSpriteSeat / CGFloat(GameRules.tilePixelSize)
+            )
+            cast.alpha = GameRules.retinueShadowOpacity
+            cast.zPosition = -1
+            node.addChild(cast)
+            addChild(node)
+            retinue.append(node)
+        }
+
+        let drop = metrics.tileSize / 2 - GameRules.pieceLift * metrics.scale
+
+        for (step, follower) in walking.enumerated() {
+            let node = retinue[step]
+            let point = session.engine.retinueSquare(step: step)
+            node.texture = Self.art(.piece(follower))
+            node.size = CGSize(width: metrics.tileSize, height: metrics.tileSize * 2)
+
+            let spot = metrics.projected(point, on: plane)
+            place(node, at: point, on: plane,
+                  tiles: CGSize(width: 1, height: 2), layer: 4)
+            node.position.y -= drop * spot.scale
         }
     }
 
