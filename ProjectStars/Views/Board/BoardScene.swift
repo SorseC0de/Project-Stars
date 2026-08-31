@@ -923,8 +923,16 @@ final class BoardScene: SKScene {
                     height: bottom - top
                 )
 
+                // **Face, then cast, then wear — see `TileMaterial`.** The wear
+                // drawings are overlays with no face of their own, so this
+                // stacks them rather than swapping between them. Asking there
+                // rather than deciding here is what keeps the two renderers
+                // from drifting apart, which they have done before.
                 if let art = PaletteRecolour.image(
-                    .tileFace(.terra, shade, popped: isRaised), frame: 0, swaps: []
+                    TileMaterial.face(
+                        of: tile, on: .terra, shade: shade, popped: isRaised
+                    ),
+                    frame: 0, swaps: []
                 ) {
                     drewAnything = true
                     art.draw(in: box)
@@ -936,11 +944,11 @@ final class BoardScene: SKScene {
 
                 // The cast a badly cracked tile takes, over its face and under
                 // its damage — `TileView` overlays the face with it.
-                if tile.health == .badlyCracked {
+                if let tint = TileMaterial.tint(of: tile, on: .terra) {
                     context.cgContext.saveGState()
                     context.cgContext.setBlendMode(.plusDarker)
-                    UIColor(Palette.khaki)
-                        .withAlphaComponent(GameRules.badlyCrackedTint)
+                    UIColor(tint.colour)
+                        .withAlphaComponent(tint.share)
                         .setFill()
                     context.fill(box)
                     context.cgContext.restoreGState()
@@ -949,15 +957,10 @@ final class BoardScene: SKScene {
                 // **And whatever has happened to it.** The bake drew every tile
                 // in mint condition and skipped the holes entirely, so a board
                 // could be worn to pieces and still read as new.
-                let wear: TileHealth? = switch tile.kind {
-                case .chasm, .nexys: .hole
-                case .normal: tile.health == .healthy ? nil : tile.health
-                case .pool: nil
-                }
-
-                if let wear, let art = PaletteRecolour.image(
-                    .tileDamage(.terra, wear), frame: 0, swaps: []
-                ) {
+                if let wear = TileMaterial.wear(of: tile),
+                   let art = PaletteRecolour.image(
+                       .tileDamage(.terra, wear), frame: 0, swaps: []
+                   ) {
                     drewAnything = true
                     art.draw(in: box)
                 }

@@ -205,7 +205,9 @@ struct TileView: View {
     }
 
     private var face: some View {
-        PixelSprite(id: .tileFace(plane, shade, popped: isPopped)) {
+        PixelSprite(id: TileMaterial.face(
+            of: tile, on: plane, shade: shade, popped: isPopped
+        )) {
             Rectangle().fill(Palette.tileFace(tile.health, on: plane, shade: shade))
         }
         // A wash of red on stone that is one landing from going.
@@ -219,10 +221,10 @@ struct TileView: View {
         // Terra only: cloud already says it another way, and the red is the
         // colour of ground about to fail.
         .overlay {
-            if plane == .terra, tile.health == .badlyCracked {
+            if let tint = TileMaterial.tint(of: tile, on: plane) {
                 Rectangle()
-                    .fill(Palette.khaki)
-                    .opacity(GameRules.badlyCrackedTint)
+                    .fill(tint.colour)
+                    .opacity(tint.share)
                     .blendMode(.plusDarker)
             }
         }
@@ -248,14 +250,8 @@ struct TileView: View {
     /// *above* — the island is a separate 48x48 sprite drawn over the top, and
     /// the gap has to stay visible around and beneath its rim or it reads as a
     /// slab sitting flat on the floor.
-    private var overlayHealth: TileHealth? {
-        switch tile.kind {
-        case .chasm, .nexys: .hole
-        case .normal: tile.health == .healthy ? nil : tile.health
-        // A pool has no wear to overlay. `PoolView` draws the water itself.
-        case .pool: nil
-        }
-    }
+    /// See `TileMaterial` — the wear drawings are overlays, not tiles.
+    private var overlayHealth: TileHealth? { TileMaterial.wear(of: tile) }
 }
 
 // MARK: - TileEdgeView
