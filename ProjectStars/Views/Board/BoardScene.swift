@@ -659,8 +659,24 @@ final class BoardScene: SKScene {
         // that moved with the column. One cell per tile puts a corner on every
         // tile boundary, so the places a seam could show are the places the map
         // is exact.
-        let slices = 16
-        let columns = board.size + 2
+        // **Six slices and one column.**
+        //
+        // A warp's geometry is walked every frame it is drawn, so this is the
+        // one number in the bake that is also a per-frame cost — seven strips
+        // at ten by seventeen was a hundred and seventy vertices apiece, and
+        // Terra alone has the strips.
+        //
+        // Measured rather than guessed: a piecewise-linear fit of the row's
+        // curve is out by 1.7pt at one slice, 0.12pt at four and 0.05pt at six,
+        // on a board the size of a phone's. Sixteen was buying eight
+        // thousandths of a point. Six is already far under the pixel it would
+        // have to reach to be visible.
+        //
+        // One column, because at a given depth the horizontal map *is* linear
+        // — the curve is all in the vertical. The extra columns were insurance
+        // against an error that the slices already answer.
+        let slices = 6
+        let columns = 1
         var source: [SIMD2<Float>] = []
         var destination: [SIMD2<Float>] = []
 
