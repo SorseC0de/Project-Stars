@@ -50,8 +50,34 @@ final class BoardScene: SKScene {
     private var planes: [Plane: SKNode] = [:]
     private var grounds: [Plane: SKNode] = [:]
     private var scenery: [Plane: SKNode] = [:]
+
+    /// Every piece of Terra's land, and where it goes to get out of the way.
+    ///
+    /// The ridges climb behind the board, the near rock drops off the bottom
+    /// and the flanking rocks slide out either side — each away from whatever
+    /// board edge it hangs over, and all of them fading as they go. See
+    /// `TerraSceneryView.retreat`.
+    private var landing: [(node: SKNode, home: CGPoint, away: CGPoint)] = []
+
+    /// Whether the land is currently stood aside, so the move is run once
+    /// rather than restarted every frame.
+    private var retreated: Bool?
     private var piece = SKNode()
     private var figure = SKSpriteNode()
+
+    /// Aquarius' storm, in the four parts it is made of.
+    ///
+    /// `stormHolder` takes the hop about her feet, exactly as the figure does.
+    /// Inside it the funnel is a filmed loop and the thing hanging in it is
+    /// live — see `AquariusStormFilm` on why those two want opposite treatment.
+    /// `stormBody` carries the breath and the lean the figure and its eyes
+    /// share, since eyes that stay level while the head they belong to leans
+    /// are the fastest way to make something look pasted on.
+    private var stormHolder: SKNode?
+    private var storm: SKSpriteNode?
+    private var stormBody: SKNode?
+    private var stormFigure: SKSpriteNode?
+    private var stormGlow: SKSpriteNode?
     private var cursor = SKSpriteNode()
     /// The coins on the board, by the square they are standing on.
     ///
@@ -99,6 +125,17 @@ final class BoardScene: SKScene {
     /// Pisces' fish, and Sagittarius' arrow in flight.
     private var fish: SKSpriteNode?
     private var fishHolder: SKNode?
+
+    /// The two nodes between the fish and its holder.
+    ///
+    /// **One transform apiece, in the order the view writes them.** The fish
+    /// turns, the squash flattens the turned drawing on the screen's vertical,
+    /// the star's breath and spin take the flattened thing round, and the hop
+    /// takes all of it. Folded onto fewer nodes any two of those swap places —
+    /// which is how the spin ended up inside the squash, wringing the fish
+    /// rather than turning it.
+    private var fishSpin: SKNode?
+    private var fishSquash: SKNode?
     private var loosed: SKSpriteNode?
 
     /// The arrow he carries, as against the one he looses.
@@ -282,6 +319,16 @@ final class BoardScene: SKScene {
                 node.zPosition = Self.depth(row: GameRules.gridSize, layer: -2)
                     + CGFloat(set)
                 holder.addChild(node)
+                // Outward, past the edge it hangs over.
+                landing.append((
+                    node, node.position,
+                    CGPoint(
+                        x: node.position.x
+                            + (part == .midLeft ? -1 : 1)
+                            * GameRules.terraSceneryRetreat * pixel,
+                        y: node.position.y
+                    )
+                ))
             }
         }
 
@@ -308,6 +355,16 @@ final class BoardScene: SKScene {
             )
             node.zPosition = depth
             holder.addChild(node)
+            // The near rock drops away below the screen; everything behind the
+            // board climbs up out of the way instead.
+            landing.append((
+                node, node.position,
+                CGPoint(
+                    x: node.position.x,
+                    y: node.position.y
+                        + (atBottom ? -1 : 1) * GameRules.terraSceneryRetreat * pixel
+                )
+            ))
         }
 
         // And the fill under the board. Terra's ground floats over the sky,
@@ -322,6 +379,9 @@ final class BoardScene: SKScene {
         floor.position = CGPoint(x: side / 2, y: -side)
         floor.zPosition = Self.depth(row: GameRules.gridSize, layer: -1)
         holder.addChild(floor)
+        // Straight off, rather than retreating: it is a fill, and a fill has
+        // nowhere to go.
+        landing.append((floor, floor.position, floor.position))
     }
 
     /// This plane's ground, from scratch.
@@ -945,13 +1005,14 @@ final class BoardScene: SKScene {
                 // The cast a badly cracked tile takes, over its face and under
                 // its damage — `TileView` overlays the face with it.
                 if let tint = TileMaterial.tint(of: tile, on: .terra) {
-                    context.cgContext.saveGState()
-                    context.cgContext.setBlendMode(.plusDarker)
+                    // **Through the blend-mode overload.** `fill(_:)` on a
+                    // renderer context draws normally whatever the CGContext
+                    // was set to, so the mode set around it was thrown away
+                    // and the wash lightened the face instead of darkening it.
                     UIColor(tint.colour)
                         .withAlphaComponent(tint.share)
                         .setFill()
-                    context.fill(box)
-                    context.cgContext.restoreGState()
+                    context.fill(box, blendMode: .plusDarker)
                 }
 
                 // **And whatever has happened to it.** The bake drew every tile
@@ -1503,6 +1564,32 @@ final class BoardScene: SKScene {
         // bench toggle can never take effect — the switch did nothing at all.
         for land in scenery.values { land.isHidden = !LayerBench.shared.scenery }
 
+        // **And stood aside while the board's edges have to be clear.**
+        //
+        // Asked of the piece rather than of the run: Aquarius is the only sign
+        // that can step off the board — and die doing it — but you can *become*
+        // her mid-run, so the question is who is standing there now. The land
+        // hangs over the very edges she has to be able to read, which is what
+        // it is getting out of the way of. See `GameScreen.edgesMustBeClear`.
+        let clear = session.engine.floatsOverBoardEdge
+        if retreated != clear {
+            retreated = clear
+            for part in landing {
+                let go = SKAction.group([
+                    .move(
+                        to: clear ? part.away : part.home,
+                        duration: GameRules.terraSceneryRetreatTime
+                    ),
+                    .fadeAlpha(
+                        to: clear ? 0 : 1,
+                        duration: GameRules.terraSceneryRetreatTime
+                    ),
+                ])
+                go.timingMode = .easeInEaseOut
+                part.node.run(go, withKey: "retreat")
+            }
+        }
+
         // Only when the squares themselves changed — see `built`.
         var risen = Set(session.visibleRaisedTiles.map(\.point))
         #if DEBUG
@@ -1803,6 +1890,7 @@ final class BoardScene: SKScene {
         syncHalf()
         syncRetinue(on: standing.plane)
         syncScales()
+        syncStorm()
         syncGems()
         syncFish()
         syncQuiver()
@@ -2066,10 +2154,11 @@ final class BoardScene: SKScene {
             return
         }
 
-        // **A holder to squash in, and the fish to turn inside it.** The view
-        // rotates first and scales after, so the squash is in screen space; a
-        // node's own scale is in its own space, which a quarter turn has taken
-        // sideways. Splitting the two puts each back where it belongs.
+        // **A node per transform, in the view's own order.** A node's scale is
+        // in its own space, and a quarter turn has taken that sideways — so
+        // the squash cannot live on the node that turns. Nor can the spin live
+        // outside the squash and inside the same node, which is one place too
+        // few for four things that each have to happen after the last.
         let holder = fishHolder ?? {
             let made = SKNode()
             piece.addChild(made)
@@ -2077,10 +2166,24 @@ final class BoardScene: SKScene {
             return made
         }()
 
+        let spinning = fishSpin ?? {
+            let made = SKNode()
+            holder.addChild(made)
+            fishSpin = made
+            return made
+        }()
+
+        let flattened = fishSquash ?? {
+            let made = SKNode()
+            spinning.addChild(made)
+            fishSquash = made
+            return made
+        }()
+
         let node = fish ?? {
             let made = SKSpriteNode()
             made.anchorPoint = CGPoint(x: 0.5, y: 0.5)
-            holder.addChild(made)
+            flattened.addChild(made)
             fish = made
             return made
         }()
@@ -2108,34 +2211,53 @@ final class BoardScene: SKScene {
             : 1
         let sink = (1 - squash) * metrics.tileSize / 2
 
-        let drift = charged
-            ? CGSize(
-                width: -cos(now / GameRules.polarisBobPeriod * 2 * .pi)
-                    * GameRules.polarisBobRadius,
-                height: sin(now / GameRules.polarisBobPeriod * 2 * .pi)
-                    * GameRules.polarisBobRise
-            )
-            : .zero
+        // **The star's hover, whole.** It is one named motion — `HoverStyle.star`
+        // — and it has three parts: a circle it travels, a turn, and a breath.
+        // Only the circle was here, and it was in art pixels where the view
+        // spends it in points, so the fish was swinging three times as far as
+        // it should while standing perfectly still in every other respect.
+        let star = HoverStyle.star
+        let drift = charged ? star.offset(at: now, salt: 0) : .zero
+        let spin = charged ? star.spin(at: now) : 0
+        let breath = charged ? star.breath(at: now) : 1
 
         node.zRotation = -turn * .pi / 180
-            + (charged ? CGFloat(now / GameRules.polarisSpinPeriod * 2 * .pi) : 0)
         node.xScale = 1
         node.yScale = 1
         node.position = .zero
 
-        // The squash is the holder's, so it stays on the screen's vertical
-        // however far the fish has turned. The hop's is the holder's too — she
-        // squashes as she lands and the fish goes with her.
+        // Flattened on the screen's vertical, however far the fish has turned,
+        // and pushed back down by half of what the squash took off its height
+        // so its underside stays where it was.
+        //
+        // Raised a pixel in profile beyond that: the drawing is seen edge-on
+        // there and sits a pixel low against the front view.
+        flattened.isHidden = false
+        flattened.xScale = 1
+        flattened.yScale = squash
+        flattened.position = CGPoint(
+            x: 0,
+            y: -sink + (squash < 1 ? GameRules.piscesFishSideRise * pixel : 0)
+        )
+
+        // The turn and the breath, both of which take the flattened drawing
+        // round rather than being taken round by it.
+        spinning.isHidden = false
+        spinning.setScale(breath)
+        spinning.zRotation = -CGFloat(spin) * .pi / 180
+        spinning.position = .zero
+
+        // And the hop, which is the body's and which the fish rides.
         let hop = session.hopPose(at: Date())
         holder.isHidden = false
         holder.xScale = hop.scaleX
-        holder.yScale = squash * hop.scaleY
+        holder.yScale = hop.scaleY
         holder.position = CGPoint(
-            x: drift.width * pixel,
-            y: (metrics.tileSize * (Self.cells(.piece(.pisces)) + 0.5) - sink
+            x: drift.width * hop.scaleX,
+            y: (metrics.tileSize * (Self.cells(.piece(.pisces)) + 0.5)
                 - GameRules.piscesFishDrop * pixel
                 + (charged ? GameRules.piscesFishLift * pixel : 0)
-                - drift.height * pixel) * hop.scaleY
+                - drift.height) * hop.scaleY
                 + hop.lift * pixel
         )
         holder.zPosition = 1
@@ -2179,6 +2301,16 @@ final class BoardScene: SKScene {
         let cast = PieceView.GemCast.wearing(facing)
         let mirrored = standing.zodiac != .gemini && facing == .right
 
+        // **The loose gems light with the ones in her hair.** Her drawing
+        // carries four pixels of gem and takes the swap with the rest of the
+        // body; these three are separate sprites and were asking for the plain
+        // drawing, so a full meter lit her hair and left the things orbiting
+        // her head dim. Same tones, same rule — see `GemTones`.
+        let tones = GemTones.forElement(standing.zodiac.element)
+        let glow: [PaletteSwap] = session.isZodiactionCharged
+            ? [PaletteSwap(tones.dim, tones.lit)]
+            : (tones.resting.map { [PaletteSwap(tones.dim, $0)] } ?? [])
+
         // The two outer gems, then the middle one.
         let outer: [(VirgoGem, Double, CGSize, Bool, Double?, Bool, CGFloat, CGFloat, CGFloat, CGFloat)] = [
             (cast.back, -across, cast.backAt, false,
@@ -2205,13 +2337,18 @@ final class BoardScene: SKScene {
             let grow = 1 + CGFloat(dip) * GameRules.virgoGemFloatGrowth
 
             node.isHidden = false
-            node.texture = Self.art(.virgoGem(gem))
+            node.texture = Self.art(.virgoGem(gem), swaps: glow)
             node.size = CGSize(width: metrics.tileSize, height: metrics.tileSize)
             node.xScale = (flipped ? -1 : 1) * (mirrored ? -1 : 1) * grow * hop.scaleX
             node.yScale = grow * hop.scaleY
+            // **Both terms turned over, not one.** The view writes these as
+            // screen offsets, where down is positive; here up is. The gem's
+            // drawn place was being negated and its *motion* was not, so the
+            // pair sagged upward — worst on the north poses, where the middle
+            // gem's whole six-pixel float ran the wrong way.
             node.position = CGPoint(
                 x: ((sideways + depth + place.width * pixel) * (mirrored ? -1 : 1)),
-                y: ((lifted ?? CGFloat(dip) * GameRules.virgoGemSwingY * pixel)
+                y: (-(lifted ?? CGFloat(dip) * GameRules.virgoGemSwingY * pixel)
                     - place.height * pixel
                     + metrics.tileSize * 1.5) * hop.scaleY
                     + hop.lift * pixel
@@ -2231,13 +2368,13 @@ final class BoardScene: SKScene {
             : CGFloat(drop) * GameRules.virgoGemFloat * pixel
 
         middle.isHidden = false
-        middle.texture = Self.art(.virgoGem(cast.middle))
+        middle.texture = Self.art(.virgoGem(cast.middle), swaps: glow)
         middle.size = CGSize(width: metrics.tileSize, height: metrics.tileSize)
         middle.xScale = size * (mirrored ? -1 : 1) * hop.scaleX
         middle.yScale = size * hop.scaleY
         middle.position = CGPoint(
             x: cast.middleAt.width * pixel * (mirrored ? -1 : 1),
-            y: (lifted - cast.middleAt.height * pixel
+            y: (-lifted - cast.middleAt.height * pixel
                 + metrics.tileSize * 1.5) * hop.scaleY
                 + hop.lift * pixel
         )
@@ -2515,10 +2652,26 @@ final class BoardScene: SKScene {
         let pixel = metrics.scale
         let charged = session.isZodiactionCharged
         let hop = session.hopPose(at: Date()).lift * pixel
-        let breath = CGFloat(sin(
-            session.ambientClock(at: Date().timeIntervalSinceReferenceDate)
-                / GameRules.libraArmSwayPeriod * 2 * .pi
-        )) * GameRules.libraArmSway
+
+        // **What the current move is doing to the scales**, which is the whole
+        // of what a carried balance looks like: the pans trail behind the
+        // journey and settle after it ends, and going up or down the screen the
+        // whole assembly lifts and is set back down a beat below its resting
+        // height as she lands.
+        let travel = Self.carriage(session.movement, at: Date(), profile: profile)
+
+        // The two terms are not the same kind of motion. The **breath** is a
+        // seesaw — one pan rises as the other falls — and the **carry** lifts
+        // both together, so they cannot share a number. A move overrides the
+        // breath rather than adding to it: the two are the same pixels, and a
+        // balance being carried somewhere is not idling.
+        let carry = travel.lift ?? 0
+        let breath = travel.lift == nil
+            ? CGFloat(sin(
+                session.ambientClock(at: Date().timeIntervalSinceReferenceDate)
+                    / GameRules.libraArmSwayPeriod * 2 * .pi
+            )) * GameRules.libraArmSway
+            : 0
 
         // The two sides: far and near in profile, left and right facing the
         // camera. The first of each pair leads — it is the one behind.
@@ -2526,7 +2679,19 @@ final class BoardScene: SKScene {
             let part = limbs[slot]
             let back = slot % 2 == 0
             let kind = slot / 2                     // 0 arm, 1 pan, 2 shadow
-            let sway = back ? -breath : breath
+            let sway = carry + (back ? -breath : breath)
+
+            // How far this pan has swung, and how far that has carried its
+            // foot across the ground. In profile the swing is across the
+            // screen; facing toward or away the pans rock apart instead, each
+            // on its own cord — see `PanSwing` on the rock, and
+            // `libraDepthSwingUsesKeystone` on why it is not a turn.
+            let hand: Double = back ? -1 : 1
+            let turned = profile
+                ? travel.swing
+                : travel.swing * GameRules.libraDepthSwingScale * hand
+            let reach = CGFloat(sin(turned * .pi / 180))
+                * metrics.tileSize * GameRules.libraPanShadowTravel
 
             let lift: CGFloat = profile
                 ? (back ? GameRules.libraArmLiftEWBack : GameRules.libraArmLiftEW)
@@ -2575,8 +2740,12 @@ final class BoardScene: SKScene {
                 // it from the middle of a two-cell frame, and the difference
                 // between that middle and this edge is a whole cell — of which
                 // the drop and the flank rise then take their share back.
+                // **And it goes where the pan went.** A shadow that stays put
+                // under a pan that has swung out is a shadow painted on the
+                // tile. The pan pivots at its cord, so its foot travels by the
+                // sine of the angle across the length it hangs.
                 part.position = CGPoint(
-                    x: profile ? 0 : flank * metrics.tileSize,
+                    x: (profile ? 0 : flank * metrics.tileSize) + reach,
                     y: metrics.tileSize / 2 - perch
                         + GameRules.libraPanShadowRise * pixel
                         - GameRules.pieceShadowDrop * pixel
@@ -2634,6 +2803,22 @@ final class BoardScene: SKScene {
             part.yScale = (over ? -1 : 1) * squish.scaleY
             if over { part.position.y += metrics.tileSize * squish.scaleY }
 
+            // **Swung from the cord, not from the dish.**
+            //
+            // A dish on a string pivots from where it hangs. The node turns
+            // about its own anchor, which is its foot — so it is turned there
+            // and then moved by exactly what that turn did to its top edge,
+            // which leaves the top edge where it was and is the same motion as
+            // turning about it. `v - R·v` for `v` the anchor-to-cord vector.
+            if isPan {
+                part.zRotation = -CGFloat(turned) * .pi / 180
+                let cord = metrics.tileSize * part.yScale
+                part.position.x += cord * sin(part.zRotation)
+                part.position.y += cord * (1 - cos(part.zRotation))
+            } else {
+                part.zRotation = 0
+            }
+
             // Behind her or in front, and in profile the near pan sorts a whole
             // row ahead — it hangs out over the square in front, and drawn with
             // the rest of her that square's tile buried it.
@@ -2671,6 +2856,309 @@ final class BoardScene: SKScene {
                 part.texture = Self.art(.libraArm(profile ? .eastWest : .northSouth))
             }
         }
+    }
+
+    /// What the current movement is doing to Libra's scales.
+    ///
+    /// Ported from `LibraPieceView.carriage(at:)`, which is where the reasoning
+    /// for every number in it lives. In short: the pans trail because the thing
+    /// holding them is changing speed, so the swing has its own period and its
+    /// own damping and **outlives the move that started it**; and going up or
+    /// down the screen the arms also lift while she is airborne and drop below
+    /// their resting height as she lands, which is the moment the ground is
+    /// being charged for.
+    ///
+    /// `nil` for `lift` when nothing is moving, so the idle breath keeps the
+    /// pixels rather than being added to a zero.
+    private static func carriage(
+        _ movement: GameSession.Movement?, at date: Date, profile: Bool
+    ) -> (swing: Double, lift: CGFloat?) {
+        // Any movement that goes anywhere, not only the airborne ones. Only a
+        // warp is exempt, having made no journey to swing through.
+        guard let movement, !movement.style.isInstant else { return (0, nil) }
+
+        let elapsed = date.timeIntervalSince(movement.start)
+        let decay = exp(-elapsed / GameRules.libraSwingDamping)
+        let step = movement.direction.unitOffset
+
+        // Trailing means leaning *away* from the direction of travel. North and
+        // south rock the same way on purpose — that motion is a stand-in for a
+        // swing into the screen, and a stand-in has no direction to be faithful
+        // to, so `dy` decides only whether there is a swing at all.
+        let along = profile
+            ? Double(step.dx)
+            : (step.dy == 0 ? 0 : GameRules.libraRockSense)
+
+        let swing: Double = {
+            guard decay > 0.02, along != 0 else { return 0 }
+            let phase = elapsed / GameRules.libraSwingPeriod * 2 * .pi
+            return sin(phase) * decay * GameRules.libraSwingAngle * along
+        }()
+
+        // The lift is the north-south answer only: seen from the side, a rise
+        // and a dip are hidden behind the body that is doing them.
+        guard !profile else { return (swing, nil) }
+
+        let progress = movement.progress(at: date)
+        guard progress < 1 else { return (swing, nil) }
+
+        let lift = progress < GameRules.libraLandFraction
+            ? -GameRules.libraCarryLift
+            : GameRules.libraLandDip
+        return (swing, lift)
+    }
+
+    /// How full the storm is, `0`…`10`.
+    ///
+    /// Worked out here rather than read off the session, because the phase *is*
+    /// the meter — ten steps of it — and `BoardView` computes it the same way
+    /// from the same two numbers.
+    private var stormPhase: Int {
+        guard session.zodiac == .aquarius, session.zodiactionMeterMax > 0 else { return 0 }
+        let full = Double(session.zodiactionMeter) / Double(session.zodiactionMeterMax)
+        return Int((full * 10).rounded())
+    }
+
+    /// The phase the session has already been told about.
+    ///
+    /// **Only on a change.** The view could say it every time its body ran,
+    /// because a body runs when something moved; a scene's loop runs sixty
+    /// times a second whether or not anything did, and telling an `@Observable`
+    /// the same number that often is sixty invalidations a second for nothing.
+    private var toldStorm: Int?
+
+    /// How much the assembly's own three hundred points is shrunk to the board.
+    private var stormScale: CGFloat {
+        GameRules.aquariusStormScale * metrics.tileSize
+            * GameRules.aquariusStormTiles / 300
+    }
+
+    /// Aquarius' storm: ten forms, and the figure hanging inside whichever one
+    /// the meter is at.
+    ///
+    /// **Phase zero is the plain piece** — not a still storm and not a figure
+    /// with the weather turned off, but the ordinary sprite doing nothing.
+    /// Everything the storm does to him is something it is doing *to* him, so
+    /// when it goes there is nothing left over.
+    ///
+    /// The funnel is a reel and the figure is live, which is the split
+    /// `AquariusStormFilm` exists for: thirteen blurred, blended plates are
+    /// worth filming and three sines are not. The reel is rendered once and
+    /// both renderers play it, so there is no second copy to drift.
+    private func syncStorm() {
+        let standing = session.engine.piece
+        let phase = stormPhase
+
+        // Crossing zero in either direction is the sign's own event — the storm
+        // arriving around the pot, or leaving it.
+        if toldStorm != phase {
+            toldStorm = phase
+            session.noteStormPhase(phase)
+        }
+
+        // Every path that is not a storm puts the statue back, so a sign that
+        // spends its meter is not left as a hole where the piece was.
+        func plain() {
+            stormHolder?.isHidden = true
+            figure.isHidden = false
+        }
+
+        guard standing.zodiac == .aquarius, phase > 0 else { return plain() }
+
+        let drawn = stormScale
+        let film = session.stormFilm
+        film.prepare(
+            phase,
+            side: GameRules.aquariusStormCanvas,
+            scale: UIScreen.main.scale * drawn
+        )
+        film.forget(farFrom: phase)
+
+        // **The statue while it is being drawn.** A phase is filmed the first
+        // time it is asked for, a frame at a time so no turn is held up — so
+        // there are a few frames with no reel to play, and the piece that was
+        // there a moment ago is the honest thing to show in them.
+        guard let reel = film.cut(for: phase), !reel.isEmpty else { return plain() }
+
+        let holder = stormHolder ?? {
+            let made = SKNode()
+            made.zPosition = 1
+            piece.addChild(made)
+            stormHolder = made
+            return made
+        }()
+
+        let funnel = storm ?? {
+            let made = SKSpriteNode()
+            holder.addChild(made)
+            storm = made
+            return made
+        }()
+
+        let body = stormBody ?? {
+            let made = SKNode()
+            made.zPosition = 1
+            holder.addChild(made)
+            stormBody = made
+            return made
+        }()
+
+        let inside = stormFigure ?? {
+            let made = SKSpriteNode()
+            // **Taken out of the light rather than laid over it.** The view
+            // draws him as a midnight silhouette in `.exclusion`, which
+            // SpriteKit has no answer for; subtracting is the nearest it has,
+            // and it is the same idea — a shape the storm's brightness is
+            // missing from, not a dark sprite sitting on top of it.
+            made.blendMode = .subtract
+            body.addChild(made)
+            stormFigure = made
+            return made
+        }()
+
+        let burn = stormGlow ?? {
+            let made = SKSpriteNode()
+            made.blendMode = .add
+            made.zPosition = 1
+            body.addChild(made)
+            stormGlow = made
+            return made
+        }()
+
+        figure.isHidden = true
+        holder.isHidden = false
+
+        let now = Date().timeIntervalSinceReferenceDate
+        let hop = session.hopPose(at: Date())
+
+        // The hop, about her feet, exactly as the figure takes it.
+        holder.position = CGPoint(x: 0, y: hop.lift * metrics.scale)
+        holder.xScale = hop.scaleX
+        holder.yScale = hop.scaleY
+
+        // **Cut, never dissolved.** Ten reels are ten different pictures and
+        // there is no in-between funnel to show; adjacent phases differ by
+        // about one plate, so a cut is a plate appearing, which is what is
+        // actually happening.
+        let step = Int(now / GameRules.aquariusStormFilmPeriod * Double(reel.count))
+            % reel.count
+        funnel.texture = reel[max(step, 0)]
+        let canvas = GameRules.aquariusStormCanvas * drawn
+        funnel.size = CGSize(width: canvas, height: canvas)
+        // Laid out in the piece's own two-cell frame and drawing well outside
+        // it, so its middle is the middle of that frame.
+        funnel.position = CGPoint(x: 0, y: metrics.tileSize)
+
+        // ── The figure, live ────────────────────────────────────────────
+        //
+        // Three motions on three periods, so none of them ever lines up with
+        // another — three in step read as one, which is what makes a thing look
+        // mechanical. Straight from `FloatingAquarius`.
+        let sway = sin(now / 5.2 * 2 * .pi) * GameRules.aquariusFigureTurn
+        let lift = sin(now / 3.7 * 2 * .pi) * 14
+        let breath = 1 + sin(now / 4.3 * 2 * .pi) * 0.1
+
+        // The bluff: a full storm hides the smallest figure, so the most
+        // frightening it looks is the moment it can do the least.
+        let strength = Double(min(max(phase, 0), 10)) / 10
+        let shrink = GameRules.aquariusFigureShrink
+            + (1 - GameRules.aquariusFigureShrink) * CGFloat(strength)
+        let size = GameRules.aquariusFigureScale
+
+        // He hangs in the funnel rather than standing under it, and sinks as he
+        // shrinks so his feet stay where they were — the sprite is centred, so
+        // without that half of everything it loses comes off the bottom and he
+        // rises out of the storm as the meter empties.
+        let hang = GameRules.aquariusFigureY + lift
+            + 132 * size * (1 - shrink) * GameRules.aquariusFigureSink
+
+        body.position = CGPoint(x: 0, y: metrics.tileSize - hang * drawn)
+        body.zRotation = -CGFloat(sway) * .pi / 180
+        body.setScale(breath)
+
+        inside.texture = Self.silhouette(.piece(.aquarius), tone: Palette.midnight)
+        inside.size = CGSize(
+            width: 132 * size * shrink * drawn,
+            height: 264 * size * shrink * drawn
+        )
+        inside.position = .zero
+
+        // ── And the eyes ───────────────────────────────────────────────
+        //
+        // Swinging all the way to nothing and back: a light that never goes out
+        // is a lamp, and one that does is something blinking.
+        let pulse = (1 - cos(now / GameRules.aquariusEyeGlowPeriod * 2 * .pi)) / 2
+
+        if let ladder = film.glow(for: phase), !ladder.isEmpty {
+            let rung = min(
+                max(Int((Double(ladder.count - 1) * pulse).rounded()), 0),
+                ladder.count - 1
+            )
+            burn.isHidden = false
+            burn.texture = ladder[rung]
+            let box = AquariusStormFilm.glowBox * drawn
+            burn.size = CGSize(width: box, height: box)
+            // Placed in the picture rather than on him: `aquariusFigureY` is
+            // where he hangs, and the eyes do not go up with it — they take his
+            // lean and his breath, which is him moving, and only the share of
+            // his shrink the knob asks for.
+            burn.position = CGPoint(
+                x: 0,
+                y: -(GameRules.aquariusEyeGlowY - GameRules.aquariusFigureY
+                    + (GameRules.aquariusEyeFollow - 1) * 132 * size * (1 - shrink)
+                        * GameRules.aquariusFigureSink) * drawn
+            )
+        } else {
+            burn.isHidden = true
+        }
+    }
+
+    /// A drawing flattened to one colour, keeping its shape.
+    ///
+    /// What `ShaderLibrary.flatSilhouette` does to a view, done once to an
+    /// image: every pixel that is there at all becomes `tone`, and every pixel
+    /// that is not stays not there. Cut once — the answer never changes.
+    private static var silhouettes: [SpriteID: SKTexture] = [:]
+
+    private static func silhouette(_ id: SpriteID, tone: Color) -> SKTexture? {
+        if let kept = silhouettes[id] { return kept }
+        guard let source = PaletteRecolour.image(id, frame: 0, swaps: []),
+              let cg = source.cgImage
+        else { return nil }
+
+        let width = cg.width
+        let height = cg.height
+        var pixels = [UInt8](repeating: 0, count: width * height * 4)
+
+        guard let context = CGContext(
+            data: &pixels,
+            width: width, height: height,
+            bitsPerComponent: 8, bytesPerRow: width * 4,
+            space: CGColorSpaceCreateDeviceRGB(),
+            bitmapInfo: CGImageAlphaInfo.premultipliedLast.rawValue
+        ) else { return nil }
+
+        context.draw(cg, in: CGRect(x: 0, y: 0, width: width, height: height))
+
+        let paint = UIColor(tone)
+        var red: CGFloat = 0, green: CGFloat = 0, blue: CGFloat = 0, alpha: CGFloat = 0
+        paint.getRed(&red, green: &green, blue: &blue, alpha: &alpha)
+
+        // Premultiplied, so the colour goes in already dimmed by the pixel's
+        // own alpha — written straight it would fringe every soft edge.
+        for index in stride(from: 0, to: pixels.count, by: 4) {
+            let share = CGFloat(pixels[index + 3]) / 255
+            guard share > 0 else { continue }
+            pixels[index] = UInt8((red * share * 255).rounded())
+            pixels[index + 1] = UInt8((green * share * 255).rounded())
+            pixels[index + 2] = UInt8((blue * share * 255).rounded())
+        }
+
+        guard let flattened = context.makeImage() else { return nil }
+        let texture = SKTexture(image: UIImage(cgImage: flattened))
+        texture.filteringMode = .nearest
+        silhouettes[id] = texture
+        return texture
     }
 
     /// The other half of a split sign, waiting on its own square.
@@ -2935,6 +3423,30 @@ final class BoardScene: SKScene {
         let texture = SKTexture(image: image)
         texture.filteringMode = .nearest
         cut[id] = texture
+        return texture
+    }
+
+    /// What a recoloured sprite is keyed on: the drawing and what was done to it.
+    private struct Recut: Hashable {
+        let id: SpriteID
+        let swaps: [PaletteSwap]
+    }
+
+    private static var recut: [Recut: SKTexture] = [:]
+
+    /// The same, with palette entries swapped — one texture per arrangement.
+    ///
+    /// Kept apart from the plain cache rather than folded into it, so the
+    /// common case stays a single dictionary lookup on a `SpriteID`.
+    private static func art(_ id: SpriteID, swaps: [PaletteSwap]) -> SKTexture? {
+        guard !swaps.isEmpty else { return art(id) }
+        let key = Recut(id: id, swaps: swaps)
+        if let kept = recut[key] { return kept }
+        guard let image = PaletteRecolour.image(id, frame: 0, swaps: swaps)
+        else { return nil }
+        let texture = SKTexture(image: image)
+        texture.filteringMode = .nearest
+        recut[key] = texture
         return texture
     }
 

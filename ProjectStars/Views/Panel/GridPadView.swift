@@ -233,41 +233,27 @@ struct GridPadView: View {
         return Set(slab.squares(anchoredAt: target))
     }
 
-    /// What the slab's squares are painted, which is what they are *made of*.
+    /// What the slab's squares are painted.
     ///
-    /// Green healthy, yellow cracked, orange badly cracked, black a hole — the
-    /// same ladder the board itself runs on, so the answer to "what am I about
-    /// to drop here" is read rather than remembered. Red overrides all of it
-    /// when the shape will not fit: an illegal placement is not a worse tile, it
-    /// is not a placement.
-    /// Red is reserved for *off the board*.
+    /// **One colour, everywhere it will fit.** It used to run the board's own
+    /// ladder — green healthy, yellow cracked, orange badly cracked, black a
+    /// hole — on the reasoning that the footprint should say what is about to
+    /// be dropped. On a pad that spends the rest of its time saying where you
+    /// may and may not go, four colours read as four permissions: the shape
+    /// looked refused on some squares and allowed on others when in fact the
+    /// Gavel overwrites whatever is there and every square is the same answer.
     ///
-    /// A hole is a perfectly good place to drop a slab — overwriting them is
-    /// most of what the Gavel is for — so colouring one red said "you cannot do
-    /// this" about the play the ability exists to make. The only thing that is
-    /// actually refused is a shape hanging over the edge.
+    /// What is being dropped is said once, properly, by the token beside the
+    /// map — drawn as the tile itself rather than as a swatch — so the map is
+    /// left to answer the only question it is being asked. Red is kept for the
+    /// one thing that is genuinely refused: a shape hanging off the board.
     private func slabColour(_ slab: GavelSlab, legal: Bool) -> Color {
-        guard legal else { return Palette.red }
-
-        switch slab.health {
-        case .healthy: return Palette.jade
-        case .cracked: return Palette.yellow
-        case .badlyCracked: return Palette.orange
-        case .hole: return Palette.coolBlack
-        }
+        legal ? Palette.yellow : Palette.red
     }
 
-    /// Its outline: a darker shade of itself, except on black, which needs the
-    /// opposite or it has no edge at all against a dim board.
+    /// Its outline: a darker shade of itself.
     private func slabEdge(_ slab: GavelSlab, legal: Bool) -> Color {
-        guard legal else { return Palette.darkRed }
-
-        switch slab.health {
-        case .healthy: return Palette.darkGreen
-        case .cracked: return Palette.gold
-        case .badlyCracked: return Palette.darkBrown
-        case .hole: return Palette.white
-        }
+        legal ? Palette.gold : Palette.darkRed
     }
 
     private func face(_ tile: Tile, at point: GridPoint) -> Color {

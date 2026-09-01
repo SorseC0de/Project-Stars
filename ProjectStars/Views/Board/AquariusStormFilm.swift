@@ -5,6 +5,7 @@
 //  The storm, rendered once and played back.
 //
 
+import SpriteKit
 import SwiftUI
 
 /// Frames of the storm, drawn off-screen and kept.
@@ -35,6 +36,24 @@ final class AquariusStormFilm {
     /// One entry per phase asked for so far.
     private var reels: [Int: [Image]] = [:]
 
+    /// The same frames, cut for the scene.
+    ///
+    /// **Rendered once, used twice.** The board is drawn either as views or as
+    /// nodes, and filming the storm twice would be filming it twice — twenty
+    /// four `ImageRenderer` passes apiece, for two copies of one picture. So
+    /// the reel is drawn once and each renderer takes the form it can use.
+    private var cuts: [Int: [SKTexture]] = [:]
+
+    /// The eyes, at a ladder of glow steps, per phase.
+    ///
+    /// The pair burns up and out over six and a half seconds — the blur
+    /// *radius* grows with the glow, not just its brightness, so a single
+    /// drawing faded up and down cannot say it. Each step is its own small
+    /// render, drawn the first time that phase is asked for, and there are few
+    /// enough of them that the whole ladder is cheaper than one frame of the
+    /// funnel.
+    private var eyes: [Int: [SKTexture]] = [:]
+
     /// Phases already being drawn, so a second ask does not start again.
     private var underway: Set<Int> = []
 
@@ -45,6 +64,17 @@ final class AquariusStormFilm {
     /// storm live for the moment it takes, which is the exact thing being
     /// optimised away and so is affordable once.
     func reel(for phase: Int) -> [Image]? { reels[phase] }
+
+    /// The same frames as textures, or `nil` while they are being drawn.
+    func cut(for phase: Int) -> [SKTexture]? { cuts[phase] }
+
+    /// The eyes' glow ladder for `phase`, dimmest first.
+    func glow(for phase: Int) -> [SKTexture]? { eyes[phase] }
+
+    /// How many steps the ladder has. Twelve over a six-and-a-half second
+    /// pulse is a step every quarter second, which is under what the eye
+    /// resolves as a change in a soft shape.
+    static let glowSteps = 12
 
     /// Drops reels more than one phase away from `phase`.
     ///
@@ -59,6 +89,8 @@ final class AquariusStormFilm {
     func forget(farFrom phase: Int) {
         for stage in reels.keys where abs(stage - phase) > 1 {
             reels[stage] = nil
+            cuts[stage] = nil
+            eyes[stage] = nil
         }
     }
 
@@ -69,7 +101,9 @@ final class AquariusStormFilm {
 
         Task { @MainActor in
             var frames: [Image] = []
+            var cut: [SKTexture] = []
             frames.reserveCapacity(GameRules.aquariusStormFilmFrames)
+            cut.reserveCapacity(GameRules.aquariusStormFilmFrames)
 
             for step in 0..<GameRules.aquariusStormFilmFrames {
                 let moment = GameRules.aquariusStormFilmPeriod
@@ -85,6 +119,12 @@ final class AquariusStormFilm {
 
                 if let image = renderer.uiImage {
                     frames.append(Image(uiImage: image))
+                    let texture = SKTexture(image: image)
+                    // Not nearest: this is a *rendered* frame of blurred,
+                    // blended plates rather than a drawing, so there are no art
+                    // pixels in it to preserve and snapping to them would only
+                    // stipple the soft edges the whole assembly is made of.
+                    cut.append(texture)
                 }
 
                 // A frame at a time, so drawing a phase never holds a turn up.
@@ -94,9 +134,52 @@ final class AquariusStormFilm {
             }
 
             reels[phase] = frames
+            cuts[phase] = cut
+            eyes[phase] = Self.glowLadder(phase: phase, scale: scale)
             underway.remove(phase)
         }
     }
+
+    /// The eye pair drawn at each step of its burn, for one phase.
+    ///
+    /// The size and the haze are the phase's and do not move; only the glow
+    /// does. Built at the canvas's own proportions — `FloatingAquarius` sizes
+    /// them against three hundred like everything else inside the assembly —
+    /// so the scene can scale the whole ladder by the same number it scales
+    /// the funnel by.
+    private static func glowLadder(phase: Int, scale: CGFloat) -> [SKTexture] {
+        let strength = Double(min(max(phase, 0), 10)) / 10
+        let shrink = GameRules.aquariusFigureShrink
+            + (1 - GameRules.aquariusFigureShrink) * CGFloat(strength)
+        let haze = GameRules.aquariusEyeHaze
+            * CGFloat(max(strength * 10 - 1, 0) / 9)
+
+        // Room for the bloom at its widest, which reaches well past the shapes
+        // themselves — cut to the pair's own size, the halo is clipped square.
+        let box = CGSize(width: 240, height: 240)
+
+        return (0..<glowSteps).compactMap { step in
+            let burn = GameRules.aquariusEyeGlowPeak
+                * CGFloat(step) / CGFloat(glowSteps - 1)
+
+            let renderer = ImageRenderer(
+                content: StormEyes(
+                    width: 40 * shrink,
+                    spacing: 46 * shrink,
+                    glow: burn,
+                    haze: haze
+                )
+                    .frame(width: box.width, height: box.height)
+            )
+            renderer.scale = scale
+            renderer.isOpaque = false
+
+            return renderer.uiImage.map { SKTexture(image: $0) }
+        }
+    }
+
+    /// The box the ladder is drawn in, in canvas points. See `glowLadder`.
+    static let glowBox: CGFloat = 240
 }
 
 /// The **funnel** at one fixed moment, with nothing running.

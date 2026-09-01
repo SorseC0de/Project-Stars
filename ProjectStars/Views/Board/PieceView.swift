@@ -998,6 +998,7 @@ struct PieceView: View {
     /// leaves the fish sitting where the unsquashed one sat.
     private var fishSquashDrop: CGFloat {
         (1 - fishSquash) * tileSize / 2
+            - (fishSquash < 1 ? GameRules.piscesFishSideRise * scale : 0)
     }
 
     /// How far the fish is turned from the drawing, which faces south.

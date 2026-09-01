@@ -2796,6 +2796,14 @@ enum GameRules {
     /// a cell boundary, so where it sits cannot be read off the sheet.
     static let piscesFishDrop: CGFloat = 6
 
+    /// How much higher the fish sits in profile, in art pixels.
+    ///
+    /// The squash is about the drawing's centre and is pushed back down by
+    /// half what it took off — which puts the *underside* where it was, and
+    /// the fish is not resting on its underside. Seen edge-on it wants a pixel
+    /// back. Measured on the board rather than derived, like the drop above it.
+    static let piscesFishSideRise: CGFloat = 1
+
     /// How far the archer's arrow rises above where it is drawn, in art pixels,
     /// and how long one rise and fall takes.
     ///
